@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,9 +11,7 @@ import {
   BarChart3,
   UserCheck,
   Clock,
-  CalendarClock,
-  ClockIn,
-  ClockOut
+  CalendarClock
 } from 'lucide-react';
 
 interface MenuItem {

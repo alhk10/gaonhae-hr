@@ -1,10 +1,9 @@
-
 import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, MapPin, Calendar, CreditCard } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, CreditCard, Clock } from 'lucide-react';
 
 const Profile = () => {
   return (
