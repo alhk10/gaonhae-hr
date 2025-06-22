@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +7,30 @@ import { DollarSign, Calendar, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Payroll = () => {
-  const handleProcessPayroll = () => {
-    toast("Payroll processing functionality will be implemented");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleProcessPayroll = async () => {
+    setIsProcessing(true);
+    toast("Processing payroll...");
+    
+    // Simulate payroll processing
+    setTimeout(() => {
+      setIsProcessing(false);
+      toast("Payroll processed successfully for this month");
+    }, 3000);
   };
 
   const handleDownload = (month: string, amount: string) => {
-    toast(`Downloading payroll report for ${month} (${amount})`);
-    // Simulate download process
-    console.log(`Downloading payroll data for ${month}`);
+    // Simulate file download
+    const element = document.createElement('a');
+    const file = new Blob([`Payroll Report - ${month}\nTotal Amount: ${amount}`], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `payroll-${month.replace(' ', '-').toLowerCase()}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    
+    toast(`Downloaded payroll report for ${month}`);
   };
 
   return (
@@ -30,9 +45,13 @@ const Payroll = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
                 <p className="text-gray-600">Process and manage employee payroll</p>
               </div>
-              <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
+              <Button 
+                className="flex items-center space-x-2" 
+                onClick={handleProcessPayroll}
+                disabled={isProcessing}
+              >
                 <Calendar className="w-4 h-4" />
-                <span>Process Payroll</span>
+                <span>{isProcessing ? 'Processing...' : 'Process Payroll'}</span>
               </Button>
             </div>
 
@@ -52,8 +71,8 @@ const Payroll = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">CPF Contributions</p>
-                      <p className="text-2xl font-bold text-gray-900">S$85,988</p>
+                      <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
+                      <p className="text-2xl font-bold text-gray-900">S$2,948,160</p>
                     </div>
                     <DollarSign className="w-8 h-8 text-blue-500" />
                   </div>

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,11 +9,31 @@ import { FileText, Plus, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Claims = () => {
+  const [claims, setClaims] = useState([
+    { id: 'CLM001', employee: 'John Tan', type: 'Transport', amount: 'S$45.50', status: 'pending' },
+    { id: 'CLM002', employee: 'Mary Ng', type: 'Meals', amount: 'S$120.00', status: 'approved' },
+    { id: 'CLM003', employee: 'David Lim', type: 'Equipment', amount: 'S$850.00', status: 'pending' },
+  ]);
+
   const handleApproveClaim = (claimId: string) => {
+    setClaims(prev => 
+      prev.map(claim => 
+        claim.id === claimId 
+          ? { ...claim, status: 'approved' }
+          : claim
+      )
+    );
     toast(`Claim ${claimId} approved successfully`);
   };
 
   const handleRejectClaim = (claimId: string) => {
+    setClaims(prev => 
+      prev.map(claim => 
+        claim.id === claimId 
+          ? { ...claim, status: 'rejected' }
+          : claim
+      )
+    );
     toast(`Claim ${claimId} rejected`);
   };
 
@@ -41,7 +61,7 @@ const Claims = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Pending Claims</p>
-                      <p className="text-2xl font-bold text-gray-900">8</p>
+                      <p className="text-2xl font-bold text-gray-900">{claims.filter(c => c.status === 'pending').length}</p>
                     </div>
                     <FileText className="w-8 h-8 text-orange-500" />
                   </div>
@@ -52,7 +72,7 @@ const Claims = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                      <p className="text-2xl font-bold text-gray-900">S$3,250</p>
+                      <p className="text-2xl font-bold text-gray-900">S$1,015.50</p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>
@@ -78,18 +98,18 @@ const Claims = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { id: 'CLM001', employee: 'John Tan', type: 'Transport', amount: 'S$45.50', status: 'pending' },
-                    { id: 'CLM002', employee: 'Mary Ng', type: 'Meals', amount: 'S$120.00', status: 'approved' },
-                    { id: 'CLM003', employee: 'David Lim', type: 'Equipment', amount: 'S$850.00', status: 'pending' },
-                  ].map((claim) => (
+                  {claims.map((claim) => (
                     <div key={claim.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">{claim.employee}</p>
                         <p className="text-sm text-gray-600">{claim.id} • {claim.type} • {claim.amount}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={claim.status === 'approved' ? 'default' : 'secondary'}>
+                        <Badge variant={
+                          claim.status === 'approved' ? 'default' : 
+                          claim.status === 'rejected' ? 'destructive' : 
+                          'secondary'
+                        }>
                           {claim.status}
                         </Badge>
                         {claim.status === 'pending' && (

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +14,10 @@ import Attendance from "./pages/Attendance";
 import Settings from "./pages/Settings";
 import SlotBooking from "./pages/SlotBooking";
 import CasualEmployees from "./pages/CasualEmployees";
+import ApplyLeave from "./pages/ApplyLeave";
+import SubmitClaim from "./pages/SubmitClaim";
+import Payslips from "./pages/Payslips";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,10 +44,10 @@ const App = () => (
             <Route path="/leave-approvals" element={<Index />} />
             <Route path="/claim-approvals" element={<Index />} />
             <Route path="/reports" element={<Index />} />
-            <Route path="/apply-leave" element={<Index />} />
-            <Route path="/submit-claim" element={<Index />} />
-            <Route path="/payslips" element={<Index />} />
-            <Route path="/profile" element={<Index />} />
+            <Route path="/apply-leave" element={<ApplyLeave />} />
+            <Route path="/submit-claim" element={<SubmitClaim />} />
+            <Route path="/payslips" element={<Payslips />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

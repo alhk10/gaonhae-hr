@@ -13,7 +13,8 @@ import {
   UserCheck,
   Clock,
   CalendarClock,
-  UsersRound
+  ClockIn,
+  ClockOut
 } from 'lucide-react';
 
 interface MenuItem {
@@ -35,7 +36,6 @@ const Sidebar = () => {
       return [
         ...baseItems,
         { icon: Users, label: 'Employees', path: '/employees' },
-        { icon: UsersRound, label: 'Casual Workers', path: '/casual-employees' },
         { icon: DollarSign, label: 'Payroll', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
@@ -49,8 +49,8 @@ const Sidebar = () => {
       return [
         ...baseItems,
         { icon: Users, label: 'My Team', path: '/my-team' },
-        { icon: Calendar, label: 'Leave Approvals', path: '/leave-approvals' },
-        { icon: FileText, label: 'Claim Approvals', path: '/claim-approvals' },
+        { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
+        { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: Clock, label: 'Attendance', path: '/attendance' },
         { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },

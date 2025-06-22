@@ -1,19 +1,49 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, Plus, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const LeaveManagement = () => {
-  const handleApproveLeave = (employeeName: string) => {
+  const [leaveRequests, setLeaveRequests] = useState([
+    { id: 1, name: 'John Tan', type: 'Annual Leave', period: '25-27 Dec 2024', days: '3 days', status: 'pending' },
+    { id: 2, name: 'Mary Ng', type: 'Medical Leave', period: '20-21 Dec 2024', days: '2 days', status: 'approved' },
+    { id: 3, name: 'David Lim', type: 'Maternity Leave', period: '1 Jan - 16 Apr 2025', days: '16 weeks', status: 'pending' },
+    { id: 4, name: 'Sarah Loh', type: 'Annual Leave', period: '23-30 Dec 2024', days: '8 days', status: 'approved' },
+  ]);
+
+  const handleApproveLeave = (requestId: number, employeeName: string) => {
+    setLeaveRequests(prev => 
+      prev.map(request => 
+        request.id === requestId 
+          ? { ...request, status: 'approved' }
+          : request
+      )
+    );
     toast(`Leave request approved for ${employeeName}`);
   };
 
-  const handleRejectLeave = (employeeName: string) => {
+  const handleRejectLeave = (requestId: number, employeeName: string) => {
+    setLeaveRequests(prev => 
+      prev.map(request => 
+        request.id === requestId 
+          ? { ...request, status: 'rejected' }
+          : request
+      )
+    );
     toast(`Leave request rejected for ${employeeName}`);
+  };
+
+  const handleAddLeave = () => {
+    toast("Add Leave functionality will be implemented");
+  };
+
+  const handleLeaveSummary = () => {
+    toast("Leave Summary functionality will be implemented");
   };
 
   return (
@@ -23,9 +53,21 @@ const LeaveManagement = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
-              <p className="text-gray-600">Manage employee leave requests and balances</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
+                <p className="text-gray-600">Manage employee leave requests and balances</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={handleLeaveSummary}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Leave Summary
+                </Button>
+                <Button onClick={handleAddLeave}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Leave
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -34,7 +76,7 @@ const LeaveManagement = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Pending Requests</p>
-                      <p className="text-2xl font-bold text-gray-900">12</p>
+                      <p className="text-2xl font-bold text-gray-900">{leaveRequests.filter(r => r.status === 'pending').length}</p>
                     </div>
                     <Clock className="w-8 h-8 text-orange-500" />
                   </div>
@@ -45,7 +87,7 @@ const LeaveManagement = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Approved Today</p>
-                      <p className="text-2xl font-bold text-gray-900">5</p>
+                      <p className="text-2xl font-bold text-gray-900">{leaveRequests.filter(r => r.status === 'approved').length}</p>
                     </div>
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   </div>
@@ -71,19 +113,18 @@ const LeaveManagement = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { name: 'John Tan', type: 'Annual Leave', period: '25-27 Dec 2024', days: '3 days', status: 'pending' },
-                    { name: 'Mary Ng', type: 'Medical Leave', period: '20-21 Dec 2024', days: '2 days', status: 'approved' },
-                    { name: 'David Lim', type: 'Maternity Leave', period: '1 Jan - 16 Apr 2025', days: '16 weeks', status: 'pending' },
-                    { name: 'Sarah Loh', type: 'Annual Leave', period: '23-30 Dec 2024', days: '8 days', status: 'approved' },
-                  ].map((request, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  {leaveRequests.map((request) => (
+                    <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">{request.name}</p>
                         <p className="text-sm text-gray-600">{request.type} • {request.period} • {request.days}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={request.status === 'approved' ? 'default' : 'secondary'}>
+                        <Badge variant={
+                          request.status === 'approved' ? 'default' : 
+                          request.status === 'rejected' ? 'destructive' : 
+                          'secondary'
+                        }>
                           {request.status}
                         </Badge>
                         {request.status === 'pending' && (
@@ -91,13 +132,13 @@ const LeaveManagement = () => {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              onClick={() => handleRejectLeave(request.name)}
+                              onClick={() => handleRejectLeave(request.id, request.name)}
                             >
                               Reject
                             </Button>
                             <Button 
                               size="sm" 
-                              onClick={() => handleApproveLeave(request.name)}
+                              onClick={() => handleApproveLeave(request.id, request.name)}
                             >
                               Approve
                             </Button>
