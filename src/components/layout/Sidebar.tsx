@@ -13,11 +13,18 @@ import {
   Clock
 } from 'lucide-react';
 
+interface MenuItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  href: string;
+  active: boolean;
+}
+
 const Sidebar = () => {
   const { user } = useAuth();
 
-  const getMenuItems = () => {
-    const baseItems = [
+  const getMenuItems = (): MenuItem[] => {
+    const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', href: '#', active: true },
     ];
 
