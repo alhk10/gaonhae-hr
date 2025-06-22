@@ -7,6 +7,11 @@ import { Building2, User } from 'lucide-react';
 const Navbar = () => {
   const { user, logout } = useAuth();
 
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
+  };
+
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -28,7 +33,7 @@ const Navbar = () => {
               {user?.role}
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={logout}>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
             Logout
           </Button>
         </div>

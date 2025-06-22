@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,10 @@ import { toast } from '@/components/ui/sonner';
 
 const Employees = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleViewDetails = (employeeName: string, employeeId: string) => {
-    toast(`Viewing details for ${employeeName} (${employeeId})`);
+    navigate(`/employees/${employeeId}`);
   };
 
   const handleAddEmployee = () => {

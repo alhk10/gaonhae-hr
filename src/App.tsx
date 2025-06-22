@@ -7,8 +7,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Employees from "./pages/Employees";
+import EmployeeDetails from "./pages/EmployeeDetails";
 import Payroll from "./pages/Payroll";
 import LeaveManagement from "./pages/LeaveManagement";
+import Claims from "./pages/Claims";
+import Attendance from "./pages/Attendance";
+import Settings from "./pages/Settings";
+import SlotBooking from "./pages/SlotBooking";
+import CasualEmployees from "./pages/CasualEmployees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,11 +29,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/employees" element={<Employees />} />
+            <Route path="/employees/:id" element={<EmployeeDetails />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
-            <Route path="/claims" element={<Index />} />
-            <Route path="/attendance" element={<Index />} />
-            <Route path="/settings" element={<Index />} />
+            <Route path="/claims" element={<Claims />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/slot-booking" element={<SlotBooking />} />
+            <Route path="/casual-employees" element={<CasualEmployees />} />
             <Route path="/my-team" element={<Index />} />
             <Route path="/leave-approvals" element={<Index />} />
             <Route path="/claim-approvals" element={<Index />} />

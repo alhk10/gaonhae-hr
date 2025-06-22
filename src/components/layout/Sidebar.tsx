@@ -11,7 +11,9 @@ import {
   Settings, 
   BarChart3,
   UserCheck,
-  Clock
+  Clock,
+  CalendarClock,
+  UsersRound
 } from 'lucide-react';
 
 interface MenuItem {
@@ -33,10 +35,12 @@ const Sidebar = () => {
       return [
         ...baseItems,
         { icon: Users, label: 'Employees', path: '/employees' },
+        { icon: UsersRound, label: 'Casual Workers', path: '/casual-employees' },
         { icon: DollarSign, label: 'Payroll', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: UserCheck, label: 'Attendance', path: '/attendance' },
+        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
     }
@@ -48,6 +52,7 @@ const Sidebar = () => {
         { icon: Calendar, label: 'Leave Approvals', path: '/leave-approvals' },
         { icon: FileText, label: 'Claim Approvals', path: '/claim-approvals' },
         { icon: Clock, label: 'Attendance', path: '/attendance' },
+        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
       ];
     }
@@ -58,6 +63,7 @@ const Sidebar = () => {
       { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
       { icon: DollarSign, label: 'Payslips', path: '/payslips' },
       { icon: Clock, label: 'Attendance', path: '/attendance' },
+      { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
       { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
   };

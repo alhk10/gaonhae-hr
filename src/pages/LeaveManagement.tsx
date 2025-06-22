@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -6,8 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, CheckCircle } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 
 const LeaveManagement = () => {
+  const handleApproveLeave = (employeeName: string) => {
+    toast(`Leave request approved for ${employeeName}`);
+  };
+
+  const handleRejectLeave = (employeeName: string) => {
+    toast(`Leave request rejected for ${employeeName}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -80,8 +88,19 @@ const LeaveManagement = () => {
                         </Badge>
                         {request.status === 'pending' && (
                           <div className="space-x-2">
-                            <Button size="sm" variant="outline">Reject</Button>
-                            <Button size="sm">Approve</Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleRejectLeave(request.name)}
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleApproveLeave(request.name)}
+                            >
+                              Approve
+                            </Button>
                           </div>
                         )}
                       </div>
