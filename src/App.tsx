@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
+import Employees from "./pages/Employees";
+import Payroll from "./pages/Payroll";
+import LeaveManagement from "./pages/LeaveManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,9 +22,9 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/employees" element={<Index />} />
-            <Route path="/payroll" element={<Index />} />
-            <Route path="/leave-management" element={<Index />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/payroll" element={<Payroll />} />
+            <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/claims" element={<Index />} />
             <Route path="/attendance" element={<Index />} />
             <Route path="/settings" element={<Index />} />
