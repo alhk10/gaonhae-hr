@@ -6,9 +6,18 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Plus, Search } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 
 const Employees = () => {
   const { user } = useAuth();
+
+  const handleViewDetails = (employeeName: string, employeeId: string) => {
+    toast(`Viewing details for ${employeeName} (${employeeId})`);
+  };
+
+  const handleAddEmployee = () => {
+    toast("Add Employee functionality will be implemented");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -22,7 +31,7 @@ const Employees = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
                 <p className="text-gray-600">Manage all employees and their information</p>
               </div>
-              <Button className="flex items-center space-x-2">
+              <Button className="flex items-center space-x-2" onClick={handleAddEmployee}>
                 <Plus className="w-4 h-4" />
                 <span>Add Employee</span>
               </Button>
@@ -58,7 +67,13 @@ const Employees = () => {
                         <p className="font-medium text-gray-900">{employee.name}</p>
                         <p className="text-sm text-gray-600">{employee.id} • {employee.dept} • {employee.role}</p>
                       </div>
-                      <Button variant="outline" size="sm">View Details</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleViewDetails(employee.name, employee.id)}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   ))}
                 </div>

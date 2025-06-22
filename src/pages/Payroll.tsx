@@ -5,8 +5,19 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Calendar, Download } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 
 const Payroll = () => {
+  const handleProcessPayroll = () => {
+    toast("Payroll processing functionality will be implemented");
+  };
+
+  const handleDownload = (month: string, amount: string) => {
+    toast(`Downloading payroll report for ${month} (${amount})`);
+    // Simulate download process
+    console.log(`Downloading payroll data for ${month}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -19,7 +30,7 @@ const Payroll = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
                 <p className="text-gray-600">Process and manage employee payroll</p>
               </div>
-              <Button className="flex items-center space-x-2">
+              <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
                 <Calendar className="w-4 h-4" />
                 <span>Process Payroll</span>
               </Button>
@@ -80,7 +91,11 @@ const Payroll = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-green-600 text-sm font-medium">{run.status}</span>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownload(run.month, run.amount)}
+                        >
                           <Download className="w-4 h-4 mr-2" />
                           Download
                         </Button>
