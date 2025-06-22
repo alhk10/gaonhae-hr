@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +9,8 @@ import Index from "./pages/Index";
 import Employees from "./pages/Employees";
 import EmployeeDetails from "./pages/EmployeeDetails";
 import Payroll from "./pages/Payroll";
+import PayrollProcessing from "./pages/PayrollProcessing";
+import IncrementPlanning from "./pages/IncrementPlanning";
 import LeaveManagement from "./pages/LeaveManagement";
 import Claims from "./pages/Claims";
 import Attendance from "./pages/Attendance";
@@ -34,6 +37,8 @@ const App = () => (
             <Route path="/employees" element={<Employees />} />
             <Route path="/employees/:id" element={<EmployeeDetails />} />
             <Route path="/payroll" element={<Payroll />} />
+            <Route path="/payroll-processing" element={<PayrollProcessing />} />
+            <Route path="/increment-planning" element={<IncrementPlanning />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/claims" element={<Claims />} />
             <Route path="/attendance" element={<Attendance />} />
