@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
@@ -22,7 +22,6 @@ interface MenuItem {
 
 const Sidebar = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const getMenuItems = (): MenuItem[] => {
@@ -65,10 +64,6 @@ const Sidebar = () => {
 
   const menuItems = getMenuItems();
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
-  };
-
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -82,10 +77,12 @@ const Sidebar = () => {
               key={item.label}
               variant={isActive(item.path) ? "default" : "ghost"}
               className={`w-full justify-start ${isActive(item.path) ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
-              onClick={() => handleNavigation(item.path)}
+              asChild
             >
-              <item.icon className="mr-3 h-4 w-4" />
-              {item.label}
+              <Link to={item.path}>
+                <item.icon className="mr-3 h-4 w-4" />
+                {item.label}
+              </Link>
             </Button>
           ))}
         </nav>
