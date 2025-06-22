@@ -19,6 +19,20 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/employees" element={<Index />} />
+            <Route path="/payroll" element={<Index />} />
+            <Route path="/leave-management" element={<Index />} />
+            <Route path="/claims" element={<Index />} />
+            <Route path="/attendance" element={<Index />} />
+            <Route path="/settings" element={<Index />} />
+            <Route path="/my-team" element={<Index />} />
+            <Route path="/leave-approvals" element={<Index />} />
+            <Route path="/claim-approvals" element={<Index />} />
+            <Route path="/reports" element={<Index />} />
+            <Route path="/apply-leave" element={<Index />} />
+            <Route path="/submit-claim" element={<Index />} />
+            <Route path="/payslips" element={<Index />} />
+            <Route path="/profile" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

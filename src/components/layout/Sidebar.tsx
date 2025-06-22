@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
@@ -16,52 +17,61 @@ import {
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  href: string;
-  active: boolean;
+  path: string;
 }
 
 const Sidebar = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const getMenuItems = (): MenuItem[] => {
     const baseItems: MenuItem[] = [
-      { icon: BarChart3, label: 'Dashboard', href: '#', active: true },
+      { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
     if (user?.role === 'superadmin') {
       return [
         ...baseItems,
-        { icon: Users, label: 'Employees', href: '#', active: false },
-        { icon: DollarSign, label: 'Payroll', href: '#', active: false },
-        { icon: Calendar, label: 'Leave Management', href: '#', active: false },
-        { icon: FileText, label: 'Claims', href: '#', active: false },
-        { icon: UserCheck, label: 'Attendance', href: '#', active: false },
-        { icon: Settings, label: 'System Settings', href: '#', active: false },
+        { icon: Users, label: 'Employees', path: '/employees' },
+        { icon: DollarSign, label: 'Payroll', path: '/payroll' },
+        { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
+        { icon: FileText, label: 'Claims', path: '/claims' },
+        { icon: UserCheck, label: 'Attendance', path: '/attendance' },
+        { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
     }
 
     if (user?.role === 'manager') {
       return [
         ...baseItems,
-        { icon: Users, label: 'My Team', href: '#', active: false },
-        { icon: Calendar, label: 'Leave Approvals', href: '#', active: false },
-        { icon: FileText, label: 'Claim Approvals', href: '#', active: false },
-        { icon: Clock, label: 'Attendance', href: '#', active: false },
-        { icon: BarChart3, label: 'Reports', href: '#', active: false },
+        { icon: Users, label: 'My Team', path: '/my-team' },
+        { icon: Calendar, label: 'Leave Approvals', path: '/leave-approvals' },
+        { icon: FileText, label: 'Claim Approvals', path: '/claim-approvals' },
+        { icon: Clock, label: 'Attendance', path: '/attendance' },
+        { icon: BarChart3, label: 'Reports', path: '/reports' },
       ];
     }
 
     return [
       ...baseItems,
-      { icon: Calendar, label: 'Apply Leave', href: '#', active: false },
-      { icon: FileText, label: 'Submit Claim', href: '#', active: false },
-      { icon: DollarSign, label: 'Payslips', href: '#', active: false },
-      { icon: Clock, label: 'Attendance', href: '#', active: false },
-      { icon: UserCheck, label: 'Profile', href: '#', active: false },
+      { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
+      { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
+      { icon: DollarSign, label: 'Payslips', path: '/payslips' },
+      { icon: Clock, label: 'Attendance', path: '/attendance' },
+      { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
   };
 
   const menuItems = getMenuItems();
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-full">
@@ -70,8 +80,9 @@ const Sidebar = () => {
           {menuItems.map((item) => (
             <Button
               key={item.label}
-              variant={item.active ? "default" : "ghost"}
-              className={`w-full justify-start ${item.active ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+              variant={isActive(item.path) ? "default" : "ghost"}
+              className={`w-full justify-start ${isActive(item.path) ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+              onClick={() => handleNavigation(item.path)}
             >
               <item.icon className="mr-3 h-4 w-4" />
               {item.label}
