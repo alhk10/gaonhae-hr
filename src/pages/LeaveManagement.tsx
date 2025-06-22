@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, CheckCircle, Plus, FileText } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, Plus, FileText, Users } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const LeaveManagement = () => {
@@ -15,6 +14,14 @@ const LeaveManagement = () => {
     { id: 3, name: 'David Lim', type: 'Maternity Leave', period: '1 Jan - 16 Apr 2025', days: '16 weeks', status: 'pending' },
     { id: 4, name: 'Sarah Loh', type: 'Annual Leave', period: '23-30 Dec 2024', days: '8 days', status: 'approved' },
   ]);
+
+  const [showLeaveSummary, setShowLeaveSummary] = useState(false);
+
+  const leaveSummaryData = [
+    { name: 'John Tan', annualTotal: 21, annualTaken: 8, annualRemaining: 13, medicalTotal: 14, medicalTaken: 2, medicalRemaining: 12 },
+    { name: 'Mary Ng', annualTotal: 21, annualTaken: 12, annualRemaining: 9, medicalTotal: 14, medicalTaken: 5, medicalRemaining: 9 },
+    { name: 'David Lim', annualTotal: 21, annualTaken: 5, annualRemaining: 16, medicalTotal: 14, medicalTaken: 1, medicalRemaining: 13 },
+  ];
 
   const handleApproveLeave = (requestId: number, employeeName: string) => {
     setLeaveRequests(prev => 
@@ -39,12 +46,77 @@ const LeaveManagement = () => {
   };
 
   const handleAddLeave = () => {
-    toast("Add Leave functionality will be implemented");
+    toast("Add Leave form will be implemented");
   };
 
   const handleLeaveSummary = () => {
-    toast("Leave Summary functionality will be implemented");
+    setShowLeaveSummary(!showLeaveSummary);
   };
+
+  const handleBulkLeave = () => {
+    toast("Bulk Leave function will be implemented");
+  };
+
+  if (showLeaveSummary) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Leave Summary</h2>
+                  <p className="text-gray-600">View leave balances and usage for all employees</p>
+                </div>
+                <Button variant="outline" onClick={handleLeaveSummary}>
+                  Back to Leave Management
+                </Button>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Employee Leave Balances</CardTitle>
+                  <CardDescription>Annual and medical leave overview</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-4">Employee</th>
+                          <th className="text-left p-4">Annual Total</th>
+                          <th className="text-left p-4">Annual Taken</th>
+                          <th className="text-left p-4">Annual Remaining</th>
+                          <th className="text-left p-4">Medical Total</th>
+                          <th className="text-left p-4">Medical Taken</th>
+                          <th className="text-left p-4">Medical Remaining</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaveSummaryData.map((employee, index) => (
+                          <tr key={index} className="border-b">
+                            <td className="p-4 font-medium">{employee.name}</td>
+                            <td className="p-4">{employee.annualTotal}</td>
+                            <td className="p-4">{employee.annualTaken}</td>
+                            <td className="p-4">{employee.annualRemaining}</td>
+                            <td className="p-4">{employee.medicalTotal}</td>
+                            <td className="p-4">{employee.medicalTaken}</td>
+                            <td className="p-4">{employee.medicalRemaining}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,6 +131,10 @@ const LeaveManagement = () => {
                 <p className="text-gray-600">Manage employee leave requests and balances</p>
               </div>
               <div className="flex space-x-2">
+                <Button variant="outline" onClick={handleBulkLeave}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Bulk Leave
+                </Button>
                 <Button variant="outline" onClick={handleLeaveSummary}>
                   <FileText className="w-4 h-4 mr-2" />
                   Leave Summary

@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, DollarSign, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const SubmitClaim = () => {
@@ -43,6 +43,15 @@ const SubmitClaim = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Amount (S$)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">GST Amount (S$)</label>
                     <input 
                       type="number" 
                       step="0.01"

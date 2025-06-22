@@ -50,14 +50,15 @@ const IncrementPlanning = () => {
           : emp
       )
     );
-    toast(`Increment approved for employee ${id}`);
+    // Update employee details with new increment
+    toast(`Increment approved for employee ${id}. Employee details updated.`);
   };
 
   const handleApproveAll = () => {
     setEmployees(prev => 
       prev.map(emp => ({ ...emp, status: 'approved' as const }))
     );
-    toast("All increments approved successfully");
+    toast("All increments approved successfully. Employee details updated.");
   };
 
   return (

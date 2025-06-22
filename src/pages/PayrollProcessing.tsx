@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText } from 'lucide-react';
+import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,8 +16,8 @@ interface PayrollEmployee {
   nric: string;
   dateOfBirth: string;
   basicSalary: number;
-  allowances: number;
-  deductions: number;
+  allowances: { name: string; amount: number }[];
+  deductions: { name: string; amount: number }[];
   netSalary: number;
   bankAccount: string;
   bankName: string;
@@ -34,9 +34,15 @@ const PayrollProcessing = () => {
       nric: 'S1234567A',
       dateOfBirth: '1990-05-15',
       basicSalary: 8500, 
-      allowances: 500, 
-      deductions: 200, 
-      netSalary: 8800,
+      allowances: [
+        { name: 'Transport', amount: 200 },
+        { name: 'Meal', amount: 150 }
+      ],
+      deductions: [
+        { name: 'CPF', amount: 1770 },
+        { name: 'Tax', amount: 100 }
+      ],
+      netSalary: 6980,
       bankAccount: '1234-567890',
       bankName: 'DBS Bank',
       status: 'draft'
@@ -47,14 +53,51 @@ const PayrollProcessing = () => {
       nric: 'S2345678B',
       dateOfBirth: '1988-08-22',
       basicSalary: 7200, 
-      allowances: 300, 
-      deductions: 150, 
-      netSalary: 7350,
+      allowances: [
+        { name: 'Transport', amount: 200 }
+      ],
+      deductions: [
+        { name: 'CPF', amount: 1480 },
+        { name: 'Tax', amount: 80 }
+      ],
+      netSalary: 5840,
       bankAccount: '2345-678901',
       bankName: 'OCBC Bank',
       status: 'draft'
     },
   ]);
+
+  const addAllowance = (employeeId: string) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, allowances: [...emp.allowances, { name: 'New Allowance', amount: 0 }] }
+        : emp
+    ));
+  };
+
+  const removeAllowance = (employeeId: string, index: number) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, allowances: emp.allowances.filter((_, i) => i !== index) }
+        : emp
+    ));
+  };
+
+  const addDeduction = (employeeId: string) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, deductions: [...emp.deductions, { name: 'New Deduction', amount: 0 }] }
+        : emp
+    ));
+  };
+
+  const removeDeduction = (employeeId: string, index: number) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, deductions: emp.deductions.filter((_, i) => i !== index) }
+        : emp
+    ));
+  };
 
   const handleSaveDraft = () => {
     toast("Payroll draft saved successfully");
@@ -78,6 +121,14 @@ const PayrollProcessing = () => {
     navigate('/payroll');
   };
 
+  const handleBackStep = () => {
+    if (currentStep === 'payment') {
+      setCurrentStep('processing');
+    } else if (currentStep === 'cpf') {
+      setCurrentStep('payment');
+    }
+  };
+
   const renderProcessingStep = () => (
     <Card>
       <CardHeader>
@@ -88,32 +139,63 @@ const PayrollProcessing = () => {
         <CardDescription>Review employee salaries, allowances and deductions</CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Basic Salary</TableHead>
-              <TableHead>Allowances</TableHead>
-              <TableHead>Deductions</TableHead>
-              <TableHead>Net Salary</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>S${employee.basicSalary.toLocaleString()}</TableCell>
-                <TableCell>S${employee.allowances.toLocaleString()}</TableCell>
-                <TableCell>S${employee.deductions.toLocaleString()}</TableCell>
-                <TableCell className="font-bold">S${employee.netSalary.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{employee.status}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="space-y-6">
+          {employees.map((employee) => (
+            <div key={employee.id} className="border rounded-lg p-4">
+              <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Basic Salary</h4>
+                  <p className="text-lg">S${employee.basicSalary.toLocaleString()}</p>
+                </div>
+                
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Allowances</h4>
+                    <Button size="sm" onClick={() => addAllowance(employee.id)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {employee.allowances.map((allowance, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span>{allowance.name}: S${allowance.amount}</span>
+                        <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, index)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Deductions</h4>
+                    <Button size="sm" onClick={() => addDeduction(employee.id)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {employee.deductions.map((deduction, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span>{deduction.name}: S${deduction.amount}</span>
+                        <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, index)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t">
+                <p className="font-bold text-lg">Net Salary: S${employee.netSalary.toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
         <div className="flex justify-end space-x-2 mt-4">
           <Button variant="outline" onClick={handleSaveDraft}>
             <Save className="w-4 h-4 mr-2" />
@@ -164,7 +246,11 @@ const PayrollProcessing = () => {
             ))}
           </TableBody>
         </Table>
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handleBackStep}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
           <Button onClick={handleProcessPayment}>
             <CreditCard className="w-4 h-4 mr-2" />
             Process Payments
@@ -200,7 +286,7 @@ const PayrollProcessing = () => {
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.nric}</TableCell>
                 <TableCell>{employee.dateOfBirth}</TableCell>
-                <TableCell>S${(employee.basicSalary + employee.allowances).toLocaleString()}</TableCell>
+                <TableCell>S${(employee.basicSalary + employee.allowances.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()}</TableCell>
                 <TableCell>
                   <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
                     {employee.status}
@@ -210,7 +296,11 @@ const PayrollProcessing = () => {
             ))}
           </TableBody>
         </Table>
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handleBackStep}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
           <Button onClick={handleCPFSubmission}>
             <FileText className="w-4 h-4 mr-2" />
             Submit CPF Contributions

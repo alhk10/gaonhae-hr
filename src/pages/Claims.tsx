@@ -10,12 +10,13 @@ import { toast } from '@/components/ui/sonner';
 
 const Claims = () => {
   const [claims, setClaims] = useState([
-    { id: 'CLM001', employee: 'John Tan', type: 'Transport', amount: 'S$45.50', status: 'pending', date: '2024-12-15' },
+    { id: 'CLM001', employee: 'John Tan', type: 'Transport', amount: 'S$45.50', status: 'approved', date: '2024-12-15' },
     { id: 'CLM002', employee: 'Mary Ng', type: 'Meals', amount: 'S$120.00', status: 'approved', date: '2024-12-10' },
     { id: 'CLM003', employee: 'David Lim', type: 'Equipment', amount: 'S$850.00', status: 'pending', date: '2024-12-08' },
   ]);
 
   const [showThisMonth, setShowThisMonth] = useState(false);
+  const [showClaimForm, setShowClaimForm] = useState(false);
 
   const thisMonthClaims = claims.filter(claim => {
     const claimDate = new Date(claim.date);
@@ -47,16 +48,21 @@ const Claims = () => {
   };
 
   const handleNewClaim = () => {
+    setShowClaimForm(true);
+  };
+
+  const handleSubmitNewClaim = () => {
     const newClaim = {
       id: `CLM${String(claims.length + 1).padStart(3, '0')}`,
       employee: 'New Employee',
       type: 'General',
-      amount: 'S$0.00',
+      amount: 'S$100.00',
       status: 'pending' as const,
       date: new Date().toISOString().split('T')[0]
     };
     setClaims(prev => [...prev, newClaim]);
-    toast("New claim created successfully");
+    setShowClaimForm(false);
+    toast("New claim submitted successfully");
   };
 
   const handleThisMonthClick = () => {
@@ -64,10 +70,81 @@ const Claims = () => {
   };
 
   const displayClaims = showThisMonth ? thisMonthClaims : claims;
-  const totalAmount = displayClaims.reduce((sum, claim) => {
-    const amount = parseFloat(claim.amount.replace('S$', '').replace(',', ''));
-    return sum + amount;
-  }, 0);
+  const totalAmountApproved = displayClaims
+    .filter(claim => claim.status === 'approved')
+    .reduce((sum, claim) => {
+      const amount = parseFloat(claim.amount.replace('S$', '').replace(',', ''));
+      return sum + amount;
+    }, 0);
+
+  if (showClaimForm) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">New Claim</h2>
+                  <p className="text-gray-600">Submit a new expense claim</p>
+                </div>
+                <Button variant="outline" onClick={() => setShowClaimForm(false)}>
+                  Back to Claims
+                </Button>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Claim Details</CardTitle>
+                  <CardDescription>Fill in the claim information</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option>John Tan</option>
+                        <option>Mary Ng</option>
+                        <option>David Lim</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Claim Type</label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option>Transport</option>
+                        <option>Meals</option>
+                        <option>Equipment</option>
+                        <option>Training</option>
+                        <option>Others</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Amount (S$)</label>
+                      <input type="number" step="0.01" className="w-full p-2 border border-gray-300 rounded-lg" placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                      <input type="date" className="w-full p-2 border border-gray-300 rounded-lg" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea rows={3} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Describe the expense..."></textarea>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button onClick={handleSubmitNewClaim}>Submit & Approve</Button>
+                    <Button variant="outline">Save as Draft</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,7 +181,7 @@ const Claims = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Total Amount Approved</p>
-                      <p className="text-2xl font-bold text-gray-900">S${totalAmount.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-gray-900">S${totalAmountApproved.toFixed(2)}</p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>

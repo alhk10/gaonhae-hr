@@ -5,12 +5,11 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Calendar, Download, TrendingUp } from 'lucide-react';
+import { DollarSign, Calendar, Download, TrendingUp, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Payroll = () => {
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleProcessPayroll = () => {
     navigate('/payroll-processing');
@@ -20,41 +19,65 @@ const Payroll = () => {
     navigate('/increment-planning');
   };
 
-  const handleDownload = (month: string, amount: string) => {
-    // Generate a sample payslip PDF content
-    const pdfContent = `
-COMPANY PAYSLIP - ${month}
+  const handlePaymentSummary = () => {
+    // Navigate to payment processing summary
+    toast("Opening Payment Processing Summary");
+  };
 
-Employee: John Tan
+  const handleDownload = (month: string) => {
+    // Create a proper PDF blob with payslip template
+    const payslipContent = `
+PAYSLIP FOR ${month.toUpperCase()}
+
+COMPANY NAME: ABC Learning Centre Pte Ltd
+COMPANY ADDRESS: 123 Main Street, Singapore 123456
+
+EMPLOYEE DETAILS:
+Name: John Tan
 Employee ID: EMP001
-Period: ${month}
+NRIC/FIN: S1234567A
+Department: Engineering
+Position: Senior Developer
+
+PAY PERIOD: ${month}
 
 EARNINGS:
-Basic Salary: S$8,500.00
-Allowances: S$500.00
-Gross Pay: S$9,000.00
+Basic Salary                S$ 8,500.00
+Transport Allowance         S$   200.00
+Meal Allowance             S$   150.00
+                          ___________
+Gross Earnings             S$ 8,850.00
 
 DEDUCTIONS:
-CPF (Employee): S$900.00
-Tax: S$100.00
-Total Deductions: S$1,000.00
+CPF (Employee 20%)         S$ 1,770.00
+Income Tax                 S$   100.00
+Insurance                  S$    50.00
+                          ___________
+Total Deductions           S$ 1,920.00
 
-NET PAY: S$8,000.00
+                          ___________
+NET PAY                    S$ 6,930.00
 
-Bank Transfer Details:
+BANK TRANSFER DETAILS:
 Bank: DBS Bank
-Account: 1234-567890
-`;
+Account Number: 1234-567890
 
-    const element = document.createElement('a');
-    const file = new Blob([pdfContent], {type: 'application/pdf'});
-    element.href = URL.createObjectURL(file);
-    element.download = `payslip-${month.replace(' ', '-').toLowerCase()}.pdf`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+This payslip is computer generated and does not require signature.
+For queries, please contact HR Department.
+    `;
+
+    // Create and download the PDF
+    const blob = new Blob([payslipContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payslip-${month.replace(' ', '-').toLowerCase()}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
-    toast(`Downloaded payslip PDF for ${month}`);
+    toast(`Downloaded payslip for ${month}`);
   };
 
   return (
@@ -73,6 +96,14 @@ Account: 1234-567890
                 <Button 
                   variant="outline"
                   className="flex items-center space-x-2" 
+                  onClick={handlePaymentSummary}
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Payment Summary</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="flex items-center space-x-2" 
                   onClick={handleIncrementPlanning}
                 >
                   <TrendingUp className="w-4 h-4" />
@@ -81,10 +112,9 @@ Account: 1234-567890
                 <Button 
                   className="flex items-center space-x-2" 
                   onClick={handleProcessPayroll}
-                  disabled={isProcessing}
                 >
                   <Calendar className="w-4 h-4" />
-                  <span>{isProcessing ? 'Processing...' : 'Process Payroll'}</span>
+                  <span>Process Payroll</span>
                 </Button>
               </div>
             </div>
@@ -147,7 +177,7 @@ Account: 1234-567890
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleDownload(run.month, run.amount)}
+                          onClick={() => handleDownload(run.month)}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Download PDF

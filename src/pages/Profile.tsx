@@ -1,9 +1,9 @@
+
 import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { User, Mail, Phone, MapPin, Calendar, CreditCard, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { User } from 'lucide-react';
 
 const Profile = () => {
   return (
@@ -85,33 +85,6 @@ const Profile = () => {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Frequently used actions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Button variant="outline" className="h-20 flex flex-col items-center space-y-2">
-                    <Calendar className="w-6 h-6" />
-                    <span className="text-sm">Apply Leave</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col items-center space-y-2">
-                    <CreditCard className="w-6 h-6" />
-                    <span className="text-sm">Submit Claim</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col items-center space-y-2">
-                    <CreditCard className="w-6 h-6" />
-                    <span className="text-sm">View Payslip</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col items-center space-y-2">
-                    <Clock className="w-6 h-6" />
-                    <span className="text-sm">Clock In/Out</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </main>
       </div>

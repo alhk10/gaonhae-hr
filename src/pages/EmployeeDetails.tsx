@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -5,15 +6,21 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit, Key, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const EmployeeDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [allowances, setAllowances] = useState([
+    { id: 1, name: 'Transport Allowance', amount: 200 },
+    { id: 2, name: 'Meal Allowance', amount: 150 }
+  ]);
+  const [deductions, setDeductions] = useState([
+    { id: 1, name: 'Insurance', amount: 100 }
+  ]);
 
-  // Mock employee data - in real app this would come from API
   const employee = {
     id: id,
     name: 'John Tan',
@@ -23,9 +30,8 @@ const EmployeeDetails = () => {
     nric: 'S1234567A',
     dateOfBirth: '1990-05-15',
     photo: '/placeholder.svg',
-    department: 'Engineering',
-    role: 'Senior Developer',
-    location: 'Singapore Office',
+    department: 'Headquarters',
+    role: 'Senior Instructor',
     joinDate: '2022-03-15',
     employmentType: 'Full-Time',
     paymentType: 'Per Month',
@@ -38,14 +44,50 @@ const EmployeeDetails = () => {
     paynow: '+65 9123 4567',
     annualLeave: 21,
     medicalLeave: 14,
-    status: 'Active'
+    status: 'Active',
+    resignationDate: ''
   };
+
+  const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah'];
+  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant'];
 
   const handleEdit = () => {
     setIsEditing(!isEditing);
     if (isEditing) {
       toast("Employee details updated successfully");
     }
+  };
+
+  const handleResetPassword = () => {
+    toast("Password reset to default 'password'");
+  };
+
+  const addAllowance = () => {
+    const newAllowance = {
+      id: Date.now(),
+      name: 'New Allowance',
+      amount: 0
+    };
+    setAllowances([...allowances, newAllowance]);
+  };
+
+  const removeAllowance = (id: number) => {
+    setAllowances(allowances.filter(a => a.id !== id));
+    toast("Allowance removed");
+  };
+
+  const addDeduction = () => {
+    const newDeduction = {
+      id: Date.now(),
+      name: 'New Deduction',
+      amount: 0
+    };
+    setDeductions([...deductions, newDeduction]);
+  };
+
+  const removeDeduction = (id: number) => {
+    setDeductions(deductions.filter(d => d.id !== id));
+    toast("Deduction removed");
   };
 
   return (
@@ -66,10 +108,16 @@ const EmployeeDetails = () => {
                   <p className="text-gray-600">View and manage employee information</p>
                 </div>
               </div>
-              <Button onClick={handleEdit} className="flex items-center space-x-2">
-                <Edit className="w-4 h-4" />
-                <span>{isEditing ? 'Save Changes' : 'Edit Details'}</span>
-              </Button>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={handleResetPassword}>
+                  <Key className="w-4 h-4 mr-2" />
+                  Reset Password
+                </Button>
+                <Button onClick={handleEdit} className="flex items-center space-x-2">
+                  <Edit className="w-4 h-4" />
+                  <span>{isEditing ? 'Save Changes' : 'Edit Details'}</span>
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -173,20 +221,58 @@ const EmployeeDetails = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Department</label>
-                    <p className="text-lg text-gray-900">{employee.department}</p>
+                    <label className="text-sm font-medium text-gray-600">Branch</label>
+                    {isEditing ? (
+                      <select 
+                        defaultValue={employee.department}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      >
+                        {branches.map(branch => (
+                          <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-lg text-gray-900">{employee.department}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Role</label>
-                    <p className="text-lg text-gray-900">{employee.role}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Work Location</label>
-                    <p className="text-lg text-gray-900">{employee.location}</p>
+                    {isEditing ? (
+                      <select 
+                        defaultValue={employee.role}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      >
+                        {roles.map(role => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-lg text-gray-900">{employee.role}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Join Date</label>
-                    <p className="text-lg text-gray-900">{employee.joinDate}</p>
+                    {isEditing ? (
+                      <input 
+                        type="date" 
+                        defaultValue={employee.joinDate}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      />
+                    ) : (
+                      <p className="text-lg text-gray-900">{employee.joinDate}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Resignation Date</label>
+                    {isEditing ? (
+                      <input 
+                        type="date" 
+                        defaultValue={employee.resignationDate}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      />
+                    ) : (
+                      <p className="text-lg text-gray-900">{employee.resignationDate || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Employment Type</label>
@@ -216,7 +302,63 @@ const EmployeeDetails = () => {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Fixed Allowances</span>
+                    <Button size="sm" onClick={addAllowance}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {allowances.map((allowance) => (
+                    <div key={allowance.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div>
+                        <input 
+                          type="text" 
+                          defaultValue={allowance.name}
+                          className="font-medium text-sm bg-transparent border-none p-0"
+                        />
+                        <p className="text-sm text-gray-600">S${allowance.amount}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => removeAllowance(allowance.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Fixed Deductions</span>
+                    <Button size="sm" onClick={addDeduction}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {deductions.map((deduction) => (
+                    <div key={deduction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div>
+                        <input 
+                          type="text" 
+                          defaultValue={deduction.name}
+                          className="font-medium text-sm bg-transparent border-none p-0"
+                        />
+                        <p className="text-sm text-gray-600">S${deduction.amount}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => removeDeduction(deduction.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -243,15 +385,17 @@ const EmployeeDetails = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CreditCard className="w-5 h-5" />
-                    <span>Payment Details</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="w-5 h-5" />
+                  <span>Payment Details</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Bank Name</label>
                     {isEditing ? (
@@ -288,9 +432,9 @@ const EmployeeDetails = () => {
                       <p className="text-lg text-gray-900">{employee.paynow}</p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
