@@ -1,0 +1,17 @@
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'superadmin' | 'manager' | 'employee';
+  department?: string;
+  employeeId?: string;
+  managerId?: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
+}

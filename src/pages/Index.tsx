@@ -1,11 +1,41 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import LoginForm from '@/components/auth/LoginForm';
+import Navbar from '@/components/layout/Navbar';
+import Sidebar from '@/components/layout/Sidebar';
+import SuperadminDashboard from '@/components/dashboard/SuperadminDashboard';
+import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
+import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 
 const Index = () => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  const renderDashboard = () => {
+    switch (user.role) {
+      case 'superadmin':
+        return <SuperadminDashboard />;
+      case 'manager':
+        return <ManagerDashboard />;
+      case 'employee':
+        return <EmployeeDashboard />;
+      default:
+        return <div>Invalid user role</div>;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="flex h-[calc(100vh-73px)]">
+        <Sidebar />
+        <main className="flex-1 p-6 overflow-auto">
+          {renderDashboard()}
+        </main>
       </div>
     </div>
   );
