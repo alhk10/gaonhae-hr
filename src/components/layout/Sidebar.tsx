@@ -24,33 +24,33 @@ const Sidebar = () => {
     if (user?.role === 'superadmin') {
       return [
         ...baseItems,
-        { icon: Users, label: 'Employees', href: '#' },
-        { icon: DollarSign, label: 'Payroll', href: '#' },
-        { icon: Calendar, label: 'Leave Management', href: '#' },
-        { icon: FileText, label: 'Claims', href: '#' },
-        { icon: UserCheck, label: 'Attendance', href: '#' },
-        { icon: Settings, label: 'System Settings', href: '#' },
+        { icon: Users, label: 'Employees', href: '#', active: false },
+        { icon: DollarSign, label: 'Payroll', href: '#', active: false },
+        { icon: Calendar, label: 'Leave Management', href: '#', active: false },
+        { icon: FileText, label: 'Claims', href: '#', active: false },
+        { icon: UserCheck, label: 'Attendance', href: '#', active: false },
+        { icon: Settings, label: 'System Settings', href: '#', active: false },
       ];
     }
 
     if (user?.role === 'manager') {
       return [
         ...baseItems,
-        { icon: Users, label: 'My Team', href: '#' },
-        { icon: Calendar, label: 'Leave Approvals', href: '#' },
-        { icon: FileText, label: 'Claim Approvals', href: '#' },
-        { icon: Clock, label: 'Attendance', href: '#' },
-        { icon: BarChart3, label: 'Reports', href: '#' },
+        { icon: Users, label: 'My Team', href: '#', active: false },
+        { icon: Calendar, label: 'Leave Approvals', href: '#', active: false },
+        { icon: FileText, label: 'Claim Approvals', href: '#', active: false },
+        { icon: Clock, label: 'Attendance', href: '#', active: false },
+        { icon: BarChart3, label: 'Reports', href: '#', active: false },
       ];
     }
 
     return [
       ...baseItems,
-      { icon: Calendar, label: 'Apply Leave', href: '#' },
-      { icon: FileText, label: 'Submit Claim', href: '#' },
-      { icon: DollarSign, label: 'Payslips', href: '#' },
-      { icon: Clock, label: 'Attendance', href: '#' },
-      { icon: UserCheck, label: 'Profile', href: '#' },
+      { icon: Calendar, label: 'Apply Leave', href: '#', active: false },
+      { icon: FileText, label: 'Submit Claim', href: '#', active: false },
+      { icon: DollarSign, label: 'Payslips', href: '#', active: false },
+      { icon: Clock, label: 'Attendance', href: '#', active: false },
+      { icon: UserCheck, label: 'Profile', href: '#', active: false },
     ];
   };
 
