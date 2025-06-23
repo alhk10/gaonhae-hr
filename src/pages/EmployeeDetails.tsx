@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, User, Mail, Phone, Building, BadgeInfo, Wallet, Settings } from 'lucide-react';
+import { Calendar, User, Mail, Phone, Building, BadgeInfo, Wallet, Settings, MapPin } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const EmployeeDetails = () => {
-  const router = useRouter();
-  const { id } = router.query;
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   const [employee, setEmployee] = useState({
     id: '1',
@@ -366,7 +366,7 @@ const EmployeeDetails = () => {
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button variant="outline" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
               <Button onClick={handleUpdateEmployee}>
