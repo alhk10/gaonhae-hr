@@ -20,7 +20,7 @@ const LoginForm = () => {
     try {
       await login(email, password);
     } catch (err) {
-      setError('Invalid credentials. Try: admin@company.sg, manager@company.sg, or employee@company.sg');
+      setError('Invalid credentials. Try: admin@company.sg');
     }
   };
 
@@ -34,7 +34,7 @@ const LoginForm = () => {
           <div>
             <CardTitle className="text-2xl font-bold text-gray-900">Singapore HR System</CardTitle>
             <CardDescription className="text-gray-600">
-              Sign in to access your HR dashboard
+              Admin access only
             </CardDescription>
           </div>
         </CardHeader>
@@ -73,9 +73,7 @@ const LoginForm = () => {
           </form>
           <div className="mt-6 text-xs text-gray-500 space-y-1">
             <p className="font-medium">Demo credentials:</p>
-            <p>• admin@company.sg (Superadmin)</p>
-            <p>• manager@company.sg (Manager)</p>
-            <p>• employee@company.sg (Employee)</p>
+            <p>• admin@company.sg (Admin)</p>
           </div>
         </CardContent>
       </Card>
