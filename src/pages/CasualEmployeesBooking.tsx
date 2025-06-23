@@ -8,12 +8,56 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Plus, Settings, Users, ArrowLeftRight, X } from 'lucide-react';
+import { Calendar, Plus, Settings, Users, ArrowLeftRight, X, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const CasualEmployeesBooking = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const branches = ['Main Branch', 'East Branch', 'West Branch', 'North Branch'];
+  
+  const [branchTimeSlots, setBranchTimeSlots] = useState({
+    'Main Branch': {
+      Monday: ['09:00-17:00', '13:00-21:00', '17:00-01:00'],
+      Tuesday: ['09:00-17:00', '13:00-21:00', '17:00-01:00'],
+      Wednesday: ['09:00-17:00', '13:00-21:00'],
+      Thursday: ['09:00-17:00', '13:00-21:00', '17:00-01:00'],
+      Friday: ['09:00-17:00', '13:00-21:00'],
+      Saturday: ['09:00-17:00', '13:00-21:00'],
+      Sunday: ['09:00-17:00']
+    },
+    'East Branch': {
+      Monday: ['08:00-16:00', '12:00-20:00'],
+      Tuesday: ['08:00-16:00', '12:00-20:00'],
+      Wednesday: ['08:00-16:00', '12:00-20:00'],
+      Thursday: ['08:00-16:00', '12:00-20:00'],
+      Friday: ['08:00-16:00', '12:00-20:00'],
+      Saturday: ['09:00-17:00'],
+      Sunday: ['09:00-17:00']
+    },
+    'West Branch': {
+      Monday: ['10:00-18:00', '14:00-22:00'],
+      Tuesday: ['10:00-18:00', '14:00-22:00'],
+      Wednesday: ['10:00-18:00', '14:00-22:00'],
+      Thursday: ['10:00-18:00', '14:00-22:00'],
+      Friday: ['10:00-18:00', '14:00-22:00'],
+      Saturday: ['10:00-18:00'],
+      Sunday: ['10:00-18:00']
+    },
+    'North Branch': {
+      Monday: ['09:00-17:00', '17:00-01:00'],
+      Tuesday: ['09:00-17:00', '17:00-01:00'],
+      Wednesday: ['09:00-17:00'],
+      Thursday: ['09:00-17:00', '17:00-01:00'],
+      Friday: ['09:00-17:00', '17:00-01:00'],
+      Saturday: ['09:00-17:00'],
+      Sunday: []
+    }
+  });
+
   const [weeklySlots, setWeeklySlots] = useState({
     Monday: 3,
     Tuesday: 3,
@@ -24,37 +68,36 @@ const CasualEmployeesBooking = () => {
     Sunday: 1
   });
 
-  const [timeSlots, setTimeSlots] = useState(['09:00-17:00', '13:00-21:00', '17:00-01:00']);
-
   const [bookings, setBookings] = useState([
-    { id: 1, date: '2024-12-23', employee: 'Alice Tan', time: '09:00-17:00' },
-    { id: 2, date: '2024-12-23', employee: 'Bob Lim', time: '13:00-21:00' },
-    { id: 3, date: '2024-12-24', employee: 'Carol Ng', time: '09:00-17:00' },
+    { id: 1, date: '2024-12-23', employee: 'Alice Tan', time: '09:00-17:00', branch: 'Main Branch' },
+    { id: 2, date: '2024-12-23', employee: 'Bob Lim', time: '13:00-21:00', branch: 'East Branch' },
+    { id: 3, date: '2024-12-24', employee: 'Carol Ng', time: '09:00-17:00', branch: 'West Branch' },
   ]);
 
   const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
-  
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  const getCurrentWeekDates = () => {
-    const today = new Date();
-    const monday = new Date(today.setDate(today.getDate() - today.getDay() + 1));
-    const weekDates = [];
+  const getCurrentMonthDates = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const monthDates = [];
     
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      weekDates.push({
-        dayName: days[i],
+    for (let date = new Date(firstDay); date <= lastDay; date.setDate(date.getDate() + 1)) {
+      const dayName = days[date.getDay() === 0 ? 6 : date.getDay() - 1];
+      monthDates.push({
+        dayName: dayName,
         date: date.toISOString().split('T')[0],
-        displayDate: date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
+        displayDate: date.toLocaleDateString('en-SG', { day: 'numeric' }),
+        fullDate: new Date(date)
       });
     }
     
-    return weekDates;
+    return monthDates;
   };
 
-  const weekDates = getCurrentWeekDates();
+  const monthDates = getCurrentMonthDates();
 
   const handleBooking = (e) => {
     e.preventDefault();
@@ -63,7 +106,8 @@ const CasualEmployeesBooking = () => {
       id: Date.now(),
       date: formData.get('date') as string,
       employee: formData.get('employee') as string,
-      time: formData.get('timeSlot') as string
+      time: formData.get('timeSlot') as string,
+      branch: formData.get('branch') as string
     };
 
     setBookings(prev => [...prev, newBooking]);
@@ -71,12 +115,13 @@ const CasualEmployeesBooking = () => {
     toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
   };
 
-  const handleQuickBooking = (date, timeSlot) => {
+  const handleQuickBooking = (date, timeSlot, branch) => {
     const newBooking = {
       id: Date.now(),
       date: date,
-      employee: casualEmployees[0], // Default to first available employee
-      time: timeSlot
+      employee: casualEmployees[0],
+      time: timeSlot,
+      branch: branch
     };
 
     setBookings(prev => [...prev, newBooking]);
@@ -92,6 +137,18 @@ const CasualEmployeesBooking = () => {
     toast("Booking cancelled");
   };
 
+  const handleCancelSlots = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const date = formData.get('cancelDate') as string;
+    const branch = formData.get('cancelBranch') as string;
+    
+    const cancelledCount = bookings.filter(b => b.date === date && b.branch === branch).length;
+    setBookings(prev => prev.filter(b => !(b.date === date && b.branch === branch)));
+    setIsCancelDialogOpen(false);
+    toast(`Cancelled ${cancelledCount} bookings for ${branch} on ${new Date(date).toLocaleDateString()}`);
+  };
+
   const handleSaveSettings = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -100,17 +157,7 @@ const CasualEmployeesBooking = () => {
       newSlots[day] = parseInt(formData.get(day.toLowerCase()) as string);
     });
     
-    // Update time slots
-    const newTimeSlots = [];
-    const timeSlotsData = formData.getAll('timeSlots');
-    timeSlotsData.forEach((slot) => {
-      if (slot.toString().trim()) {
-        newTimeSlots.push(slot.toString().trim());
-      }
-    });
-    
     setWeeklySlots(newSlots as typeof weeklySlots);
-    setTimeSlots(newTimeSlots.length > 0 ? newTimeSlots : timeSlots);
     setIsSettingsDialogOpen(false);
     toast("Settings updated");
   };
@@ -119,10 +166,33 @@ const CasualEmployeesBooking = () => {
     return bookings.filter(b => b.date === date);
   };
 
-  const getAvailableSlots = (date, dayName) => {
-    const currentBookings = getBookingsForDate(date);
-    const maxSlots = weeklySlots[dayName] || 0;
-    return maxSlots - currentBookings.length;
+  const getMonthlyStats = () => {
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    const monthlyBookings = bookings.filter(b => {
+      const bookingDate = new Date(b.date);
+      return bookingDate >= monthStart && bookingDate <= monthEnd;
+    });
+    
+    const totalSlots = monthDates.reduce((sum, day) => sum + (weeklySlots[day.dayName] || 0), 0);
+    const filledSlots = monthlyBookings.length;
+    
+    return {
+      workingEmployees: new Set(monthlyBookings.map(b => b.employee)).size,
+      unfilledSlots: Math.max(0, totalSlots - filledSlots),
+      totalBookings: monthlyBookings.length
+    };
+  };
+
+  const monthlyStats = getMonthlyStats();
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const prevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   };
 
   return (
@@ -135,7 +205,7 @@ const CasualEmployeesBooking = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Casual Employees Booking</h2>
-                <p className="text-gray-600">Manage casual employee work schedules</p>
+                <p className="text-gray-600">Manage casual employee work schedules by branch</p>
               </div>
               <div className="flex space-x-2">
                 <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
@@ -148,13 +218,28 @@ const CasualEmployeesBooking = () => {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Add Booking</DialogTitle>
-                      <DialogDescription>Book a casual employee for a work slot.</DialogDescription>
+                      <DialogDescription>Book a casual employee for a work slot at a specific branch.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleBooking}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                           <Label htmlFor="date">Date</Label>
                           <Input name="date" type="date" required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="branch">Branch</Label>
+                          <Select name="branch" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map((branch) => (
+                                <SelectItem key={branch} value={branch}>
+                                  {branch}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="employee">Employee</Label>
@@ -178,7 +263,7 @@ const CasualEmployeesBooking = () => {
                               <SelectValue placeholder="Select time slot" />
                             </SelectTrigger>
                             <SelectContent>
-                              {timeSlots.map((slot) => (
+                              {branchTimeSlots['Main Branch'].Monday.map((slot) => (
                                 <SelectItem key={slot} value={slot}>
                                   {slot}
                                 </SelectItem>
@@ -197,6 +282,50 @@ const CasualEmployeesBooking = () => {
                   </DialogContent>
                 </Dialog>
 
+                <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel Slots
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Cancel Slots</DialogTitle>
+                      <DialogDescription>Cancel all bookings for a specific date and branch.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCancelSlots}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="cancelDate">Date</Label>
+                          <Input name="cancelDate" type="date" required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="cancelBranch">Branch</Label>
+                          <Select name="cancelBranch" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map((branch) => (
+                                <SelectItem key={branch} value={branch}>
+                                  {branch}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Cancel Slots</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline">
@@ -207,7 +336,7 @@ const CasualEmployeesBooking = () => {
                   <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Booking Settings</DialogTitle>
-                      <DialogDescription>Adjust slots and time slots for each day.</DialogDescription>
+                      <DialogDescription>Adjust daily slots for each day of the week.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveSettings}>
                       <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
@@ -229,27 +358,9 @@ const CasualEmployeesBooking = () => {
                             ))}
                           </div>
                         </div>
-                        
-                        <div>
-                          <Label className="text-sm font-medium">Time Slots</Label>
-                          <div className="grid gap-2 mt-2">
-                            {timeSlots.map((slot, index) => (
-                              <Input 
-                                key={index}
-                                name="timeSlots" 
-                                defaultValue={slot}
-                                placeholder="e.g., 09:00-17:00"
-                              />
-                            ))}
-                            <Input 
-                              name="timeSlots" 
-                              placeholder="Add new time slot (e.g., 09:00-17:00)"
-                            />
-                          </div>
-                        </div>
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+                        <Button type="button" variant="outline" onClick={() =>setIsSettingsDialogOpen(false)}>
                           Cancel
                         </Button>
                         <Button type="submit">Save Settings</Button>
@@ -262,55 +373,46 @@ const CasualEmployeesBooking = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="w-5 h-5" />
-                  <span>This Week's Schedule</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-5 h-5" />
+                    <span>Monthly Schedule - {currentMonth.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })}</span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" onClick={prevMonth}>
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={nextMonth}>
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </CardTitle>
-                <CardDescription>Current week casual employee bookings</CardDescription>
+                <CardDescription>Monthly casual employee bookings across all branches</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-7 gap-4">
-                  {weekDates.map((dayInfo) => (
-                    <div key={dayInfo.date} className="border rounded-lg p-4">
+                <div className="grid grid-cols-7 gap-2 max-h-96 overflow-y-auto">
+                  {monthDates.map((dayInfo) => (
+                    <div key={dayInfo.date} className="border rounded-lg p-2">
                       <div className="text-center mb-2">
-                        <h3 className="font-semibold">{dayInfo.dayName}</h3>
-                        <p className="text-sm text-gray-600">{dayInfo.displayDate}</p>
-                        <p className="text-xs text-gray-500">
-                          {getAvailableSlots(dayInfo.date, dayInfo.dayName)} slots available
-                        </p>
+                        <h3 className="font-semibold text-sm">{dayInfo.displayDate}</h3>
+                        <p className="text-xs text-gray-600">{dayInfo.dayName}</p>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         {getBookingsForDate(dayInfo.date).map((booking) => (
-                          <div key={booking.id} className="bg-blue-50 p-2 rounded text-xs">
-                            <p className="font-medium">{booking.employee}</p>
+                          <div key={booking.id} className="bg-blue-50 p-1 rounded text-xs">
+                            <p className="font-medium truncate">{booking.employee}</p>
+                            <p className="text-gray-600 truncate">{booking.branch}</p>
                             <p className="text-gray-600">{booking.time}</p>
                             <div className="flex space-x-1 mt-1">
-                              <Button size="sm" variant="outline" onClick={() => handleSwap(booking.id)}>
-                                <ArrowLeftRight className="w-3 h-3" />
+                              <Button size="sm" variant="outline" className="h-4 w-4 p-0" onClick={() => handleSwap(booking.id)}>
+                                <ArrowLeftRight className="w-2 h-2" />
                               </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleCancel(booking.id)}>
-                                <X className="w-3 h-3" />
+                              <Button size="sm" variant="outline" className="h-4 w-4 p-0" onClick={() => handleCancel(booking.id)}>
+                                <X className="w-2 h-2" />
                               </Button>
                             </div>
                           </div>
                         ))}
-                        {getBookingsForDate(dayInfo.date).length === 0 && (
-                          <div className="space-y-1">
-                            <p className="text-gray-400 text-xs text-center">No bookings</p>
-                            {timeSlots.slice(0, 2).map((slot) => (
-                              <Button
-                                key={slot}
-                                size="sm"
-                                variant="ghost"
-                                className="w-full text-xs h-6"
-                                onClick={() => handleQuickBooking(dayInfo.date, slot)}
-                              >
-                                <Plus className="w-3 h-3 mr-1" />
-                                {slot}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -321,26 +423,26 @@ const CasualEmployeesBooking = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
+                  <CardTitle>Casual Employees Working This Month</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{monthlyStats.workingEmployees}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Slots Not Filled This Month</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{monthlyStats.unfilledSlots}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
                   <CardTitle>Total Bookings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{bookings.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Employees</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{casualEmployees.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Weekly Slots</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{Object.values(weeklySlots).reduce((a, b) => a + b, 0)}</p>
+                  <p className="text-2xl font-bold">{monthlyStats.totalBookings}</p>
                 </CardContent>
               </Card>
             </div>

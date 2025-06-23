@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Receipt, Plus, Eye, Check, X, Settings } from 'lucide-react';
+import { Receipt, Plus, Eye, Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Claims = () => {
@@ -53,6 +53,14 @@ const Claims = () => {
     'Medical': 1000,
     'Training': 2000
   });
+  
+  const [claimPercentages, setClaimPercentages] = useState<Record<string, number>>({
+    'Travel': 100,
+    'Meals': 80,
+    'Office Supplies': 100,
+    'Medical': 90,
+    'Training': 100
+  });
 
   const handleApprove = (id) => {
     setClaims(prev => prev.map(claim => 
@@ -68,36 +76,53 @@ const Claims = () => {
     toast("Claim rejected");
   };
 
+  const handleRemoveClaimType = (typeToRemove: string) => {
+    setClaimTypes(prev => prev.filter(type => type !== typeToRemove));
+    const newLimits = { ...claimLimits };
+    const newPercentages = { ...claimPercentages };
+    delete newLimits[typeToRemove];
+    delete newPercentages[typeToRemove];
+    setClaimLimits(newLimits);
+    setClaimPercentages(newPercentages);
+    toast(`Removed claim type: ${typeToRemove}`);
+  };
+
   const handleSaveSettings = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
-    // Update claim types
+    // Collect existing claim types with their data
     const newClaimTypes: string[] = [];
-    const claimTypesData = formData.getAll('claimTypes');
-    claimTypesData.forEach((type) => {
-      if (type.toString().trim()) {
-        newClaimTypes.push(type.toString().trim());
+    const newClaimLimits: Record<string, number> = {};
+    const newClaimPercentages: Record<string, number> = {};
+    
+    // Process existing claim types
+    claimTypes.forEach((type) => {
+      const updatedType = formData.get(`type_${type}`) as string;
+      const limit = formData.get(`limit_${type}`) as string;
+      const percentage = formData.get(`percentage_${type}`) as string;
+      
+      if (updatedType && updatedType.trim()) {
+        newClaimTypes.push(updatedType.trim());
+        newClaimLimits[updatedType.trim()] = parseFloat(limit) || 0;
+        newClaimPercentages[updatedType.trim()] = parseFloat(percentage) || 100;
       }
     });
     
-    // Update claim limits
-    const newClaimLimits: Record<string, number> = {};
-    newClaimTypes.forEach((type) => {
-      const limit = formData.get(`limit_${type}`) as string;
-      newClaimLimits[type] = parseFloat(limit) || 0;
-    });
+    // Handle new claim type if provided
+    const newClaimType = formData.get('newClaimType') as string;
+    const newLimit = formData.get('newLimit') as string;
+    const newPercentage = formData.get('newPercentage') as string;
     
-    // Handle the new claim type if provided
-    const newClaimType = formData.get('claimTypes') as string;
-    const newLimit = formData.get('limit_new') as string;
     if (newClaimType && newClaimType.trim() && !newClaimTypes.includes(newClaimType.trim())) {
       newClaimTypes.push(newClaimType.trim());
       newClaimLimits[newClaimType.trim()] = parseFloat(newLimit) || 0;
+      newClaimPercentages[newClaimType.trim()] = parseFloat(newPercentage) || 100;
     }
     
-    setClaimTypes(newClaimTypes.length > 0 ? newClaimTypes : claimTypes);
-    setClaimLimits(Object.keys(newClaimLimits).length > 0 ? newClaimLimits : claimLimits);
+    setClaimTypes(newClaimTypes);
+    setClaimLimits(newClaimLimits);
+    setClaimPercentages(newClaimPercentages);
     setIsSettingsOpen(false);
     toast("Claim settings updated");
   };
@@ -129,20 +154,26 @@ const Claims = () => {
                     Claim Settings
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Claim Settings</DialogTitle>
-                    <DialogDescription>Manage claim types and limits.</DialogDescription>
+                    <DialogDescription>Manage claim types, limits, and reimbursement percentages.</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSaveSettings}>
                     <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
                       <div>
-                        <Label className="text-sm font-medium">Claim Types & Limits</Label>
+                        <Label className="text-sm font-medium">Claim Types, Limits & Percentages</Label>
                         <div className="grid gap-3 mt-2">
+                          <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-600">
+                            <span>Claim Type</span>
+                            <span>Limit (S$)</span>
+                            <span>Percentage (%)</span>
+                            <span>Action</span>
+                          </div>
                           {claimTypes.map((type, index) => (
-                            <div key={index} className="grid grid-cols-2 gap-2">
+                            <div key={index} className="grid grid-cols-4 gap-2 items-center">
                               <Input 
-                                name="claimTypes" 
+                                name={`type_${type}`}
                                 defaultValue={type}
                                 placeholder="Claim type name"
                               />
@@ -151,21 +182,46 @@ const Claims = () => {
                                 type="number"
                                 step="0.01"
                                 defaultValue={claimLimits[type] || 0}
-                                placeholder="Limit (S$)"
+                                placeholder="Limit"
                               />
+                              <Input 
+                                name={`percentage_${type}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                defaultValue={claimPercentages[type] || 100}
+                                placeholder="Percentage"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveClaimType(type)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
                           ))}
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-4 gap-2 items-center border-t pt-3">
                             <Input 
-                              name="claimTypes" 
+                              name="newClaimType"
                               placeholder="Add new claim type"
                             />
                             <Input 
-                              name="limit_new"
+                              name="newLimit"
                               type="number"
                               step="0.01"
                               placeholder="Limit (S$)"
                             />
+                            <Input 
+                              name="newPercentage"
+                              type="number"
+                              min="0"
+                              max="100"
+                              defaultValue="100"
+                              placeholder="Percentage"
+                            />
+                            <div></div>
                           </div>
                         </div>
                       </div>
