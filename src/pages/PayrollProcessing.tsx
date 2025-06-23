@@ -169,7 +169,6 @@ const PayrollProcessing = () => {
   };
 
   const handleSaveDraft = () => {
-    // Simulate saving to backend
     localStorage.setItem('payrollDraft', JSON.stringify(employees));
     toast("Payroll draft saved successfully");
   };
@@ -331,8 +330,6 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>Net Salary</TableHead>
-              <TableHead>Employee CPF</TableHead>
-              <TableHead>Employer CPF</TableHead>
               <TableHead>Bank Name</TableHead>
               <TableHead>Bank Account</TableHead>
               <TableHead>Status</TableHead>
@@ -343,8 +340,6 @@ const PayrollProcessing = () => {
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>S${employee.netSalary.toFixed(2)}</TableCell>
-                <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
-                <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                 <TableCell>{employee.bankName}</TableCell>
                 <TableCell>{employee.bankAccount}</TableCell>
                 <TableCell>
@@ -385,10 +380,9 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
-              <TableHead>Residency Status</TableHead>
+              <TableHead>Basic Salary</TableHead>
+              <TableHead>Allowances</TableHead>
               <TableHead>Gross Salary</TableHead>
-              <TableHead>Employee CPF</TableHead>
-              <TableHead>Employer CPF</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -400,10 +394,9 @@ const PayrollProcessing = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.nric}</TableCell>
-                  <TableCell>{employee.residencyStatus}</TableCell>
+                  <TableCell>S${employee.basicSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${totalAllowances.toFixed(2)}</TableCell>
                   <TableCell>S${grossSalary.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
                       {employee.status}

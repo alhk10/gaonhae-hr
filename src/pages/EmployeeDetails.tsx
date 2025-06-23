@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -27,7 +26,8 @@ const EmployeeDetails = () => {
     leaveManagement: true,
     claims: true,
     attendance: true,
-    slotBooking: false
+    slotBooking: false,
+    adminAccess: false
   });
 
   // System allowances and deductions from settings
@@ -666,6 +666,15 @@ const EmployeeDetails = () => {
                         type="checkbox" 
                         checked={employeeModules.slotBooking}
                         onChange={(e) => handleModuleChange('slotBooking', e.target.checked)}
+                        className="rounded"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-600">Admin Access</label>
+                      <input 
+                        type="checkbox" 
+                        checked={employeeModules.adminAccess}
+                        onChange={(e) => handleModuleChange('adminAccess', e.target.checked)}
                         className="rounded"
                       />
                     </div>

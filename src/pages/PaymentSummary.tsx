@@ -7,69 +7,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, ArrowLeft, Edit, Plus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState('December 2024');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newMonth, setNewMonth] = useState('');
-  const [newYear, setNewYear] = useState('2024');
 
-  const [payrollData, setPayrollData] = useState([
-    { month: 'December 2024', totalAmount: 245680, employees: 24, status: 'In Progress' },
-    { month: 'November 2024', totalAmount: 248920, employees: 24, status: 'Completed' },
-    { month: 'October 2024', totalAmount: 252100, employees: 24, status: 'Completed' },
-  ]);
-
-  const handleEditPayroll = (month: string) => {
-    navigate('/payroll-processing', { state: { month } });
-  };
-
-  const handleViewDetails = (month: string) => {
-    setSelectedMonth(month);
-    toast(`Viewing details for ${month}`);
-  };
-
-  const handleAddMonth = () => {
-    if (!newMonth || !newYear) {
-      toast('Please select both month and year');
-      return;
-    }
-
-    const monthYear = `${newMonth} ${newYear}`;
-    
-    // Check if month already exists
-    if (payrollData.some(item => item.month === monthYear)) {
-      toast('This month already exists');
-      return;
-    }
-
-    const newPayrollEntry = {
-      month: monthYear,
-      totalAmount: 0,
-      employees: 24,
-      status: 'Draft'
-    };
-
-    setPayrollData([newPayrollEntry, ...payrollData]);
-    setIsAddDialogOpen(false);
-    setNewMonth('');
-    setNewYear('2024');
-    toast(`Added ${monthYear} to payroll summary`);
-  };
-
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+  const fullTimeEmployees = [
+    { id: 'EMP001', name: 'John Tan', basicSalary: 8500, allowances: 350, deductions: 100, netSalary: 7100, status: 'Pending' },
+    { id: 'EMP002', name: 'Mary Ng', basicSalary: 7200, allowances: 200, deductions: 50, netSalary: 6200, status: 'Pending' },
+    { id: 'EMP003', name: 'David Lim', basicSalary: 6800, allowances: 250, deductions: 75, netSalary: 5900, status: 'Pending' },
   ];
 
-  const years = ['2024', '2025', '2026'];
+  const casualEmployees = [
+    { id: 'CAS001', name: 'Alice Wong', hourlyRate: 25, hoursWorked: 120, totalPay: 3000, status: 'Pending' },
+    { id: 'CAS002', name: 'Bob Chen', hourlyRate: 22, hoursWorked: 100, totalPay: 2200, status: 'Pending' },
+    { id: 'CAS003', name: 'Sarah Lee', hourlyRate: 28, hoursWorked: 80, totalPay: 2240, status: 'Pending' },
+  ];
+
+  const handleProcessPayroll = () => {
+    navigate('/payroll-processing');
+  };
+
+  const handleEmployeeDetails = (employeeId: string) => {
+    navigate(`/employees/${employeeId}`);
+  };
+
+  const totalFullTimeAmount = fullTimeEmployees.reduce((sum, emp) => sum + emp.netSalary, 0);
+  const totalCasualAmount = casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -85,139 +51,165 @@ const PaymentSummary = () => {
                   Back to Payroll
                 </Button>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Payment Summary</h2>
-                  <p className="text-gray-600">View payroll processing summary</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Monthly Payroll Summary</h2>
+                  <p className="text-gray-600">December 2024 payroll overview</p>
                 </div>
               </div>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add New Month
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add New Month</DialogTitle>
-                    <DialogDescription>
-                      Add a new month to the payroll summary.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="month">Month</Label>
-                      <Select value={newMonth} onValueChange={setNewMonth}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((month) => (
-                            <SelectItem key={month} value={month}>
-                              {month}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="year">Year</Label>
-                      <Select value={newYear} onValueChange={setNewYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {years.map((year) => (
-                            <SelectItem key={year} value={year}>
-                              {year}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddMonth}>
-                      Add Month
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
+                <Play className="w-4 h-4" />
+                <span>Process Payroll</span>
+              </Button>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Payroll Summary</CardTitle>
-                <CardDescription>Overview of payroll processing for each month</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Total Amount</TableHead>
-                      <TableHead>Employees</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payrollData.map((payroll) => (
-                      <TableRow key={payroll.month}>
-                        <TableCell className="font-medium">{payroll.month}</TableCell>
-                        <TableCell>S${payroll.totalAmount.toLocaleString()}</TableCell>
-                        <TableCell>{payroll.employees}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              payroll.status === 'Completed' ? 'default' : 
-                              payroll.status === 'In Progress' ? 'secondary' : 
-                              'outline'
-                            }
-                          >
-                            {payroll.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDetails(payroll.month)}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditPayroll(payroll.month)}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Full-Time</p>
+                      <p className="text-2xl font-bold text-gray-900">S${totalFullTimeAmount.toLocaleString()}</p>
+                    </div>
+                    <Users className="w-8 h-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Casual</p>
+                      <p className="text-2xl font-bold text-gray-900">S${totalCasualAmount.toLocaleString()}</p>
+                    </div>
+                    <Clock className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                      <p className="text-2xl font-bold text-gray-900">S${(totalFullTimeAmount + totalCasualAmount).toLocaleString()}</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Processing Date</p>
+                      <p className="text-2xl font-bold text-gray-900">Dec 31</p>
+                    </div>
+                    <Calendar className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Details for {selectedMonth}</CardTitle>
-                <CardDescription>Employee breakdown for the selected month</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-500">
-                  Select a month above to view detailed breakdown
-                </div>
-              </CardContent>
-            </Card>
+            <Tabs defaultValue="fulltime" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="fulltime">Full-Time Employees</TabsTrigger>
+                <TabsTrigger value="casual">Casual Employees</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="fulltime">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Full-Time Employee Payroll</CardTitle>
+                    <CardDescription>Monthly salary summary for full-time employees</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee Name</TableHead>
+                          <TableHead>Employee ID</TableHead>
+                          <TableHead>Basic Salary</TableHead>
+                          <TableHead>Allowances</TableHead>
+                          <TableHead>Deductions</TableHead>
+                          <TableHead>Net Salary</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fullTimeEmployees.map((employee) => (
+                          <TableRow key={employee.id}>
+                            <TableCell className="font-medium">{employee.name}</TableCell>
+                            <TableCell>{employee.id}</TableCell>
+                            <TableCell>S${employee.basicSalary.toLocaleString()}</TableCell>
+                            <TableCell>S${employee.allowances}</TableCell>
+                            <TableCell>S${employee.deductions}</TableCell>
+                            <TableCell className="font-bold">S${employee.netSalary.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{employee.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEmployeeDetails(employee.id)}
+                              >
+                                View Details
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="casual">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Casual Employee Payroll</CardTitle>
+                    <CardDescription>Monthly payment summary for casual employees</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee Name</TableHead>
+                          <TableHead>Employee ID</TableHead>
+                          <TableHead>Hourly Rate</TableHead>
+                          <TableHead>Hours Worked</TableHead>
+                          <TableHead>Total Pay</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {casualEmployees.map((employee) => (
+                          <TableRow key={employee.id}>
+                            <TableCell className="font-medium">{employee.name}</TableCell>
+                            <TableCell>{employee.id}</TableCell>
+                            <TableCell>S${employee.hourlyRate}/hr</TableCell>
+                            <TableCell>{employee.hoursWorked}h</TableCell>
+                            <TableCell className="font-bold">S${employee.totalPay.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{employee.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEmployeeDetails(employee.id)}
+                              >
+                                View Details
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>
