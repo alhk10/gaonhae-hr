@@ -1,64 +1,73 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Save, Check, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Save, Check, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { useNavigate } from 'react-router-dom';
 
 interface Employee {
   id: string;
   name: string;
-  department: string;
   currentSalary: number;
   nextIncrement: number;
   incrementDate: string;
-  status: 'pending' | 'approved' | 'draft';
+  status: 'draft' | 'approved';
 }
 
 const IncrementPlanning = () => {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([
-    { id: 'EMP001', name: 'John Tan', department: 'Engineering', currentSalary: 8500, nextIncrement: 9000, incrementDate: '2025-01-01', status: 'draft' },
-    { id: 'EMP002', name: 'Mary Ng', department: 'Marketing', currentSalary: 7200, nextIncrement: 7600, incrementDate: '2025-02-01', status: 'pending' },
-    { id: 'EMP003', name: 'David Lim', department: 'HR', currentSalary: 6800, nextIncrement: 7200, incrementDate: '2025-03-01', status: 'approved' },
+    { id: 'EMP001', name: 'John Tan', currentSalary: 8500, nextIncrement: 9000, incrementDate: '2025-01-01', status: 'draft' },
+    { id: 'EMP002', name: 'Mary Ng', currentSalary: 7200, nextIncrement: 7800, incrementDate: '2025-02-01', status: 'draft' },
   ]);
 
-  const handleSalaryChange = (id: string, field: 'nextIncrement' | 'incrementDate', value: string | number) => {
-    setEmployees(prev => 
-      prev.map(emp => 
-        emp.id === id 
-          ? { ...emp, [field]: value, status: 'draft' as const }
-          : emp
-      )
-    );
+  const [availableEmployees] = useState([
+    { id: 'EMP003', name: 'David Lim', currentSalary: 6500 },
+    { id: 'EMP004', name: 'Sarah Loh', currentSalary: 7000 },
+  ]);
+
+  const handleSalaryChange = (employeeId: string, field: 'nextIncrement' | 'incrementDate', value: string | number) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, [field]: value }
+        : emp
+    ));
+  };
+
+  const addEmployee = (employeeId: string) => {
+    const employee = availableEmployees.find(emp => emp.id === employeeId);
+    if (employee) {
+      const newEmployee: Employee = {
+        id: employee.id,
+        name: employee.name,
+        currentSalary: employee.currentSalary,
+        nextIncrement: employee.currentSalary + 500,
+        incrementDate: '2025-01-01',
+        status: 'draft'
+      };
+      setEmployees(prev => [...prev, newEmployee]);
+      toast(`Added ${employee.name} to increment planning`);
+    }
+  };
+
+  const removeEmployee = (employeeId: string) => {
+    setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+    toast("Employee removed from increment planning");
   };
 
   const handleSaveDraft = () => {
-    toast("Draft saved successfully");
+    toast("Increment planning draft saved successfully");
   };
 
-  const handleApproveIncrement = (id: string) => {
-    setEmployees(prev => 
-      prev.map(emp => 
-        emp.id === id 
-          ? { ...emp, status: 'approved' }
-          : emp
-      )
-    );
-    // Update employee details with new increment
-    toast(`Increment approved for employee ${id}. Employee details updated.`);
-  };
-
-  const handleApproveAll = () => {
-    setEmployees(prev => 
-      prev.map(emp => ({ ...emp, status: 'approved' as const }))
-    );
-    toast("All increments approved successfully. Employee details updated.");
+  const handleApprove = () => {
+    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'approved' as const })));
+    toast("Increment planning approved. Employee details will be updated.");
+    // This would normally update the employee details in a real application
   };
 
   return (
@@ -68,26 +77,14 @@ const IncrementPlanning = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button variant="outline" onClick={() => navigate('/payroll')}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Payroll
-                </Button>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Increment Planning</h2>
-                  <p className="text-gray-600">Plan and approve salary increments for employees</p>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={handleSaveDraft}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Draft
-                </Button>
-                <Button onClick={handleApproveAll}>
-                  <Check className="w-4 h-4 mr-2" />
-                  Approve All
-                </Button>
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" onClick={() => navigate('/payroll')}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Payroll
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Increment Planning</h2>
+                <p className="text-gray-600">Plan salary increments for employees</p>
               </div>
             </div>
 
@@ -95,16 +92,34 @@ const IncrementPlanning = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <TrendingUp className="w-5 h-5" />
-                  <span>Employee Increment Planning</span>
+                  <span>Salary Increment Planning</span>
                 </CardTitle>
-                <CardDescription>Review and update salary increments for all employees</CardDescription>
+                <CardDescription>Review and approve salary increments</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium mb-2">Add Employees</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {availableEmployees
+                      .filter(emp => !employees.find(e => e.id === emp.id))
+                      .map((employee) => (
+                      <Button
+                        key={employee.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addEmployee(employee.id)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {employee.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Department</TableHead>
+                      <TableHead>Employee Name</TableHead>
                       <TableHead>Current Salary</TableHead>
                       <TableHead>Next Increment</TableHead>
                       <TableHead>Increment Date</TableHead>
@@ -116,13 +131,12 @@ const IncrementPlanning = () => {
                     {employees.map((employee) => (
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.name}</TableCell>
-                        <TableCell>{employee.department}</TableCell>
                         <TableCell>S${employee.currentSalary.toLocaleString()}</TableCell>
                         <TableCell>
                           <input
                             type="number"
                             value={employee.nextIncrement}
-                            onChange={(e) => handleSalaryChange(employee.id, 'nextIncrement', parseInt(e.target.value))}
+                            onChange={(e) => handleSalaryChange(employee.id, 'nextIncrement', Number(e.target.value))}
                             className="w-24 p-1 border border-gray-300 rounded"
                             disabled={employee.status === 'approved'}
                           />
@@ -137,20 +151,18 @@ const IncrementPlanning = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          <Badge variant={
-                            employee.status === 'approved' ? 'default' :
-                            employee.status === 'pending' ? 'secondary' : 'outline'
-                          }>
+                          <Badge variant={employee.status === 'approved' ? 'default' : 'secondary'}>
                             {employee.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {employee.status !== 'approved' && (
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleApproveIncrement(employee.id)}
+                          {employee.status === 'draft' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeEmployee(employee.id)}
                             >
-                              Approve
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
                         </TableCell>
@@ -158,6 +170,17 @@ const IncrementPlanning = () => {
                     ))}
                   </TableBody>
                 </Table>
+
+                <div className="flex justify-end space-x-2 mt-4">
+                  <Button variant="outline" onClick={handleSaveDraft}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Draft
+                  </Button>
+                  <Button onClick={handleApprove}>
+                    <Check className="w-4 h-4 mr-2" />
+                    Approve Planning
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

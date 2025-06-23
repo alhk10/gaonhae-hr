@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -12,7 +11,7 @@ const Payroll = () => {
   const navigate = useNavigate();
 
   const handleProcessPayroll = () => {
-    navigate('/payroll-processing');
+    navigate('/payment-summary');
   };
 
   const handleIncrementPlanning = () => {
@@ -20,8 +19,7 @@ const Payroll = () => {
   };
 
   const handlePaymentSummary = () => {
-    // Navigate to payment processing summary
-    toast("Opening Payment Processing Summary");
+    navigate('/payment-summary');
   };
 
   const handleDownload = (month: string) => {
@@ -93,14 +91,6 @@ For queries, please contact HR Department.
                 <p className="text-gray-600">Process and manage employee payroll</p>
               </div>
               <div className="flex space-x-2">
-                <Button 
-                  variant="outline"
-                  className="flex items-center space-x-2" 
-                  onClick={handlePaymentSummary}
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Payment Summary</span>
-                </Button>
                 <Button 
                   variant="outline"
                   className="flex items-center space-x-2" 

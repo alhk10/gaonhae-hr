@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +21,7 @@ import SubmitClaim from "./pages/SubmitClaim";
 import Payslips from "./pages/Payslips";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import PaymentSummary from "./pages/PaymentSummary";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +38,7 @@ const App = () => (
             <Route path="/employees/:id" element={<EmployeeDetails />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payroll-processing" element={<PayrollProcessing />} />
+            <Route path="/payment-summary" element={<PaymentSummary />} />
             <Route path="/increment-planning" element={<IncrementPlanning />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/claims" element={<Claims />} />

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -276,24 +275,29 @@ const PayrollProcessing = () => {
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
               <TableHead>Date of Birth</TableHead>
-              <TableHead>Gross Salary</TableHead>
+              <TableHead>Salary</TableHead>
+              <TableHead>Total Allowances</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>{employee.nric}</TableCell>
-                <TableCell>{employee.dateOfBirth}</TableCell>
-                <TableCell>S${(employee.basicSalary + employee.allowances.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
-                    {employee.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {employees.map((employee) => {
+              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              return (
+                <TableRow key={employee.id}>
+                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell>{employee.nric}</TableCell>
+                  <TableCell>{employee.dateOfBirth}</TableCell>
+                  <TableCell>S${employee.basicSalary.toLocaleString()}</TableCell>
+                  <TableCell>S${totalAllowances.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
+                      {employee.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <div className="flex justify-between mt-4">
@@ -318,9 +322,9 @@ const PayrollProcessing = () => {
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
             <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={() => navigate('/payroll')}>
+              <Button variant="outline" onClick={() => navigate('/payment-summary')}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Payroll
+                Back to Payment Summary
               </Button>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Processing</h2>
