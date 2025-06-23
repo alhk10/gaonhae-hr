@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -69,12 +68,12 @@ const Claims = () => {
     toast("Claim rejected");
   };
 
-  const handleSaveSettings = (e) => {
+  const handleSaveSettings = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const formData = new FormData(e.target as HTMLFormElement);
     
     // Update claim types
-    const newClaimTypes = [];
+    const newClaimTypes: string[] = [];
     const claimTypesData = formData.getAll('claimTypes');
     claimTypesData.forEach((type) => {
       if (type.toString().trim()) {
@@ -83,14 +82,22 @@ const Claims = () => {
     });
     
     // Update claim limits
-    const newClaimLimits = {};
+    const newClaimLimits: Record<string, number> = {};
     newClaimTypes.forEach((type) => {
       const limit = formData.get(`limit_${type}`) as string;
       newClaimLimits[type] = parseFloat(limit) || 0;
     });
     
+    // Handle the new claim type if provided
+    const newClaimType = formData.get('claimTypes') as string;
+    const newLimit = formData.get('limit_new') as string;
+    if (newClaimType && newClaimType.trim() && !newClaimTypes.includes(newClaimType.trim())) {
+      newClaimTypes.push(newClaimType.trim());
+      newClaimLimits[newClaimType.trim()] = parseFloat(newLimit) || 0;
+    }
+    
     setClaimTypes(newClaimTypes.length > 0 ? newClaimTypes : claimTypes);
-    setClaimLimits(newClaimLimits);
+    setClaimLimits(Object.keys(newClaimLimits).length > 0 ? newClaimLimits : claimLimits);
     setIsSettingsOpen(false);
     toast("Claim settings updated");
   };
