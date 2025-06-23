@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -23,14 +24,15 @@ const CasualEmployeesBooking = () => {
     Sunday: 1
   });
 
+  const [timeSlots, setTimeSlots] = useState(['09:00-17:00', '13:00-21:00', '17:00-01:00']);
+
   const [bookings, setBookings] = useState([
-    { id: 1, day: 'Monday', employee: 'Alice Tan', slot: 1, time: '09:00-17:00' },
-    { id: 2, day: 'Monday', employee: 'Bob Lim', slot: 2, time: '13:00-21:00' },
-    { id: 3, day: 'Tuesday', employee: 'Carol Ng', slot: 1, time: '09:00-17:00' },
+    { id: 1, date: '2024-12-23', employee: 'Alice Tan', time: '09:00-17:00' },
+    { id: 2, date: '2024-12-23', employee: 'Bob Lim', time: '13:00-21:00' },
+    { id: 3, date: '2024-12-24', employee: 'Carol Ng', time: '09:00-17:00' },
   ]);
 
   const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
-  const timeSlots = ['09:00-17:00', '13:00-21:00', '17:00-01:00'];
   
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -42,7 +44,11 @@ const CasualEmployeesBooking = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      weekDates.push(date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }));
+      weekDates.push({
+        dayName: days[i],
+        date: date.toISOString().split('T')[0],
+        displayDate: date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
+      });
     }
     
     return weekDates;
@@ -55,15 +61,26 @@ const CasualEmployeesBooking = () => {
     const formData = new FormData(e.target);
     const newBooking = {
       id: Date.now(),
-      day: formData.get('day') as string,
+      date: formData.get('date') as string,
       employee: formData.get('employee') as string,
-      slot: parseInt(formData.get('slot') as string),
       time: formData.get('timeSlot') as string
     };
 
     setBookings(prev => [...prev, newBooking]);
     setIsBookingDialogOpen(false);
-    toast(`Booked ${newBooking.employee} for ${newBooking.day}`);
+    toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
+  };
+
+  const handleQuickBooking = (date, timeSlot) => {
+    const newBooking = {
+      id: Date.now(),
+      date: date,
+      employee: casualEmployees[0], // Default to first available employee
+      time: timeSlot
+    };
+
+    setBookings(prev => [...prev, newBooking]);
+    toast(`Quick booked ${newBooking.employee} for ${new Date(date).toLocaleDateString()}`);
   };
 
   const handleSwap = (bookingId) => {
@@ -82,13 +99,30 @@ const CasualEmployeesBooking = () => {
     days.forEach(day => {
       newSlots[day] = parseInt(formData.get(day.toLowerCase()) as string);
     });
+    
+    // Update time slots
+    const newTimeSlots = [];
+    const timeSlotsData = formData.getAll('timeSlots');
+    timeSlotsData.forEach((slot) => {
+      if (slot.toString().trim()) {
+        newTimeSlots.push(slot.toString().trim());
+      }
+    });
+    
     setWeeklySlots(newSlots as typeof weeklySlots);
+    setTimeSlots(newTimeSlots.length > 0 ? newTimeSlots : timeSlots);
     setIsSettingsDialogOpen(false);
-    toast("Slot settings updated");
+    toast("Settings updated");
   };
 
-  const getBookingsForDay = (day) => {
-    return bookings.filter(b => b.day === day);
+  const getBookingsForDate = (date) => {
+    return bookings.filter(b => b.date === date);
+  };
+
+  const getAvailableSlots = (date, dayName) => {
+    const currentBookings = getBookingsForDate(date);
+    const maxSlots = weeklySlots[dayName] || 0;
+    return maxSlots - currentBookings.length;
   };
 
   return (
@@ -119,19 +153,8 @@ const CasualEmployeesBooking = () => {
                     <form onSubmit={handleBooking}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="day">Day</Label>
-                          <Select name="day" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select day" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {days.map((day) => (
-                                <SelectItem key={day} value={day}>
-                                  {day}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Label htmlFor="date">Date</Label>
+                          <Input name="date" type="date" required />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="employee">Employee</Label>
@@ -163,10 +186,6 @@ const CasualEmployeesBooking = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="slot">Slot Number</Label>
-                          <Input name="slot" type="number" min="1" max="5" defaultValue="1" required />
-                        </div>
                       </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsBookingDialogOpen(false)}>
@@ -185,26 +204,49 @@ const CasualEmployeesBooking = () => {
                       Settings
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                      <DialogTitle>Slot Settings</DialogTitle>
-                      <DialogDescription>Adjust the number of slots available for each day.</DialogDescription>
+                      <DialogTitle>Booking Settings</DialogTitle>
+                      <DialogDescription>Adjust slots and time slots for each day.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveSettings}>
-                      <div className="grid gap-4 py-4">
-                        {days.map((day) => (
-                          <div key={day} className="grid grid-cols-2 gap-4 items-center">
-                            <Label htmlFor={day.toLowerCase()}>{day}</Label>
+                      <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                        <div>
+                          <Label className="text-sm font-medium">Daily Slots</Label>
+                          <div className="grid gap-2 mt-2">
+                            {days.map((day) => (
+                              <div key={day} className="grid grid-cols-2 gap-4 items-center">
+                                <Label htmlFor={day.toLowerCase()}>{day}</Label>
+                                <Input 
+                                  name={day.toLowerCase()} 
+                                  type="number" 
+                                  min="0" 
+                                  max="10" 
+                                  defaultValue={weeklySlots[day]}
+                                  required 
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium">Time Slots</Label>
+                          <div className="grid gap-2 mt-2">
+                            {timeSlots.map((slot, index) => (
+                              <Input 
+                                key={index}
+                                name="timeSlots" 
+                                defaultValue={slot}
+                                placeholder="e.g., 09:00-17:00"
+                              />
+                            ))}
                             <Input 
-                              name={day.toLowerCase()} 
-                              type="number" 
-                              min="0" 
-                              max="10" 
-                              defaultValue={weeklySlots[day]}
-                              required 
+                              name="timeSlots" 
+                              placeholder="Add new time slot (e.g., 09:00-17:00)"
                             />
                           </div>
-                        ))}
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
@@ -228,15 +270,17 @@ const CasualEmployeesBooking = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-7 gap-4">
-                  {days.map((day, index) => (
-                    <div key={day} className="border rounded-lg p-4">
+                  {weekDates.map((dayInfo) => (
+                    <div key={dayInfo.date} className="border rounded-lg p-4">
                       <div className="text-center mb-2">
-                        <h3 className="font-semibold">{day}</h3>
-                        <p className="text-sm text-gray-600">{weekDates[index]}</p>
-                        <p className="text-xs text-gray-500">{weeklySlots[day]} slots available</p>
+                        <h3 className="font-semibold">{dayInfo.dayName}</h3>
+                        <p className="text-sm text-gray-600">{dayInfo.displayDate}</p>
+                        <p className="text-xs text-gray-500">
+                          {getAvailableSlots(dayInfo.date, dayInfo.dayName)} slots available
+                        </p>
                       </div>
                       <div className="space-y-2">
-                        {getBookingsForDay(day).map((booking) => (
+                        {getBookingsForDate(dayInfo.date).map((booking) => (
                           <div key={booking.id} className="bg-blue-50 p-2 rounded text-xs">
                             <p className="font-medium">{booking.employee}</p>
                             <p className="text-gray-600">{booking.time}</p>
@@ -250,8 +294,22 @@ const CasualEmployeesBooking = () => {
                             </div>
                           </div>
                         ))}
-                        {getBookingsForDay(day).length === 0 && (
-                          <p className="text-gray-400 text-xs text-center">No bookings</p>
+                        {getBookingsForDate(dayInfo.date).length === 0 && (
+                          <div className="space-y-1">
+                            <p className="text-gray-400 text-xs text-center">No bookings</p>
+                            {timeSlots.slice(0, 2).map((slot) => (
+                              <Button
+                                key={slot}
+                                size="sm"
+                                variant="ghost"
+                                className="w-full text-xs h-6"
+                                onClick={() => handleQuickBooking(dayInfo.date, slot)}
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                {slot}
+                              </Button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
