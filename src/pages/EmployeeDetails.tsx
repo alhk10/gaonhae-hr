@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -20,6 +19,13 @@ const EmployeeDetails = () => {
   const [deductions, setDeductions] = useState([
     { id: 1, name: 'Insurance', amount: 100 }
   ]);
+  const [employeeModules, setEmployeeModules] = useState({
+    payroll: true,
+    leaveManagement: true,
+    claims: true,
+    attendance: true,
+    slotBooking: false
+  });
 
   const employee = {
     id: id,
@@ -88,6 +94,14 @@ const EmployeeDetails = () => {
   const removeDeduction = (id: number) => {
     setDeductions(deductions.filter(d => d.id !== id));
     toast("Deduction removed");
+  };
+
+  const handleModuleChange = (module, enabled) => {
+    setEmployeeModules(prev => ({
+      ...prev,
+      [module]: enabled
+    }));
+    toast(`${module} access ${enabled ? 'enabled' : 'disabled'} for employee`);
   };
 
   return (
@@ -451,6 +465,60 @@ const EmployeeDetails = () => {
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Files
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Access Modules</CardTitle>
+                <CardDescription>Control which modules this employee can access</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-600">Payroll</label>
+                  <input 
+                    type="checkbox" 
+                    checked={employeeModules.payroll}
+                    onChange={(e) => handleModuleChange('payroll', e.target.checked)}
+                    className="rounded"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-600">Leave Management</label>
+                  <input 
+                    type="checkbox" 
+                    checked={employeeModules.leaveManagement}
+                    onChange={(e) => handleModuleChange('leaveManagement', e.target.checked)}
+                    className="rounded"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-600">Claims</label>
+                  <input 
+                    type="checkbox" 
+                    checked={employeeModules.claims}
+                    onChange={(e) => handleModuleChange('claims', e.target.checked)}
+                    className="rounded"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-600">Attendance</label>
+                  <input 
+                    type="checkbox" 
+                    checked={employeeModules.attendance}
+                    onChange={(e) => handleModuleChange('attendance', e.target.checked)}
+                    className="rounded"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-600">Slot Booking</label>
+                  <input 
+                    type="checkbox" 
+                    checked={employeeModules.slotBooking}
+                    onChange={(e) => handleModuleChange('slotBooking', e.target.checked)}
+                    className="rounded"
+                  />
                 </div>
               </CardContent>
             </Card>

@@ -4,147 +4,68 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Plus, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { CreditCard, Plus, Upload, Check, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Claims = () => {
   const [claims, setClaims] = useState([
-    { id: 'CLM001', employee: 'John Tan', type: 'Transport', amount: 'S$45.50', status: 'approved', date: '2024-12-15' },
-    { id: 'CLM002', employee: 'Mary Ng', type: 'Meals', amount: 'S$120.00', status: 'approved', date: '2024-12-10' },
-    { id: 'CLM003', employee: 'David Lim', type: 'Equipment', amount: 'S$850.00', status: 'pending', date: '2024-12-08' },
+    { id: 1, employee: 'John Tan', type: 'Transport', amount: 50, gstAmount: 3.5, status: 'Pending', date: '2024-12-20', description: 'Taxi to client meeting' },
+    { id: 2, employee: 'Mary Ng', type: 'Meals', amount: 25, gstAmount: 1.75, status: 'Approved', date: '2024-12-19', description: 'Lunch with client' },
   ]);
 
-  const [showThisMonth, setShowThisMonth] = useState(false);
-  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
+  const [totalApproved, setTotalApproved] = useState(25);
 
-  const thisMonthClaims = claims.filter(claim => {
-    const claimDate = new Date(claim.date);
-    const currentDate = new Date();
-    return claimDate.getMonth() === currentDate.getMonth() && 
-           claimDate.getFullYear() === currentDate.getFullYear();
-  });
+  const employees = ['John Tan', 'Mary Ng', 'David Lim', 'Sarah Loh'];
+  const claimTypes = ['Transport', 'Meals', 'Equipment', 'Training', 'Others'];
 
-  const handleApproveClaim = (claimId: string) => {
-    setClaims(prev => 
-      prev.map(claim => 
-        claim.id === claimId 
-          ? { ...claim, status: 'approved' }
-          : claim
-      )
-    );
-    toast(`Claim ${claimId} approved successfully`);
+  const handleApprove = (id) => {
+    const claim = claims.find(c => c.id === id);
+    if (claim && claim.status === 'Pending') {
+      setClaims(prev => prev.map(claim => 
+        claim.id === id ? { ...claim, status: 'Approved' } : claim
+      ));
+      setTotalApproved(prev => prev + claim.amount + claim.gstAmount);
+      toast("Claim approved");
+    }
   };
 
-  const handleRejectClaim = (claimId: string) => {
-    setClaims(prev => 
-      prev.map(claim => 
-        claim.id === claimId 
-          ? { ...claim, status: 'rejected' }
-          : claim
-      )
-    );
-    toast(`Claim ${claimId} rejected`);
+  const handleReject = (id) => {
+    setClaims(prev => prev.map(claim => 
+      claim.id === id ? { ...claim, status: 'Rejected' } : claim
+    ));
+    toast("Claim rejected");
   };
 
-  const handleNewClaim = () => {
-    setShowClaimForm(true);
-  };
-
-  const handleSubmitNewClaim = () => {
+  const handleNewClaim = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const amount = parseFloat(formData.get('amount'));
+    const gstAmount = parseFloat(formData.get('gstAmount')) || 0;
+    
     const newClaim = {
-      id: `CLM${String(claims.length + 1).padStart(3, '0')}`,
-      employee: 'New Employee',
-      type: 'General',
-      amount: 'S$100.00',
-      status: 'pending' as const,
-      date: new Date().toISOString().split('T')[0]
+      id: Date.now(),
+      employee: formData.get('employee'),
+      type: formData.get('type'),
+      amount,
+      gstAmount,
+      status: 'Approved',
+      date: formData.get('date'),
+      description: formData.get('description')
     };
+    
     setClaims(prev => [...prev, newClaim]);
-    setShowClaimForm(false);
-    toast("New claim submitted successfully");
+    setTotalApproved(prev => prev + amount + gstAmount);
+    setIsNewClaimOpen(false);
+    toast("New claim added and approved");
   };
-
-  const handleThisMonthClick = () => {
-    setShowThisMonth(!showThisMonth);
-  };
-
-  const displayClaims = showThisMonth ? thisMonthClaims : claims;
-  const totalAmountApproved = displayClaims
-    .filter(claim => claim.status === 'approved')
-    .reduce((sum, claim) => {
-      const amount = parseFloat(claim.amount.replace('S$', '').replace(',', ''));
-      return sum + amount;
-    }, 0);
-
-  if (showClaimForm) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">New Claim</h2>
-                  <p className="text-gray-600">Submit a new expense claim</p>
-                </div>
-                <Button variant="outline" onClick={() => setShowClaimForm(false)}>
-                  Back to Claims
-                </Button>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Claim Details</CardTitle>
-                  <CardDescription>Fill in the claim information</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-                      <select className="w-full p-2 border border-gray-300 rounded-lg">
-                        <option>John Tan</option>
-                        <option>Mary Ng</option>
-                        <option>David Lim</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Claim Type</label>
-                      <select className="w-full p-2 border border-gray-300 rounded-lg">
-                        <option>Transport</option>
-                        <option>Meals</option>
-                        <option>Equipment</option>
-                        <option>Training</option>
-                        <option>Others</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Amount (S$)</label>
-                      <input type="number" step="0.01" className="w-full p-2 border border-gray-300 rounded-lg" placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                      <input type="date" className="w-full p-2 border border-gray-300 rounded-lg" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea rows={3} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Describe the expense..."></textarea>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button onClick={handleSubmitNewClaim}>Submit & Approve</Button>
-                    <Button variant="outline">Save as Draft</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -158,100 +79,186 @@ const Claims = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Claims Management</h2>
                 <p className="text-gray-600">Manage employee expense claims</p>
               </div>
-              <Button className="flex items-center space-x-2" onClick={handleNewClaim}>
-                <Plus className="w-4 h-4" />
-                <span>New Claim</span>
-              </Button>
+              <Dialog open={isNewClaimOpen} onOpenChange={setIsNewClaimOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Claim
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>New Claim</DialogTitle>
+                    <DialogDescription>Add a new expense claim for immediate approval.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleNewClaim}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="employee">Employee</Label>
+                        <Select name="employee" required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select employee" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {employees.map((employee) => (
+                              <SelectItem key={employee} value={employee}>
+                                {employee}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="type">Claim Type</Label>
+                        <Select name="type" required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select claim type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {claimTypes.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="amount">Amount (S$)</Label>
+                          <Input name="amount" type="number" step="0.01" placeholder="0.00" required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="gstAmount">GST Amount (S$)</Label>
+                          <Input name="gstAmount" type="number" step="0.01" placeholder="0.00" />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="date">Date of Expense</Label>
+                        <Input name="date" type="date" required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="vendor">Vendor/Merchant</Label>
+                        <Input name="vendor" placeholder="Enter vendor name" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea name="description" placeholder="Describe the expense..." required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Receipt Upload</Label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                          <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                          <p className="text-sm text-gray-600 mt-2">Upload receipt or supporting documents</p>
+                          <input type="file" multiple accept="image/*,.pdf" className="hidden" id="receipt-upload" />
+                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('receipt-upload').click()}>
+                            Choose Files
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">
+                        <Check className="w-4 h-4 mr-2" />
+                        Add & Approve
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Pending Claims</p>
-                      <p className="text-2xl font-bold text-gray-900">{displayClaims.filter(c => c.status === 'pending').length}</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-orange-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Total Claims</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{claims.length}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Amount Approved</p>
-                      <p className="text-2xl font-bold text-gray-900">S${totalAmountApproved.toFixed(2)}</p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Pending Claims</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{claims.filter(c => c.status === 'Pending').length}</p>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:bg-gray-50" onClick={handleThisMonthClick}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">This Month</p>
-                      <p className="text-2xl font-bold text-gray-900">{thisMonthClaims.length}</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-blue-500" />
-                  </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Amount Approved</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">S${totalApproved.toFixed(2)}</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>
-                  {showThisMonth ? 'This Month\'s Claims' : 'Recent Claims'}
-                  {showThisMonth && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="ml-4"
-                      onClick={() => setShowThisMonth(false)}
-                    >
-                      Show All
-                    </Button>
-                  )}
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="w-5 h-5" />
+                  <span>Expense Claims</span>
                 </CardTitle>
-                <CardDescription>
-                  {showThisMonth 
-                    ? `Claims made in ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                    : 'Latest expense claims requiring approval'
-                  }
-                </CardDescription>
+                <CardDescription>Review and approve employee claims</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {displayClaims.map((claim) => (
-                    <div key={claim.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{claim.employee}</p>
-                        <p className="text-sm text-gray-600">{claim.id} • {claim.type} • {claim.amount} • {claim.date}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={
-                          claim.status === 'approved' ? 'default' : 
-                          claim.status === 'rejected' ? 'destructive' : 
-                          'secondary'
-                        }>
-                          {claim.status}
-                        </Badge>
-                        {claim.status === 'pending' && (
-                          <div className="space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => handleRejectClaim(claim.id)}>
-                              Reject
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>GST</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {claims.map((claim) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="font-medium">{claim.employee}</TableCell>
+                        <TableCell>{claim.type}</TableCell>
+                        <TableCell>S${claim.amount.toFixed(2)}</TableCell>
+                        <TableCell>S${claim.gstAmount.toFixed(2)}</TableCell>
+                        <TableCell>{claim.date}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              claim.status === 'Approved' ? 'default' : 
+                              claim.status === 'Pending' ? 'secondary' : 
+                              'destructive'
+                            }
+                          >
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm">
+                              View
                             </Button>
-                            <Button size="sm" onClick={() => handleApproveClaim(claim.id)}>
-                              Approve
-                            </Button>
+                            {claim.status === 'Pending' && (
+                              <>
+                                <Button variant="outline" size="sm" onClick={() => handleApprove(claim.id)}>
+                                  Approve
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => handleReject(claim.id)}>
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </div>

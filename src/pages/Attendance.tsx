@@ -4,151 +4,64 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle, XCircle, Users, Edit } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Clock, Calendar, Edit, Save, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Attendance = () => {
-  const { user } = useAuth();
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [attendanceRecords, setAttendanceRecords] = useState([
-    { id: 1, name: 'John Tan', checkIn: '08:45', checkOut: '17:30', status: 'present', hours: '8.5', date: '2024-12-22' },
-    { id: 2, name: 'Mary Ng', checkIn: '09:15', checkOut: '18:00', status: 'late', hours: '8.0', date: '2024-12-22' },
-    { id: 3, name: 'David Lim', checkIn: '-', checkOut: '-', status: 'absent', hours: '0', date: '2024-12-22' },
-    { id: 4, name: 'Sarah Loh', checkIn: '08:30', checkOut: '17:30', status: 'present', hours: '8.5', date: '2024-12-22' },
+  const [attendanceData, setAttendanceData] = useState([
+    { id: 1, employee: 'John Tan', date: '2024-12-20', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
+    { id: 2, employee: 'Mary Ng', date: '2024-12-20', clockIn: '09:15', clockOut: '18:30', status: 'Present', hours: 8.25 },
+    { id: 3, employee: 'David Lim', date: '2024-12-20', clockIn: '', clockOut: '', status: 'Absent', hours: 0 },
   ]);
 
-  const [employeeAttendance, setEmployeeAttendance] = useState([
-    { date: '2024-12-22', checkIn: '08:45', checkOut: '17:30', hours: '8.5', status: 'present' },
-    { date: '2024-12-21', checkIn: '08:50', checkOut: '17:35', hours: '8.5', status: 'present' },
-    { date: '2024-12-20', checkIn: '09:15', checkOut: '18:00', hours: '8.0', status: 'late' },
-    { date: '2024-12-19', checkIn: '-', checkOut: '-', hours: '0', status: 'absent' },
-  ]);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const handleClockIn = () => {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    toast(`Clocked in at ${timeString}`);
+  const handleEditRecord = (record) => {
+    setEditingRecord(record);
+    setIsEditDialogOpen(true);
   };
 
-  const handleClockOut = () => {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    toast(`Clocked out at ${timeString}`);
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const clockIn = formData.get('clockIn');
+    const clockOut = formData.get('clockOut');
+    
+    let status = 'Present';
+    let hours = 0;
+    
+    if (!clockIn || !clockOut) {
+      status = 'Absent';
+      hours = 0;
+    } else {
+      const inTime = new Date(`2000-01-01 ${clockIn}`);
+      const outTime = new Date(`2000-01-01 ${clockOut}`);
+      hours = (outTime - inTime) / (1000 * 60 * 60);
+    }
+
+    setAttendanceData(prev => prev.map(record => 
+      record.id === editingRecord.id 
+        ? { 
+            ...record, 
+            clockIn: clockIn || '', 
+            clockOut: clockOut || '', 
+            status,
+            hours: parseFloat(hours.toFixed(2))
+          }
+        : record
+    ));
+
+    setIsEditDialogOpen(false);
+    setEditingRecord(null);
+    toast("Attendance record updated");
   };
 
-  const handleEditAttendance = (recordId: number, field: string, value: string) => {
-    setAttendanceRecords(prev => 
-      prev.map(record => 
-        record.id === recordId 
-          ? { ...record, [field]: value }
-          : record
-      )
-    );
-  };
-
-  const handleSaveChanges = () => {
-    setIsEditMode(false);
-    toast("Attendance records updated successfully");
-  };
-
-  // Employee view
-  if (user?.role === 'employee') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">My Attendance</h2>
-                <p className="text-gray-600">Track your attendance and working hours</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Clock In/Out</CardTitle>
-                    <CardDescription>Record your daily attendance</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex space-x-4">
-                      <Button onClick={handleClockIn} className="flex-1">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Clock In
-                      </Button>
-                      <Button onClick={handleClockOut} variant="outline" className="flex-1">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Clock Out
-                      </Button>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-lg font-semibold">Today: 8.5 hours</p>
-                      <p className="text-sm text-gray-600">In: 08:45 | Out: 17:30</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>This Week Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Total Hours:</span>
-                        <span className="font-semibold">40.5 hours</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Days Present:</span>
-                        <span className="font-semibold">4</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Days Absent:</span>
-                        <span className="font-semibold">1</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Attendance</CardTitle>
-                  <CardDescription>Your attendance history</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {employeeAttendance.map((record, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{record.date}</p>
-                          <p className="text-sm text-gray-600">In: {record.checkIn} • Out: {record.checkOut}</p>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <span className="text-sm text-gray-600">{record.hours}h</span>
-                          <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                            record.status === 'present' ? 'bg-green-100 text-green-800' :
-                            record.status === 'late' ? 'bg-orange-100 text-orange-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // Admin/Manager view
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -156,132 +69,157 @@ const Attendance = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
-                <p className="text-gray-600">Track employee attendance and working hours</p>
-              </div>
-              <Button 
-                onClick={() => setIsEditMode(!isEditMode)}
-                variant={isEditMode ? "default" : "outline"}
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                {isEditMode ? 'Save Changes' : 'Edit Attendance'}
-              </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
+              <p className="text-gray-600">View and edit employee attendance records</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Present Today</p>
-                      <p className="text-2xl font-bold text-gray-900">98</p>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Total Employees</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{attendanceData.length}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Absent</p>
-                      <p className="text-2xl font-bold text-gray-900">5</p>
-                    </div>
-                    <XCircle className="w-8 h-8 text-red-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Present Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-green-600">
+                    {attendanceData.filter(record => record.status === 'Present').length}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Late Arrivals</p>
-                      <p className="text-2xl font-bold text-gray-900">12</p>
-                    </div>
-                    <Clock className="w-8 h-8 text-orange-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Absent Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-red-600">
+                    {attendanceData.filter(record => record.status === 'Absent').length}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">On Leave</p>
-                      <p className="text-2xl font-bold text-gray-900">8</p>
-                    </div>
-                    <Users className="w-8 h-8 text-blue-500" />
-                  </div>
+                <CardHeader>
+                  <CardTitle>Average Hours</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">
+                    {(attendanceData.reduce((sum, record) => sum + record.hours, 0) / attendanceData.length).toFixed(1)}h
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Today's Attendance</CardTitle>
-                <CardDescription>Real-time attendance tracking</CardDescription>
+                <CardTitle className="flex items-center space-x-2">
+                  <Clock className="w-5 h-5" />
+                  <span>Today's Attendance</span>
+                </CardTitle>
+                <CardDescription>Employee attendance for 2024-12-20</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {attendanceRecords.map((record) => (
-                    <div key={record.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{record.name}</p>
-                        <p className="text-sm text-gray-600">
-                          In: {isEditMode ? (
-                            <input 
-                              type="time" 
-                              value={record.checkIn} 
-                              onChange={(e) => handleEditAttendance(record.id, 'checkIn', e.target.value)}
-                              className="bg-white border border-gray-300 rounded px-1"
-                            />
-                          ) : record.checkIn} • 
-                          Out: {isEditMode ? (
-                            <input 
-                              type="time" 
-                              value={record.checkOut} 
-                              onChange={(e) => handleEditAttendance(record.id, 'checkOut', e.target.value)}
-                              className="bg-white border border-gray-300 rounded px-1"
-                            />
-                          ) : record.checkOut}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <span className="text-sm text-gray-600">{record.hours}h</span>
-                        {isEditMode ? (
-                          <select 
-                            value={record.status}
-                            onChange={(e) => handleEditAttendance(record.id, 'status', e.target.value)}
-                            className="text-sm font-medium px-2 py-1 rounded border border-gray-300"
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Clock In</TableHead>
+                      <TableHead>Clock Out</TableHead>
+                      <TableHead>Hours</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceData.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{record.employee}</TableCell>
+                        <TableCell>{record.clockIn || '-'}</TableCell>
+                        <TableCell>{record.clockOut || '-'}</TableCell>
+                        <TableCell>{record.hours}h</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={record.status === 'Present' ? 'default' : 'destructive'}
                           >
-                            <option value="present">Present</option>
-                            <option value="late">Late</option>
-                            <option value="absent">Absent</option>
-                          </select>
-                        ) : (
-                          <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                            record.status === 'present' ? 'bg-green-100 text-green-800' :
-                            record.status === 'late' ? 'bg-orange-100 text-orange-800' :
-                            record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
                             {record.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {isEditMode && (
-                  <div className="mt-4 flex justify-end">
-                    <Button onClick={handleSaveChanges}>
-                      Save All Changes
-                    </Button>
-                  </div>
-                )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditRecord(record)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Attendance</DialogTitle>
+                  <DialogDescription>
+                    Edit attendance record for {editingRecord?.employee}
+                  </DialogDescription>
+                </DialogHeader>
+                {editingRecord && (
+                  <form onSubmit={handleSaveEdit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="employee">Employee</Label>
+                        <Input value={editingRecord.employee} disabled />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="date">Date</Label>
+                        <Input value={editingRecord.date} disabled />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="clockIn">Clock In</Label>
+                          <Input 
+                            name="clockIn" 
+                            type="time" 
+                            defaultValue={editingRecord.clockIn}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="clockOut">Clock Out</Label>
+                          <Input 
+                            name="clockOut" 
+                            type="time" 
+                            defaultValue={editingRecord.clockOut}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Leave times empty to mark as absent
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         </main>
       </div>
