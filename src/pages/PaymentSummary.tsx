@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -8,11 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
+  const [selectedMonth, setSelectedMonth] = useState('December 2024');
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const months = [
+    'January 2024', 'February 2024', 'March 2024', 'April 2024',
+    'May 2024', 'June 2024', 'July 2024', 'August 2024',
+    'September 2024', 'October 2024', 'November 2024', 'December 2024'
+  ];
 
   const fullTimeEmployees = [
     { id: 'EMP001', name: 'John Tan', basicSalary: 8500, allowances: 350, deductions: 100, netSalary: 7100, status: 'Pending' },
@@ -27,7 +35,18 @@ const PaymentSummary = () => {
   ];
 
   const handleProcessPayroll = () => {
-    navigate('/payroll-processing');
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+      toast(`Step ${currentStep + 1} completed`);
+    } else {
+      navigate('/payroll-processing');
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleEmployeeDetails = (employeeId: string) => {
@@ -37,30 +56,11 @@ const PaymentSummary = () => {
   const totalFullTimeAmount = fullTimeEmployees.reduce((sum, emp) => sum + emp.netSalary, 0);
   const totalCasualAmount = casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
+  const getStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button variant="outline" onClick={() => navigate('/payroll')}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Payroll
-                </Button>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Monthly Payroll Summary</h2>
-                  <p className="text-gray-600">December 2024 payroll overview</p>
-                </div>
-              </div>
-              <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
-                <Play className="w-4 h-4" />
-                <span>Process Payroll</span>
-              </Button>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardContent className="p-6">
@@ -210,6 +210,141 @@ const PaymentSummary = () => {
                 </Card>
               </TabsContent>
             </Tabs>
+          </div>
+        );
+      case 2:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Review & Approve</CardTitle>
+              <CardDescription>Review payroll calculations before final processing</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-800">Review Required</h4>
+                  <p className="text-sm text-yellow-700">Please review all calculations before proceeding to final processing.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white border rounded-lg p-4">
+                    <h5 className="font-medium">Total Full-Time</h5>
+                    <p className="text-2xl font-bold text-blue-600">S${totalFullTimeAmount.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white border rounded-lg p-4">
+                    <h5 className="font-medium">Total Casual</h5>
+                    <p className="text-2xl font-bold text-green-600">S${totalCasualAmount.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      case 3:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Final Processing</CardTitle>
+              <CardDescription>Execute payroll processing and generate payments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-medium text-green-800">Ready for Processing</h4>
+                  <p className="text-sm text-green-700">All checks completed. Ready to execute payroll processing.</p>
+                </div>
+                <div className="bg-white border rounded-lg p-4">
+                  <h5 className="font-medium">Final Amount</h5>
+                  <p className="text-3xl font-bold text-purple-600">S${(totalFullTimeAmount + totalCasualAmount).toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="flex h-[calc(100vh-73px)]">
+        <Sidebar />
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button variant="outline" onClick={() => navigate('/payroll')}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Payroll
+                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Payroll Processing</h2>
+                  <p className="text-gray-600">Process payroll for {selectedMonth}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month} value={month}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Progress Steps */}
+            <div className="flex items-center justify-center space-x-8 mb-8">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {step}
+                  </div>
+                  <span className={`ml-2 text-sm ${
+                    step <= currentStep ? 'text-blue-600 font-medium' : 'text-gray-500'
+                  }`}>
+                    Step {step}
+                  </span>
+                  {step < 3 && (
+                    <div className={`w-16 h-0.5 ml-4 ${
+                      step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {getStepContent()}
+
+            <div className="flex justify-between">
+              <Button 
+                variant="outline" 
+                onClick={handlePreviousStep}
+                disabled={currentStep === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Previous
+              </Button>
+              <Button onClick={handleProcessPayroll}>
+                {currentStep === 3 ? (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Execute Processing
+                  </>
+                ) : (
+                  <>
+                    Next Step
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </main>
       </div>
