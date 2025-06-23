@@ -21,7 +21,7 @@ const Claims = () => {
   ]);
 
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
-  const [totalApproved, setTotalApproved] = useState(25);
+  const [totalApproved, setTotalApproved] = useState(26.75);
 
   const employees = ['John Tan', 'Mary Ng', 'David Lim', 'Sarah Loh'];
   const claimTypes = ['Transport', 'Meals', 'Equipment', 'Training', 'Others'];
@@ -47,18 +47,18 @@ const Claims = () => {
   const handleNewClaim = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const amount = parseFloat(formData.get('amount'));
-    const gstAmount = parseFloat(formData.get('gstAmount')) || 0;
+    const amount = parseFloat(formData.get('amount') as string);
+    const gstAmount = parseFloat(formData.get('gstAmount') as string) || 0;
     
     const newClaim = {
       id: Date.now(),
-      employee: formData.get('employee'),
-      type: formData.get('type'),
+      employee: formData.get('employee') as string,
+      type: formData.get('type') as string,
       amount,
       gstAmount,
       status: 'Approved',
-      date: formData.get('date'),
-      description: formData.get('description')
+      date: formData.get('date') as string,
+      description: formData.get('description') as string
     };
     
     setClaims(prev => [...prev, newClaim]);
@@ -151,7 +151,7 @@ const Claims = () => {
                           <Upload className="mx-auto h-8 w-8 text-gray-400" />
                           <p className="text-sm text-gray-600 mt-2">Upload receipt or supporting documents</p>
                           <input type="file" multiple accept="image/*,.pdf" className="hidden" id="receipt-upload" />
-                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('receipt-upload').click()}>
+                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('receipt-upload')?.click()}>
                             Choose Files
                           </Button>
                         </div>

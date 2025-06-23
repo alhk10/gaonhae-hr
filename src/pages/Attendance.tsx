@@ -30,8 +30,8 @@ const Attendance = () => {
   const handleSaveEdit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const clockIn = formData.get('clockIn');
-    const clockOut = formData.get('clockOut');
+    const clockIn = formData.get('clockIn') as string;
+    const clockOut = formData.get('clockOut') as string;
     
     let status = 'Present';
     let hours = 0;
@@ -42,7 +42,7 @@ const Attendance = () => {
     } else {
       const inTime = new Date(`2000-01-01 ${clockIn}`);
       const outTime = new Date(`2000-01-01 ${clockOut}`);
-      hours = (outTime - inTime) / (1000 * 60 * 60);
+      hours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
     }
 
     setAttendanceData(prev => prev.map(record => 

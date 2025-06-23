@@ -47,12 +47,12 @@ const LeaveManagement = () => {
     const formData = new FormData(e.target);
     const newLeave = {
       id: Date.now(),
-      employee: formData.get('employee'),
-      type: formData.get('type'),
+      employee: formData.get('employee') as string,
+      type: formData.get('type') as string,
       dates: `${formData.get('startDate')} to ${formData.get('endDate')}`,
       days: 1,
       status: 'Approved',
-      reason: formData.get('reason')
+      reason: formData.get('reason') as string
     };
     setLeaves(prev => [...prev, newLeave]);
     setIsAddLeaveOpen(false);
@@ -62,17 +62,17 @@ const LeaveManagement = () => {
   const handleBulkLeave = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const selectedEmployees = formData.getAll('employees');
+    const selectedEmployees = formData.getAll('employees') as string[];
     
     selectedEmployees.forEach(employee => {
       const newLeave = {
         id: Date.now() + Math.random(),
         employee,
-        type: formData.get('type'),
+        type: formData.get('type') as string,
         dates: `${formData.get('startDate')} to ${formData.get('endDate')}`,
         days: 1,
         status: 'Approved',
-        reason: formData.get('reason')
+        reason: formData.get('reason') as string
       };
       setLeaves(prev => [...prev, newLeave]);
     });

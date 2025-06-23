@@ -56,10 +56,10 @@ const CasualEmployeesBooking = () => {
     const formData = new FormData(e.target);
     const newBooking = {
       id: Date.now(),
-      day: formData.get('day'),
-      employee: formData.get('employee'),
-      slot: parseInt(formData.get('slot')),
-      time: formData.get('timeSlot')
+      day: formData.get('day') as string,
+      employee: formData.get('employee') as string,
+      slot: parseInt(formData.get('slot') as string),
+      time: formData.get('timeSlot') as string
     };
 
     setBookings(prev => [...prev, newBooking]);
@@ -81,7 +81,7 @@ const CasualEmployeesBooking = () => {
     const formData = new FormData(e.target);
     const newSlots = {};
     days.forEach(day => {
-      newSlots[day] = parseInt(formData.get(day.toLowerCase()));
+      newSlots[day] = parseInt(formData.get(day.toLowerCase()) as string);
     });
     setWeeklySlots(newSlots);
     setIsSettingsDialogOpen(false);
