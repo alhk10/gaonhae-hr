@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -83,7 +82,7 @@ const CasualEmployeesBooking = () => {
     days.forEach(day => {
       newSlots[day] = parseInt(formData.get(day.toLowerCase()) as string);
     });
-    setWeeklySlots(newSlots);
+    setWeeklySlots(newSlots as typeof weeklySlots);
     setIsSettingsDialogOpen(false);
     toast("Slot settings updated");
   };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -44,8 +43,8 @@ const Settings = () => {
     const formData = new FormData(e.target);
     const newBranch = {
       id: Date.now(),
-      name: formData.get('name'),
-      address: formData.get('address')
+      name: formData.get('name') as string,
+      address: formData.get('address') as string
     };
     setBranches(prev => [...prev, newBranch]);
     setIsAddBranchOpen(false);
@@ -57,7 +56,7 @@ const Settings = () => {
     const formData = new FormData(e.target);
     setBranches(prev => prev.map(branch => 
       branch.id === editingBranch.id 
-        ? { ...branch, name: formData.get('name'), address: formData.get('address') }
+        ? { ...branch, name: formData.get('name') as string, address: formData.get('address') as string }
         : branch
     ));
     setIsEditBranchOpen(false);
@@ -75,9 +74,9 @@ const Settings = () => {
     const formData = new FormData(e.target);
     const newAllowance = {
       id: Date.now(),
-      name: formData.get('name'),
-      type: formData.get('type'),
-      amount: formData.get('amount') || ''
+      name: formData.get('name') as string,
+      type: formData.get('type') as string,
+      amount: formData.get('amount') as string || ''
     };
     setAllowances(prev => [...prev, newAllowance]);
     setIsAddAllowanceOpen(false);
@@ -89,9 +88,9 @@ const Settings = () => {
     const formData = new FormData(e.target);
     const newDeduction = {
       id: Date.now(),
-      name: formData.get('name'),
-      type: formData.get('type'),
-      amount: formData.get('amount') || ''
+      name: formData.get('name') as string,
+      type: formData.get('type') as string,
+      amount: formData.get('amount') as string || ''
     };
     setDeductions(prev => [...prev, newDeduction]);
     setIsAddDeductionOpen(false);
