@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -164,93 +165,94 @@ const PayrollProcessing = () => {
                           ))}
                         </TableBody>
                       </Table>
-                      <Button onClick={() => setCurrentStep(2)}>
+                      <Button onClick={() => setCurrentStep(2)} className="mt-4">
                         Next: Payment Processing
                       </Button>
                     </CardContent>
                   </Card>
                 )}
 
-          {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>2. Payment Processing</CardTitle>
-                <CardDescription>Review and process employee payments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {paymentColumns.map((column) => (
-                        <TableHead key={column.key}>{column.label}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payrollData.map((employee) => (
-                      <TableRow key={employee.id}>
-                        {paymentColumns.map((column) => (
-                          <TableCell key={column.key}>
-                            {column.key === 'employee' ? employee.name : renderEditableCell(employee, column)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={() => setCurrentStep(1)}>
-                    Previous
-                  </Button>
-                  <Button onClick={() => setCurrentStep(3)}>
-                    Next: CPF Submission
-                  </Button>
-                </div>
+                {currentStep === 2 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>2. Payment Processing</CardTitle>
+                      <CardDescription>Review and process employee payments</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {paymentColumns.map((column) => (
+                              <TableHead key={column.key}>{column.label}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {payrollData.map((employee) => (
+                            <TableRow key={employee.id}>
+                              {paymentColumns.map((column) => (
+                                <TableCell key={column.key}>
+                                  {column.key === 'employee' ? employee.name : renderEditableCell(employee, column)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="flex justify-between mt-6">
+                        <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                          Previous
+                        </Button>
+                        <Button onClick={() => setCurrentStep(3)}>
+                          Next: CPF Submission
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {currentStep === 3 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>3. CPF Contribution Submission</CardTitle>
+                      <CardDescription>Review CPF contributions for submission</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {cpfColumns.map((column) => (
+                              <TableHead key={column.key}>{column.label}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {payrollData.map((employee) => {
+                            const cpf = calculateCPF(employee.basicSalary + employee.allowances, employee.residencyStatus, employee.age);
+                            return (
+                              <TableRow key={employee.id}>
+                                <TableCell>{employee.name}</TableCell>
+                                <TableCell>{employee.basicSalary.toFixed(2)}</TableCell>
+                                <TableCell>{employee.allowances.toFixed(2)}</TableCell>
+                                <TableCell>{(cpf.employee + cpf.employer).toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <div className="flex justify-between mt-6">
+                        <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                          Previous
+                        </Button>
+                        <Button onClick={handleProcessPayroll}>
+                          Complete Payroll Processing
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </CardContent>
             </Card>
-          )}
-
-          {currentStep === 3 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>3. CPF Contribution Submission</CardTitle>
-                <CardDescription>Review CPF contributions for submission</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {cpfColumns.map((column) => (
-                        <TableHead key={column.key}>{column.label}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payrollData.map((employee) => {
-                      const cpf = calculateCPF(employee.basicSalary + employee.allowances, employee.residencyStatus, employee.age);
-                      return (
-                        <TableRow key={employee.id}>
-                          <TableCell>{employee.name}</TableCell>
-                          <TableCell>{employee.basicSalary.toFixed(2)}</TableCell>
-                          <TableCell>{employee.allowances.toFixed(2)}</TableCell>
-                          <TableCell>{(cpf.employee + cpf.employer).toFixed(2)}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={() => setCurrentStep(2)}>
-                    Previous
-                  </Button>
-                  <Button onClick={handleProcessPayroll}>
-                    Complete Payroll Processing
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           </div>
         </main>
       </div>
