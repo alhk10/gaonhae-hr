@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -11,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, Plus, Upload, Check, X } from 'lucide-react';
+import { CreditCard, Plus, Upload, Check, X, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Claims = () => {
@@ -22,6 +21,13 @@ const Claims = () => {
 
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
   const [totalApproved, setTotalApproved] = useState(26.75);
+  const [isClaimSettingsOpen, setIsClaimSettingsOpen] = useState(false);
+  const [claimSettings, setClaimSettings] = useState({
+    maxTransportClaim: 100,
+    maxMealsClaim: 50,
+    requireReceipt: true,
+    autoApprovalLimit: 25
+  });
 
   const employees = ['John Tan', 'Mary Ng', 'David Lim', 'Sarah Loh'];
   const claimTypes = ['Transport', 'Meals', 'Equipment', 'Training', 'Others'];
@@ -67,6 +73,19 @@ const Claims = () => {
     toast("New claim added and approved");
   };
 
+  const handleClaimSettings = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    setClaimSettings({
+      maxTransportClaim: parseInt(formData.get('transport') as string),
+      maxMealsClaim: parseInt(formData.get('meals') as string),
+      requireReceipt: formData.get('receipt') === 'on',
+      autoApprovalLimit: parseInt(formData.get('autoApproval') as string)
+    });
+    setIsClaimSettingsOpen(false);
+    toast("Claim settings updated");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -79,96 +98,144 @@ const Claims = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Claims Management</h2>
                 <p className="text-gray-600">Manage employee expense claims</p>
               </div>
-              <Dialog open={isNewClaimOpen} onOpenChange={setIsNewClaimOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Claim
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>New Claim</DialogTitle>
-                    <DialogDescription>Add a new expense claim for immediate approval.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleNewClaim}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="employee">Employee</Label>
-                        <Select name="employee" required>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select employee" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {employees.map((employee) => (
-                              <SelectItem key={employee} value={employee}>
-                                {employee}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="type">Claim Type</Label>
-                        <Select name="type" required>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select claim type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {claimTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+              <div className="flex space-x-2">
+                <Dialog open={isClaimSettingsOpen} onOpenChange={setIsClaimSettingsOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Claim Settings
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Claim Settings</DialogTitle>
+                      <DialogDescription>Configure claim limits and policies.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleClaimSettings}>
+                      <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="amount">Amount (S$)</Label>
-                          <Input name="amount" type="number" step="0.01" placeholder="0.00" required />
+                          <Label htmlFor="transport">Max Transport Claim (S$)</Label>
+                          <Input name="transport" type="number" defaultValue={claimSettings.maxTransportClaim} required />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="gstAmount">GST Amount (S$)</Label>
-                          <Input name="gstAmount" type="number" step="0.01" placeholder="0.00" />
+                          <Label htmlFor="meals">Max Meals Claim (S$)</Label>
+                          <Input name="meals" type="number" defaultValue={claimSettings.maxMealsClaim} required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="autoApproval">Auto Approval Limit (S$)</Label>
+                          <Input name="autoApproval" type="number" defaultValue={claimSettings.autoApprovalLimit} required />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="checkbox" 
+                            name="receipt" 
+                            id="receipt"
+                            defaultChecked={claimSettings.requireReceipt}
+                          />
+                          <Label htmlFor="receipt">Require receipt for all claims</Label>
                         </div>
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="date">Date of Expense</Label>
-                        <Input name="date" type="date" required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="vendor">Vendor/Merchant</Label>
-                        <Input name="vendor" placeholder="Enter vendor name" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea name="description" placeholder="Describe the expense..." required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Receipt Upload</Label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                          <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                          <p className="text-sm text-gray-600 mt-2">Upload receipt or supporting documents</p>
-                          <input type="file" multiple accept="image/*,.pdf" className="hidden" id="receipt-upload" />
-                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('receipt-upload')?.click()}>
-                            Choose Files
-                          </Button>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsClaimSettingsOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Save Settings</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isNewClaimOpen} onOpenChange={setIsNewClaimOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Claim
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>New Claim</DialogTitle>
+                      <DialogDescription>Add a new expense claim for immediate approval.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleNewClaim}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="employee">Employee</Label>
+                          <Select name="employee" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee} value={employee}>
+                                  {employee}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="type">Claim Type</Label>
+                          <Select name="type" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select claim type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {claimTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="amount">Amount (S$)</Label>
+                            <Input name="amount" type="number" step="0.01" placeholder="0.00" required />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="gstAmount">GST Amount (S$)</Label>
+                            <Input name="gstAmount" type="number" step="0.01" placeholder="0.00" />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="date">Date of Expense</Label>
+                          <Input name="date" type="date" required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="vendor">Vendor/Merchant</Label>
+                          <Input name="vendor" placeholder="Enter vendor name" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea name="description" placeholder="Describe the expense..." required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Receipt Upload</Label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                            <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                            <p className="text-sm text-gray-600 mt-2">Upload receipt or supporting documents</p>
+                            <input type="file" multiple accept="image/*,.pdf" className="hidden" id="receipt-upload" />
+                            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('receipt-upload')?.click()}>
+                              Choose Files
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">
-                        <Check className="w-4 h-4 mr-2" />
-                        Add & Approve
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">
+                          <Check className="w-4 h-4 mr-2" />
+                          Add & Approve
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
