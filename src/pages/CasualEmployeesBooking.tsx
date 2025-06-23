@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,10 +13,6 @@ import { toast } from '@/components/ui/sonner';
 const CasualEmployeesBooking = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [isTimeSlotSettingsOpen, setIsTimeSlotSettingsOpen] = useState(false);
-  const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
-  
   const [weeklySlots, setWeeklySlots] = useState({
     Monday: 3,
     Tuesday: 3,
@@ -28,15 +23,14 @@ const CasualEmployeesBooking = () => {
     Sunday: 1
   });
 
-  const [timeSlots, setTimeSlots] = useState(['09:00-17:00', '13:00-21:00', '17:00-01:00']);
-
   const [bookings, setBookings] = useState([
-    { id: 1, date: '2024-12-23', employee: 'Alice Tan', time: '09:00-17:00' },
-    { id: 2, date: '2024-12-23', employee: 'Bob Lim', time: '13:00-21:00' },
-    { id: 3, date: '2024-12-24', employee: 'Carol Ng', time: '09:00-17:00' },
+    { id: 1, day: 'Monday', employee: 'Alice Tan', slot: 1, time: '09:00-17:00' },
+    { id: 2, day: 'Monday', employee: 'Bob Lim', slot: 2, time: '13:00-21:00' },
+    { id: 3, day: 'Tuesday', employee: 'Carol Ng', slot: 1, time: '09:00-17:00' },
   ]);
 
   const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
+  const timeSlots = ['09:00-17:00', '13:00-21:00', '17:00-01:00'];
   
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -48,11 +42,7 @@ const CasualEmployeesBooking = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      weekDates.push({
-        date: date.toISOString().split('T')[0],
-        display: date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }),
-        day: days[i]
-      });
+      weekDates.push(date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }));
     }
     
     return weekDates;
@@ -65,30 +55,15 @@ const CasualEmployeesBooking = () => {
     const formData = new FormData(e.target);
     const newBooking = {
       id: Date.now(),
-      date: formData.get('date') as string,
+      day: formData.get('day') as string,
       employee: formData.get('employee') as string,
+      slot: parseInt(formData.get('slot') as string),
       time: formData.get('timeSlot') as string
     };
 
     setBookings(prev => [...prev, newBooking]);
     setIsBookingDialogOpen(false);
-    toast(`Booked ${newBooking.employee} for ${newBooking.date}`);
-  };
-
-  const handleQuickBooking = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newBooking = {
-      id: Date.now(),
-      date: selectedDate,
-      employee: formData.get('employee') as string,
-      time: formData.get('timeSlot') as string
-    };
-
-    setBookings(prev => [...prev, newBooking]);
-    setIsQuickBookingOpen(false);
-    setSelectedDate('');
-    toast(`Booked ${newBooking.employee} for ${selectedDate}`);
+    toast(`Booked ${newBooking.employee} for ${newBooking.day}`);
   };
 
   const handleSwap = (bookingId) => {
@@ -112,28 +87,8 @@ const CasualEmployeesBooking = () => {
     toast("Slot settings updated");
   };
 
-  const handleTimeSlotSettings = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const slots = [];
-    for (let i = 0; i < 5; i++) {
-      const slot = formData.get(`slot${i}`) as string;
-      if (slot && slot.trim()) {
-        slots.push(slot.trim());
-      }
-    }
-    setTimeSlots(slots);
-    setIsTimeSlotSettingsOpen(false);
-    toast("Time slot settings updated");
-  };
-
-  const getBookingsForDate = (date) => {
-    return bookings.filter(b => b.date === date);
-  };
-
-  const openQuickBooking = (date) => {
-    setSelectedDate(date);
-    setIsQuickBookingOpen(true);
+  const getBookingsForDay = (day) => {
+    return bookings.filter(b => b.day === day);
   };
 
   return (
@@ -164,8 +119,19 @@ const CasualEmployeesBooking = () => {
                     <form onSubmit={handleBooking}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input name="date" type="date" required />
+                          <Label htmlFor="day">Day</Label>
+                          <Select name="day" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select day" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {days.map((day) => (
+                                <SelectItem key={day} value={day}>
+                                  {day}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="employee">Employee</Label>
@@ -197,47 +163,16 @@ const CasualEmployeesBooking = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="slot">Slot Number</Label>
+                          <Input name="slot" type="number" min="1" max="5" defaultValue="1" required />
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsBookingDialogOpen(false)}>
                           Cancel
                         </Button>
                         <Button type="submit">Add Booking</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={isTimeSlotSettingsOpen} onOpenChange={setIsTimeSlotSettingsOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Time Slots
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Time Slot Settings</DialogTitle>
-                      <DialogDescription>Configure available time slots for bookings.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleTimeSlotSettings}>
-                      <div className="grid gap-4 py-4">
-                        {[0, 1, 2, 3, 4].map((index) => (
-                          <div key={index} className="grid gap-2">
-                            <Label htmlFor={`slot${index}`}>Time Slot {index + 1}</Label>
-                            <Input 
-                              name={`slot${index}`} 
-                              placeholder="e.g., 09:00-17:00"
-                              defaultValue={timeSlots[index] || ''}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsTimeSlotSettingsOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Save Time Slots</Button>
                       </DialogFooter>
                     </form>
                   </DialogContent>
@@ -293,24 +228,15 @@ const CasualEmployeesBooking = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-7 gap-4">
-                  {weekDates.map((dateInfo) => (
-                    <div key={dateInfo.date} className="border rounded-lg p-4">
+                  {days.map((day, index) => (
+                    <div key={day} className="border rounded-lg p-4">
                       <div className="text-center mb-2">
-                        <h3 className="font-semibold">{dateInfo.day}</h3>
-                        <p className="text-sm text-gray-600">{dateInfo.display}</p>
-                        <p className="text-xs text-gray-500">{weeklySlots[dateInfo.day]} slots available</p>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="mt-1"
-                          onClick={() => openQuickBooking(dateInfo.date)}
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add
-                        </Button>
+                        <h3 className="font-semibold">{day}</h3>
+                        <p className="text-sm text-gray-600">{weekDates[index]}</p>
+                        <p className="text-xs text-gray-500">{weeklySlots[day]} slots available</p>
                       </div>
                       <div className="space-y-2">
-                        {getBookingsForDate(dateInfo.date).map((booking) => (
+                        {getBookingsForDay(day).map((booking) => (
                           <div key={booking.id} className="bg-blue-50 p-2 rounded text-xs">
                             <p className="font-medium">{booking.employee}</p>
                             <p className="text-gray-600">{booking.time}</p>
@@ -324,7 +250,7 @@ const CasualEmployeesBooking = () => {
                             </div>
                           </div>
                         ))}
-                        {getBookingsForDate(dateInfo.date).length === 0 && (
+                        {getBookingsForDay(day).length === 0 && (
                           <p className="text-gray-400 text-xs text-center">No bookings</p>
                         )}
                       </div>
@@ -360,55 +286,6 @@ const CasualEmployeesBooking = () => {
                 </CardContent>
               </Card>
             </div>
-
-            <Dialog open={isQuickBookingOpen} onOpenChange={setIsQuickBookingOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Quick Booking</DialogTitle>
-                  <DialogDescription>Add booking for {selectedDate}</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleQuickBooking}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="employee">Employee</Label>
-                      <Select name="employee" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select employee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {casualEmployees.map((employee) => (
-                            <SelectItem key={employee} value={employee}>
-                              {employee}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="timeSlot">Time Slot</Label>
-                      <Select name="timeSlot" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select time slot" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeSlots.map((slot) => (
-                            <SelectItem key={slot} value={slot}>
-                              {slot}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsQuickBookingOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Add Booking</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
           </div>
         </main>
       </div>

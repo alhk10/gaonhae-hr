@@ -1,73 +1,107 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, Download, FileText, Plus, Calendar } from 'lucide-react';
+import { DollarSign, Calendar, Download, TrendingUp, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Payroll = () => {
-  const [payrollRuns, setPayrollRuns] = useState([
-    { id: 1, month: 'December 2024', status: 'Completed', employees: 15, total: 45000, date: '2024-12-01', type: 'Full-Time' },
-    { id: 2, month: 'November 2024', status: 'Completed', employees: 15, total: 44500, date: '2024-11-01', type: 'Full-Time' },
-    { id: 3, month: 'December 2024', status: 'Completed', employees: 8, total: 12000, date: '2024-12-01', type: 'Casual' },
-    { id: 4, month: 'November 2024', status: 'Completed', employees: 8, total: 11500, date: '2024-11-01', type: 'Casual' },
-  ]);
+  const navigate = useNavigate();
 
-  const [isNewPayrollOpen, setIsNewPayrollOpen] = useState(false);
+  const handleProcessPayroll = () => {
+    navigate('/payment-summary');
+  };
 
-  const handleDownloadPDF = (id) => {
-    // Create a simple PDF content
+  const handleIncrementPlanning = () => {
+    navigate('/increment-planning');
+  };
+
+  const handlePaymentSummary = () => {
+    navigate('/payment-summary');
+  };
+
+  const generatePDF = (month: string) => {
+    // Create a proper PDF-like structure with better formatting
     const pdfContent = `
-      PAYROLL SUMMARY REPORT
-      
-      Payroll Run ID: ${id}
-      Generated: ${new Date().toLocaleDateString()}
-      
-      This is a sample PDF download for payroll run ${id}.
-      In a real implementation, this would contain detailed payroll information.
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payslip - ${month}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .section { margin: 20px 0; }
+        .row { display: flex; justify-content: space-between; margin: 5px 0; }
+        .total { font-weight: bold; border-top: 1px solid #000; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PAYSLIP</h1>
+        <h2>${month.toUpperCase()}</h2>
+        <p>ABC Learning Centre Pte Ltd</p>
+        <p>123 Main Street, Singapore 123456</p>
+    </div>
     
-    const blob = new Blob([pdfContent], { type: 'application/pdf' });
+    <div class="section">
+        <h3>EMPLOYEE DETAILS</h3>
+        <div class="row"><span>Name:</span><span>John Tan</span></div>
+        <div class="row"><span>Employee ID:</span><span>EMP001</span></div>
+        <div class="row"><span>NRIC/FIN:</span><span>S1234567A</span></div>
+        <div class="row"><span>Department:</span><span>Engineering</span></div>
+        <div class="row"><span>Position:</span><span>Senior Developer</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>EARNINGS</h3>
+        <div class="row"><span>Basic Salary</span><span>S$ 8,500.00</span></div>
+        <div class="row"><span>Transport Allowance</span><span>S$ 200.00</span></div>
+        <div class="row"><span>Meal Allowance</span><span>S$ 150.00</span></div>
+        <div class="row total"><span>Gross Earnings</span><span>S$ 8,850.00</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>DEDUCTIONS</h3>
+        <div class="row"><span>Employee CPF (20%)</span><span>S$ 1,700.00</span></div>
+        <div class="row"><span>Employer CPF (17%)</span><span>S$ 1,445.00</span></div>
+        <div class="row"><span>Insurance</span><span>S$ 50.00</span></div>
+        <div class="row total"><span>Total Deductions</span><span>S$ 1,750.00</span></div>
+    </div>
+    
+    <div class="section">
+        <div class="row total" style="font-size: 18px;"><span>NET PAY</span><span>S$ 7,100.00</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>PAYMENT DETAILS</h3>
+        <div class="row"><span>Bank:</span><span>DBS Bank</span></div>
+        <div class="row"><span>Account Number:</span><span>1234-567890</span></div>
+    </div>
+    
+    <div class="section" style="text-align: center; margin-top: 50px;">
+        <p><em>This payslip is computer generated and does not require signature.</em></p>
+        <p><em>For queries, please contact HR Department.</em></p>
+    </div>
+</body>
+</html>
+    `;
+
+    // Create a blob with HTML content and simulate PDF download
+    const blob = new Blob([pdfContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `payroll-run-${id}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payslip-${month.replace(' ', '-').toLowerCase()}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    toast("PDF downloaded successfully");
+    toast(`Downloaded payslip for ${month} (HTML format - will display as PDF in browser)`);
   };
-
-  const handleNewPayroll = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newPayroll = {
-      id: Date.now(),
-      month: formData.get('month') as string,
-      status: 'Processing',
-      employees: parseInt(formData.get('employees') as string),
-      total: parseFloat(formData.get('total') as string),
-      date: new Date().toISOString().split('T')[0],
-      type: formData.get('type') as string
-    };
-    setPayrollRuns(prev => [newPayroll, ...prev]);
-    setIsNewPayrollOpen(false);
-    toast("New payroll run created");
-  };
-
-  const fullTimeRuns = payrollRuns.filter(run => run.type === 'Full-Time');
-  const casualRuns = payrollRuns.filter(run => run.type === 'Casual');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,188 +113,94 @@ const Payroll = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
-                <p className="text-gray-600">Manage employee payroll and generate reports</p>
+                <p className="text-gray-600">Process and manage employee payroll</p>
               </div>
-              <Dialog open={isNewPayrollOpen} onOpenChange={setIsNewPayrollOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Payroll Run
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>New Payroll Run</DialogTitle>
-                    <DialogDescription>Create a new payroll processing run.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleNewPayroll}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="month">Month/Year</Label>
-                        <Input name="month" placeholder="e.g., January 2024" required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="type">Employee Type</Label>
-                        <Select name="type" required>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select employee type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Full-Time">Full-Time</SelectItem>
-                            <SelectItem value="Casual">Casual</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="employees">Number of Employees</Label>
-                        <Input name="employees" type="number" placeholder="15" required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="total">Total Amount (S$)</Label>
-                        <Input name="total" type="number" step="0.01" placeholder="45000.00" required />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsNewPayrollOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Create Payroll Run</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  className="flex items-center space-x-2" 
+                  onClick={handleIncrementPlanning}
+                >
+                  <TrendingUp className="w-4 h-4"  />
+                  <span>Increment Planning</span>
+                </Button>
+                <Button 
+                  className="flex items-center space-x-2" 
+                  onClick={handleProcessPayroll}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Process Payroll</span>
+                </Button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Employees</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">23</p>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Amount Approved</p>
+                      <p className="text-2xl font-bold text-gray-900">S$245,680</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-green-500" />
+                  </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>This Month's Payroll</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">S$57,000</p>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
+                      <p className="text-2xl font-bold text-gray-900">S$2,948,160</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-blue-500" />
+                  </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Processing Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Badge variant="default">Completed</Badge>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Next Due Date</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">Jan 2</p>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Next Run</p>
+                      <p className="text-2xl font-bold text-gray-900">3 days</p>
+                    </div>
+                    <Calendar className="w-8 h-8 text-purple-500" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <DollarSign className="w-5 h-5" />
-                  <span>Payroll Summary</span>
-                </CardTitle>
-                <CardDescription>Recent payroll runs and processing history</CardDescription>
+                <CardTitle>Recent Payroll Runs</CardTitle>
+                <CardDescription>Latest payroll processing history</CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="full-time" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="full-time">Full-Time Employees</TabsTrigger>
-                    <TabsTrigger value="casual">Casual Employees</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="full-time" className="space-y-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Month</TableHead>
-                          <TableHead>Employees</TableHead>
-                          <TableHead>Total Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fullTimeRuns.map((run) => (
-                          <TableRow key={run.id}>
-                            <TableCell className="font-medium">{run.month}</TableCell>
-                            <TableCell>{run.employees}</TableCell>
-                            <TableCell>S${run.total.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Badge variant={run.status === 'Completed' ? 'default' : 'secondary'}>
-                                {run.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">
-                                  <FileText className="w-4 h-4 mr-1" />
-                                  View
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleDownloadPDF(run.id)}>
-                                  <Download className="w-4 h-4 mr-1" />
-                                  PDF
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TabsContent>
-                  
-                  <TabsContent value="casual" className="space-y-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Month</TableHead>
-                          <TableHead>Employees</TableHead>
-                          <TableHead>Total Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {casualRuns.map((run) => (
-                          <TableRow key={run.id}>
-                            <TableCell className="font-medium">{run.month}</TableCell>
-                            <TableCell>{run.employees}</TableCell>
-                            <TableCell>S${run.total.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Badge variant={run.status === 'Completed' ? 'default' : 'secondary'}>
-                                {run.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">
-                                  <FileText className="w-4 h-4 mr-1" />
-                                  View
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleDownloadPDF(run.id)}>
-                                  <Download className="w-4 h-4 mr-1" />
-                                  PDF
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TabsContent>
-                </Tabs>
+                <div className="space-y-3">
+                  {[
+                    { month: 'December 2024', amount: 'S$245,680', status: 'Completed', date: '2024-12-01' },
+                    { month: 'November 2024', amount: 'S$248,920', status: 'Completed', date: '2024-11-01' },
+                    { month: 'October 2024', amount: 'S$252,100', status: 'Completed', date: '2024-10-01' },
+                  ].map((run, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{run.month}</p>
+                        <p className="text-sm text-gray-600">{run.amount} • {run.date}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-600 text-sm font-medium">{run.status}</span>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => generatePDF(run.month)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download PDF
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -8,8 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, Calendar, Edit, Save, X, Search, Filter } from 'lucide-react';
+import { Clock, Calendar, Edit, Save, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const Attendance = () => {
@@ -21,16 +21,6 @@ const Attendance = () => {
 
   const [editingRecord, setEditingRecord] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
-
-  const filteredAttendance = attendanceData.filter(record => {
-    const matchesSearch = record.employee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || record.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesDate = !dateFilter || record.date === dateFilter;
-    return matchesSearch && matchesStatus && matchesDate;
-  });
 
   const handleEditRecord = (record) => {
     setEditingRecord(record);
@@ -134,34 +124,6 @@ const Attendance = () => {
                 <CardDescription>Employee attendance for 2024-12-20</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                  <div className="flex items-center space-x-2">
-                    <Search className="w-4 h-4" />
-                    <Input
-                      placeholder="Search by employee name..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-64"
-                    />
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="absent">Absent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-40"
-                  />
-                </div>
-
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -174,7 +136,7 @@ const Attendance = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAttendance.map((record) => (
+                    {attendanceData.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">{record.employee}</TableCell>
                         <TableCell>{record.clockIn || '-'}</TableCell>

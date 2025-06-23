@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Users, Plus, Upload, X, Settings } from 'lucide-react';
+import { Calendar, Users, Plus, Upload, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const LeaveManagement = () => {
@@ -23,13 +24,6 @@ const LeaveManagement = () => {
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
-  const [isLeaveSettingsOpen, setIsLeaveSettingsOpen] = useState(false);
-  const [leaveSettings, setLeaveSettings] = useState({
-    annualLeaveEntitlement: 14,
-    medicalLeaveEntitlement: 14,
-    maternityLeave: 16,
-    paternityLeave: 2
-  });
 
   const employees = ['John Tan', 'Mary Ng', 'David Lim', 'Sarah Loh'];
   const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
@@ -92,37 +86,6 @@ const LeaveManagement = () => {
     setIsLeaveDetailsOpen(true);
   };
 
-  const handleLeaveSettings = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    setLeaveSettings({
-      annualLeaveEntitlement: parseInt(formData.get('annual') as string),
-      medicalLeaveEntitlement: parseInt(formData.get('medical') as string),
-      maternityLeave: parseInt(formData.get('maternity') as string),
-      paternityLeave: parseInt(formData.get('paternity') as string)
-    });
-    setIsLeaveSettingsOpen(false);
-    toast("Leave settings updated");
-  };
-
-  const getUpcomingLeaves = () => {
-    const today = new Date();
-    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return leaves.filter(leave => {
-      const leaveDate = new Date(leave.dates.split(' to ')[0]);
-      return leaveDate >= today && leaveDate <= nextWeek && leave.status === 'Approved';
-    });
-  };
-
-  const getUnusedAnnualLeave = () => {
-    // Mock calculation - in real app would calculate based on employee records
-    return 156; // Total unused annual leave days across company
-  };
-
-  const getPendingApprovals = () => {
-    return leaves.filter(leave => leave.status === 'Pending').length;
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -136,47 +99,6 @@ const LeaveManagement = () => {
                 <p className="text-gray-600">Manage employee leave applications</p>
               </div>
               <div className="flex space-x-2">
-                <Dialog open={isLeaveSettingsOpen} onOpenChange={setIsLeaveSettingsOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Leave Settings
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Leave Settings</DialogTitle>
-                      <DialogDescription>Configure leave entitlements and policies.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleLeaveSettings}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="annual">Annual Leave Entitlement (days)</Label>
-                          <Input name="annual" type="number" defaultValue={leaveSettings.annualLeaveEntitlement} required />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="medical">Medical Leave Entitlement (days)</Label>
-                          <Input name="medical" type="number" defaultValue={leaveSettings.medicalLeaveEntitlement} required />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="maternity">Maternity Leave (weeks)</Label>
-                          <Input name="maternity" type="number" defaultValue={leaveSettings.maternityLeave} required />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="paternity">Paternity Leave (weeks)</Label>
-                          <Input name="paternity" type="number" defaultValue={leaveSettings.paternityLeave} required />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsLeaveSettingsOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Save Settings</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
                 <Dialog open={isAddLeaveOpen} onOpenChange={setIsAddLeaveOpen}>
                   <DialogTrigger asChild>
                     <Button>
@@ -234,17 +156,6 @@ const LeaveManagement = () => {
                         <div className="grid gap-2">
                           <Label htmlFor="reason">Reason</Label>
                           <Textarea name="reason" placeholder="Enter reason for leave" required />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="medicalCert">Medical Certificate (if applicable)</Label>
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                            <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                            <p className="text-sm text-gray-600 mt-2">Upload medical certificate</p>
-                            <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" id="medical-cert-upload" />
-                            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('medical-cert-upload')?.click()}>
-                              Choose File
-                            </Button>
-                          </div>
                         </div>
                       </div>
                       <DialogFooter>
@@ -323,44 +234,6 @@ const LeaveManagement = () => {
                 </Dialog>
               </div>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Summary</CardTitle>
-                <CardDescription>Overview of company leave statistics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Upcoming Leaves</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{getUpcomingLeaves().length}</p>
-                      <p className="text-sm text-gray-600">Next 7 days</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Unused Annual Leave</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{getUnusedAnnualLeave()}</p>
-                      <p className="text-sm text-gray-600">Days remaining this year</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Pending Approvals</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{getPendingApprovals()}</p>
-                      <p className="text-sm text-gray-600">Awaiting review</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader>

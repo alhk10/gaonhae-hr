@@ -1,95 +1,432 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { useNavigate } from 'react-router-dom';
+import { calculateCPF } from '@/utils/cpfCalculations';
+
+interface PayrollEmployee {
+  id: string;
+  name: string;
+  nric: string;
+  dateOfBirth: string;
+  residencyStatus: string;
+  basicSalary: number;
+  allowances: { name: string; amount: number }[];
+  deductions: { name: string; amount: number }[];
+  employeeCPF: number;
+  employerCPF: number;
+  netSalary: number;
+  bankAccount: string;
+  bankName: string;
+  status: 'draft' | 'approved' | 'paid' | 'cpf_submitted';
+}
 
 const PayrollProcessing = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [payrollData, setPayrollData] = useState([
-    { id: 1, name: 'John Tan', basicSalary: 5000, allowances: 500, overtime: 200, deductions: 150, residencyStatus: 'Citizen', age: 35 },
-    { id: 2, name: 'Mary Ng', basicSalary: 6000, allowances: 600, overtime: 150, deductions: 200, residencyStatus: 'PR', age: 42 },
-    { id: 3, name: 'David Lim', basicSalary: 4500, allowances: 400, overtime: 100, deductions: 100, residencyStatus: 'Citizen', age: 28 },
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
+  const [employees, setEmployees] = useState<PayrollEmployee[]>([
+    { 
+      id: 'EMP001', 
+      name: 'John Tan', 
+      nric: 'S1234567A',
+      dateOfBirth: '1990-05-15',
+      residencyStatus: 'Singapore Citizen',
+      basicSalary: 8500, 
+      allowances: [
+        { name: 'Transport Allowance', amount: 200 },
+        { name: 'Meal Allowance', amount: 150 }
+      ],
+      deductions: [
+        { name: 'Insurance', amount: 100 }
+      ],
+      employeeCPF: 0,
+      employerCPF: 0,
+      netSalary: 0,
+      bankAccount: '1234-567890',
+      bankName: 'DBS Bank',
+      status: 'draft'
+    },
+    { 
+      id: 'EMP002', 
+      name: 'Mary Ng', 
+      nric: 'S2345678B',
+      dateOfBirth: '1988-08-22',
+      residencyStatus: 'Permanent Resident Year 2',
+      basicSalary: 7200, 
+      allowances: [
+        { name: 'Transport Allowance', amount: 200 }
+      ],
+      deductions: [
+        { name: 'Insurance', amount: 50 }
+      ],
+      employeeCPF: 0,
+      employerCPF: 0,
+      netSalary: 0,
+      bankAccount: '2345-678901',
+      bankName: 'OCBC Bank',
+      status: 'draft'
+    },
   ]);
 
-  const calculateCPF = (grossSalary, residencyStatus, age) => {
-    let employeeContribution = 0;
-    let employerContribution = 0;
+  const [systemAllowances] = useState([
+    { name: 'Transport Allowance', type: 'Fixed', amount: '200' },
+    { name: 'Meal Allowance', type: 'Fixed', amount: '150' },
+    { name: 'Performance Bonus', type: 'Percentage', amount: '10' },
+    { name: 'Overtime', type: 'Manual', amount: '' }
+  ]);
 
-    if (residencyStatus === 'Citizen' || residencyStatus === 'PR') {
-      if (age <= 55) {
-        employeeContribution = Math.min(0.2 * grossSalary, 1200);
-        employerContribution = Math.min(0.17 * grossSalary, 1020);
-      } else if (age <= 60) {
-        employeeContribution = Math.min(0.115 * grossSalary, 690);
-        employerContribution = Math.min(0.13 * grossSalary, 780);
-      } else if (age <= 65) {
-        employeeContribution = Math.min(0.075 * grossSalary, 450);
-        employerContribution = Math.min(0.09 * grossSalary, 540);
-      } else {
-        employeeContribution = Math.min(0.05 * grossSalary, 300);
-        employerContribution = Math.min(0.075 * grossSalary, 450);
+  const [systemDeductions] = useState([
+    { name: 'Insurance Premium', type: 'Fixed', amount: '100' },
+    { name: 'Union Dues', type: 'Percentage', amount: '2' },
+    { name: 'Loan Deduction', type: 'Manual', amount: '' }
+  ]);
+
+  // Calculate CPF and net salary for each employee
+  React.useEffect(() => {
+    setEmployees(prev => prev.map(emp => {
+      const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+      const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+      const grossSalary = emp.basicSalary + totalAllowances;
+      
+      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+      
+      return {
+        ...emp,
+        employeeCPF: cpfCalc.employeeCPF,
+        employerCPF: cpfCalc.employerCPF,
+        netSalary: netSalary
+      };
+    }));
+  }, []);
+
+  const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === employeeId) {
+        const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+        const grossSalary = newSalary + totalAllowances;
+        
+        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+        const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+        
+        return {
+          ...emp,
+          basicSalary: newSalary,
+          employeeCPF: cpfCalc.employeeCPF,
+          employerCPF: cpfCalc.employerCPF,
+          netSalary: netSalary
+        };
       }
-    }
-
-    return { employee: employeeContribution, employer: employerContribution };
+      return emp;
+    }));
   };
 
-  const handleCellEdit = (employeeId, columnKey, value) => {
-    setPayrollData(prev => prev.map(employee =>
-      employee.id === employeeId ? { ...employee, [columnKey]: value } : employee
+  const addAllowance = (employeeId: string, allowanceName: string) => {
+    const systemAllowance = systemAllowances.find(a => a.name === allowanceName);
+    const amount = systemAllowance?.type === 'Fixed' ? parseFloat(systemAllowance.amount) : 0;
+    
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, allowances: [...emp.allowances, { name: allowanceName, amount }] }
+        : emp
     ));
   };
 
-  const handleProcessPayroll = () => {
-    toast("Payroll processed successfully");
+  const removeAllowance = (employeeId: string, index: number) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, allowances: emp.allowances.filter((_, i) => i !== index) }
+        : emp
+    ));
   };
 
-  const paymentColumns = [
-    { key: 'employee', label: 'Employee' },
-    { key: 'basicSalary', label: 'Basic Salary (S$)', editable: true },
-    { key: 'allowances', label: 'Allowances (S$)', editable: true },
-    { key: 'overtime', label: 'Overtime (S$)', editable: true },
-    { key: 'deductions', label: 'Deductions (S$)', editable: true },
-    { key: 'grossPay', label: 'Gross Pay (S$)' },
-    { key: 'netPay', label: 'Net Pay (S$)' }
-  ];
+  const addDeduction = (employeeId: string, deductionName: string) => {
+    const systemDeduction = systemDeductions.find(d => d.name === deductionName);
+    const amount = systemDeduction?.type === 'Fixed' ? parseFloat(systemDeduction.amount) : 0;
+    
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, deductions: [...emp.deductions, { name: deductionName, amount }] }
+        : emp
+    ));
+  };
 
-  const cpfColumns = [
-    { key: 'employee', label: 'Employee' },
-    { key: 'basicSalary', label: 'Basic Salary (S$)' },
-    { key: 'allowances', label: 'Allowances (S$)' },
-    { key: 'cpfContribution', label: 'Total CPF (S$)' }
-  ];
+  const removeDeduction = (employeeId: string, index: number) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, deductions: emp.deductions.filter((_, i) => i !== index) }
+        : emp
+    ));
+  };
 
-  const renderEditableCell = (employee, column) => {
-    if (!column.editable) {
-      if (column.key === 'grossPay') {
-        return `${(employee.basicSalary + employee.allowances + employee.overtime - employee.deductions).toFixed(2)}`;
-      }
-      if (column.key === 'netPay') {
-        const gross = employee.basicSalary + employee.allowances + employee.overtime - employee.deductions;
-        const cpf = calculateCPF(employee.basicSalary + employee.allowances, employee.residencyStatus, employee.age);
-        return `${(gross - cpf.employee).toFixed(2)}`;
-      }
-      return employee[column.key];
+  const handleSaveDraft = () => {
+    // Simulate saving to backend
+    localStorage.setItem('payrollDraft', JSON.stringify(employees));
+    toast("Payroll draft saved successfully");
+  };
+
+  const handleApprovePayroll = () => {
+    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'approved' as const })));
+    setCurrentStep('payment');
+    toast("Payroll approved. Moving to payment processing.");
+  };
+
+  const handleProcessPayment = () => {
+    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'paid' as const })));
+    setCurrentStep('cpf');
+    toast("Payments processed. Moving to CPF submission.");
+  };
+
+  const handleCPFSubmission = () => {
+    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'cpf_submitted' as const })));
+    toast("CPF contributions submitted. Payroll process completed.");
+    navigate('/payroll');
+  };
+
+  const handleBackStep = () => {
+    if (currentStep === 'payment') {
+      setCurrentStep('processing');
+    } else if (currentStep === 'cpf') {
+      setCurrentStep('payment');
     }
-
-    return (
-      <Input
-        type="number"
-        step="0.01"
-        value={employee[column.key] || 0}
-        onChange={(e) => handleCellEdit(employee.id, column.key, parseFloat(e.target.value) || 0)}
-        className="w-full"
-      />
-    );
   };
+
+  const renderProcessingStep = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <DollarSign className="w-5 h-5" />
+          <span>Payroll Processing</span>
+        </CardTitle>
+        <CardDescription>Review employee salaries, allowances and deductions</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {employees.map((employee) => (
+            <div key={employee.id} className="border rounded-lg p-4">
+              <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Basic Salary</h4>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      value={employee.basicSalary}
+                      onChange={(e) => updateEmployeeSalary(employee.id, parseFloat(e.target.value) || 0)}
+                      className="w-full"
+                    />
+                    <Edit className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Allowances</h4>
+                    <Select onValueChange={(value) => addAllowance(employee.id, value)}>
+                      <SelectTrigger className="w-8 h-8 p-0">
+                        <Plus className="w-4 h-4" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemAllowances.map((allowance) => (
+                          <SelectItem key={allowance.name} value={allowance.name}>
+                            {allowance.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    {employee.allowances.map((allowance, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span>{allowance.name}: S${allowance.amount}</span>
+                        <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, index)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Deductions</h4>
+                    <Select onValueChange={(value) => addDeduction(employee.id, value)}>
+                      <SelectTrigger className="w-8 h-8 p-0">
+                        <Plus className="w-4 h-4" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemDeductions.map((deduction) => (
+                          <SelectItem key={deduction.name} value={deduction.name}>
+                            {deduction.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    {employee.deductions.map((deduction, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span>{deduction.name}: S${deduction.amount}</span>
+                        <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, index)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">CPF</h4>
+                  <div className="space-y-1 text-sm">
+                    <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
+                    <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
+                    <div className="font-medium">Total CPF: S${(employee.employeeCPF + employee.employerCPF).toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t">
+                <p className="font-bold text-lg">Net Salary: S${employee.netSalary.toFixed(2)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex justify-end space-x-2 mt-4">
+          <Button variant="outline" onClick={handleSaveDraft}>
+            <Save className="w-4 h-4 mr-2" />
+            Save Draft
+          </Button>
+          <Button onClick={handleApprovePayroll}>
+            <Check className="w-4 h-4 mr-2" />
+            Approve Payroll
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderPaymentStep = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <CreditCard className="w-5 h-5" />
+          <span>Payment Processing</span>
+        </CardTitle>
+        <CardDescription>Process payments to employee bank accounts</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee Name</TableHead>
+              <TableHead>Net Salary</TableHead>
+              <TableHead>Employee CPF</TableHead>
+              <TableHead>Employer CPF</TableHead>
+              <TableHead>Bank Name</TableHead>
+              <TableHead>Bank Account</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
+                <TableCell className="font-medium">{employee.name}</TableCell>
+                <TableCell>S${employee.netSalary.toFixed(2)}</TableCell>
+                <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
+                <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
+                <TableCell>{employee.bankName}</TableCell>
+                <TableCell>{employee.bankAccount}</TableCell>
+                <TableCell>
+                  <Badge variant={employee.status === 'paid' ? 'default' : 'secondary'}>
+                    {employee.status}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handleBackStep}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button onClick={handleProcessPayment}>
+            <CreditCard className="w-4 h-4 mr-2" />
+            Process Payments
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderCPFStep = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <FileText className="w-5 h-5" />
+          <span>CPF Contribution Submission</span>
+        </CardTitle>
+        <CardDescription>Submit CPF contributions for employees</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee Name</TableHead>
+              <TableHead>NRIC/FIN</TableHead>
+              <TableHead>Residency Status</TableHead>
+              <TableHead>Gross Salary</TableHead>
+              <TableHead>Employee CPF</TableHead>
+              <TableHead>Employer CPF</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => {
+              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const grossSalary = employee.basicSalary + totalAllowances;
+              return (
+                <TableRow key={employee.id}>
+                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell>{employee.nric}</TableCell>
+                  <TableCell>{employee.residencyStatus}</TableCell>
+                  <TableCell>S${grossSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
+                      {employee.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={handleBackStep}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button onClick={handleCPFSubmission}>
+            <FileText className="w-4 h-4 mr-2" />
+            Submit CPF Contributions
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,161 +435,26 @@ const PayrollProcessing = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payroll Processing</CardTitle>
-                <CardDescription>Process payroll in three easy steps</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {currentStep === 1 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>1. Employee Details</CardTitle>
-                      <CardDescription>Review and update employee details</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Employee</TableHead>
-                            <TableHead>Basic Salary (S$)</TableHead>
-                            <TableHead>Allowances (S$)</TableHead>
-                            <TableHead>Overtime (S$)</TableHead>
-                            <TableHead>Deductions (S$)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {payrollData.map((employee) => (
-                            <TableRow key={employee.id}>
-                              <TableCell>{employee.name}</TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={employee.basicSalary}
-                                  onChange={(e) => handleCellEdit(employee.id, 'basicSalary', parseFloat(e.target.value))}
-                                  className="w-full"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={employee.allowances}
-                                  onChange={(e) => handleCellEdit(employee.id, 'allowances', parseFloat(e.target.value))}
-                                  className="w-full"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={employee.overtime}
-                                  onChange={(e) => handleCellEdit(employee.id, 'overtime', parseFloat(e.target.value))}
-                                  className="w-full"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={employee.deductions}
-                                  onChange={(e) => handleCellEdit(employee.id, 'deductions', parseFloat(e.target.value))}
-                                  className="w-full"
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <Button onClick={() => setCurrentStep(2)} className="mt-4">
-                        Next: Payment Processing
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" onClick={() => navigate('/payment-summary')}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Payment Summary
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Payroll Processing</h2>
+                <p className="text-gray-600">Step {currentStep === 'processing' ? '1' : currentStep === 'payment' ? '2' : '3'} of 3</p>
+              </div>
+            </div>
 
-                {currentStep === 2 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>2. Payment Processing</CardTitle>
-                      <CardDescription>Review and process employee payments</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {paymentColumns.map((column) => (
-                              <TableHead key={column.key}>{column.label}</TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {payrollData.map((employee) => (
-                            <TableRow key={employee.id}>
-                              {paymentColumns.map((column) => (
-                                <TableCell key={column.key}>
-                                  {column.key === 'employee' ? employee.name : renderEditableCell(employee, column)}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <div className="flex justify-between mt-6">
-                        <Button variant="outline" onClick={() => setCurrentStep(1)}>
-                          Previous
-                        </Button>
-                        <Button onClick={() => setCurrentStep(3)}>
-                          Next: CPF Submission
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+            <div className="flex space-x-4 mb-6">
+              <Badge variant={currentStep === 'processing' ? 'default' : 'outline'}>1. Processing</Badge>
+              <Badge variant={currentStep === 'payment' ? 'default' : 'outline'}>2. Payment</Badge>
+              <Badge variant={currentStep === 'cpf' ? 'default' : 'outline'}>3. CPF Submission</Badge>
+            </div>
 
-                {currentStep === 3 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>3. CPF Contribution Submission</CardTitle>
-                      <CardDescription>Review CPF contributions for submission</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {cpfColumns.map((column) => (
-                              <TableHead key={column.key}>{column.label}</TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {payrollData.map((employee) => {
-                            const cpf = calculateCPF(employee.basicSalary + employee.allowances, employee.residencyStatus, employee.age);
-                            return (
-                              <TableRow key={employee.id}>
-                                <TableCell>{employee.name}</TableCell>
-                                <TableCell>{employee.basicSalary.toFixed(2)}</TableCell>
-                                <TableCell>{employee.allowances.toFixed(2)}</TableCell>
-                                <TableCell>{(cpf.employee + cpf.employer).toFixed(2)}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                      <div className="flex justify-between mt-6">
-                        <Button variant="outline" onClick={() => setCurrentStep(2)}>
-                          Previous
-                        </Button>
-                        <Button onClick={handleProcessPayroll}>
-                          Complete Payroll Processing
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </CardContent>
-            </Card>
+            {currentStep === 'processing' && renderProcessingStep()}
+            {currentStep === 'payment' && renderPaymentStep()}
+            {currentStep === 'cpf' && renderCPFStep()}
           </div>
         </main>
       </div>

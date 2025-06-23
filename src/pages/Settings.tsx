@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings as SettingsIcon, MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
@@ -36,12 +35,8 @@ const Settings = () => {
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isEditBranchOpen, setIsEditBranchOpen] = useState(false);
   const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
-  const [isEditAllowanceOpen, setIsEditAllowanceOpen] = useState(false);
   const [isAddDeductionOpen, setIsAddDeductionOpen] = useState(false);
-  const [isEditDeductionOpen, setIsEditDeductionOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState(null);
-  const [editingAllowance, setEditingAllowance] = useState(null);
-  const [editingDeduction, setEditingDeduction] = useState(null);
 
   const handleAddBranch = (e) => {
     e.preventDefault();
@@ -88,29 +83,6 @@ const Settings = () => {
     toast("Allowance added successfully");
   };
 
-  const handleEditAllowance = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    setAllowances(prev => prev.map(allowance => 
-      allowance.id === editingAllowance.id 
-        ? { 
-            ...allowance, 
-            name: formData.get('name') as string, 
-            type: formData.get('type') as string,
-            amount: formData.get('amount') as string || ''
-          }
-        : allowance
-    ));
-    setIsEditAllowanceOpen(false);
-    setEditingAllowance(null);
-    toast("Allowance updated successfully");
-  };
-
-  const handleDeleteAllowance = (id) => {
-    setAllowances(prev => prev.filter(allowance => allowance.id !== id));
-    toast("Allowance deleted successfully");
-  };
-
   const handleAddDeduction = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -125,42 +97,9 @@ const Settings = () => {
     toast("Deduction added successfully");
   };
 
-  const handleEditDeduction = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    setDeductions(prev => prev.map(deduction => 
-      deduction.id === editingDeduction.id 
-        ? { 
-            ...deduction, 
-            name: formData.get('name') as string, 
-            type: formData.get('type') as string,
-            amount: formData.get('amount') as string || ''
-          }
-        : deduction
-    ));
-    setIsEditDeductionOpen(false);
-    setEditingDeduction(null);
-    toast("Deduction updated successfully");
-  };
-
-  const handleDeleteDeduction = (id) => {
-    setDeductions(prev => prev.filter(deduction => deduction.id !== id));
-    toast("Deduction deleted successfully");
-  };
-
   const openEditBranch = (branch) => {
     setEditingBranch(branch);
     setIsEditBranchOpen(true);
-  };
-
-  const openEditAllowance = (allowance) => {
-    setEditingAllowance(allowance);
-    setIsEditAllowanceOpen(true);
-  };
-
-  const openEditDeduction = (deduction) => {
-    setEditingDeduction(deduction);
-    setIsEditDeductionOpen(true);
   };
 
   return (
@@ -277,15 +216,10 @@ const Settings = () => {
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="type">Type</Label>
-                              <Select name="type" required>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Fixed">Fixed Amount</SelectItem>
-                                  <SelectItem value="Percentage">Percentage</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                <option value="Fixed">Fixed Amount</option>
+                                <option value="Percentage">Percentage</option>
+                              </select>
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="amount">Amount (leave blank for manual entry)</Label>
@@ -310,7 +244,6 @@ const Settings = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -323,16 +256,6 @@ const Settings = () => {
                               ? `${allowance.type === 'Percentage' ? allowance.amount + '%' : 'S$' + allowance.amount}`
                               : 'Manual entry'
                             }
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-1">
-                              <Button variant="outline" size="sm" onClick={() => openEditAllowance(allowance)}>
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteAllowance(allowance.id)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -367,15 +290,10 @@ const Settings = () => {
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="type">Type</Label>
-                              <Select name="type" required>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Fixed">Fixed Amount</SelectItem>
-                                  <SelectItem value="Percentage">Percentage</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                <option value="Fixed">Fixed Amount</option>
+                                <option value="Percentage">Percentage</option>
+                              </select>
                             </div>
                             <div className="grid gap-2">
                               <Label htmlFor="amount">Amount (leave blank for manual entry)</Label>
@@ -400,7 +318,6 @@ const Settings = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -414,16 +331,6 @@ const Settings = () => {
                               : 'Manual entry'
                             }
                           </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-1">
-                              <Button variant="outline" size="sm" onClick={() => openEditDeduction(deduction)}>
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteDeduction(deduction.id)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -432,7 +339,6 @@ const Settings = () => {
               </Card>
             </div>
 
-            {/* Edit dialogs */}
             <Dialog open={isEditBranchOpen} onOpenChange={setIsEditBranchOpen}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
@@ -453,88 +359,6 @@ const Settings = () => {
                     </div>
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setIsEditBranchOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save Changes</Button>
-                    </DialogFooter>
-                  </form>
-                )}
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isEditAllowanceOpen} onOpenChange={setIsEditAllowanceOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Edit Allowance</DialogTitle>
-                  <DialogDescription>Update allowance information.</DialogDescription>
-                </DialogHeader>
-                {editingAllowance && (
-                  <form onSubmit={handleEditAllowance}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="name">Name</Label>
-                        <Input name="name" defaultValue={editingAllowance.name} required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="type">Type</Label>
-                        <Select name="type" defaultValue={editingAllowance.type} required>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Fixed">Fixed Amount</SelectItem>
-                            <SelectItem value="Percentage">Percentage</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="amount">Amount</Label>
-                        <Input name="amount" defaultValue={editingAllowance.amount} />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsEditAllowanceOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save Changes</Button>
-                    </DialogFooter>
-                  </form>
-                )}
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isEditDeductionOpen} onOpenChange={setIsEditDeductionOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Edit Deduction</DialogTitle>
-                  <DialogDescription>Update deduction information.</DialogDescription>
-                </DialogHeader>
-                {editingDeduction && (
-                  <form onSubmit={handleEditDeduction}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="name">Name</Label>
-                        <Input name="name" defaultValue={editingDeduction.name} required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="type">Type</Label>
-                        <Select name="type" defaultValue={editingDeduction.type} required>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Fixed">Fixed Amount</SelectItem>
-                            <SelectItem value="Percentage">Percentage</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="amount">Amount</Label>
-                        <Input name="amount" defaultValue={editingDeduction.amount} />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsEditDeductionOpen(false)}>
                         Cancel
                       </Button>
                       <Button type="submit">Save Changes</Button>
