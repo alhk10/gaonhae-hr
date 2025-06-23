@@ -77,10 +77,10 @@ const Payroll = () => {
     
     const updatedEmployee = {
       ...editingEmployee,
-      basicSalary: parseFloat(formData.get('basicSalary')),
-      allowances: parseFloat(formData.get('allowances')) || 0,
-      overtime: parseFloat(formData.get('overtime')) || 0,
-      deductions: parseFloat(formData.get('deductions')) || 0,
+      basicSalary: parseFloat(formData.get('basicSalary') as string),
+      allowances: parseFloat(formData.get('allowances') as string) || 0,
+      overtime: parseFloat(formData.get('overtime') as string) || 0,
+      deductions: parseFloat(formData.get('deductions') as string) || 0,
     };
 
     // Recalculate CPF and Net Pay
