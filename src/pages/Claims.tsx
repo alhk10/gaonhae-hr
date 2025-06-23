@@ -46,7 +46,7 @@ const Claims = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [claimTypes, setClaimTypes] = useState(['Travel', 'Meals', 'Office Supplies', 'Medical', 'Training']);
-  const [claimLimits, setClaimLimits] = useState({
+  const [claimLimits, setClaimLimits] = useState<Record<string, number>>({
     'Travel': 500,
     'Meals': 100,
     'Office Supplies': 200,
