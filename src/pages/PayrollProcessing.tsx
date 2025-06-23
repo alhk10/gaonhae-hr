@@ -5,18 +5,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
+import { calculateCPF } from '@/utils/cpfCalculations';
 
 interface PayrollEmployee {
   id: string;
   name: string;
   nric: string;
   dateOfBirth: string;
+  residencyStatus: string;
   basicSalary: number;
   allowances: { name: string; amount: number }[];
   deductions: { name: string; amount: number }[];
+  employeeCPF: number;
+  employerCPF: number;
   netSalary: number;
   bankAccount: string;
   bankName: string;
@@ -32,16 +38,18 @@ const PayrollProcessing = () => {
       name: 'John Tan', 
       nric: 'S1234567A',
       dateOfBirth: '1990-05-15',
+      residencyStatus: 'Singapore Citizen',
       basicSalary: 8500, 
       allowances: [
-        { name: 'Transport', amount: 200 },
-        { name: 'Meal', amount: 150 }
+        { name: 'Transport Allowance', amount: 200 },
+        { name: 'Meal Allowance', amount: 150 }
       ],
       deductions: [
-        { name: 'CPF', amount: 1770 },
-        { name: 'Tax', amount: 100 }
+        { name: 'Insurance', amount: 100 }
       ],
-      netSalary: 6980,
+      employeeCPF: 0,
+      employerCPF: 0,
+      netSalary: 0,
       bankAccount: '1234-567890',
       bankName: 'DBS Bank',
       status: 'draft'
@@ -51,25 +59,84 @@ const PayrollProcessing = () => {
       name: 'Mary Ng', 
       nric: 'S2345678B',
       dateOfBirth: '1988-08-22',
+      residencyStatus: 'Permanent Resident Year 2',
       basicSalary: 7200, 
       allowances: [
-        { name: 'Transport', amount: 200 }
+        { name: 'Transport Allowance', amount: 200 }
       ],
       deductions: [
-        { name: 'CPF', amount: 1480 },
-        { name: 'Tax', amount: 80 }
+        { name: 'Insurance', amount: 50 }
       ],
-      netSalary: 5840,
+      employeeCPF: 0,
+      employerCPF: 0,
+      netSalary: 0,
       bankAccount: '2345-678901',
       bankName: 'OCBC Bank',
       status: 'draft'
     },
   ]);
 
-  const addAllowance = (employeeId: string) => {
+  const [systemAllowances] = useState([
+    { name: 'Transport Allowance', type: 'Fixed', amount: '200' },
+    { name: 'Meal Allowance', type: 'Fixed', amount: '150' },
+    { name: 'Performance Bonus', type: 'Percentage', amount: '10' },
+    { name: 'Overtime', type: 'Manual', amount: '' }
+  ]);
+
+  const [systemDeductions] = useState([
+    { name: 'Insurance Premium', type: 'Fixed', amount: '100' },
+    { name: 'Union Dues', type: 'Percentage', amount: '2' },
+    { name: 'Loan Deduction', type: 'Manual', amount: '' }
+  ]);
+
+  // Calculate CPF and net salary for each employee
+  React.useEffect(() => {
+    setEmployees(prev => prev.map(emp => {
+      const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+      const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+      const grossSalary = emp.basicSalary + totalAllowances;
+      
+      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+      
+      return {
+        ...emp,
+        employeeCPF: cpfCalc.employeeCPF,
+        employerCPF: cpfCalc.employerCPF,
+        netSalary: netSalary
+      };
+    }));
+  }, []);
+
+  const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === employeeId) {
+        const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+        const grossSalary = newSalary + totalAllowances;
+        
+        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+        const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+        
+        return {
+          ...emp,
+          basicSalary: newSalary,
+          employeeCPF: cpfCalc.employeeCPF,
+          employerCPF: cpfCalc.employerCPF,
+          netSalary: netSalary
+        };
+      }
+      return emp;
+    }));
+  };
+
+  const addAllowance = (employeeId: string, allowanceName: string) => {
+    const systemAllowance = systemAllowances.find(a => a.name === allowanceName);
+    const amount = systemAllowance?.type === 'Fixed' ? parseFloat(systemAllowance.amount) : 0;
+    
     setEmployees(prev => prev.map(emp => 
       emp.id === employeeId 
-        ? { ...emp, allowances: [...emp.allowances, { name: 'New Allowance', amount: 0 }] }
+        ? { ...emp, allowances: [...emp.allowances, { name: allowanceName, amount }] }
         : emp
     ));
   };
@@ -82,10 +149,13 @@ const PayrollProcessing = () => {
     ));
   };
 
-  const addDeduction = (employeeId: string) => {
+  const addDeduction = (employeeId: string, deductionName: string) => {
+    const systemDeduction = systemDeductions.find(d => d.name === deductionName);
+    const amount = systemDeduction?.type === 'Fixed' ? parseFloat(systemDeduction.amount) : 0;
+    
     setEmployees(prev => prev.map(emp => 
       emp.id === employeeId 
-        ? { ...emp, deductions: [...emp.deductions, { name: 'New Deduction', amount: 0 }] }
+        ? { ...emp, deductions: [...emp.deductions, { name: deductionName, amount }] }
         : emp
     ));
   };
@@ -99,6 +169,8 @@ const PayrollProcessing = () => {
   };
 
   const handleSaveDraft = () => {
+    // Simulate saving to backend
+    localStorage.setItem('payrollDraft', JSON.stringify(employees));
     toast("Payroll draft saved successfully");
   };
 
@@ -143,18 +215,35 @@ const PayrollProcessing = () => {
             <div key={employee.id} className="border rounded-lg p-4">
               <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <h4 className="font-medium mb-2">Basic Salary</h4>
-                  <p className="text-lg">S${employee.basicSalary.toLocaleString()}</p>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      value={employee.basicSalary}
+                      onChange={(e) => updateEmployeeSalary(employee.id, parseFloat(e.target.value) || 0)}
+                      className="w-full"
+                    />
+                    <Edit className="w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
                 
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium">Allowances</h4>
-                    <Button size="sm" onClick={() => addAllowance(employee.id)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <Select onValueChange={(value) => addAllowance(employee.id, value)}>
+                      <SelectTrigger className="w-8 h-8 p-0">
+                        <Plus className="w-4 h-4" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemAllowances.map((allowance) => (
+                          <SelectItem key={allowance.name} value={allowance.name}>
+                            {allowance.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     {employee.allowances.map((allowance, index) => (
@@ -171,9 +260,18 @@ const PayrollProcessing = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium">Deductions</h4>
-                    <Button size="sm" onClick={() => addDeduction(employee.id)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <Select onValueChange={(value) => addDeduction(employee.id, value)}>
+                      <SelectTrigger className="w-8 h-8 p-0">
+                        <Plus className="w-4 h-4" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemDeductions.map((deduction) => (
+                          <SelectItem key={deduction.name} value={deduction.name}>
+                            {deduction.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     {employee.deductions.map((deduction, index) => (
@@ -186,10 +284,19 @@ const PayrollProcessing = () => {
                     ))}
                   </div>
                 </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">CPF</h4>
+                  <div className="space-y-1 text-sm">
+                    <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
+                    <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
+                    <div className="font-medium">Total CPF: S${(employee.employeeCPF + employee.employerCPF).toFixed(2)}</div>
+                  </div>
+                </div>
               </div>
               
               <div className="mt-4 pt-4 border-t">
-                <p className="font-bold text-lg">Net Salary: S${employee.netSalary.toLocaleString()}</p>
+                <p className="font-bold text-lg">Net Salary: S${employee.netSalary.toFixed(2)}</p>
               </div>
             </div>
           ))}
@@ -224,6 +331,8 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>Net Salary</TableHead>
+              <TableHead>Employee CPF</TableHead>
+              <TableHead>Employer CPF</TableHead>
               <TableHead>Bank Name</TableHead>
               <TableHead>Bank Account</TableHead>
               <TableHead>Status</TableHead>
@@ -233,7 +342,9 @@ const PayrollProcessing = () => {
             {employees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>S${employee.netSalary.toLocaleString()}</TableCell>
+                <TableCell>S${employee.netSalary.toFixed(2)}</TableCell>
+                <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
+                <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                 <TableCell>{employee.bankName}</TableCell>
                 <TableCell>{employee.bankAccount}</TableCell>
                 <TableCell>
@@ -274,22 +385,25 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
-              <TableHead>Date of Birth</TableHead>
-              <TableHead>Salary</TableHead>
-              <TableHead>Total Allowances</TableHead>
+              <TableHead>Residency Status</TableHead>
+              <TableHead>Gross Salary</TableHead>
+              <TableHead>Employee CPF</TableHead>
+              <TableHead>Employer CPF</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {employees.map((employee) => {
               const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const grossSalary = employee.basicSalary + totalAllowances;
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.nric}</TableCell>
-                  <TableCell>{employee.dateOfBirth}</TableCell>
-                  <TableCell>S${employee.basicSalary.toLocaleString()}</TableCell>
-                  <TableCell>S${totalAllowances.toLocaleString()}</TableCell>
+                  <TableCell>{employee.residencyStatus}</TableCell>
+                  <TableCell>S${grossSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
                       {employee.status}

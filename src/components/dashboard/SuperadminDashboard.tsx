@@ -1,15 +1,58 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, FileText, Clock, Calendar } from 'lucide-react';
 
 const SuperadminDashboard = () => {
-  const stats = [
-    { title: 'Total Employees', value: '124', icon: Users, color: 'bg-blue-500' },
-    { title: 'Pending Claims', value: '8', icon: FileText, color: 'bg-orange-500' },
-    { title: 'Leave Requests', value: '12', icon: Clock, color: 'bg-green-500' },
-    { title: 'Payroll Due', value: '2 days', icon: Calendar, color: 'bg-purple-500' },
+  const [stats, setStats] = useState({
+    totalEmployees: 124,
+    pendingClaims: 8,
+    leaveRequests: 12,
+    payrollDue: ''
+  });
+
+  const [leaveRequests, setLeaveRequests] = useState([
+    { name: 'John Tan', type: 'Annual Leave', days: '3 days', status: 'pending' },
+    { name: 'Mary Ng', type: 'Medical Leave', days: '2 days', status: 'approved' },
+    { name: 'David Lim', type: 'Maternity Leave', days: '16 weeks', status: 'pending' },
+  ]);
+
+  useEffect(() => {
+    const calculatePayrollDue = () => {
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 2);
+      const timeDiff = nextMonth.getTime() - now.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+      
+      return daysDiff > 0 ? `${daysDiff} days` : 'Due today';
+    };
+
+    const updateStats = () => {
+      // Simulate real-time updates
+      setStats(prev => ({
+        ...prev,
+        totalEmployees: prev.totalEmployees + Math.floor(Math.random() * 3) - 1,
+        pendingClaims: Math.max(0, prev.pendingClaims + Math.floor(Math.random() * 3) - 1),
+        leaveRequests: Math.max(0, prev.leaveRequests + Math.floor(Math.random() * 3) - 1),
+        payrollDue: calculatePayrollDue()
+      }));
+    };
+
+    // Initial calculation
+    setStats(prev => ({ ...prev, payrollDue: calculatePayrollDue() }));
+    
+    // Update every hour
+    const interval = setInterval(updateStats, 3600000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const statsConfig = [
+    { title: 'Total Employees', value: stats.totalEmployees.toString(), icon: Users, color: 'bg-blue-500' },
+    { title: 'Pending Claims', value: stats.pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
+    { title: 'Leave Requests', value: stats.leaveRequests.toString(), icon: Clock, color: 'bg-green-500' },
+    { title: 'Payroll Due', value: stats.payrollDue, icon: Calendar, color: 'bg-purple-500' },
   ];
 
   return (
@@ -20,7 +63,7 @@ const SuperadminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+        {statsConfig.map((stat) => (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -45,11 +88,7 @@ const SuperadminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { name: 'John Tan', type: 'Annual Leave', days: '3 days', status: 'pending' },
-                { name: 'Mary Ng', type: 'Medical Leave', days: '2 days', status: 'approved' },
-                { name: 'David Lim', type: 'Maternity Leave', days: '16 weeks', status: 'pending' },
-              ].map((request, index) => (
+              {leaveRequests.map((request, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{request.name}</p>
@@ -81,7 +120,7 @@ const SuperadminDashboard = () => {
               <div className="space-y-2 text-sm text-gray-600">
                 <p>• Ordinary Wage contributions: S$245,680</p>
                 <p>• Additional Wage contributions: S$12,400</p>
-                <p>• Total employees covered: 124</p>
+                <p>• Total employees covered: {stats.totalEmployees}</p>
               </div>
             </div>
           </CardContent>

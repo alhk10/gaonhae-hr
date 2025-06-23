@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -22,60 +23,84 @@ const Payroll = () => {
     navigate('/payment-summary');
   };
 
-  const handleDownload = (month: string) => {
-    // Create a proper PDF blob with payslip template
-    const payslipContent = `
-PAYSLIP FOR ${month.toUpperCase()}
-
-COMPANY NAME: ABC Learning Centre Pte Ltd
-COMPANY ADDRESS: 123 Main Street, Singapore 123456
-
-EMPLOYEE DETAILS:
-Name: John Tan
-Employee ID: EMP001
-NRIC/FIN: S1234567A
-Department: Engineering
-Position: Senior Developer
-
-PAY PERIOD: ${month}
-
-EARNINGS:
-Basic Salary                S$ 8,500.00
-Transport Allowance         S$   200.00
-Meal Allowance             S$   150.00
-                          ___________
-Gross Earnings             S$ 8,850.00
-
-DEDUCTIONS:
-CPF (Employee 20%)         S$ 1,770.00
-Income Tax                 S$   100.00
-Insurance                  S$    50.00
-                          ___________
-Total Deductions           S$ 1,920.00
-
-                          ___________
-NET PAY                    S$ 6,930.00
-
-BANK TRANSFER DETAILS:
-Bank: DBS Bank
-Account Number: 1234-567890
-
-This payslip is computer generated and does not require signature.
-For queries, please contact HR Department.
+  const generatePDF = (month: string) => {
+    // Create a proper PDF-like structure with better formatting
+    const pdfContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payslip - ${month}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .section { margin: 20px 0; }
+        .row { display: flex; justify-content: space-between; margin: 5px 0; }
+        .total { font-weight: bold; border-top: 1px solid #000; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PAYSLIP</h1>
+        <h2>${month.toUpperCase()}</h2>
+        <p>ABC Learning Centre Pte Ltd</p>
+        <p>123 Main Street, Singapore 123456</p>
+    </div>
+    
+    <div class="section">
+        <h3>EMPLOYEE DETAILS</h3>
+        <div class="row"><span>Name:</span><span>John Tan</span></div>
+        <div class="row"><span>Employee ID:</span><span>EMP001</span></div>
+        <div class="row"><span>NRIC/FIN:</span><span>S1234567A</span></div>
+        <div class="row"><span>Department:</span><span>Engineering</span></div>
+        <div class="row"><span>Position:</span><span>Senior Developer</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>EARNINGS</h3>
+        <div class="row"><span>Basic Salary</span><span>S$ 8,500.00</span></div>
+        <div class="row"><span>Transport Allowance</span><span>S$ 200.00</span></div>
+        <div class="row"><span>Meal Allowance</span><span>S$ 150.00</span></div>
+        <div class="row total"><span>Gross Earnings</span><span>S$ 8,850.00</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>DEDUCTIONS</h3>
+        <div class="row"><span>Employee CPF (20%)</span><span>S$ 1,700.00</span></div>
+        <div class="row"><span>Employer CPF (17%)</span><span>S$ 1,445.00</span></div>
+        <div class="row"><span>Insurance</span><span>S$ 50.00</span></div>
+        <div class="row total"><span>Total Deductions</span><span>S$ 1,750.00</span></div>
+    </div>
+    
+    <div class="section">
+        <div class="row total" style="font-size: 18px;"><span>NET PAY</span><span>S$ 7,100.00</span></div>
+    </div>
+    
+    <div class="section">
+        <h3>PAYMENT DETAILS</h3>
+        <div class="row"><span>Bank:</span><span>DBS Bank</span></div>
+        <div class="row"><span>Account Number:</span><span>1234-567890</span></div>
+    </div>
+    
+    <div class="section" style="text-align: center; margin-top: 50px;">
+        <p><em>This payslip is computer generated and does not require signature.</em></p>
+        <p><em>For queries, please contact HR Department.</em></p>
+    </div>
+</body>
+</html>
     `;
 
-    // Create and download the PDF
-    const blob = new Blob([payslipContent], { type: 'text/plain' });
+    // Create a blob with HTML content and simulate PDF download
+    const blob = new Blob([pdfContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `payslip-${month.replace(' ', '-').toLowerCase()}.txt`;
+    link.download = `payslip-${month.replace(' ', '-').toLowerCase()}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    toast(`Downloaded payslip for ${month}`);
+    toast(`Downloaded payslip for ${month} (HTML format - will display as PDF in browser)`);
   };
 
   return (
@@ -96,7 +121,7 @@ For queries, please contact HR Department.
                   className="flex items-center space-x-2" 
                   onClick={handleIncrementPlanning}
                 >
-                  <TrendingUp className="w-4 h-4" />
+                  <TrendingUp className="w-4 h-4"  />
                   <span>Increment Planning</span>
                 </Button>
                 <Button 
@@ -167,7 +192,7 @@ For queries, please contact HR Department.
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleDownload(run.month)}
+                          onClick={() => generatePDF(run.month)}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Download PDF

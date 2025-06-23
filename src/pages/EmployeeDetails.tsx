@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit, Key, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { calculateCPF } from '@/utils/cpfCalculations';
 
 const EmployeeDetails = () => {
   const { id } = useParams();
@@ -40,8 +42,9 @@ const EmployeeDetails = () => {
     role: 'Senior Instructor',
     joinDate: '2022-03-15',
     employmentType: 'Full-Time',
+    residencyStatus: 'Singapore Citizen',
     paymentType: 'Per Month',
-    salary: 'S$8,500',
+    salary: 8500,
     lastAdjustment: '2024-01-01',
     nextIncrement: 'S$9,000',
     incrementDate: '2025-01-01',
@@ -56,6 +59,17 @@ const EmployeeDetails = () => {
 
   const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah'];
   const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant'];
+  const employmentTypes = ['Full-Time', 'Part-Time', 'Casual', 'Contract'];
+  const residencyStatuses = [
+    'Singapore Citizen',
+    'Permanent Resident Year 1',
+    'Permanent Resident Year 2',
+    'Work Permit',
+    'S Pass',
+    'Employment Pass'
+  ];
+
+  const cpfCalculation = calculateCPF(employee.salary, employee.residencyStatus);
 
   const handleEdit = () => {
     setIsEditing(!isEditing);
@@ -96,7 +110,7 @@ const EmployeeDetails = () => {
     toast("Deduction removed");
   };
 
-  const handleModuleChange = (module, enabled) => {
+  const handleModuleChange = (module: string, enabled: boolean) => {
     setEmployeeModules(prev => ({
       ...prev,
       [module]: enabled
@@ -191,6 +205,21 @@ const EmployeeDetails = () => {
                     )}
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-gray-600">Residency Status</label>
+                    {isEditing ? (
+                      <select 
+                        defaultValue={employee.residencyStatus}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      >
+                        {residencyStatuses.map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-lg text-gray-900">{employee.residencyStatus}</p>
+                    )}
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-gray-600">Email</label>
                     {isEditing ? (
                       <input 
@@ -265,6 +294,21 @@ const EmployeeDetails = () => {
                     )}
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-gray-600">Employment Type</label>
+                    {isEditing ? (
+                      <select 
+                        defaultValue={employee.employmentType}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                      >
+                        {employmentTypes.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Badge variant="secondary">{employee.employmentType}</Badge>
+                    )}
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-gray-600">Join Date</label>
                     {isEditing ? (
                       <input 
@@ -289,10 +333,6 @@ const EmployeeDetails = () => {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Employment Type</label>
-                    <Badge variant="secondary">{employee.employmentType}</Badge>
-                  </div>
-                  <div>
                     <label className="text-sm font-medium text-gray-600">Payment Type</label>
                     <p className="text-lg text-gray-900">{employee.paymentType}</p>
                   </div>
@@ -301,10 +341,22 @@ const EmployeeDetails = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Leave Allowances</CardTitle>
+                  <CardTitle>CPF Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
+                    <label className="text-sm font-medium text-gray-600">Employee CPF (20%)</label>
+                    <p className="text-lg text-gray-900">S${cpfCalculation.employeeCPF.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Employer CPF (17%)</label>
+                    <p className="text-lg text-gray-900">S${cpfCalculation.employerCPF.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Total CPF</label>
+                    <p className="text-lg font-bold text-gray-900">S${cpfCalculation.totalCPF.toLocaleString()}</p>
+                  </div>
+                  <div className="pt-4 border-t">
                     <label className="text-sm font-medium text-gray-600">Annual Leave</label>
                     <p className="text-lg text-gray-900">{employee.annualLeave} days</p>
                   </div>
