@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,21 +8,82 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeLeaveRecords, getEmployeeLeaveBalance, addLeaveRecord, LeaveRecord } from '@/data/leaveData';
 
 const ApplyLeave = () => {
+  const { user } = useAuth();
   const [showApplyForm, setShowApplyForm] = useState(false);
   
-  const leaveHistory = [
-    { date: '2024-12-25', type: 'Annual Leave', status: 'Approved', reason: 'Christmas holiday', appliedOn: '2024-12-10' },
-    { date: '2024-11-15', type: 'Annual Leave', status: 'Approved', reason: 'Personal matters', appliedOn: '2024-11-05' },
-    { date: '2024-09-12', type: 'Annual Leave', status: 'Pending', reason: 'Vacation', appliedOn: '2024-09-10' },
-  ];
+  // Get current employee data (in real app, this would come from auth context)
+  const currentEmployee = getEmployeeById('EMP001'); // Demo - should come from user context
+  const leaveHistory = getEmployeeLeaveRecords('EMP001');
+  const leaveBalance = getEmployeeLeaveBalance('EMP001');
+
+  if (!currentEmployee || !leaveBalance) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p>Employee data not found</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   const currentLeaveStatus = [
-    { type: 'Annual Leave', total: 21, used: 6, remaining: 15 },
+    { 
+      type: 'Annual Leave', 
+      total: leaveBalance.annualLeave.total, 
+      used: leaveBalance.annualLeave.used, 
+      remaining: leaveBalance.annualLeave.remaining 
+    },
+    { 
+      type: 'Medical Leave', 
+      total: leaveBalance.medicalLeave.total, 
+      used: leaveBalance.medicalLeave.used, 
+      remaining: leaveBalance.medicalLeave.remaining 
+    },
   ];
 
-  const handleSubmitLeave = () => {
+  const handleSubmitLeave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const leaveType = formData.get('leaveType') as string;
+    const leaveDate = formData.get('leaveDate') as string;
+    const reason = formData.get('reason') as string;
+    
+    if (!leaveType || !leaveDate || !reason) {
+      toast("Please fill in all required fields");
+      return;
+    }
+
+    // Check if employee has remaining leave days
+    const selectedLeaveBalance = currentLeaveStatus.find(leave => leave.type === leaveType);
+    if (selectedLeaveBalance && selectedLeaveBalance.remaining <= 0) {
+      toast(`No remaining ${leaveType.toLowerCase()} days available`);
+      return;
+    }
+
+    const newLeave: Omit<LeaveRecord, 'id'> = {
+      employeeId: currentEmployee.id,
+      employeeName: currentEmployee.name,
+      type: leaveType as any,
+      startDate: leaveDate,
+      endDate: leaveDate, // Single day leave
+      days: 1,
+      status: 'Pending',
+      reason,
+      appliedOn: new Date().toISOString().split('T')[0]
+    };
+
+    const leaveId = addLeaveRecord(newLeave);
     toast("Leave application submitted successfully");
     setShowApplyForm(false);
   };
@@ -51,13 +113,16 @@ const ApplyLeave = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
                   <p className="text-gray-600">Submit your leave application</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Employee: {currentEmployee.name} ({currentEmployee.id})
+                  </p>
                 </div>
                 <Button variant="outline" onClick={() => setShowApplyForm(false)}>
                   Back to Leave Summary
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {currentLeaveStatus.map((leave) => (
                   <Card key={leave.type}>
                     <CardContent className="p-6">
@@ -76,40 +141,47 @@ const ApplyLeave = () => {
                   <CardTitle>Leave Application Form</CardTitle>
                   <CardDescription>Fill out the details for your leave request (All leaves are 1 day)</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
-                      <select className="w-full p-2 border border-gray-300 rounded-lg">
-                        <option>Annual Leave</option>
-                        <option>Maternity Leave</option>
-                        <option>Paternity Leave</option>
-                      </select>
+                <CardContent>
+                  <form onSubmit={handleSubmitLeave} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
+                        <select name="leaveType" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                          <option value="">Select leave type</option>
+                          <option value="Annual Leave">Annual Leave</option>
+                          <option value="Medical Leave">Medical Leave</option>
+                          <option value="Emergency Leave">Emergency Leave</option>
+                          <option value="Maternity Leave">Maternity Leave</option>
+                          <option value="Paternity Leave">Paternity Leave</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Leave Date</label>
+                        <input name="leaveDate" type="date" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Leave Date</label>
-                      <input type="date" className="w-full p-2 border border-gray-300 rounded-lg" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                      <textarea 
+                        name="reason"
+                        rows={3} 
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        placeholder="Please provide a reason for your leave..."
+                        required
+                      ></textarea>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                    <textarea 
-                      rows={3} 
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                      placeholder="Please provide a reason for your leave..."
-                    ></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
-                    <input 
-                      type="file" 
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                  </div>
-                  <Button onClick={handleSubmitLeave} className="w-full">
-                    Submit Leave Application
-                  </Button>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
+                      <input 
+                        type="file" 
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      Submit Leave Application
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </div>
@@ -130,6 +202,9 @@ const ApplyLeave = () => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Leave Summary</h2>
                 <p className="text-gray-600">Your leave balance and history</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Employee: {currentEmployee.name} ({currentEmployee.id})
+                </p>
               </div>
               <Button onClick={() => setShowApplyForm(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -138,7 +213,7 @@ const ApplyLeave = () => {
             </div>
 
             {/* Leave Balance Widget */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {currentLeaveStatus.map((leave) => (
                 <Card key={leave.type} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
@@ -171,27 +246,33 @@ const ApplyLeave = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {leaveHistory.map((leave, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <Calendar className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <p className="font-medium text-gray-900">{leave.date}</p>
-                          <p className="text-sm text-gray-600">{leave.type}</p>
-                          <p className="text-sm text-gray-500">{leave.reason}</p>
+                  {leaveHistory.length > 0 ? (
+                    leaveHistory.map((leave) => (
+                      <div key={leave.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <Calendar className="w-5 h-5 text-gray-400" />
+                          <div>
+                            <p className="font-medium text-gray-900">{leave.startDate}</p>
+                            <p className="text-sm text-gray-600">{leave.type}</p>
+                            <p className="text-sm text-gray-500">{leave.reason}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge className={getStatusColor(leave.status)}>
+                            {leave.status}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            Applied: {leave.appliedOn}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge className={getStatusColor(leave.status)}>
-                          {leave.status}
-                        </Badge>
-                        <p className="text-xs text-gray-500 mt-1">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          Applied: {leave.appliedOn}
-                        </p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      No leave history found
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>

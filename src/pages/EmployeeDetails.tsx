@@ -12,6 +12,7 @@ import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, B
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
 import { getEmployeeClaims } from '@/data/claimsData';
+import { getEmployeeLeaveRecords } from '@/data/leaveData';
 import { AllowanceDeduction } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 
@@ -33,6 +34,9 @@ const EmployeeDetails = () => {
   
   // Get claims data for this employee using centralized service
   const employeeClaims = getEmployeeClaims(id || '');
+  
+  // Get leave records for this employee
+  const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
 
   if (!employee) {
     return (
@@ -396,11 +400,29 @@ const EmployeeDetails = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center text-gray-500">
-                            No leave records found
-                          </TableCell>
-                        </TableRow>
+                        {employeeLeaveRecords.length > 0 ? (
+                          employeeLeaveRecords.map((leave) => (
+                            <TableRow key={leave.id}>
+                              <TableCell>{leave.appliedOn}</TableCell>
+                              <TableCell>{leave.type}</TableCell>
+                              <TableCell>{leave.startDate}</TableCell>
+                              <TableCell>{leave.endDate}</TableCell>
+                              <TableCell>{leave.days}</TableCell>
+                              <TableCell>
+                                <Badge variant={getStatusColor(leave.status)}>
+                                  {leave.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-gray-500">
+                              No leave records found
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </CardContent>

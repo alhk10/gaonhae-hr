@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,77 +11,109 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Users, Plus, Upload, X } from 'lucide-react';
+import { Calendar, Users, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getAllEmployees } from '@/data/employeeData';
+import { getAllLeaveRecords, addLeaveRecord, updateLeaveStatus, LeaveRecord } from '@/data/leaveData';
 
 const LeaveManagement = () => {
-  const [leaves, setLeaves] = useState([
-    { id: 1, employee: 'John Tan', type: 'Annual Leave', dates: '2024-12-25 to 2024-12-27', days: 3, status: 'Pending', reason: 'Christmas holiday' },
-    { id: 2, employee: 'Mary Ng', type: 'Medical Leave', dates: '2024-12-20', days: 1, status: 'Approved', reason: 'Doctor appointment' },
-  ]);
-
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [isAddLeaveOpen, setIsAddLeaveOpen] = useState(false);
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
-  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
 
-  const employees = ['John Tan', 'Mary Ng', 'David Lim', 'Sarah Loh'];
+  const employees = getAllEmployees();
   const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
 
-  const handleApprove = (id) => {
-    setLeaves(prev => prev.map(leave => 
-      leave.id === id ? { ...leave, status: 'Approved' } : leave
-    ));
-    toast("Leave application approved");
+  useEffect(() => {
+    setLeaves(getAllLeaveRecords());
+  }, []);
+
+  const handleApprove = (id: string) => {
+    const success = updateLeaveStatus(id, 'Approved', 'Current User'); // In real app, get from auth context
+    if (success) {
+      setLeaves(getAllLeaveRecords()); // Refresh data
+      toast("Leave application approved");
+    }
   };
 
-  const handleReject = (id) => {
-    setLeaves(prev => prev.map(leave => 
-      leave.id === id ? { ...leave, status: 'Rejected' } : leave
-    ));
-    toast("Leave application rejected");
+  const handleReject = (id: string) => {
+    const success = updateLeaveStatus(id, 'Rejected');
+    if (success) {
+      setLeaves(getAllLeaveRecords()); // Refresh data
+      toast("Leave application rejected");
+    }
   };
 
-  const handleAddLeave = (e) => {
+  const handleAddLeave = (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const newLeave = {
-      id: Date.now(),
-      employee: formData.get('employee') as string,
-      type: formData.get('type') as string,
-      dates: `${formData.get('startDate')} to ${formData.get('endDate')}`,
-      days: 1,
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const employeeId = formData.get('employee') as string;
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (!employee) return;
+
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
+    const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)) + 1;
+
+    const newLeave: Omit<LeaveRecord, 'id'> = {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      type: formData.get('type') as any,
+      startDate,
+      endDate,
+      days: daysDiff,
       status: 'Approved',
-      reason: formData.get('reason') as string
+      reason: formData.get('reason') as string,
+      appliedOn: new Date().toISOString().split('T')[0],
+      approvedBy: 'Admin',
+      approvedOn: new Date().toISOString().split('T')[0]
     };
-    setLeaves(prev => [...prev, newLeave]);
+
+    addLeaveRecord(newLeave);
+    setLeaves(getAllLeaveRecords()); // Refresh data
     setIsAddLeaveOpen(false);
     toast("Leave added successfully");
   };
 
-  const handleBulkLeave = (e) => {
+  const handleBulkLeave = (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const formData = new FormData(e.target as HTMLFormElement);
     const selectedEmployees = formData.getAll('employees') as string[];
     
-    selectedEmployees.forEach(employee => {
-      const newLeave = {
-        id: Date.now() + Math.random(),
-        employee,
-        type: formData.get('type') as string,
-        dates: `${formData.get('startDate')} to ${formData.get('endDate')}`,
-        days: 1,
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
+    const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)) + 1;
+    
+    selectedEmployees.forEach(employeeId => {
+      const employee = employees.find(emp => emp.id === employeeId);
+      if (!employee) return;
+
+      const newLeave: Omit<LeaveRecord, 'id'> = {
+        employeeId: employee.id,
+        employeeName: employee.name,
+        type: formData.get('type') as any,
+        startDate,
+        endDate,
+        days: daysDiff,
         status: 'Approved',
-        reason: formData.get('reason') as string
+        reason: formData.get('reason') as string,
+        appliedOn: new Date().toISOString().split('T')[0],
+        approvedBy: 'Admin',
+        approvedOn: new Date().toISOString().split('T')[0]
       };
-      setLeaves(prev => [...prev, newLeave]);
+      
+      addLeaveRecord(newLeave);
     });
     
+    setLeaves(getAllLeaveRecords()); // Refresh data
     setIsBulkLeaveOpen(false);
     toast(`Bulk leave added for ${selectedEmployees.length} employees`);
   };
 
-  const showLeaveDetails = (leave) => {
+  const showLeaveDetails = (leave: LeaveRecord) => {
     setSelectedLeave(leave);
     setIsLeaveDetailsOpen(true);
   };
@@ -121,8 +153,8 @@ const LeaveManagement = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {employees.map((employee) => (
-                                <SelectItem key={employee} value={employee}>
-                                  {employee}
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.name} ({employee.id})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -186,9 +218,9 @@ const LeaveManagement = () => {
                           <Label>Select Employees</Label>
                           <div className="space-y-2 max-h-32 overflow-y-auto">
                             {employees.map((employee) => (
-                              <label key={employee} className="flex items-center space-x-2">
-                                <input type="checkbox" name="employees" value={employee} />
-                                <span>{employee}</span>
+                              <label key={employee.id} className="flex items-center space-x-2">
+                                <input type="checkbox" name="employees" value={employee.id} />
+                                <span>{employee.name} ({employee.id})</span>
                               </label>
                             ))}
                           </div>
@@ -258,9 +290,14 @@ const LeaveManagement = () => {
                   <TableBody>
                     {leaves.map((leave) => (
                       <TableRow key={leave.id}>
-                        <TableCell className="font-medium">{leave.employee}</TableCell>
+                        <TableCell className="font-medium">{leave.employeeName}</TableCell>
                         <TableCell>{leave.type}</TableCell>
-                        <TableCell>{leave.dates}</TableCell>
+                        <TableCell>
+                          {leave.startDate === leave.endDate 
+                            ? leave.startDate 
+                            : `${leave.startDate} to ${leave.endDate}`
+                          }
+                        </TableCell>
                         <TableCell>{leave.days}</TableCell>
                         <TableCell>
                           <Badge 
@@ -306,7 +343,7 @@ const LeaveManagement = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Employee</Label>
-                      <p>{selectedLeave.employee}</p>
+                      <p>{selectedLeave.employeeName} ({selectedLeave.employeeId})</p>
                     </div>
                     <div>
                       <Label>Leave Type</Label>
@@ -314,11 +351,24 @@ const LeaveManagement = () => {
                     </div>
                     <div>
                       <Label>Dates</Label>
-                      <p>{selectedLeave.dates}</p>
+                      <p>
+                        {selectedLeave.startDate === selectedLeave.endDate 
+                          ? selectedLeave.startDate 
+                          : `${selectedLeave.startDate} to ${selectedLeave.endDate}`
+                        }
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Days</Label>
+                      <p>{selectedLeave.days}</p>
                     </div>
                     <div>
                       <Label>Reason</Label>
                       <p>{selectedLeave.reason}</p>
+                    </div>
+                    <div>
+                      <Label>Applied On</Label>
+                      <p>{selectedLeave.appliedOn}</p>
                     </div>
                     <div>
                       <Label>Status</Label>
@@ -326,6 +376,12 @@ const LeaveManagement = () => {
                         {selectedLeave.status}
                       </Badge>
                     </div>
+                    {selectedLeave.approvedBy && (
+                      <div>
+                        <Label>Approved By</Label>
+                        <p>{selectedLeave.approvedBy} on {selectedLeave.approvedOn}</p>
+                      </div>
+                    )}
                   </div>
                 )}
                 <DialogFooter>
