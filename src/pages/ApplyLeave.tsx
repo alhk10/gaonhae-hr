@@ -143,36 +143,31 @@ const ApplyLeave = () => {
               </Button>
             </div>
 
-            {/* Leave Status Panel */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Balance</CardTitle>
-                <CardDescription>Your current leave entitlements for 2024</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {currentLeaveStatus.map((leave) => (
-                    <div key={leave.type} className="text-center p-4 bg-gray-50 rounded-lg">
+            {/* Leave Balance Widget */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {currentLeaveStatus.map((leave) => (
+                <Card key={leave.type} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="text-center">
                       <h3 className="font-medium text-gray-900 mb-2">{leave.type}</h3>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="font-medium">{leave.total} days</span>
+                      <div className="space-y-2">
+                        <div className="text-3xl font-bold text-blue-600">{leave.remaining}</div>
+                        <div className="text-sm text-gray-500">days remaining</div>
+                        <div className="text-xs text-gray-400">
+                          {leave.used} of {leave.total} used
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Used:</span>
-                          <span className="font-medium">{leave.used} days</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Remaining:</span>
-                          <span className="font-medium text-green-600">{leave.remaining} days</span>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(leave.used / leave.total) * 100}%` }}
+                          ></div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
             {/* Leave History Panel */}
             <Card>
