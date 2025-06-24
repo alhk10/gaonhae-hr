@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
 import { AllowanceDeduction } from '@/types/employee';
@@ -19,6 +18,7 @@ const EmployeeDetails = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingAccess, setIsEditingAccess] = useState(false);
   const [employee, setEmployee] = useState(() => getEmployeeById(id || ''));
 
   if (!employee) {
@@ -46,6 +46,13 @@ const EmployeeDetails = () => {
       toast("Employee details updated successfully");
     }
     setIsEditing(!isEditing);
+  };
+
+  const handleEditAccess = () => {
+    if (isEditingAccess) {
+      toast("Admin access permissions updated successfully");
+    }
+    setIsEditingAccess(!isEditingAccess);
   };
 
   const handleAddAllowance = () => {
@@ -330,13 +337,26 @@ const EmployeeDetails = () => {
 
                 {employee.adminAccess && (
                   <div className="mt-6">
-                    <AdminAccessManager
-                      adminAccess={employee.adminAccess}
-                      onAdminAccessChange={(permissions) => {
-                        setEmployee(prev => prev ? { ...prev, adminAccess: permissions } : null);
-                      }}
-                      isEditing={isEditing}
-                    />
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle>Admin Access Permissions</CardTitle>
+                          <Button onClick={handleEditAccess} size="sm" className="flex items-center space-x-2">
+                            <Settings className="w-4 h-4" />
+                            <span>{isEditingAccess ? 'Save Access' : 'Edit Access'}</span>
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <AdminAccessManager
+                          adminAccess={employee.adminAccess}
+                          onAdminAccessChange={(permissions) => {
+                            setEmployee(prev => prev ? { ...prev, adminAccess: permissions } : null);
+                          }}
+                          isEditing={isEditingAccess}
+                        />
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
               </TabsContent>
