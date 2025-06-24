@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -8,118 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar as CalendarIcon, MapPin, Users, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  branches,
+  addSlotBooking,
+  getBookedSlotsForDate,
+  getAvailableSlotsForDate,
+  getTotalSlotsStats,
+  weeklySlots
+} from '@/data/slotBookingData';
 
 const SlotBooking = () => {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
 
-  // Branch configurations matching the Settings page and AdminSlotBooking
-  const branches = [
-    { 
-      id: 'headquarters', 
-      name: 'Headquarters', 
-      address: '123 Business District, #12-34, Singapore 068123',
-      totalSlots: 8,
-      color: 'bg-blue-500'
-    },
-    { 
-      id: 'balmoral', 
-      name: 'Balmoral', 
-      address: '456 Balmoral Road, #05-67, Singapore 259856',
-      totalSlots: 5,
-      color: 'bg-green-500'
-    },
-    { 
-      id: 'jurong-west', 
-      name: 'Jurong West', 
-      address: '789 Jurong West Central, #08-90, Singapore 640789',
-      totalSlots: 6,
-      color: 'bg-purple-500'
-    },
-    { 
-      id: 'kembangan', 
-      name: 'Kembangan', 
-      address: '321 Kembangan Road, #03-45, Singapore 419642',
-      totalSlots: 4,
-      color: 'bg-orange-500'
-    },
-    { 
-      id: 'yishun', 
-      name: 'Yishun', 
-      address: '654 Yishun Ring Road, #07-12, Singapore 760654',
-      totalSlots: 7,
-      color: 'bg-red-500'
-    },
-    { 
-      id: 'bukit-merah', 
-      name: 'Bukit Merah', 
-      address: '987 Bukit Merah Central, #04-56, Singapore 150987',
-      totalSlots: 5,
-      color: 'bg-indigo-500'
-    },
-  ];
-
-  // Weekly slot configuration (matching AdminSlotBooking)
-  const weeklySlots = {
-    headquarters: { Monday: 8, Tuesday: 8, Wednesday: 8, Thursday: 8, Friday: 8, Saturday: 4, Sunday: 2 },
-    balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
-    'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
-    kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 1 },
-    yishun: { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 7, Friday: 7, Saturday: 4, Sunday: 2 },
-    'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
-  };
-
-  // Consistent booking data structure with AdminSlotBooking
-  const [bookings, setBookings] = useState([
-    { id: 1, date: '2024-12-23', employee: 'Alice Tan', branchId: 'headquarters', status: 'pending' },
-    { id: 2, date: '2024-12-23', employee: 'Bob Lim', branchId: 'headquarters', status: 'approved' },
-    { id: 3, date: '2024-12-24', employee: 'Carol Ng', branchId: 'balmoral', status: 'approved' },
-    { id: 4, date: '2024-12-25', employee: 'David Lee', branchId: 'jurong-west', status: 'pending' },
-    { id: 5, date: '2024-12-26', employee: 'Emma Wong', branchId: 'kembangan', status: 'rejected' },
-  ]);
-
   const currentBranch = branches.find(b => b.id === selectedBranch);
   
-  const getBookedSlotsForDate = (date: string, branchId: string) => {
-    return bookings.filter(b => b.date === date && b.branchId === branchId).length;
-  };
-
-  const getAvailableSlotsForDate = (date: string, branchId: string) => {
-    const dateObj = new Date(date);
-    const dayName = format(dateObj, 'EEEE');
-    const bookedSlots = getBookedSlotsForDate(date, branchId);
-    const totalSlots = weeklySlots[branchId]?.[dayName] || 0;
-    return Math.max(0, totalSlots - bookedSlots);
-  };
-
-  // Calculate monthly statistics using consistent data structure
-  const currentMonth = new Date();
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-
-  const calculateMonthlyStats = () => {
-    let totalAvailableSlots = 0;
-    let totalBookings = 0;
-
-    // Calculate for each day in the current month
-    for (let day = 1; day <= monthEnd.getDate(); day++) {
-      const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const dateStr = format(checkDate, 'yyyy-MM-dd');
-      const dayName = format(checkDate, 'EEEE');
-      
-      branches.forEach(branch => {
-        const totalSlotsForDay = weeklySlots[branch.id]?.[dayName] || 0;
-        const bookedSlotsForDay = getBookedSlotsForDate(dateStr, branch.id);
-        totalAvailableSlots += Math.max(0, totalSlotsForDay - bookedSlotsForDay);
-        totalBookings += bookedSlotsForDay;
-      });
-    }
-
-    return { totalAvailableSlots, totalBookings };
-  };
-
-  const { totalAvailableSlots, totalBookings } = calculateMonthlyStats();
+  // Get statistics from centralized data
+  const { totalAvailableSlots, totalBookings } = getTotalSlotsStats();
 
   const handleBookSlot = () => {
     if (!selectedDate || !currentBranch) {
@@ -135,17 +44,17 @@ const SlotBooking = () => {
       return;
     }
 
-    // Update bookings with consistent data structure
-    const newBooking = {
-      id: Date.now(),
-      date: dateStr,
-      employee: 'Current User', // In real app, this would be the logged-in user
+    // Add booking using centralized service
+    const newBookingId = addSlotBooking({
+      employeeId: user?.id || 'CAS001',
+      employeeName: user?.name || 'Current User',
       branchId: selectedBranch,
+      branchName: currentBranch.name,
+      date: dateStr,
       status: 'pending'
-    };
+    });
 
-    setBookings(prev => [...prev, newBooking]);
-    toast(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name}`);
+    toast(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
   };
 
   const today = new Date();

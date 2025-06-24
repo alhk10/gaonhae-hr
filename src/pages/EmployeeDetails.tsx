@@ -13,6 +13,8 @@ import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
 import { getEmployeeClaims } from '@/data/claimsData';
 import { getEmployeeLeaveRecords } from '@/data/leaveData';
+import { getEmployeeAttendanceRecords } from '@/data/attendanceData';
+import { getEmployeeSlotBookings } from '@/data/slotBookingData';
 import { AllowanceDeduction } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 
@@ -37,6 +39,12 @@ const EmployeeDetails = () => {
   
   // Get leave records for this employee
   const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
+
+  // Get attendance records for this employee
+  const employeeAttendanceRecords = getEmployeeAttendanceRecords(id || '');
+
+  // Get slot booking records for this employee
+  const employeeSlotBookings = getEmployeeSlotBookings(id || '');
 
   if (!employee) {
     return (
@@ -526,15 +534,32 @@ const EmployeeDetails = () => {
                           <TableHead>Check Out</TableHead>
                           <TableHead>Hours Worked</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Overtime</TableHead>
+                          <TableHead>Location</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-500">
-                            No attendance records found
-                          </TableCell>
-                        </TableRow>
+                        {employeeAttendanceRecords.length > 0 ? (
+                          employeeAttendanceRecords.map((record) => (
+                            <TableRow key={record.id}>
+                              <TableCell>{record.date}</TableCell>
+                              <TableCell>{record.clockIn || '-'}</TableCell>
+                              <TableCell>{record.clockOut || '-'}</TableCell>
+                              <TableCell>{record.hours}h</TableCell>
+                              <TableCell>
+                                <Badge variant={record.status === 'Present' ? 'default' : 'secondary'}>
+                                  {record.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{record.location || '-'}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-gray-500">
+                              No attendance records found
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </CardContent>
@@ -554,19 +579,36 @@ const EmployeeDetails = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Date</TableHead>
-                          <TableHead>Time Slot</TableHead>
-                          <TableHead>Location</TableHead>
-                          <TableHead>Purpose</TableHead>
+                          <TableHead>Branch</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Booked On</TableHead>
+                          <TableHead>Approved By</TableHead>
+                          <TableHead>Approved On</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-500">
-                            No slot booking records found
-                          </TableCell>
-                        </TableRow>
+                        {employeeSlotBookings.length > 0 ? (
+                          employeeSlotBookings.map((booking) => (
+                            <TableRow key={booking.id}>
+                              <TableCell>{booking.date}</TableCell>
+                              <TableCell>{booking.branchName}</TableCell>
+                              <TableCell>
+                                <Badge variant={getStatusColor(booking.status)}>
+                                  {booking.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{booking.bookedOn}</TableCell>
+                              <TableCell>{booking.approvedBy || '-'}</TableCell>
+                              <TableCell>{booking.approvedOn || '-'}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-gray-500">
+                              No slot booking records found
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </CardContent>

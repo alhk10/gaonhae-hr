@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,24 +10,26 @@ import { Input } from '@/components/ui/input';
 import { Clock, Calendar, Filter, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { 
+  getEmployeeAttendanceRecords, 
+  getClockInOutStatus, 
+  updateClockInOut,
+  ClockInOutRecord 
+} from '@/data/attendanceData';
 
 const MyAttendance = () => {
   const { user } = useAuth();
   const [dateFilter, setDateFilter] = useState('');
+  const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
 
-  // Mock attendance data for the current employee
-  const [myAttendanceData] = useState([
-    { id: 1, date: '2024-12-23', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
-    { id: 2, date: '2024-12-22', clockIn: '09:05', clockOut: '18:15', status: 'Present', hours: 8.17 },
-    { id: 3, date: '2024-12-21', clockIn: '08:55', clockOut: '17:55', status: 'Present', hours: 8 },
-    { id: 4, date: '2024-12-20', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
-    { id: 5, date: '2024-12-19', clockIn: '', clockOut: '', status: 'Medical Leave', hours: 0 },
-    { id: 6, date: '2024-12-18', clockIn: '09:10', clockOut: '18:10', status: 'Present', hours: 8 },
-    { id: 7, date: '2024-12-17', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
-  ]);
+  // Get attendance data from centralized service
+  const myAttendanceData = getEmployeeAttendanceRecords(user?.id || 'EMP001');
 
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clockTime, setClockTime] = useState<string | null>(null);
+  useEffect(() => {
+    // Get current clock-in/out status
+    const status = getClockInOutStatus(user?.id || 'EMP001');
+    setClockStatus(status);
+  }, [user?.id]);
 
   const filteredData = myAttendanceData.filter(record => {
     return !dateFilter || record.date === dateFilter;
@@ -40,15 +42,19 @@ const MyAttendance = () => {
       minute: '2-digit'
     });
     
-    if (isClockedIn) {
-      setIsClockedIn(false);
-      setClockTime(null);
+    const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
+    
+    if (isCurrentlyClockedIn) {
+      updateClockInOut(user?.id || 'EMP001', 'out');
       toast(`Clocked out at ${currentTime}`);
     } else {
-      setIsClockedIn(true);
-      setClockTime(currentTime);
+      updateClockInOut(user?.id || 'EMP001', 'in');
       toast(`Clocked in at ${currentTime}`);
     }
+    
+    // Update local state
+    const updatedStatus = getClockInOutStatus(user?.id || 'EMP001');
+    setClockStatus(updatedStatus);
   };
 
   const exportAttendance = () => {
@@ -56,9 +62,11 @@ const MyAttendance = () => {
   };
 
   // Calculate statistics
-  const presentDays = myAttendanceData.filter(record => record.status === 'Present').length;
+  const presentDays = myAttendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
   const totalHours = myAttendanceData.reduce((sum, record) => sum + record.hours, 0);
-  const avgHours = totalHours / presentDays;
+  const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
+
+  const isClockedIn = clockStatus?.status === 'clocked-in';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -89,7 +97,7 @@ const MyAttendance = () => {
                       {isClockedIn ? 'Clock Out' : 'Clock In'}
                     </p>
                     <p className="text-sm text-white/80">
-                      {isClockedIn && clockTime ? `Clocked in at ${clockTime}` : 'Start your work day'}
+                      {isClockedIn && clockStatus?.clockIn ? `Clocked in at ${clockStatus.clockIn}` : 'Start your work day'}
                     </p>
                   </div>
                 </Button>
@@ -131,7 +139,7 @@ const MyAttendance = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">
-                    {((presentDays / myAttendanceData.length) * 100).toFixed(1)}%
+                    {myAttendanceData.length > 0 ? ((presentDays / myAttendanceData.length) * 100).toFixed(1) : '0'}%
                   </p>
                   <p className="text-sm text-gray-600">This month</p>
                 </CardContent>
@@ -178,6 +186,7 @@ const MyAttendance = () => {
                       <TableHead>Clock Out</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Location</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -189,16 +198,19 @@ const MyAttendance = () => {
                         <TableCell>{record.hours}h</TableCell>
                         <TableCell>
                           <Badge 
-                            variant={record.status === 'Present' ? 'default' : 'secondary'}
+                            variant={record.status === 'Present' ? 'default' : 
+                                   record.status === 'Late' ? 'secondary' : 
+                                   'outline'}
                           >
                             {record.status}
                           </Badge>
                         </TableCell>
+                        <TableCell>{record.location || '-'}</TableCell>
                       </TableRow>
                     ))}
                     {filteredData.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                           No attendance records found for the selected date.
                         </TableCell>
                       </TableRow>
