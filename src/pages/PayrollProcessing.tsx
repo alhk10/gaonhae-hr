@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,54 +10,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
-import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
-import { getEmployeeById, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
-import { EmployeeProfile } from '@/types/employee';
 import { usePayroll } from '@/contexts/PayrollContext';
-
-interface PayrollEmployee {
-  id: string;
-  name: string;
-  nric: string;
-  dateOfBirth: string;
-  residencyStatus: string;
-  basicSalary: number;
-  allowances: { name: string; amount: number }[];
-  deductions: { name: string; amount: number }[];
-  employeeCPF: number;
-  employerCPF: number;
-  netSalary: number;
-  bankAccount: string;
-  bankName: string;
-  status: 'draft' | 'approved' | 'paid' | 'cpf_submitted';
-}
-
-interface CasualEmployee {
-  id: string;
-  name: string;
-  nric: string;
-  dateOfBirth: string;
-  residencyStatus: string;
-  hourlyRate: number;
-  hoursWorked: number;
-  daysWorked: number;
-  totalPay: number;
-  employeeCPF: number;
-  employerCPF: number;
-  bankAccount: string;
-  bankName: string;
-  status: 'draft' | 'approved' | 'paid' | 'cpf_submitted';
-}
+import { getEmployeeById } from '@/data/employeeData';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
-  const { payrollState, updateEmployee, setPayrollStatus } = usePayroll();
+  const { 
+    payrollState, 
+    updateEmployeeSalary,
+    updateEmployeeAllowances,
+    updateEmployeeDeductions,
+    updateCasualEmployeeHours,
+    setPayrollStatus,
+    savePayrollDraft
+  } = usePayroll();
+  
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
   
-  // Initialize employees from centralized data
-  const [employees, setEmployees] = useState<PayrollEmployee[]>([]);
-  const [casualEmployees, setCasualEmployees] = useState<CasualEmployee[]>([]);
-
   const [systemAllowances] = useState([
     { name: 'Transport Allowance', type: 'Fixed', amount: '200' },
     { name: 'Meal Allowance', type: 'Fixed', amount: '150' },
@@ -71,167 +40,100 @@ const PayrollProcessing = () => {
     { name: 'Loan Deduction', type: 'Manual', amount: '' }
   ]);
 
-  // Initialize employee data from centralized store
-  React.useEffect(() => {
-    const fullTimeEmps = getFullTimeEmployees().map(emp => ({
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric,
-      dateOfBirth: emp.dateOfBirth,
-      residencyStatus: emp.residencyStatus,
-      basicSalary: emp.baseSalary || 0,
-      allowances: emp.allowances.map(a => ({ name: a.name, amount: a.amount })),
-      deductions: emp.deductions.map(d => ({ name: d.name, amount: d.amount })),
-      employeeCPF: 0,
-      employerCPF: 0,
-      netSalary: 0,
-      bankAccount: emp.bankAccount,
-      bankName: emp.bankName,
-      status: 'draft' as const
-    }));
+  // Log current state for debugging
+  useEffect(() => {
+    console.log('PayrollProcessing - Current state:', payrollState);
+  }, [payrollState]);
 
-    const casualEmps = getCasualEmployees().map(emp => ({
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric,
-      dateOfBirth: emp.dateOfBirth,
-      residencyStatus: emp.residencyStatus,
-      hourlyRate: emp.hourlyRate || 0,
-      hoursWorked: 120, // This should come from slot bookings
-      daysWorked: 15, // This should come from slot bookings
-      totalPay: 0,
-      employeeCPF: 0,
-      employerCPF: 0,
-      bankAccount: emp.bankAccount,
-      bankName: emp.bankName,
-      status: 'draft' as const
-    }));
+  const handleSalaryChange = (employeeId: string, newSalary: number) => {
+    console.log(`Updating salary for ${employeeId}: ${newSalary}`);
+    updateEmployeeSalary(employeeId, newSalary);
+  };
 
-    setEmployees(fullTimeEmps);
-    setCasualEmployees(casualEmps);
-  }, []);
+  const handleHoursChange = (employeeId: string, newHours: number) => {
+    console.log(`Updating hours for ${employeeId}: ${newHours}`);
+    updateCasualEmployeeHours(employeeId, newHours);
+  };
 
-  const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
-    setEmployees(prev => prev.map(emp => {
-      if (emp.id === employeeId) {
-        const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-        const grossSalary = newSalary + totalAllowances;
-        
-        const age = calculateAge(emp.dateOfBirth);
-        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-        const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
-        
-        return {
-          ...emp,
-          basicSalary: newSalary,
-          employeeCPF: cpfCalc.employeeCPF,
-          employerCPF: cpfCalc.employerCPF,
-          netSalary: netSalary
-        };
-      }
-      return emp;
-    }));
+  const handleRateChange = (employeeId: string, newRate: number) => {
+    console.log(`Updating rate for ${employeeId}: ${newRate}`);
+    const employee = payrollState.casualEmployees.find(emp => emp.id === employeeId);
+    if (employee) {
+      updateCasualEmployeeHours(employeeId, employee.hoursWorked, newRate);
+    }
   };
 
   const addAllowance = (employeeId: string, allowanceName: string) => {
+    const empData = getEmployeeById(employeeId);
+    if (!empData) return;
+    
     const systemAllowance = systemAllowances.find(a => a.name === allowanceName);
     const amount = systemAllowance?.type === 'Fixed' ? parseFloat(systemAllowance.amount) : 0;
     
-    setEmployees(prev => prev.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, allowances: [...emp.allowances, { name: allowanceName, amount }] }
-        : emp
-    ));
+    const newAllowances = [
+      ...empData.allowances.map(a => ({ name: a.name, amount: a.amount })),
+      { name: allowanceName, amount }
+    ];
+    
+    updateEmployeeAllowances(employeeId, newAllowances);
   };
 
-  const removeAllowance = (employeeId: string, index: number) => {
-    setEmployees(prev => prev.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, allowances: emp.allowances.filter((_, i) => i !== index) }
-        : emp
-    ));
+  const removeAllowance = (employeeId: string, allowanceName: string) => {
+    const empData = getEmployeeById(employeeId);
+    if (!empData) return;
+    
+    const newAllowances = empData.allowances
+      .filter(a => a.name !== allowanceName)
+      .map(a => ({ name: a.name, amount: a.amount }));
+    
+    updateEmployeeAllowances(employeeId, newAllowances);
   };
 
   const addDeduction = (employeeId: string, deductionName: string) => {
+    const empData = getEmployeeById(employeeId);
+    if (!empData) return;
+    
     const systemDeduction = systemDeductions.find(d => d.name === deductionName);
     const amount = systemDeduction?.type === 'Fixed' ? parseFloat(systemDeduction.amount) : 0;
     
-    setEmployees(prev => prev.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, deductions: [...emp.deductions, { name: deductionName, amount }] }
-        : emp
-    ));
+    const newDeductions = [
+      ...empData.deductions.map(d => ({ name: d.name, amount: d.amount })),
+      { name: deductionName, amount }
+    ];
+    
+    updateEmployeeDeductions(employeeId, newDeductions);
   };
 
-  const removeDeduction = (employeeId: string, index: number) => {
-    setEmployees(prev => prev.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, deductions: emp.deductions.filter((_, i) => i !== index) }
-        : emp
-    ));
-  };
-
-  const updateCasualEmployeeHours = (employeeId: string, newHours: number) => {
-    setCasualEmployees(prev => prev.map(emp => {
-      if (emp.id === employeeId) {
-        const totalPay = emp.hourlyRate * newHours;
-        const age = calculateAge(emp.dateOfBirth);
-        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
-        
-        return {
-          ...emp,
-          hoursWorked: newHours,
-          totalPay: totalPay - cpfCalc.employeeCPF,
-          employeeCPF: cpfCalc.employeeCPF,
-          employerCPF: cpfCalc.employerCPF
-        };
-      }
-      return emp;
-    }));
-  };
-
-  const updateCasualEmployeeRate = (employeeId: string, newRate: number) => {
-    setCasualEmployees(prev => prev.map(emp => {
-      if (emp.id === employeeId) {
-        const totalPay = newRate * emp.hoursWorked;
-        const age = calculateAge(emp.dateOfBirth);
-        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
-        
-        return {
-          ...emp,
-          hourlyRate: newRate,
-          totalPay: totalPay - cpfCalc.employeeCPF,
-          employeeCPF: cpfCalc.employeeCPF,
-          employerCPF: cpfCalc.employerCPF
-        };
-      }
-      return emp;
-    }));
+  const removeDeduction = (employeeId: string, deductionName: string) => {
+    const empData = getEmployeeById(employeeId);
+    if (!empData) return;
+    
+    const newDeductions = empData.deductions
+      .filter(d => d.name !== deductionName)
+      .map(d => ({ name: d.name, amount: a.amount }));
+    
+    updateEmployeeDeductions(employeeId, newDeductions);
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('payrollDraft', JSON.stringify({ employees, casualEmployees }));
+    savePayrollDraft();
     toast("Payroll draft saved successfully");
   };
 
   const handleApprovePayroll = () => {
-    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'approved' as const })));
-    setCasualEmployees(prev => prev.map(emp => ({ ...emp, status: 'approved' as const })));
+    setPayrollStatus('approved');
     setCurrentStep('payment');
     toast("Payroll approved. Moving to payment processing.");
   };
 
   const handleProcessPayment = () => {
-    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'paid' as const })));
-    setCasualEmployees(prev => prev.map(emp => ({ ...emp, status: 'paid' as const })));
+    setPayrollStatus('paid');
     setCurrentStep('cpf');
     toast("Payments processed. Moving to CPF submission.");
   };
 
   const handleCPFSubmission = () => {
-    setEmployees(prev => prev.map(emp => ({ ...emp, status: 'cpf_submitted' as const })));
-    setCasualEmployees(prev => prev.map(emp => ({ ...emp, status: 'cpf_submitted' as const })));
+    setPayrollStatus('completed');
     toast("CPF contributions submitted. Payroll process completed.");
     navigate('/payroll');
   };
@@ -239,8 +141,10 @@ const PayrollProcessing = () => {
   const handleBackStep = () => {
     if (currentStep === 'payment') {
       setCurrentStep('processing');
+      setPayrollStatus('draft');
     } else if (currentStep === 'cpf') {
       setCurrentStep('payment');
+      setPayrollStatus('approved');
     }
   };
 
@@ -250,101 +154,101 @@ const PayrollProcessing = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <DollarSign className="w-5 h-5" />
-            <span>Full-Time Employees</span>
+            <span>Full-Time Employees ({payrollState.fullTimeEmployees.length})</span>
           </CardTitle>
           <CardDescription>Review full-time employee salaries, allowances and deductions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {employees.map((employee) => (
-              <div key={employee.id} className="border rounded-lg p-4">
-                <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Basic Salary</h4>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        type="number"
-                        value={employee.basicSalary}
-                        onChange={(e) => updateEmployeeSalary(employee.id, parseFloat(e.target.value) || 0)}
-                        className="w-full"
-                      />
-                      <Edit className="w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
+            {payrollState.fullTimeEmployees.map((employee) => {
+              const empData = getEmployeeById(employee.id);
+              return (
+                <div key={employee.id} className="border rounded-lg p-4">
+                  <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
                   
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">Allowances</h4>
-                      <Select onValueChange={(value) => addAllowance(employee.id, value)}>
-                        <SelectTrigger className="w-8 h-8 p-0">
-                          <Plus className="w-4 h-4" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systemAllowances.map((allowance) => (
-                            <SelectItem key={allowance.name} value={allowance.name}>
-                              {allowance.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Basic Salary</h4>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          value={employee.baseSalary}
+                          onChange={(e) => handleSalaryChange(employee.id, parseFloat(e.target.value) || 0)}
+                          className="w-full"
+                        />
+                        <Edit className="w-4 h-4 text-gray-400" />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      {employee.allowances.map((allowance, index) => (
-                        <div key={index} className="flex items-center justify-between text-sm">
-                          <span>{allowance.name}: S${allowance.amount}</span>
-                          <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, index)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
+                    
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Allowances</h4>
+                        <Select onValueChange={(value) => addAllowance(employee.id, value)}>
+                          <SelectTrigger className="w-8 h-8 p-0">
+                            <Plus className="w-4 h-4" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {systemAllowances.map((allowance) => (
+                              <SelectItem key={allowance.name} value={allowance.name}>
+                                {allowance.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        {empData?.allowances.map((allowance, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <span>{allowance.name}: S${allowance.amount}</span>
+                            <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, allowance.name)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">Deductions</h4>
-                      <Select onValueChange={(value) => addDeduction(employee.id, value)}>
-                        <SelectTrigger className="w-8 h-8 p-0">
-                          <Plus className="w-4 h-4" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systemDeductions.map((deduction) => (
-                            <SelectItem key={deduction.name} value={deduction.name}>
-                              {deduction.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Deductions</h4>
+                        <Select onValueChange={(value) => addDeduction(employee.id, value)}>
+                          <SelectTrigger className="w-8 h-8 p-0">
+                            <Plus className="w-4 h-4" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {systemDeductions.map((deduction) => (
+                              <SelectItem key={deduction.name} value={deduction.name}>
+                                {deduction.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        {empData?.deductions.map((deduction, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <span>{deduction.name}: S${deduction.amount}</span>
+                            <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, deduction.name)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      {employee.deductions.map((deduction, index) => (
-                        <div key={index} className="flex items-center justify-between text-sm">
-                          <span>{deduction.name}: S${deduction.amount}</span>
-                          <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, index)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div>
-                    <h4 className="font-medium mb-2">CPF</h4>
-                    <div className="space-y-1 text-sm">
-                      <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
-                      <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
-                      <div className="font-medium">Total CPF: S${(employee.employeeCPF + employee.employerCPF).toFixed(2)}</div>
+                    <div>
+                      <h4 className="font-medium mb-2">Summary</h4>
+                      <div className="space-y-1 text-sm">
+                        <div>Allowances: S${employee.allowances.toFixed(2)}</div>
+                        <div>Deductions: S${employee.deductions.toFixed(2)}</div>
+                        <div>CPF: S${employee.cpf.toFixed(2)}</div>
+                        <div className="font-medium">Net: S${employee.total.toFixed(2)}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                
-                <div className="mt-4 pt-4 border-t">
-                  <p className="font-bold text-lg">Net Salary: S${employee.netSalary.toFixed(2)}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -353,13 +257,13 @@ const PayrollProcessing = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <DollarSign className="w-5 h-5" />
-            <span>Casual Employees</span>
+            <span>Casual Employees ({payrollState.casualEmployees.length})</span>
           </CardTitle>
           <CardDescription>Review casual employee hourly rates and hours worked</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {casualEmployees.map((employee) => (
+            {payrollState.casualEmployees.map((employee) => (
               <div key={employee.id} className="border rounded-lg p-4">
                 <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
                 
@@ -370,7 +274,7 @@ const PayrollProcessing = () => {
                       <Input
                         type="number"
                         value={employee.hourlyRate}
-                        onChange={(e) => updateCasualEmployeeRate(employee.id, parseFloat(e.target.value) || 0)}
+                        onChange={(e) => handleRateChange(employee.id, parseFloat(e.target.value) || 0)}
                         className="w-full"
                       />
                       <Edit className="w-4 h-4 text-gray-400" />
@@ -383,7 +287,7 @@ const PayrollProcessing = () => {
                       <Input
                         type="number"
                         value={employee.hoursWorked}
-                        onChange={(e) => updateCasualEmployeeHours(employee.id, parseFloat(e.target.value) || 0)}
+                        onChange={(e) => handleHoursChange(employee.id, parseFloat(e.target.value) || 0)}
                         className="w-full"
                       />
                       <Edit className="w-4 h-4 text-gray-400" />
@@ -399,17 +303,13 @@ const PayrollProcessing = () => {
                   </div>
 
                   <div>
-                    <h4 className="font-medium mb-2">CPF</h4>
+                    <h4 className="font-medium mb-2">Summary</h4>
                     <div className="space-y-1 text-sm">
                       <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
                       <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
-                      <div className="font-medium">Total CPF: S${(employee.employeeCPF + employee.employerCPF).toFixed(2)}</div>
+                      <div className="font-medium">Total Pay: S${employee.totalPay.toFixed(2)}</div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t">
-                  <p className="font-bold text-lg">Total Pay: S${employee.totalPay.toFixed(2)}</p>
                 </div>
               </div>
             ))}
@@ -452,34 +352,40 @@ const PayrollProcessing = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>Full-Time</TableCell>
-                <TableCell>S${employee.netSalary.toFixed(2)}</TableCell>
-                <TableCell>{employee.bankName}</TableCell>
-                <TableCell>{employee.bankAccount}</TableCell>
-                <TableCell>
-                  <Badge variant={employee.status === 'paid' ? 'default' : 'secondary'}>
-                    {employee.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {casualEmployees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>Casual</TableCell>
-                <TableCell>S${employee.totalPay.toFixed(2)}</TableCell>
-                <TableCell>{employee.bankName}</TableCell>
-                <TableCell>{employee.bankAccount}</TableCell>
-                <TableCell>
-                  <Badge variant={employee.status === 'paid' ? 'default' : 'secondary'}>
-                    {employee.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {payrollState.fullTimeEmployees.map((employee) => {
+              const empData = getEmployeeById(employee.id);
+              return (
+                <TableRow key={employee.id}>
+                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell>Full-Time</TableCell>
+                  <TableCell>S${employee.total.toFixed(2)}</TableCell>
+                  <TableCell>{empData?.bankName}</TableCell>
+                  <TableCell>{empData?.bankAccount}</TableCell>
+                  <TableCell>
+                    <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                      {payrollState.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {payrollState.casualEmployees.map((employee) => {
+              const empData = getEmployeeById(employee.id);
+              return (
+                <TableRow key={employee.id}>
+                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell>Casual</TableCell>
+                  <TableCell>S${employee.totalPay.toFixed(2)}</TableCell>
+                  <TableCell>{empData?.bankName}</TableCell>
+                  <TableCell>{empData?.bankAccount}</TableCell>
+                  <TableCell>
+                    <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                      {payrollState.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <div className="flex justify-between mt-4">
@@ -511,7 +417,6 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
-              <TableHead>Date of Birth</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Basic/Hourly</TableHead>
               <TableHead>Gross Pay</TableHead>
@@ -521,42 +426,41 @@ const PayrollProcessing = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.map((employee) => {
-              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
-              const grossSalary = employee.basicSalary + totalAllowances;
+            {payrollState.fullTimeEmployees.map((employee) => {
+              const empData = getEmployeeById(employee.id);
+              const grossSalary = employee.baseSalary + employee.allowances;
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employee.nric}</TableCell>
-                  <TableCell>{employee.dateOfBirth}</TableCell>
+                  <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Full-Time</TableCell>
-                  <TableCell>S${employee.basicSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.baseSalary.toFixed(2)}</TableCell>
                   <TableCell>S${grossSalary.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
+                  <TableCell>S${(grossSalary * 0.20).toFixed(2)}</TableCell>
+                  <TableCell>S${employee.cpf.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
-                      {employee.status}
+                    <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                      {payrollState.status}
                     </Badge>
                   </TableCell>
                 </TableRow>
               );
             })}
-            {casualEmployees.map((employee) => {
+            {payrollState.casualEmployees.map((employee) => {
+              const empData = getEmployeeById(employee.id);
               const grossPay = employee.hourlyRate * employee.hoursWorked;
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employee.nric}</TableCell>
-                  <TableCell>{employee.dateOfBirth}</TableCell>
+                  <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Casual</TableCell>
                   <TableCell>S${employee.hourlyRate.toFixed(2)}/hr</TableCell>
                   <TableCell>S${grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge variant={employee.status === 'cpf_submitted' ? 'default' : 'secondary'}>
-                      {employee.status}
+                    <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                      {payrollState.status}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -592,7 +496,11 @@ const PayrollProcessing = () => {
               </Button>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Processing</h2>
-                <p className="text-gray-600">Step {currentStep === 'processing' ? '1' : currentStep === 'payment' ? '2' : '3'} of 3</p>
+                <p className="text-gray-600">
+                  Step {currentStep === 'processing' ? '1' : currentStep === 'payment' ? '2' : '3'} of 3 | 
+                  Period: {payrollState.currentPeriod} | 
+                  Total: S${payrollState.totalAmount.toLocaleString()}
+                </p>
               </div>
             </div>
 

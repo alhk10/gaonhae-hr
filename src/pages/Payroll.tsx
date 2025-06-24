@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { DollarSign, Calendar, Download, TrendingUp, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { usePayroll } from '@/contexts/PayrollContext';
 
 const Payroll = () => {
   const navigate = useNavigate();
+  const { payrollState, calculatePayrollTotal } = usePayroll();
 
   const handleProcessPayroll = () => {
     navigate('/payment-summary');
@@ -89,7 +91,6 @@ const Payroll = () => {
 </html>
     `;
 
-    // Create a blob with HTML content and simulate PDF download
     const blob = new Blob([pdfContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -103,6 +104,10 @@ const Payroll = () => {
     toast(`Downloaded payslip for ${month} (HTML format - will display as PDF in browser)`);
   };
 
+  // Calculate current totals from centralized data
+  const currentTotal = calculatePayrollTotal();
+  const yearlyTotal = currentTotal * 12; // Estimate based on current month
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -114,6 +119,9 @@ const Payroll = () => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
                 <p className="text-gray-600">Process and manage employee payroll</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Current Period: {payrollState.currentPeriod} | Status: {payrollState.status}
+                </p>
               </div>
               <div className="flex space-x-2">
                 <Button 
@@ -139,8 +147,11 @@ const Payroll = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Total Amount Approved</p>
-                      <p className="text-2xl font-bold text-gray-900">S$245,680</p>
+                      <p className="text-sm font-medium text-gray-600">Current Month Total</p>
+                      <p className="text-2xl font-bold text-gray-900">S${currentTotal.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {payrollState.fullTimeEmployees.length} Full-time + {payrollState.casualEmployees.length} Casual
+                      </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>
@@ -150,8 +161,11 @@ const Payroll = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
-                      <p className="text-2xl font-bold text-gray-900">S$2,948,160</p>
+                      <p className="text-sm font-medium text-gray-600">Estimated Yearly</p>
+                      <p className="text-2xl font-bold text-gray-900">S${yearlyTotal.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Based on current rates
+                      </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-blue-500" />
                   </div>
@@ -163,6 +177,9 @@ const Payroll = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Next Run</p>
                       <p className="text-2xl font-bold text-gray-900">3 days</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {payrollState.currentPeriod}
+                      </p>
                     </div>
                     <Calendar className="w-8 h-8 text-purple-500" />
                   </div>
@@ -178,7 +195,7 @@ const Payroll = () => {
               <CardContent>
                 <div className="space-y-3">
                   {[
-                    { month: 'December 2024', amount: 'S$245,680', status: 'Completed', date: '2024-12-01' },
+                    { month: 'December 2024', amount: `S$${currentTotal.toLocaleString()}`, status: payrollState.status, date: '2024-12-01' },
                     { month: 'November 2024', amount: 'S$248,920', status: 'Completed', date: '2024-11-01' },
                     { month: 'October 2024', amount: 'S$252,100', status: 'Completed', date: '2024-10-01' },
                   ].map((run, index) => (
@@ -188,7 +205,12 @@ const Payroll = () => {
                         <p className="text-sm text-gray-600">{run.amount} • {run.date}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-green-600 text-sm font-medium">{run.status}</span>
+                        <span className={`text-sm font-medium ${
+                          run.status === 'Completed' ? 'text-green-600' : 
+                          run.status === 'paid' ? 'text-blue-600' : 'text-orange-600'
+                        }`}>
+                          {run.status}
+                        </span>
                         <Button 
                           variant="outline" 
                           size="sm"
