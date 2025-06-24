@@ -4,7 +4,7 @@ import { User, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo - only admin now
+// Mock users for demo - expanded with different roles
 const mockUsers: User[] = [
   {
     id: '1',
@@ -12,6 +12,23 @@ const mockUsers: User[] = [
     name: 'Sarah Lim',
     role: 'superadmin',
     employeeId: 'ADM001'
+  },
+  {
+    id: '2',
+    email: 'manager@company.sg',
+    name: 'David Tan',
+    role: 'manager',
+    department: 'Operations',
+    employeeId: 'MGR001'
+  },
+  {
+    id: '3',
+    email: 'employee@company.sg',
+    name: 'Michelle Wong',
+    role: 'employee',
+    department: 'Operations',
+    employeeId: 'EMP001',
+    managerId: '2'
   }
 ];
 

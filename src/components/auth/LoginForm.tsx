@@ -20,7 +20,7 @@ const LoginForm = () => {
     try {
       await login(email, password);
     } catch (err) {
-      setError('Invalid credentials. Try: admin@company.sg');
+      setError('Invalid credentials. Use one of the demo accounts below.');
     }
   };
 
@@ -34,7 +34,7 @@ const LoginForm = () => {
           <div>
             <CardTitle className="text-2xl font-bold text-gray-900">Singapore HR System</CardTitle>
             <CardDescription className="text-gray-600">
-              Admin access only
+              Multi-role demo access
             </CardDescription>
           </div>
         </CardHeader>
@@ -73,7 +73,10 @@ const LoginForm = () => {
           </form>
           <div className="mt-6 text-xs text-gray-500 space-y-1">
             <p className="font-medium">Demo credentials:</p>
-            <p>• admin@company.sg (Admin)</p>
+            <p>• admin@company.sg (Superadmin)</p>
+            <p>• manager@company.sg (Manager)</p>
+            <p>• employee@company.sg (Employee)</p>
+            <p className="text-gray-400 mt-2">Any password works</p>
           </div>
         </CardContent>
       </Card>
