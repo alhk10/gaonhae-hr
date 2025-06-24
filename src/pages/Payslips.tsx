@@ -6,9 +6,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { DollarSign, Download, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { usePayroll } from '@/contexts/PayrollContext';
+import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeClaims } from '@/data/claimsData';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 const Payslips = () => {
+  const { payrollState } = usePayroll();
+  
+  // For demo purposes, we'll show payslips for the first full-time employee
+  const currentEmployee = getEmployeeById('EMP001'); // In real app, this would come from auth context
+  
+  if (!currentEmployee) {
+    return <div>Employee not found</div>;
+  }
+
+  const generatePayslipData = (month: string) => {
+    const baseSalary = currentEmployee.baseSalary || 0;
+    const totalAllowances = currentEmployee.allowances.reduce((sum, a) => sum + a.amount, 0);
+    const totalDeductions = currentEmployee.deductions.reduce((sum, d) => sum + d.amount, 0);
+    const grossSalary = baseSalary + totalAllowances;
+    
+    const age = calculateAge(currentEmployee.dateOfBirth);
+    const cpfCalc = calculateCPF(grossSalary, currentEmployee.residencyStatus, age);
+    
+    const approvedClaims = getEmployeeClaims(currentEmployee.id)
+      .filter(claim => claim.status === 'Approved')
+      .reduce((sum, claim) => sum + claim.amount, 0);
+    
+    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+    
+    return {
+      baseSalary,
+      totalAllowances,
+      totalDeductions,
+      grossSalary,
+      employeeCPF: cpfCalc.employeeCPF,
+      employerCPF: cpfCalc.employerCPF,
+      totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
+      approvedClaims,
+      netSalary
+    };
+  };
+
   const handleDownloadPayslip = (month: string) => {
+    const payslipData = generatePayslipData(month);
+    
     const payslipContent = `
 PAYSLIP FOR ${month.toUpperCase()}
 
@@ -16,39 +59,38 @@ COMPANY NAME: ABC Learning Centre Pte Ltd
 COMPANY ADDRESS: 123 Main Street, Singapore 123456
 
 EMPLOYEE DETAILS:
-Name: Tan Wei Ming
-Employee ID: EMP001
-NRIC/FIN: S1234567A
-Department: Engineering
-Position: Developer
+Name: ${currentEmployee.name}
+Employee ID: ${currentEmployee.id}
+NRIC/FIN: ${currentEmployee.nric}
+Department: ${currentEmployee.department || 'N/A'}
+Position: ${currentEmployee.position || 'N/A'}
 
 PAY PERIOD: ${month}
 
 EARNINGS:
-Basic Salary                S$ 7,500.00
-Transport Allowance         S$   200.00
-Meal Allowance             S$   150.00
+Basic Salary                S$ ${payslipData.baseSalary.toFixed(2)}
+${currentEmployee.allowances.map(a => `${a.name.padEnd(26)} S$ ${a.amount.toFixed(2)}`).join('\n')}
+${payslipData.approvedClaims > 0 ? `Approved Claims            S$ ${payslipData.approvedClaims.toFixed(2)}` : ''}
                           ___________
-Gross Earnings             S$ 7,850.00
+Gross Earnings             S$ ${(payslipData.grossSalary + payslipData.approvedClaims).toFixed(2)}
 
 DEDUCTIONS:
-CPF (Employee 20%)         S$ 1,570.00
-Income Tax                 S$    80.00
-Insurance                  S$    50.00
+CPF (Employee 20%)         S$ ${payslipData.employeeCPF.toFixed(2)}
+${currentEmployee.deductions.map(d => `${d.name.padEnd(26)} S$ ${d.amount.toFixed(2)}`).join('\n')}
                           ___________
-Total Deductions           S$ 1,700.00
+Total Deductions           S$ ${(payslipData.employeeCPF + payslipData.totalDeductions).toFixed(2)}
 
                           ___________
-NET PAY                    S$ 6,150.00
+NET PAY                    S$ ${payslipData.netSalary.toFixed(2)}
 
 BANK TRANSFER DETAILS:
-Bank: DBS Bank
-Account Number: 1234-567890
+Bank: ${currentEmployee.bankName}
+Account Number: ${currentEmployee.bankAccount}
 
 CPF CONTRIBUTIONS:
-Employee CPF (20%)         S$ 1,570.00
-Employer CPF (17%)         S$ 1,334.50
-Total CPF                  S$ 2,904.50
+Employee CPF (20%)         S$ ${payslipData.employeeCPF.toFixed(2)}
+Employer CPF (17%)         S$ ${payslipData.employerCPF.toFixed(2)}
+Total CPF                  S$ ${payslipData.totalCPF.toFixed(2)}
 
 This payslip is computer generated and does not require signature.
 For queries, please contact HR Department.
@@ -67,22 +109,16 @@ For queries, please contact HR Department.
     toast(`Downloaded payslip for ${month}`);
   };
 
+  // Generate payslips for recent months using current employee data
   const payslips = [
-    { month: 'December 2024', netSalary: 'S$6,150', grossSalary: 'S$7,850', cpfContribution: 'S$2,904.50' },
-    { month: 'November 2024', netSalary: 'S$6,150', grossSalary: 'S$7,850', cpfContribution: 'S$2,904.50' },
-    { month: 'October 2024', netSalary: 'S$6,150', grossSalary: 'S$7,850', cpfContribution: 'S$2,904.50' },
-    { month: 'September 2024', netSalary: 'S$6,150', grossSalary: 'S$7,850', cpfContribution: 'S$2,904.50' },
+    { month: 'December 2024', ...generatePayslipData('December 2024') },
+    { month: 'November 2024', ...generatePayslipData('November 2024') },
+    { month: 'October 2024', ...generatePayslipData('October 2024') },
+    { month: 'September 2024', ...generatePayslipData('September 2024') },
   ];
 
-  const totalEarningsYear = payslips.reduce((sum, payslip) => {
-    const amount = parseFloat(payslip.grossSalary.replace('S$', '').replace(',', ''));
-    return sum + amount;
-  }, 0);
-
-  const totalCPFYear = payslips.reduce((sum, payslip) => {
-    const amount = parseFloat(payslip.cpfContribution.replace('S$', '').replace(',', ''));
-    return sum + amount;
-  }, 0);
+  const totalEarningsYear = payslips.reduce((sum, payslip) => sum + payslip.grossSalary + payslip.approvedClaims, 0);
+  const totalCPFYear = payslips.reduce((sum, payslip) => sum + payslip.totalCPF, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -94,6 +130,9 @@ For queries, please contact HR Department.
             <div>
               <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
               <p className="text-gray-600">View and download your payslips</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Employee: {currentEmployee.name} ({currentEmployee.id})
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -103,6 +142,9 @@ For queries, please contact HR Department.
                     <div>
                       <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
                       <p className="text-2xl font-bold text-gray-900">S${totalEarningsYear.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Including claims: S${payslips.reduce((sum, p) => sum + p.approvedClaims, 0).toLocaleString()}
+                      </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>
@@ -114,6 +156,9 @@ For queries, please contact HR Department.
                     <div>
                       <p className="text-sm font-medium text-gray-600">CPF Contributions (Year)</p>
                       <p className="text-2xl font-bold text-gray-900">S${totalCPFYear.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Employee + Employer CPF
+                      </p>
                     </div>
                     <Calendar className="w-8 h-8 text-blue-500" />
                   </div>
@@ -124,7 +169,7 @@ For queries, please contact HR Department.
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips</CardDescription>
+                <CardDescription>Download your monthly payslips with live data</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -133,7 +178,10 @@ For queries, please contact HR Department.
                       <div>
                         <p className="font-medium text-gray-900">{payslip.month}</p>
                         <p className="text-sm text-gray-600">
-                          Net: {payslip.netSalary} • Gross: {payslip.grossSalary} • CPF: {payslip.cpfContribution}
+                          Net: S${payslip.netSalary.toLocaleString()} • 
+                          Gross: S${(payslip.grossSalary + payslip.approvedClaims).toLocaleString()} • 
+                          CPF: S${payslip.totalCPF.toLocaleString()}
+                          {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
                         </p>
                       </div>
                       <Button 
