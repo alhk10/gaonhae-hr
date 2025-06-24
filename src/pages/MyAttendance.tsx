@@ -14,24 +14,38 @@ import {
   getEmployeeAttendanceRecords, 
   getClockInOutStatus, 
   updateClockInOut,
+  AttendanceRecord,
   ClockInOutRecord 
-} from '@/data/attendanceData';
+} from '@/services/attendanceService';
 
 const MyAttendance = () => {
   const { user } = useAuth();
   const [dateFilter, setDateFilter] = useState('');
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
-
-  // Get attendance data from centralized service
-  const myAttendanceData = getEmployeeAttendanceRecords(user?.id || 'EMP001');
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetchAttendanceData();
     // Get current clock-in/out status
     const status = getClockInOutStatus(user?.id || 'EMP001');
     setClockStatus(status);
   }, [user?.id]);
 
-  const filteredData = myAttendanceData.filter(record => {
+  const fetchAttendanceData = async () => {
+    try {
+      setLoading(true);
+      const data = await getEmployeeAttendanceRecords(user?.id || 'EMP001');
+      setAttendanceData(data);
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      toast("Error loading attendance data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredData = attendanceData.filter(record => {
     return !dateFilter || record.date === dateFilter;
   });
 
@@ -62,11 +76,30 @@ const MyAttendance = () => {
   };
 
   // Calculate statistics
-  const presentDays = myAttendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
-  const totalHours = myAttendanceData.reduce((sum, record) => sum + record.hours, 0);
+  const presentDays = attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
+  const totalHours = attendanceData.reduce((sum, record) => sum + record.hours, 0);
   const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
 
   const isClockedIn = clockStatus?.status === 'clocked-in';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading attendance data...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,7 +172,7 @@ const MyAttendance = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">
-                    {myAttendanceData.length > 0 ? ((presentDays / myAttendanceData.length) * 100).toFixed(1) : '0'}%
+                    {attendanceData.length > 0 ? ((presentDays / attendanceData.length) * 100).toFixed(1) : '0'}%
                   </p>
                   <p className="text-sm text-gray-600">This month</p>
                 </CardContent>

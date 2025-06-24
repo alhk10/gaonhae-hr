@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -10,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Plus, Search, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getAllEmployees, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
+import { getEmployees, createEmployee } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 
 const Employees = () => {
@@ -18,11 +17,8 @@ const Employees = () => {
   const navigate = useNavigate();
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Get employees from centralized database
-  const allEmployees = getAllEmployees();
-  const fullTimeEmployees = getFullTimeEmployees();
-  const casualEmployees = getCasualEmployees();
+  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Form state for new employee
   const [newEmployee, setNewEmployee] = useState({
@@ -36,6 +32,23 @@ const Employees = () => {
   });
 
   const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const data = await getEmployees();
+      setEmployees(data);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast("Error loading employees. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleViewDetails = (employeeName: string, employeeId: string) => {
     navigate(`/employees/${employeeId}`);
@@ -52,26 +65,33 @@ const Employees = () => {
     }));
   };
 
-  const handleSubmitNewEmployee = (e: React.FormEvent) => {
+  const handleSubmitNewEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Adding new employee:', newEmployee);
-    
-    // Note: In a real application, this would save to a database
-    // For now, we'll show a success message but the data won't persist
-    toast("Employee added successfully (Note: Data will not persist in this demo)");
-    setShowAddForm(false);
-    
-    // Reset form
-    setNewEmployee({
-      fullName: '',
-      employeeId: '',
-      email: '',
-      phone: '',
-      department: '',
-      role: '',
-      employmentType: ''
-    });
+    try {
+      // For now, create a basic employee record - this would need to be expanded
+      // to include all required fields based on your form
+      toast("Employee creation feature will be implemented with proper form validation");
+      setShowAddForm(false);
+      
+      // Reset form
+      setNewEmployee({
+        fullName: '',
+        employeeId: '',
+        email: '',
+        phone: '',
+        department: '',
+        role: '',
+        employmentType: ''
+      });
+    } catch (error) {
+      console.error('Error creating employee:', error);
+      toast("Error creating employee. Please try again.");
+    }
   };
+
+  // Separate full-time and casual employees
+  const fullTimeEmployees = employees.filter(emp => emp.type === 'Full-Time');
+  const casualEmployees = employees.filter(emp => emp.type === 'Casual');
 
   // Filter employees based on search term
   const filterEmployees = (employees: EmployeeProfile[]) => {
@@ -95,6 +115,25 @@ const Employees = () => {
       incrementDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
     };
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading employees...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -310,7 +349,10 @@ const Employees = () => {
                             <p className="text-sm text-gray-600">
                               {employee.id} • {employee.department} • {employee.position} • {employee.type}
                             </p>
-                            <p className="text-xs text-gray-500">Hourly Rate: S${employee.hourlyRate}/hour</p>
+                            <p className="text-xs text-gray-500">
+                              {employee.hourlyRate ? `Hourly Rate: S$${employee.hourlyRate}/hour` : 
+                               employee.dailyRate ? `Daily Rate: S$${employee.dailyRate}/day` : 'Rate not set'}
+                            </p>
                           </div>
                           <Button 
                             variant="outline" 
