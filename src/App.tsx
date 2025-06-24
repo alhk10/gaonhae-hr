@@ -18,7 +18,7 @@ import SubmitClaim from './pages/SubmitClaim';
 import Attendance from './pages/Attendance';
 import MyAttendance from './pages/MyAttendance';
 import CasualEmployees from './pages/CasualEmployees';
-import CasualEmployeesBooking from './pages/CasualEmployeesBooking';
+import AdminSlotBooking from './pages/AdminSlotBooking';
 import SlotBooking from './pages/SlotBooking';
 import Payslips from './pages/Payslips';
 import Profile from './pages/Profile';
@@ -50,7 +50,7 @@ function App() {
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/my-attendance" element={<MyAttendance />} />
                 <Route path="/casual-employees" element={<CasualEmployees />} />
-                <Route path="/casual-employees-booking" element={<CasualEmployeesBooking />} />
+                <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
                 <Route path="/slot-booking" element={<SlotBooking />} />
                 <Route path="/payslips" element={<Payslips />} />
                 <Route path="/profile" element={<Profile />} />

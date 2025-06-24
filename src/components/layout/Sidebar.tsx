@@ -38,7 +38,7 @@ const Sidebar = () => {
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: UserCheck, label: 'Attendance', path: '/attendance' },
-        { icon: CalendarClock, label: 'Casual Employees Booking', path: '/casual-employees-booking' },
+        { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
     }
@@ -50,7 +50,7 @@ const Sidebar = () => {
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: Clock, label: 'Attendance', path: '/attendance' },
-        { icon: CalendarClock, label: 'Casual Employees Booking', path: '/casual-employees-booking' },
+        { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
       ];
     }
