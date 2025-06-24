@@ -13,16 +13,12 @@ const ApplyLeave = () => {
   
   const leaveHistory = [
     { date: '2024-12-25', type: 'Annual Leave', status: 'Approved', reason: 'Christmas holiday', appliedOn: '2024-12-10' },
-    { date: '2024-12-20', type: 'Medical Leave', status: 'Approved', reason: 'Doctor appointment', appliedOn: '2024-12-18' },
     { date: '2024-11-15', type: 'Annual Leave', status: 'Approved', reason: 'Personal matters', appliedOn: '2024-11-05' },
-    { date: '2024-10-08', type: 'Emergency Leave', status: 'Rejected', reason: 'Family emergency', appliedOn: '2024-10-07' },
     { date: '2024-09-12', type: 'Annual Leave', status: 'Pending', reason: 'Vacation', appliedOn: '2024-09-10' },
   ];
 
   const currentLeaveStatus = [
     { type: 'Annual Leave', total: 21, used: 6, remaining: 15 },
-    { type: 'Medical Leave', total: 14, used: 2, remaining: 12 },
-    { type: 'Emergency Leave', total: 3, used: 0, remaining: 3 },
   ];
 
   const handleSubmitLeave = () => {
@@ -86,8 +82,6 @@ const ApplyLeave = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
                       <select className="w-full p-2 border border-gray-300 rounded-lg">
                         <option>Annual Leave</option>
-                        <option>Medical Leave</option>
-                        <option>Emergency Leave</option>
                         <option>Maternity Leave</option>
                         <option>Paternity Leave</option>
                       </select>
