@@ -24,7 +24,12 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9123 4567',
     address: '123 Orchard Road, #12-34, Singapore 238858',
     email: 'john.tan@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      employees: true,
+      attendance: true,
+      reports: true
+    }
   },
   'EMP002': {
     id: 'EMP002',
@@ -49,7 +54,12 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9234 5678',
     address: '456 Marina Bay, #08-21, Singapore 018956',
     email: 'mary.ng@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      leaveManagement: true,
+      claims: true,
+      reports: true
+    }
   },
   'EMP003': {
     id: 'EMP003',

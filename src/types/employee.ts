@@ -1,4 +1,3 @@
-
 export interface AllowanceDeduction {
   id: number;
   name: string;
@@ -27,6 +26,17 @@ export interface EmployeeProfile {
   address?: string;
   email?: string;
   certificates?: CertificateUpload[];
+  adminAccess?: AdminAccessPermissions;
+}
+
+export interface AdminAccessPermissions {
+  employees?: boolean;
+  payroll?: boolean;
+  leaveManagement?: boolean;
+  claims?: boolean;
+  attendance?: boolean;
+  slotBooking?: boolean;
+  reports?: boolean;
 }
 
 export interface CertificateUpload {

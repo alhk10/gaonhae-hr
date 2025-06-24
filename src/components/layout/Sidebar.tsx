@@ -14,6 +14,7 @@ import {
   Clock,
   CalendarClock
 } from 'lucide-react';
+import { getEmployeeById } from '@/data/employeeData';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -55,7 +56,8 @@ const Sidebar = () => {
       ];
     }
 
-    return [
+    // For regular employees, check their admin access permissions
+    let employeeItems = [
       ...baseItems,
       { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
       { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
@@ -64,6 +66,47 @@ const Sidebar = () => {
       { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
       { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
+
+    // Check if employee has admin access permissions
+    if (user?.employeeId) {
+      const employee = getEmployeeById(user.employeeId);
+      const adminAccess = employee?.adminAccess;
+
+      if (adminAccess) {
+        const adminItems: MenuItem[] = [];
+        
+        if (adminAccess.employees) {
+          adminItems.push({ icon: Users, label: 'Employees', path: '/employees' });
+        }
+        if (adminAccess.payroll) {
+          adminItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
+        }
+        if (adminAccess.leaveManagement) {
+          adminItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
+        }
+        if (adminAccess.claims) {
+          adminItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
+        }
+        if (adminAccess.attendance) {
+          adminItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
+        }
+        if (adminAccess.slotBooking) {
+          adminItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
+        }
+        if (adminAccess.reports) {
+          adminItems.push({ icon: BarChart3, label: 'Reports', path: '/reports' });
+        }
+
+        // Insert admin items after dashboard but before regular employee items
+        employeeItems = [
+          baseItems[0], // Dashboard
+          ...adminItems,
+          ...employeeItems.slice(1) // Rest of employee items
+        ];
+      }
+    }
+
+    return employeeItems;
   };
 
   const menuItems = getMenuItems();
