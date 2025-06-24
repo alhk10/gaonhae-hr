@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2 } from 'lucide-react';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -28,13 +27,17 @@ const LoginForm = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-white" />
+          <div className="mx-auto w-16 h-16 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-sm">
+            <img 
+              src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
+              alt="Gaonhae HR Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-gray-900">Singapore HR System</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gray-900">Gaonhae HR</CardTitle>
             <CardDescription className="text-gray-600">
-              Multi-role demo access
+              Singapore HR Management System
             </CardDescription>
           </div>
         </CardHeader>

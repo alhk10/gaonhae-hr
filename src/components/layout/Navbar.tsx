@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, User } from 'lucide-react';
+import { User } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -16,11 +16,15 @@ const Navbar = () => {
     <nav className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            <img 
+              src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
+              alt="Gaonhae HR Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Singapore HR</h1>
+            <h1 className="text-xl font-bold text-gray-900">Gaonhae HR</h1>
             <p className="text-xs text-gray-500">MOM & CPF Compliant</p>
           </div>
         </div>
