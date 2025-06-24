@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { employeeDatabase, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { getEmployeeClaims } from '@/data/claimsData';
 
 interface PayrollState {
   currentPeriod: string;
@@ -51,6 +52,13 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     lastUpdated: new Date()
   });
 
+  const getApprovedClaimsTotal = (employeeId: string): number => {
+    const claims = getEmployeeClaims(employeeId);
+    return claims
+      .filter(claim => claim.status === 'Approved')
+      .reduce((sum, claim) => sum + claim.amount, 0);
+  };
+
   const initializePayroll = () => {
     console.log('Initializing payroll from employee database');
     
@@ -62,7 +70,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       
       const age = calculateAge(emp.dateOfBirth);
       const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+      const approvedClaims = getApprovedClaimsTotal(emp.id);
+      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
       
       return {
         id: emp.id,
@@ -84,7 +93,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       
       const age = calculateAge(emp.dateOfBirth);
       const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
-      const totalPay = grossPay - cpfCalc.employeeCPF;
+      const approvedClaims = getApprovedClaimsTotal(emp.id);
+      const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
       
       return {
         id: emp.id,
@@ -125,7 +135,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           
           const age = calculateAge(empData.dateOfBirth);
           const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-          const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+          const approvedClaims = getApprovedClaimsTotal(employeeId);
+          const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
           
           return {
             ...emp,
@@ -154,7 +165,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           if (empData) {
             const age = calculateAge(empData.dateOfBirth);
             const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-            const netSalary = grossSalary - cpfCalc.employeeCPF - emp.deductions;
+            const approvedClaims = getApprovedClaimsTotal(employeeId);
+            const netSalary = grossSalary - cpfCalc.employeeCPF - emp.deductions + approvedClaims;
             
             return {
               ...emp,
@@ -179,7 +191,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         if (emp.id === employeeId) {
           const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
           const grossSalary = emp.baseSalary + emp.allowances;
-          const netSalary = grossSalary - emp.cpf - totalDeductions;
+          const approvedClaims = getApprovedClaimsTotal(employeeId);
+          const netSalary = grossSalary - emp.cpf - totalDeductions + approvedClaims;
           
           return {
             ...emp,
@@ -207,7 +220,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           if (empData) {
             const age = calculateAge(empData.dateOfBirth);
             const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-            const totalPay = grossPay - cpfCalc.employeeCPF;
+            const approvedClaims = getApprovedClaimsTotal(employeeId);
+            const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
             
             return {
               ...emp,
