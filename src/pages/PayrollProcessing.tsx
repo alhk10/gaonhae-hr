@@ -110,7 +110,7 @@ const PayrollProcessing = () => {
     
     const newDeductions = empData.deductions
       .filter(d => d.name !== deductionName)
-      .map(d => ({ name: d.name, amount: a.amount }));
+      .map(d => ({ name: d.name, amount: d.amount }));
     
     updateEmployeeDeductions(employeeId, newDeductions);
   };

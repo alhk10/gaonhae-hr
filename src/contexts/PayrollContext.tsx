@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { employeeDatabase, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
@@ -197,31 +196,33 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const updateCasualEmployeeHours = (employeeId: string, hours: number, rate?: number) => {
     console.log(`Updating hours for casual employee ${employeeId}: ${hours} hours${rate ? `, rate: ${rate}` : ''}`);
     
-    setCasualEmployees(prev => prev.map(emp => {
-      if (emp.id === employeeId) {
-        const newRate = rate || emp.hourlyRate;
-        const grossPay = newRate * hours;
-        
-        const empData = employeeDatabase[employeeId];
-        if (empData) {
-          const age = calculateAge(empData.dateOfBirth);
-          const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-          const totalPay = grossPay - cpfCalc.employeeCPF;
+    setPayrollState(prev => ({
+      ...prev,
+      casualEmployees: prev.casualEmployees.map(emp => {
+        if (emp.id === employeeId) {
+          const newRate = rate || emp.hourlyRate;
+          const grossPay = newRate * hours;
           
-          return {
-            ...emp,
-            hourlyRate: newRate,
-            hoursWorked: hours,
-            totalPay,
-            employeeCPF: cpfCalc.employeeCPF,
-            employerCPF: cpfCalc.employerCPF
-          };
+          const empData = employeeDatabase[employeeId];
+          if (empData) {
+            const age = calculateAge(empData.dateOfBirth);
+            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+            const totalPay = grossPay - cpfCalc.employeeCPF;
+            
+            return {
+              ...emp,
+              hourlyRate: newRate,
+              hoursWorked: hours,
+              totalPay,
+              employeeCPF: cpfCalc.employeeCPF,
+              employerCPF: cpfCalc.employerCPF
+            };
+          }
         }
-      }
-      return emp;
+        return emp;
+      }),
+      lastUpdated: new Date()
     }));
-    
-    setPayrollState(prev => ({ ...prev, lastUpdated: new Date() }));
   };
 
   const calculatePayrollTotal = (): number => {
