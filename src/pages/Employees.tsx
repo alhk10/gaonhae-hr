@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Plus, Search, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
@@ -22,6 +22,19 @@ const Employees = () => {
     { name: 'Alice Wong', id: 'EMP005', dept: 'Operations', role: 'Casual Instructor', employmentType: 'Casual', nextIncrement: 'N/A', incrementDate: 'N/A' },
   ]);
 
+  // Form state for new employee
+  const [newEmployee, setNewEmployee] = useState({
+    fullName: '',
+    employeeId: '',
+    email: '',
+    phone: '',
+    department: '',
+    role: '',
+    employmentType: ''
+  });
+
+  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
+
   const handleViewDetails = (employeeName: string, employeeId: string) => {
     navigate(`/employees/${employeeId}`);
   };
@@ -30,10 +43,43 @@ const Employees = () => {
     setShowAddForm(true);
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setNewEmployee(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const handleSubmitNewEmployee = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Adding new employee:', newEmployee);
+    
+    // Add the new employee to the list
+    const newEmployeeData = {
+      name: newEmployee.fullName,
+      id: newEmployee.employeeId,
+      dept: newEmployee.department,
+      role: newEmployee.role,
+      employmentType: newEmployee.employmentType,
+      nextIncrement: newEmployee.employmentType === 'Casual' ? 'N/A' : 'TBD',
+      incrementDate: newEmployee.employmentType === 'Casual' ? 'N/A' : 'TBD'
+    };
+    
+    setEmployees(prev => [...prev, newEmployeeData]);
+    
     toast("Employee added successfully");
     setShowAddForm(false);
+    
+    // Reset form
+    setNewEmployee({
+      fullName: '',
+      employeeId: '',
+      email: '',
+      phone: '',
+      department: '',
+      role: '',
+      employmentType: ''
+    });
   };
 
   const filteredEmployees = employees.filter(employee =>
@@ -78,36 +124,80 @@ const Employees = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                        <input type="text" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                        <input 
+                          type="text" 
+                          value={newEmployee.fullName}
+                          onChange={(e) => handleInputChange('fullName', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
-                        <input type="text" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                        <input 
+                          type="text" 
+                          value={newEmployee.employeeId}
+                          onChange={(e) => handleInputChange('employeeId', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                        <input 
+                          type="email" 
+                          value={newEmployee.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                        <input type="tel" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                        <input 
+                          type="tel" 
+                          value={newEmployee.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                        <select className="w-full p-2 border border-gray-300 rounded-lg" required>
+                        <select 
+                          value={newEmployee.department}
+                          onChange={(e) => handleInputChange('department', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required
+                        >
                           <option value="">Select Department</option>
                           <option value="Engineering">Engineering</option>
                           <option value="Marketing">Marketing</option>
                           <option value="HR">HR</option>
+                          <option value="Operations">Operations</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                        <input type="text" className="w-full p-2 border border-gray-300 rounded-lg" required />
+                        <Select value={newEmployee.role} onValueChange={(value) => handleInputChange('role', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.map(role => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Employment Type</label>
-                        <select className="w-full p-2 border border-gray-300 rounded-lg" required>
+                        <select 
+                          value={newEmployee.employmentType}
+                          onChange={(e) => handleInputChange('employmentType', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required
+                        >
                           <option value="">Select Employment Type</option>
                           <option value="Full-Time">Full-Time</option>
                           <option value="Part-Time">Part-Time</option>
