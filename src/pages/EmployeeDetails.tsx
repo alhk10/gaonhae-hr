@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -115,6 +114,26 @@ const EmployeeDetails = () => {
     }) : null);
   };
 
+  const handleEmploymentTypeChange = (newType: 'Full-Time' | 'Casual') => {
+    if (!employeeData) return;
+    
+    const updatedData = { ...employeeData, type: newType };
+    
+    // When switching to Full-Time, ensure baseSalary exists and remove hourlyRate
+    if (newType === 'Full-Time') {
+      updatedData.baseSalary = employeeData.baseSalary || (employeeData.hourlyRate ? employeeData.hourlyRate * 160 : 3000);
+      delete updatedData.hourlyRate;
+    } 
+    // When switching to Casual, ensure hourlyRate exists and remove baseSalary
+    else if (newType === 'Casual') {
+      updatedData.hourlyRate = employeeData.hourlyRate || (employeeData.baseSalary ? Math.round(employeeData.baseSalary / 160) : 20);
+      delete updatedData.baseSalary;
+    }
+    
+    setEmployeeData(updatedData);
+    toast(`Employment type changed to ${newType}`);
+  };
+
   const handleEdit = () => {
     if (isEditing) {
       console.log('Saving employee data:', employeeData);
@@ -195,26 +214,6 @@ const EmployeeDetails = () => {
 
   const downloadPayslip = (month: string) => {
     toast(`Downloaded payslip for ${month}`);
-  };
-
-  // Generate mock email from name
-  const generateEmail = (name: string) => {
-    return name.toLowerCase().replace(' ', '.') + '@company.sg';
-  };
-
-  // Generate mock phone from ID
-  const generatePhone = (id: string) => {
-    const numPart = id.replace(/[A-Z]/g, '');
-    return `+65 9${numPart.padStart(3, '0')} ${Math.floor(Math.random() * 9000 + 1000)}`;
-  };
-
-  // Generate mock address
-  const generateAddress = () => {
-    const streets = ['Orchard Road', 'Marina Bay', 'Jurong East', 'Tampines', 'Woodlands'];
-    const street = streets[Math.floor(Math.random() * streets.length)];
-    const unit = `#${Math.floor(Math.random() * 20 + 1).toString().padStart(2, '0')}-${Math.floor(Math.random() * 50 + 1).toString().padStart(2, '0')}`;
-    const postal = Math.floor(Math.random() * 900000 + 100000);
-    return `${Math.floor(Math.random() * 999 + 1)} ${street}, ${unit}, Singapore ${postal}`;
   };
 
   return (
@@ -333,16 +332,43 @@ const EmployeeDetails = () => {
                         )}
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Email (Login Email)</label>
-                        <p className="text-lg text-gray-900">{generateEmail(employeeData.name)}</p>
+                        <label className="text-sm font-medium text-gray-600">Email</label>
+                        {isEditing ? (
+                          <input 
+                            type="email" 
+                            value={employeeData.email || ''}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">{employeeData.email || 'Not specified'}</p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Phone</label>
-                        <p className="text-lg text-gray-900">{generatePhone(employeeData.id)}</p>
+                        {isEditing ? (
+                          <input 
+                            type="tel" 
+                            value={employeeData.phone || ''}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">{employeeData.phone || 'Not specified'}</p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Address</label>
-                        <p className="text-lg text-gray-900">{generateAddress()}</p>
+                        {isEditing ? (
+                          <textarea 
+                            value={employeeData.address || ''}
+                            onChange={(e) => handleInputChange('address', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                            rows={2}
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">{employeeData.address || 'Not specified'}</p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -390,7 +416,7 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <select 
                             value={employeeData.type}
-                            onChange={(e) => handleInputChange('type', e.target.value)}
+                            onChange={(e) => handleEmploymentTypeChange(e.target.value as 'Full-Time' | 'Casual')}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {employmentTypes.map(type => (
@@ -404,8 +430,34 @@ const EmployeeDetails = () => {
                       <div>
                         <label className="text-sm font-medium text-gray-600">Payment Type</label>
                         <p className="text-lg text-gray-900">
-                          {employeeData.type === 'Full-Time' ? 'Per Month' : 'Per Hour'}
+                          {employeeData.type === 'Full-Time' ? 'Monthly Salary' : 'Hourly Rate'}
                         </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          {employeeData.type === 'Full-Time' ? 'Monthly Salary' : 'Hourly Rate'}
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={employeeData.type === 'Full-Time' ? (employeeData.baseSalary || 0) : (employeeData.hourlyRate || 0)}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              if (employeeData.type === 'Full-Time') {
+                                handleInputChange('baseSalary', value);
+                              } else {
+                                handleInputChange('hourlyRate', value);
+                              }
+                            }}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">
+                            S${employeeData.type === 'Full-Time' ? 
+                              (employeeData.baseSalary || 0).toLocaleString() : 
+                              `${employeeData.hourlyRate || 0}/hour`}
+                          </p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -416,11 +468,9 @@ const EmployeeDetails = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Base Salary/Rate</label>
+                        <label className="text-sm font-medium text-gray-600">Gross Salary/Pay</label>
                         <p className="text-lg text-gray-900">
-                          S${employeeData.type === 'Full-Time' ? 
-                            (employeeData.baseSalary || 0).toLocaleString() : 
-                            `${employeeData.hourlyRate || 0}/hour`}
+                          S${salaryForCPF.toLocaleString()}
                         </p>
                       </div>
                       <div>
@@ -528,11 +578,29 @@ const EmployeeDetails = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-gray-600">Bank Name</label>
-                        <p className="text-lg text-gray-900">{employeeData.bankName}</p>
+                        {isEditing ? (
+                          <input 
+                            type="text" 
+                            value={employeeData.bankName}
+                            onChange={(e) => handleInputChange('bankName', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">{employeeData.bankName}</p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Bank Account</label>
-                        <p className="text-lg text-gray-900">{employeeData.bankAccount}</p>
+                        {isEditing ? (
+                          <input 
+                            type="text" 
+                            value={employeeData.bankAccount}
+                            onChange={(e) => handleInputChange('bankAccount', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          />
+                        ) : (
+                          <p className="text-lg text-gray-900">{employeeData.bankAccount}</p>
+                        )}
                       </div>
                     </div>
                   </CardContent>

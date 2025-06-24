@@ -21,6 +21,9 @@ export interface EmployeeProfile {
   bankName: string;
   department?: string;
   position?: string;
+  phone?: string;
+  address?: string;
+  email?: string;
 }
 
 export interface PayrollEmployee {

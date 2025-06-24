@@ -20,7 +20,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '1234-567890',
     bankName: 'DBS Bank',
     department: 'Engineering',
-    position: 'Senior Developer'
+    position: 'Senior Developer',
+    phone: '+65 9123 4567',
+    address: '123 Orchard Road, #12-34, Singapore 238858',
+    email: 'john.tan@company.sg'
   },
   'EMP002': {
     id: 'EMP002',
@@ -40,7 +43,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '2345-678901',
     bankName: 'OCBC Bank',
     department: 'Marketing',
-    position: 'Marketing Manager'
+    position: 'Marketing Manager',
+    phone: '+65 9234 5678',
+    address: '456 Marina Bay, #08-21, Singapore 018956',
+    email: 'mary.ng@company.sg'
   },
   'EMP003': {
     id: 'EMP003',
@@ -60,7 +66,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '3456-789012',
     bankName: 'UOB Bank',
     department: 'Operations',
-    position: 'Operations Assistant'
+    position: 'Operations Assistant',
+    phone: '+65 9345 6789',
+    address: '789 Jurong East, #15-67, Singapore 609729',
+    email: 'david.lim@company.sg'
   },
   'CAS001': {
     id: 'CAS001',
@@ -77,7 +86,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '4567-890123',
     bankName: 'UOB Bank',
     department: 'Teaching',
-    position: 'Casual Teacher'
+    position: 'Casual Teacher',
+    phone: '+65 9456 7890',
+    address: '321 Tampines, #22-11, Singapore 529543',
+    email: 'alice.wong@company.sg'
   },
   'CAS002': {
     id: 'CAS002',
@@ -94,7 +106,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '5678-901234',
     bankName: 'DBS Bank',
     department: 'Teaching',
-    position: 'Casual Teacher'
+    position: 'Casual Teacher',
+    phone: '+65 9567 8901',
+    address: '654 Woodlands, #05-43, Singapore 730654',
+    email: 'bob.chen@company.sg'
   },
   'CAS003': {
     id: 'CAS003',
@@ -111,7 +126,10 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     bankAccount: '6789-012345',
     bankName: 'OCBC Bank',
     department: 'Teaching',
-    position: 'Casual Teacher'
+    position: 'Casual Teacher',
+    phone: '+65 9678 9012',
+    address: '987 Yishun, #18-29, Singapore 760987',
+    email: 'sarah.lee@company.sg'
   }
 };
 

@@ -1,11 +1,43 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, Edit } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
+import { getEmployeeById } from '@/data/employeeData';
 
 const Profile = () => {
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Mock current user - in real app this would come from auth context
+  const currentUserId = 'EMP001';
+  const employeeData = getEmployeeById(currentUserId);
+
+  const handleEdit = () => {
+    if (isEditing) {
+      toast("Profile updated successfully");
+    }
+    setIsEditing(!isEditing);
+  };
+
+  if (!employeeData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p>Employee data not found</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -13,9 +45,15 @@ const Profile = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-              <p className="text-gray-600">View and update your profile information</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
+                <p className="text-gray-600">View and update your profile information</p>
+              </div>
+              <Button onClick={handleEdit} className="flex items-center space-x-2">
+                <Edit className="w-4 h-4" />
+                <span>{isEditing ? 'Save Changes' : 'Edit Profile'}</span>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -36,23 +74,45 @@ const Profile = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Full Name</label>
-                    <p className="text-lg text-gray-900">Tan Wei Ming</p>
+                    <p className="text-lg text-gray-900">{employeeData.name}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Employee ID</label>
-                    <p className="text-lg text-gray-900">EMP001</p>
+                    <p className="text-lg text-gray-900">{employeeData.id}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">NRIC/FIN</label>
-                    <p className="text-lg text-gray-900">S1234567A</p>
+                    <p className="text-lg text-gray-900">{employeeData.nric}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Email</label>
-                    <p className="text-lg text-gray-900">employee@company.sg</p>
+                    <p className="text-lg text-gray-900">{employeeData.email || 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Phone</label>
-                    <p className="text-lg text-gray-900">+65 9123 4567</p>
+                    {isEditing ? (
+                      <input 
+                        type="tel" 
+                        value={employeeData.phone || ''}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                        placeholder="Enter phone number"
+                      />
+                    ) : (
+                      <p className="text-lg text-gray-900">{employeeData.phone || 'Not specified'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Address</label>
+                    {isEditing ? (
+                      <textarea 
+                        value={employeeData.address || ''}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                        rows={2}
+                        placeholder="Enter address"
+                      />
+                    ) : (
+                      <p className="text-lg text-gray-900">{employeeData.address || 'Not specified'}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -64,23 +124,28 @@ const Profile = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Department</label>
-                    <p className="text-lg text-gray-900">Engineering</p>
+                    <p className="text-lg text-gray-900">{employeeData.department || 'Not specified'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Role</label>
-                    <p className="text-lg text-gray-900">Developer</p>
+                    <label className="text-sm font-medium text-gray-600">Position</label>
+                    <p className="text-lg text-gray-900">{employeeData.position || 'Not specified'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Manager</label>
-                    <p className="text-lg text-gray-900">Kumar Raj</p>
+                    <label className="text-sm font-medium text-gray-600">Employment Type</label>
+                    <p className="text-lg text-gray-900">{employeeData.type}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Join Date</label>
-                    <p className="text-lg text-gray-900">2022-03-15</p>
+                    <label className="text-sm font-medium text-gray-600">Date of Birth</label>
+                    <p className="text-lg text-gray-900">{employeeData.dateOfBirth}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Work Location</label>
-                    <p className="text-lg text-gray-900">Singapore Office</p>
+                    <label className="text-sm font-medium text-gray-600">Residency Status</label>
+                    <p className="text-lg text-gray-900">{employeeData.residencyStatus}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Bank Details</label>
+                    <p className="text-lg text-gray-900">{employeeData.bankName}</p>
+                    <p className="text-sm text-gray-600">{employeeData.bankAccount}</p>
                   </div>
                 </CardContent>
               </Card>
