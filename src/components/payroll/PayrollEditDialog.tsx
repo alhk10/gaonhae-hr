@@ -34,11 +34,30 @@ interface PayrollEditDialogProps {
   onSave: (updatedPayroll: PayrollData) => void;
 }
 
+interface AllowanceDeduction {
+  id: number;
+  name: string;
+  amount: number;
+}
+
+interface EmployeeData {
+  id: string;
+  name: string;
+  type: string;
+  baseSalary: number;
+  allowances: AllowanceDeduction[];
+  deductions: AllowanceDeduction[];
+}
+
+type EmployeeDatabase = {
+  [key: string]: EmployeeData;
+}
+
 const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDialogProps) => {
   const [employeeDetails, setEmployeeDetails] = useState<Employee[]>([]);
 
   // Employee database with allowances and deductions from profiles
-  const employeeDatabase = {
+  const employeeDatabase: EmployeeDatabase = {
     'EMP001': {
       id: 'EMP001',
       name: 'John Tan',
@@ -113,8 +132,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
   useEffect(() => {
     if (payroll) {
       const employees = Object.values(employeeDatabase).map(emp => {
-        const totalAllowances = emp.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
-        const totalDeductions = emp.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+        const totalAllowances: number = (emp.allowances || []).reduce((sum: number, allowance: AllowanceDeduction) => sum + allowance.amount, 0);
+        const totalDeductions: number = (emp.deductions || []).reduce((sum: number, deduction: AllowanceDeduction) => sum + deduction.amount, 0);
         const cpf = emp.type === 'Full-Time' ? Math.round(emp.baseSalary * 0.17) : 0;
         const total = emp.baseSalary + totalAllowances - totalDeductions + cpf;
 
@@ -196,12 +215,12 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     onClose();
   };
 
-  const getEmployeeAllowanceBreakdown = (employeeId: string) => {
+  const getEmployeeAllowanceBreakdown = (employeeId: string): AllowanceDeduction[] => {
     const empData = employeeDatabase[employeeId];
     return empData?.allowances || [];
   };
 
-  const getEmployeeDeductionBreakdown = (employeeId: string) => {
+  const getEmployeeDeductionBreakdown = (employeeId: string): AllowanceDeduction[] => {
     const empData = employeeDatabase[employeeId];
     return empData?.deductions || [];
   };
