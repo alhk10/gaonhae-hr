@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,42 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Receipt, Plus, Eye, Check, X, Settings } from 'lucide-react';
+import { Receipt, Settings, Check, X, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getAllClaims, updateClaimStatus, type Claim } from '@/data/claimsData';
 
 const Claims = () => {
-  const [claims, setClaims] = useState([
-    { 
-      id: 1, 
-      employee: 'John Tan', 
-      type: 'Travel', 
-      amount: 45.50, 
-      date: '2024-12-20', 
-      status: 'Pending',
-      description: 'Taxi fare for client meeting'
-    },
-    { 
-      id: 2, 
-      employee: 'Mary Ng', 
-      type: 'Meals', 
-      amount: 25.00, 
-      date: '2024-12-19', 
-      status: 'Approved',
-      description: 'Lunch with client'
-    },
-    { 
-      id: 3, 
-      employee: 'David Lim', 
-      type: 'Office Supplies', 
-      amount: 120.30, 
-      date: '2024-12-18', 
-      status: 'Rejected',
-      description: 'Stationery for department'
-    },
-  ]);
-
+  const [claims, setClaims] = useState<Claim[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [claimTypes, setClaimTypes] = useState(['Travel', 'Meals', 'Office Supplies', 'Medical', 'Training']);
   const [claimLimits, setClaimLimits] = useState<Record<string, number>>({
@@ -54,16 +24,24 @@ const Claims = () => {
     'Training': 2000
   });
 
-  const handleApprove = (id) => {
+  useEffect(() => {
+    // Load claims data on component mount
+    const claimsData = getAllClaims();
+    setClaims(claimsData);
+  }, []);
+
+  const handleApprove = (id: number) => {
+    updateClaimStatus(id, 'Approved');
     setClaims(prev => prev.map(claim => 
-      claim.id === id ? { ...claim, status: 'Approved' } : claim
+      claim.id === id ? { ...claim, status: 'Approved' as const } : claim
     ));
     toast("Claim approved");
   };
 
-  const handleReject = (id) => {
+  const handleReject = (id: number) => {
+    updateClaimStatus(id, 'Rejected');
     setClaims(prev => prev.map(claim => 
-      claim.id === id ? { ...claim, status: 'Rejected' } : claim
+      claim.id === id ? { ...claim, status: 'Rejected' as const } : claim
     ));
     toast("Claim rejected");
   };

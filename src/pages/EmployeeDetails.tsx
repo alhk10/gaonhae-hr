@@ -7,11 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeClaims } from '@/data/claimsData';
 import { AllowanceDeduction } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Approved': return 'default';
+    case 'Rejected': return 'destructive';
+    default: return 'secondary';
+  }
+};
 
 const EmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +30,9 @@ const EmployeeDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingAccess, setIsEditingAccess] = useState(false);
   const [employee, setEmployee] = useState(() => getEmployeeById(id || ''));
+  
+  // Get claims data for this employee using centralized service
+  const employeeClaims = getEmployeeClaims(id || '');
 
   if (!employee) {
     return (
@@ -411,15 +424,30 @@ const EmployeeDetails = () => {
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead>Receipt</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-500">
-                            No claims records found
-                          </TableCell>
-                        </TableRow>
+                        {employeeClaims.length > 0 ? (
+                          employeeClaims.map((claim) => (
+                            <TableRow key={claim.id}>
+                              <TableCell>{claim.date}</TableCell>
+                              <TableCell>{claim.type}</TableCell>
+                              <TableCell>S${claim.amount.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge variant={getStatusColor(claim.status)}>
+                                  {claim.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-gray-500">
+                              No claims records found
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </CardContent>
