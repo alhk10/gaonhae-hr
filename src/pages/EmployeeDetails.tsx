@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit, Key, Plus, Trash2, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
-import { getEmployeeById } from '@/data/employeeData';
-import { EmployeeProfile } from '@/types/employee';
+import { getEmployeeById, systemAllowances, systemDeductions } from '@/data/employeeData';
+import { EmployeeProfile, CertificateUpload } from '@/types/employee';
+import CertificateUploadComponent from '@/components/employee/CertificateUpload';
 
 const EmployeeDetails = () => {
   const { id } = useParams();
@@ -42,18 +43,6 @@ const EmployeeDetails = () => {
       }
     }
   }, [id, navigate]);
-
-  // System allowances and deductions from settings
-  const systemAllowances = [
-    { id: 1, name: 'Transport Allowance', type: 'Monthly', amount: '200' },
-    { id: 2, name: 'Meal Allowance', type: 'Monthly', amount: '150' },
-    { id: 3, name: 'Performance Bonus', type: 'One-time', amount: '500' }
-  ];
-
-  const systemDeductions = [
-    { id: 1, name: 'Insurance Premium', type: 'Monthly', amount: '100' },
-    { id: 2, name: 'Union Fees', type: 'Monthly', amount: '25' }
-  ];
 
   // Mock payslips data
   const payslips = [
@@ -99,11 +88,22 @@ const EmployeeDetails = () => {
     );
   }
 
-  // Calculate salary for CPF (use baseSalary for full-time, hourlyRate for casual)
-  const salaryForCPF = employeeData.type === 'Full-Time' ? 
-    (employeeData.baseSalary || 0) : 
-    ((employeeData.hourlyRate || 0) * 120); // Assume 120 hours for casual employees
+  // Calculate salary for CPF
+  const getSalaryForCPF = () => {
+    if (employeeData.type === 'Full-Time') {
+      return employeeData.baseSalary || 0;
+    } else {
+      // For casual employees, calculate based on payment type
+      if (employeeData.paymentType === 'Daily' && employeeData.dailyRate) {
+        return employeeData.dailyRate * 22; // Assume 22 working days per month
+      } else if (employeeData.paymentType === 'Hourly' && employeeData.hourlyRate) {
+        return employeeData.hourlyRate * 120; // Assume 120 hours per month
+      }
+      return 0;
+    }
+  };
 
+  const salaryForCPF = getSalaryForCPF();
   const age = calculateAge(employeeData.dateOfBirth);
   const cpfCalculation = calculateCPF(salaryForCPF, employeeData.residencyStatus, age);
 
@@ -114,19 +114,48 @@ const EmployeeDetails = () => {
     }) : null);
   };
 
+  const handlePaymentTypeChange = (newPaymentType: 'Monthly' | 'Hourly' | 'Daily') => {
+    if (!employeeData) return;
+    
+    const updatedData = { ...employeeData, paymentType: newPaymentType };
+    
+    if (employeeData.type === 'Casual') {
+      if (newPaymentType === 'Hourly') {
+        // Convert daily to hourly if switching from daily
+        if (employeeData.dailyRate) {
+          updatedData.hourlyRate = Math.round(employeeData.dailyRate / 8);
+        } else {
+          updatedData.hourlyRate = employeeData.hourlyRate || 25;
+        }
+        delete updatedData.dailyRate;
+      } else if (newPaymentType === 'Daily') {
+        // Convert hourly to daily if switching from hourly
+        if (employeeData.hourlyRate) {
+          updatedData.dailyRate = employeeData.hourlyRate * 8;
+        } else {
+          updatedData.dailyRate = employeeData.dailyRate || 200;
+        }
+        delete updatedData.hourlyRate;
+      }
+    }
+    
+    setEmployeeData(updatedData);
+    toast(`Payment type changed to ${newPaymentType}`);
+  };
+
   const handleEmploymentTypeChange = (newType: 'Full-Time' | 'Casual') => {
     if (!employeeData) return;
     
     const updatedData = { ...employeeData, type: newType };
     
-    // When switching to Full-Time, ensure baseSalary exists and remove hourlyRate
     if (newType === 'Full-Time') {
-      updatedData.baseSalary = employeeData.baseSalary || (employeeData.hourlyRate ? employeeData.hourlyRate * 160 : 3000);
+      updatedData.baseSalary = employeeData.baseSalary || 3000;
+      updatedData.paymentType = 'Monthly';
       delete updatedData.hourlyRate;
-    } 
-    // When switching to Casual, ensure hourlyRate exists and remove baseSalary
-    else if (newType === 'Casual') {
-      updatedData.hourlyRate = employeeData.hourlyRate || (employeeData.baseSalary ? Math.round(employeeData.baseSalary / 160) : 20);
+      delete updatedData.dailyRate;
+    } else if (newType === 'Casual') {
+      updatedData.hourlyRate = employeeData.hourlyRate || 25;
+      updatedData.paymentType = 'Hourly';
       delete updatedData.baseSalary;
     }
     
@@ -152,7 +181,7 @@ const EmployeeDetails = () => {
     const newAllowance = {
       id: Date.now(),
       name: systemAllowance.name,
-      amount: parseInt(systemAllowance.amount),
+      amount: systemAllowance.amount,
       type: 'Fixed' as const
     };
     
@@ -170,7 +199,7 @@ const EmployeeDetails = () => {
     const newDeduction = {
       id: Date.now(),
       name: systemDeduction.name,
-      amount: parseInt(systemDeduction.amount),
+      amount: systemDeduction.amount,
       type: 'Fixed' as const
     };
     
@@ -212,8 +241,45 @@ const EmployeeDetails = () => {
     toast(`${module} access ${enabled ? 'enabled' : 'disabled'} for employee`);
   };
 
+  const handleCertificateUpload = (certificate: CertificateUpload) => {
+    if (!employeeData) return;
+    
+    const updatedCertificates = [...(employeeData.certificates || []), certificate];
+    setEmployeeData({
+      ...employeeData,
+      certificates: updatedCertificates
+    });
+  };
+
+  const handleCertificateRemove = (certificateId: string) => {
+    if (!employeeData) return;
+    
+    const updatedCertificates = (employeeData.certificates || []).filter(cert => cert.id !== certificateId);
+    setEmployeeData({
+      ...employeeData,
+      certificates: updatedCertificates
+    });
+    toast("Certificate removed");
+  };
+
   const downloadPayslip = (month: string) => {
     toast(`Downloaded payslip for ${month}`);
+  };
+
+  const getPaymentLabel = () => {
+    if (employeeData.type === 'Full-Time') return 'Monthly Salary';
+    if (employeeData.paymentType === 'Daily') return 'Daily Rate';
+    return 'Hourly Rate';
+  };
+
+  const getPaymentValue = () => {
+    if (employeeData.type === 'Full-Time') {
+      return `S$${(employeeData.baseSalary || 0).toLocaleString()}`;
+    }
+    if (employeeData.paymentType === 'Daily') {
+      return `S$${employeeData.dailyRate || 0}/day`;
+    }
+    return `S$${employeeData.hourlyRate || 0}/hour`;
   };
 
   return (
@@ -247,10 +313,11 @@ const EmployeeDetails = () => {
             </div>
 
             <Tabs defaultValue="personal" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="personal">Personal & Work Info</TabsTrigger>
                 <TabsTrigger value="payroll">Payroll History</TabsTrigger>
                 <TabsTrigger value="leave">Leave Records</TabsTrigger>
+                <TabsTrigger value="certificates">Certificates</TabsTrigger>
                 <TabsTrigger value="modules">Access Modules</TabsTrigger>
               </TabsList>
 
@@ -429,22 +496,37 @@ const EmployeeDetails = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Payment Type</label>
-                        <p className="text-lg text-gray-900">
-                          {employeeData.type === 'Full-Time' ? 'Monthly Salary' : 'Hourly Rate'}
-                        </p>
+                        {isEditing && employeeData.type === 'Casual' ? (
+                          <select 
+                            value={employeeData.paymentType || 'Hourly'}
+                            onChange={(e) => handlePaymentTypeChange(e.target.value as 'Monthly' | 'Hourly' | 'Daily')}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                          >
+                            <option value="Hourly">Hourly Rate</option>
+                            <option value="Daily">Daily Rate</option>
+                          </select>
+                        ) : (
+                          <p className="text-lg text-gray-900">{getPaymentLabel()}</p>
+                        )}
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">
-                          {employeeData.type === 'Full-Time' ? 'Monthly Salary' : 'Hourly Rate'}
-                        </label>
+                        <label className="text-sm font-medium text-gray-600">{getPaymentLabel()}</label>
                         {isEditing ? (
                           <input
                             type="number"
-                            value={employeeData.type === 'Full-Time' ? (employeeData.baseSalary || 0) : (employeeData.hourlyRate || 0)}
+                            value={
+                              employeeData.type === 'Full-Time' 
+                                ? (employeeData.baseSalary || 0)
+                                : employeeData.paymentType === 'Daily'
+                                  ? (employeeData.dailyRate || 0)
+                                  : (employeeData.hourlyRate || 0)
+                            }
                             onChange={(e) => {
                               const value = Number(e.target.value);
                               if (employeeData.type === 'Full-Time') {
                                 handleInputChange('baseSalary', value);
+                              } else if (employeeData.paymentType === 'Daily') {
+                                handleInputChange('dailyRate', value);
                               } else {
                                 handleInputChange('hourlyRate', value);
                               }
@@ -452,11 +534,7 @@ const EmployeeDetails = () => {
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">
-                            S${employeeData.type === 'Full-Time' ? 
-                              (employeeData.baseSalary || 0).toLocaleString() : 
-                              `${employeeData.hourlyRate || 0}/hour`}
-                          </p>
+                          <p className="text-lg text-gray-900">{getPaymentValue()}</p>
                         )}
                       </div>
                     </CardContent>
@@ -656,6 +734,14 @@ const EmployeeDetails = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="certificates">
+                <CertificateUploadComponent
+                  certificates={employeeData.certificates || []}
+                  onCertificateUpload={handleCertificateUpload}
+                  onCertificateRemove={handleCertificateRemove}
+                />
               </TabsContent>
 
               <TabsContent value="modules">

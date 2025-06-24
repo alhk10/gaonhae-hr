@@ -15,6 +15,8 @@ export interface EmployeeProfile {
   type: 'Full-Time' | 'Casual';
   baseSalary?: number;
   hourlyRate?: number;
+  dailyRate?: number;
+  paymentType?: 'Monthly' | 'Hourly' | 'Daily';
   allowances: AllowanceDeduction[];
   deductions: AllowanceDeduction[];
   bankAccount: string;
@@ -24,6 +26,16 @@ export interface EmployeeProfile {
   phone?: string;
   address?: string;
   email?: string;
+  certificates?: CertificateUpload[];
+}
+
+export interface CertificateUpload {
+  id: string;
+  name: string;
+  fileName: string;
+  uploadDate: string;
+  fileSize: number;
+  fileType: string;
 }
 
 export interface PayrollEmployee {
