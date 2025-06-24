@@ -60,7 +60,7 @@ const Sidebar = () => {
       { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
       { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
       { icon: DollarSign, label: 'Payslips', path: '/payslips' },
-      { icon: Clock, label: 'Attendance', path: '/attendance' },
+      { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
       { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
       { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
