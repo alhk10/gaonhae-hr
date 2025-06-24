@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -9,19 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit, Key, Plus, Trash2, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { calculateCPF } from '@/utils/cpfCalculations';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { getEmployeeById } from '@/data/employeeData';
+import { EmployeeProfile } from '@/types/employee';
 
 const EmployeeDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [allowances, setAllowances] = useState([
-    { id: 1, name: 'Transport Allowance', amount: 200 },
-    { id: 2, name: 'Meal Allowance', amount: 150 }
-  ]);
-  const [deductions, setDeductions] = useState([
-    { id: 1, name: 'Insurance', amount: 100 }
-  ]);
+  const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [employeeModules, setEmployeeModules] = useState({
     payroll: true,
     leaveManagement: true,
@@ -31,132 +28,19 @@ const EmployeeDetails = () => {
     adminAccess: false
   });
 
-  // Updated employee database with correct data for John Tan
-  const employeeDatabase = {
-    'EMP002': {
-      id: 'EMP002',
-      name: 'John Tan',
-      email: 'john.tan@company.sg',
-      phone: '+65 9123 4567',
-      address: '123 Orchard Road, #12-34, Singapore 238874',
-      nric: 'S1234567A',
-      dateOfBirth: '1990-05-15',
-      photo: '/placeholder.svg',
-      department: 'Engineering',
-      role: 'Senior Developer',
-      joinDate: '2022-03-15',
-      employmentType: 'Full-Time',
-      residencyStatus: 'Singapore Citizen',
-      paymentType: 'Per Month',
-      salary: 8500,
-      lastAdjustment: '2024-01-01',
-      nextIncrement: 'S$9,000',
-      incrementDate: '2025-01-01',
-      bankAccount: '1234-567890',
-      bankName: 'DBS Bank',
-      paynow: '+65 9123 4567',
-      annualLeave: 21,
-      medicalLeave: 14,
-      status: 'Active',
-      resignationDate: ''
-    },
-    'EMP003': {
-      id: 'EMP003',
-      name: 'Mary Ng',
-      email: 'mary.ng@company.sg',
-      phone: '+65 9234 5678',
-      address: '456 Marina Bay, #20-15, Singapore 018956',
-      nric: 'S2345678B',
-      dateOfBirth: '1985-08-22',
-      photo: '/placeholder.svg',
-      department: 'Marketing',
-      role: 'Marketing Manager',
-      joinDate: '2021-06-10',
-      employmentType: 'Full-Time',
-      residencyStatus: 'Singapore Citizen',
-      paymentType: 'Per Month',
-      salary: 7500,
-      lastAdjustment: '2024-01-01',
-      nextIncrement: 'S$8,500',
-      incrementDate: '2025-02-01',
-      bankAccount: '2345-678901',
-      bankName: 'OCBC Bank',
-      paynow: '+65 9234 5678',
-      annualLeave: 21,
-      medicalLeave: 14,
-      status: 'Active',
-      resignationDate: ''
-    },
-    'EMP004': {
-      id: 'EMP004',
-      name: 'David Lim',
-      email: 'david.lim@company.sg',
-      phone: '+65 9345 6789',
-      address: '789 Jurong East, #10-05, Singapore 609734',
-      nric: 'S3456789C',
-      dateOfBirth: '1992-03-10',
-      photo: '/placeholder.svg',
-      department: 'HR',
-      role: 'HR Executive',
-      joinDate: '2023-01-15',
-      employmentType: 'Part-Time',
-      residencyStatus: 'Permanent Resident Year 1',
-      paymentType: 'Per Month',
-      salary: 5000,
-      lastAdjustment: '2024-01-01',
-      nextIncrement: 'S$7,000',
-      incrementDate: '2025-03-01',
-      bankAccount: '3456-789012',
-      bankName: 'UOB Bank',
-      paynow: '+65 9345 6789',
-      annualLeave: 14,
-      medicalLeave: 10,
-      status: 'Active',
-      resignationDate: ''
-    },
-    'EMP005': {
-      id: 'EMP005',
-      name: 'Alice Wong',
-      email: 'alice.wong@company.sg',
-      phone: '+65 9456 7890',
-      address: '321 Tampines, #05-12, Singapore 529508',
-      nric: 'S4567890D',
-      dateOfBirth: '1988-12-05',
-      photo: '/placeholder.svg',
-      department: 'Operations',
-      role: 'Casual Instructor',
-      joinDate: '2024-04-01',
-      employmentType: 'Casual',
-      residencyStatus: 'Singapore Citizen',
-      paymentType: 'Per Hour',
-      salary: 25,
-      lastAdjustment: '2024-04-01',
-      nextIncrement: 'N/A',
-      incrementDate: 'N/A',
-      bankAccount: '4567-890123',
-      bankName: 'DBS Bank',
-      paynow: '+65 9456 7890',
-      annualLeave: 0,
-      medicalLeave: 0,
-      status: 'Active',
-      resignationDate: ''
-    }
-  };
-
-  // Employee data state for editing
-  const [employeeData, setEmployeeData] = useState(null);
-
   useEffect(() => {
     console.log('Loading employee with ID:', id);
-    console.log('Available employees:', Object.keys(employeeDatabase));
     
-    if (id && employeeDatabase[id]) {
-      console.log('Found employee data:', employeeDatabase[id]);
-      setEmployeeData({ ...employeeDatabase[id] });
-    } else {
-      console.log('Employee not found, redirecting...');
-      toast("Employee not found");
-      navigate('/employees');
+    if (id) {
+      const employee = getEmployeeById(id);
+      if (employee) {
+        console.log('Found employee data:', employee);
+        setEmployeeData(employee);
+      } else {
+        console.log('Employee not found, redirecting...');
+        toast("Employee not found");
+        navigate('/employees');
+      }
     }
   }, [id, navigate]);
 
@@ -186,8 +70,8 @@ const EmployeeDetails = () => {
     { type: 'Annual Leave', startDate: '2024-10-10', endDate: '2024-10-12', days: 3, status: 'Pending' }
   ];
 
-  const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah', 'Engineering', 'Marketing', 'HR', 'Operations'];
-  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
+  const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah', 'Engineering', 'Marketing', 'HR', 'Operations', 'Teaching'];
+  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive', 'Operations Assistant', 'Casual Teacher'];
   const employmentTypes = ['Full-Time', 'Part-Time', 'Casual', 'Contract'];
   const residencyStatuses = [
     'Singapore Citizen',
@@ -198,7 +82,7 @@ const EmployeeDetails = () => {
     'Employment Pass'
   ];
 
-  // Return loading or not found if employee data is not loaded
+  // Return loading if employee data is not loaded
   if (!employeeData) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -216,13 +100,19 @@ const EmployeeDetails = () => {
     );
   }
 
-  const cpfCalculation = calculateCPF(employeeData.salary, employeeData.residencyStatus);
+  // Calculate salary for CPF (use baseSalary for full-time, hourlyRate for casual)
+  const salaryForCPF = employeeData.type === 'Full-Time' ? 
+    (employeeData.baseSalary || 0) : 
+    ((employeeData.hourlyRate || 0) * 120); // Assume 120 hours for casual employees
 
-  const handleInputChange = (field, value) => {
-    setEmployeeData(prev => ({
+  const age = calculateAge(employeeData.dateOfBirth);
+  const cpfCalculation = calculateCPF(salaryForCPF, employeeData.residencyStatus, age);
+
+  const handleInputChange = (field: keyof EmployeeProfile, value: any) => {
+    setEmployeeData(prev => prev ? ({
       ...prev,
       [field]: value
-    }));
+    }) : null);
   };
 
   const handleEdit = () => {
@@ -237,37 +127,65 @@ const EmployeeDetails = () => {
     toast("Password reset to default 'password'");
   };
 
-  const addAllowanceFromSystem = (systemAllowance) => {
+  const addAllowanceFromSystem = (systemAllowance: any) => {
+    if (!employeeData) return;
+    
     const newAllowance = {
       id: Date.now(),
       name: systemAllowance.name,
-      amount: parseInt(systemAllowance.amount)
+      amount: parseInt(systemAllowance.amount),
+      type: 'Fixed' as const
     };
-    setAllowances([...allowances, newAllowance]);
+    
+    const updatedAllowances = [...employeeData.allowances, newAllowance];
+    setEmployeeData({
+      ...employeeData,
+      allowances: updatedAllowances
+    });
     toast(`Added ${systemAllowance.name}`);
   };
 
-  const addDeductionFromSystem = (systemDeduction) => {
+  const addDeductionFromSystem = (systemDeduction: any) => {
+    if (!employeeData) return;
+    
     const newDeduction = {
       id: Date.now(),
       name: systemDeduction.name,
-      amount: parseInt(systemDeduction.amount)
+      amount: parseInt(systemDeduction.amount),
+      type: 'Fixed' as const
     };
-    setDeductions([...deductions, newDeduction]);
+    
+    const updatedDeductions = [...employeeData.deductions, newDeduction];
+    setEmployeeData({
+      ...employeeData,
+      deductions: updatedDeductions
+    });
     toast(`Added ${systemDeduction.name}`);
   };
 
-  const removeAllowance = (id) => {
-    setAllowances(allowances.filter(a => a.id !== id));
+  const removeAllowance = (id: number) => {
+    if (!employeeData) return;
+    
+    const updatedAllowances = employeeData.allowances.filter(a => a.id !== id);
+    setEmployeeData({
+      ...employeeData,
+      allowances: updatedAllowances
+    });
     toast("Allowance removed");
   };
 
-  const removeDeduction = (id) => {
-    setDeductions(deductions.filter(d => d.id !== id));
+  const removeDeduction = (id: number) => {
+    if (!employeeData) return;
+    
+    const updatedDeductions = employeeData.deductions.filter(d => d.id !== id);
+    setEmployeeData({
+      ...employeeData,
+      deductions: updatedDeductions
+    });
     toast("Deduction removed");
   };
 
-  const handleModuleChange = (module, enabled) => {
+  const handleModuleChange = (module: string, enabled: boolean) => {
     setEmployeeModules(prev => ({
       ...prev,
       [module]: enabled
@@ -275,8 +193,28 @@ const EmployeeDetails = () => {
     toast(`${module} access ${enabled ? 'enabled' : 'disabled'} for employee`);
   };
 
-  const downloadPayslip = (month) => {
+  const downloadPayslip = (month: string) => {
     toast(`Downloaded payslip for ${month}`);
+  };
+
+  // Generate mock email from name
+  const generateEmail = (name: string) => {
+    return name.toLowerCase().replace(' ', '.') + '@company.sg';
+  };
+
+  // Generate mock phone from ID
+  const generatePhone = (id: string) => {
+    const numPart = id.replace(/[A-Z]/g, '');
+    return `+65 9${numPart.padStart(3, '0')} ${Math.floor(Math.random() * 9000 + 1000)}`;
+  };
+
+  // Generate mock address
+  const generateAddress = () => {
+    const streets = ['Orchard Road', 'Marina Bay', 'Jurong East', 'Tampines', 'Woodlands'];
+    const street = streets[Math.floor(Math.random() * streets.length)];
+    const unit = `#${Math.floor(Math.random() * 20 + 1).toString().padStart(2, '0')}-${Math.floor(Math.random() * 50 + 1).toString().padStart(2, '0')}`;
+    const postal = Math.floor(Math.random() * 900000 + 100000);
+    return `${Math.floor(Math.random() * 999 + 1)} ${street}, ${unit}, Singapore ${postal}`;
   };
 
   return (
@@ -330,7 +268,7 @@ const EmployeeDetails = () => {
                     <CardContent className="space-y-4">
                       <div className="flex justify-center mb-4">
                         <img 
-                          src={employeeData.photo} 
+                          src="/placeholder.svg" 
                           alt={employeeData.name}
                           className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                         />
@@ -396,42 +334,15 @@ const EmployeeDetails = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Email (Login Email)</label>
-                        {isEditing ? (
-                          <input 
-                            type="email" 
-                            value={employeeData.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.email}</p>
-                        )}
+                        <p className="text-lg text-gray-900">{generateEmail(employeeData.name)}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Phone</label>
-                        {isEditing ? (
-                          <input 
-                            type="tel" 
-                            value={employeeData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.phone}</p>
-                        )}
+                        <p className="text-lg text-gray-900">{generatePhone(employeeData.id)}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Address</label>
-                        {isEditing ? (
-                          <textarea 
-                            value={employeeData.address}
-                            onChange={(e) => handleInputChange('address', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                            rows={3}
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.address}</p>
-                        )}
+                        <p className="text-lg text-gray-900">{generateAddress()}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -445,7 +356,7 @@ const EmployeeDetails = () => {
                         <label className="text-sm font-medium text-gray-600">Department</label>
                         {isEditing ? (
                           <select 
-                            value={employeeData.department}
+                            value={employeeData.department || ''}
                             onChange={(e) => handleInputChange('department', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
@@ -454,15 +365,15 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-lg text-gray-900">{employeeData.department}</p>
+                          <p className="text-lg text-gray-900">{employeeData.department || 'Not specified'}</p>
                         )}
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Role</label>
+                        <label className="text-sm font-medium text-gray-600">Position</label>
                         {isEditing ? (
-                          <Select value={employeeData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                          <Select value={employeeData.position || ''} onValueChange={(value) => handleInputChange('position', value)}>
                             <SelectTrigger className="w-full mt-1">
-                              <SelectValue placeholder="Select role" />
+                              <SelectValue placeholder="Select position" />
                             </SelectTrigger>
                             <SelectContent>
                               {roles.map(role => (
@@ -471,15 +382,15 @@ const EmployeeDetails = () => {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <p className="text-lg text-gray-900">{employeeData.role}</p>
+                          <p className="text-lg text-gray-900">{employeeData.position || 'Not specified'}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Employment Type</label>
                         {isEditing ? (
                           <select 
-                            value={employeeData.employmentType}
-                            onChange={(e) => handleInputChange('employmentType', e.target.value)}
+                            value={employeeData.type}
+                            onChange={(e) => handleInputChange('type', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {employmentTypes.map(type => (
@@ -487,38 +398,14 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <Badge variant="secondary">{employeeData.employmentType}</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Join Date</label>
-                        {isEditing ? (
-                          <input 
-                            type="date" 
-                            value={employeeData.joinDate}
-                            onChange={(e) => handleInputChange('joinDate', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.joinDate}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Resignation Date</label>
-                        {isEditing ? (
-                          <input 
-                            type="date" 
-                            value={employeeData.resignationDate}
-                            onChange={(e) => handleInputChange('resignationDate', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.resignationDate || 'N/A'}</p>
+                          <Badge variant="secondary">{employeeData.type}</Badge>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Payment Type</label>
-                        <p className="text-lg text-gray-900">{employeeData.paymentType}</p>
+                        <p className="text-lg text-gray-900">
+                          {employeeData.type === 'Full-Time' ? 'Per Month' : 'Per Hour'}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -529,24 +416,24 @@ const EmployeeDetails = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Employee CPF ({(cpfCalculation.employeeCPF / employeeData.salary * 100).toFixed(1)}%)</label>
+                        <label className="text-sm font-medium text-gray-600">Base Salary/Rate</label>
+                        <p className="text-lg text-gray-900">
+                          S${employeeData.type === 'Full-Time' ? 
+                            (employeeData.baseSalary || 0).toLocaleString() : 
+                            `${employeeData.hourlyRate || 0}/hour`}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Employee CPF ({(cpfCalculation.employeeCPF / salaryForCPF * 100).toFixed(1)}%)</label>
                         <p className="text-lg text-gray-900">S${cpfCalculation.employeeCPF.toLocaleString()}</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Employer CPF ({(cpfCalculation.employerCPF / employeeData.salary * 100).toFixed(1)}%)</label>
+                        <label className="text-sm font-medium text-gray-600">Employer CPF ({(cpfCalculation.employerCPF / salaryForCPF * 100).toFixed(1)}%)</label>
                         <p className="text-lg text-gray-900">S${cpfCalculation.employerCPF.toLocaleString()}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Total CPF</label>
                         <p className="text-lg font-bold text-gray-900">S${cpfCalculation.totalCPF.toLocaleString()}</p>
-                      </div>
-                      <div className="pt-4 border-t">
-                        <label className="text-sm font-medium text-gray-600">Annual Leave</label>
-                        <p className="text-lg text-gray-900">{employeeData.annualLeave} days</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Medical Leave</label>
-                        <p className="text-lg text-gray-900">{employeeData.medicalLeave} days</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -577,7 +464,7 @@ const EmployeeDetails = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {allowances.map((allowance) => (
+                      {employeeData.allowances.map((allowance) => (
                         <div key={allowance.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <div>
                             <p className="font-medium text-sm">{allowance.name}</p>
@@ -614,7 +501,7 @@ const EmployeeDetails = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {deductions.map((deduction) => (
+                      {employeeData.deductions.map((deduction) => (
                         <div key={deduction.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <div>
                             <p className="font-medium text-sm">{deduction.name}</p>
@@ -629,85 +516,27 @@ const EmployeeDetails = () => {
                   </Card>
                 </div>
 
-                {/* Salary and Payment Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <DollarSign className="w-5 h-5" />
-                        <span>Salary Information</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Current {employeeData.paymentType === 'Per Hour' ? 'Hourly Rate' : 'Salary'}</label>
-                        <p className="text-lg text-gray-900">S${employeeData.salary.toLocaleString()}{employeeData.paymentType === 'Per Hour' ? '/hour' : ''}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Last Adjustment</label>
-                        <p className="text-lg text-gray-900">{employeeData.lastAdjustment}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Next Increment</label>
-                        <p className="text-lg text-gray-900">{employeeData.nextIncrement}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Increment Date</label>
-                        <p className="text-lg text-gray-900">{employeeData.incrementDate}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <CreditCard className="w-5 h-5" />
-                        <span>Payment Details</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                {/* Payment Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <CreditCard className="w-5 h-5" />
+                      <span>Payment Details</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-gray-600">Bank Name</label>
-                        {isEditing ? (
-                          <input 
-                            type="text" 
-                            value={employeeData.bankName}
-                            onChange={(e) => handleInputChange('bankName', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.bankName}</p>
-                        )}
+                        <p className="text-lg text-gray-900">{employeeData.bankName}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Bank Account</label>
-                        {isEditing ? (
-                          <input 
-                            type="text" 
-                            value={employeeData.bankAccount}
-                            onChange={(e) => handleInputChange('bankAccount', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.bankAccount}</p>
-                        )}
+                        <p className="text-lg text-gray-900">{employeeData.bankAccount}</p>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">PayNow</label>
-                        {isEditing ? (
-                          <input 
-                            type="text" 
-                            value={employeeData.paynow}
-                            onChange={(e) => handleInputChange('paynow', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          />
-                        ) : (
-                          <p className="text-lg text-gray-900">{employeeData.paynow}</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="payroll">
