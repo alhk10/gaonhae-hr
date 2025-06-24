@@ -102,6 +102,9 @@ const SlotBooking = () => {
     .filter(b => b.date === format(new Date(), 'yyyy-MM-dd'))
     .reduce((acc, b) => acc + b.bookedSlots, 0);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -188,7 +191,7 @@ const SlotBooking = () => {
                       selected={selectedDate}
                       onSelect={setSelectedDate}
                       className="rounded-md border"
-                      disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                      disabled={(date) => date < today}
                     />
                   </div>
                 </CardContent>
