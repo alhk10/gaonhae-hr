@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -30,19 +31,8 @@ const EmployeeDetails = () => {
     adminAccess: false
   });
 
-  // System allowances and deductions from settings
-  const systemAllowances = [
-    { id: 1, name: 'Transport Allowance', type: 'Monthly', amount: '200' },
-    { id: 2, name: 'Meal Allowance', type: 'Monthly', amount: '150' },
-    { id: 3, name: 'Performance Bonus', type: 'One-time', amount: '500' }
-  ];
-
-  const systemDeductions = [
-    { id: 1, name: 'Insurance Premium', type: 'Monthly', amount: '100' },
-    { id: 2, name: 'Union Fees', type: 'Monthly', amount: '25' }
-  ];
-
-  const employee = {
+  // Employee data state for editing
+  const [employeeData, setEmployeeData] = useState({
     id: id,
     name: 'John Tan',
     email: 'john.tan@company.sg',
@@ -68,7 +58,19 @@ const EmployeeDetails = () => {
     medicalLeave: 14,
     status: 'Active',
     resignationDate: ''
-  };
+  });
+
+  // System allowances and deductions from settings
+  const systemAllowances = [
+    { id: 1, name: 'Transport Allowance', type: 'Monthly', amount: '200' },
+    { id: 2, name: 'Meal Allowance', type: 'Monthly', amount: '150' },
+    { id: 3, name: 'Performance Bonus', type: 'One-time', amount: '500' }
+  ];
+
+  const systemDeductions = [
+    { id: 1, name: 'Insurance Premium', type: 'Monthly', amount: '100' },
+    { id: 2, name: 'Union Fees', type: 'Monthly', amount: '25' }
+  ];
 
   // Mock payslips data
   const payslips = [
@@ -96,13 +98,22 @@ const EmployeeDetails = () => {
     'Employment Pass'
   ];
 
-  const cpfCalculation = calculateCPF(employee.salary, employee.residencyStatus);
+  const cpfCalculation = calculateCPF(employeeData.salary, employeeData.residencyStatus);
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setEmployeeData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const handleEdit = () => {
-    setIsEditing(!isEditing);
     if (isEditing) {
+      // Save the changes
+      console.log('Saving employee data:', employeeData);
       toast("Employee details updated successfully");
     }
+    setIsEditing(!isEditing);
   };
 
   const handleResetPassword = () => {
@@ -202,8 +213,8 @@ const EmployeeDetails = () => {
                     <CardContent className="space-y-4">
                       <div className="flex justify-center mb-4">
                         <img 
-                          src={employee.photo} 
-                          alt={employee.name}
+                          src={employeeData.photo} 
+                          alt={employeeData.name}
                           className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                         />
                       </div>
@@ -212,27 +223,29 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="text" 
-                            defaultValue={employee.name}
+                            value={employeeData.name}
+                            onChange={(e) => handleInputChange('name', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.name}</p>
+                          <p className="text-lg text-gray-900">{employeeData.name}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Employee ID</label>
-                        <p className="text-lg text-gray-900">{employee.id}</p>
+                        <p className="text-lg text-gray-900">{employeeData.id}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">NRIC/FIN</label>
                         {isEditing ? (
                           <input 
                             type="text" 
-                            defaultValue={employee.nric}
+                            value={employeeData.nric}
+                            onChange={(e) => handleInputChange('nric', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.nric}</p>
+                          <p className="text-lg text-gray-900">{employeeData.nric}</p>
                         )}
                       </div>
                       <div>
@@ -240,18 +253,20 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="date" 
-                            defaultValue={employee.dateOfBirth}
+                            value={employeeData.dateOfBirth}
+                            onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.dateOfBirth}</p>
+                          <p className="text-lg text-gray-900">{employeeData.dateOfBirth}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Residency Status</label>
                         {isEditing ? (
                           <select 
-                            defaultValue={employee.residencyStatus}
+                            value={employeeData.residencyStatus}
+                            onChange={(e) => handleInputChange('residencyStatus', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {residencyStatuses.map(status => (
@@ -259,7 +274,7 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.residencyStatus}</p>
+                          <p className="text-lg text-gray-900">{employeeData.residencyStatus}</p>
                         )}
                       </div>
                       <div>
@@ -267,11 +282,12 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="email" 
-                            defaultValue={employee.email}
+                            value={employeeData.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.email}</p>
+                          <p className="text-lg text-gray-900">{employeeData.email}</p>
                         )}
                       </div>
                       <div>
@@ -279,23 +295,25 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="tel" 
-                            defaultValue={employee.phone}
+                            value={employeeData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.phone}</p>
+                          <p className="text-lg text-gray-900">{employeeData.phone}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Address</label>
                         {isEditing ? (
                           <textarea 
-                            defaultValue={employee.address}
+                            value={employeeData.address}
+                            onChange={(e) => handleInputChange('address', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                             rows={3}
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.address}</p>
+                          <p className="text-lg text-gray-900">{employeeData.address}</p>
                         )}
                       </div>
                     </CardContent>
@@ -310,7 +328,8 @@ const EmployeeDetails = () => {
                         <label className="text-sm font-medium text-gray-600">Branch</label>
                         {isEditing ? (
                           <select 
-                            defaultValue={employee.department}
+                            value={employeeData.department}
+                            onChange={(e) => handleInputChange('department', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {branches.map(branch => (
@@ -318,14 +337,15 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.department}</p>
+                          <p className="text-lg text-gray-900">{employeeData.department}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Role</label>
                         {isEditing ? (
                           <select 
-                            defaultValue={employee.role}
+                            value={employeeData.role}
+                            onChange={(e) => handleInputChange('role', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {roles.map(role => (
@@ -333,14 +353,15 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.role}</p>
+                          <p className="text-lg text-gray-900">{employeeData.role}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Employment Type</label>
                         {isEditing ? (
                           <select 
-                            defaultValue={employee.employmentType}
+                            value={employeeData.employmentType}
+                            onChange={(e) => handleInputChange('employmentType', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           >
                             {employmentTypes.map(type => (
@@ -348,7 +369,7 @@ const EmployeeDetails = () => {
                             ))}
                           </select>
                         ) : (
-                          <Badge variant="secondary">{employee.employmentType}</Badge>
+                          <Badge variant="secondary">{employeeData.employmentType}</Badge>
                         )}
                       </div>
                       <div>
@@ -356,11 +377,12 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="date" 
-                            defaultValue={employee.joinDate}
+                            value={employeeData.joinDate}
+                            onChange={(e) => handleInputChange('joinDate', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.joinDate}</p>
+                          <p className="text-lg text-gray-900">{employeeData.joinDate}</p>
                         )}
                       </div>
                       <div>
@@ -368,16 +390,17 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="date" 
-                            defaultValue={employee.resignationDate}
+                            value={employeeData.resignationDate}
+                            onChange={(e) => handleInputChange('resignationDate', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.resignationDate || 'N/A'}</p>
+                          <p className="text-lg text-gray-900">{employeeData.resignationDate || 'N/A'}</p>
                         )}
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Payment Type</label>
-                        <p className="text-lg text-gray-900">{employee.paymentType}</p>
+                        <p className="text-lg text-gray-900">{employeeData.paymentType}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -388,11 +411,11 @@ const EmployeeDetails = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Employee CPF (20%)</label>
+                        <label className="text-sm font-medium text-gray-600">Employee CPF ({(cpfCalculation.employeeCPF / employeeData.salary * 100).toFixed(1)}%)</label>
                         <p className="text-lg text-gray-900">S${cpfCalculation.employeeCPF.toLocaleString()}</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Employer CPF (17%)</label>
+                        <label className="text-sm font-medium text-gray-600">Employer CPF ({(cpfCalculation.employerCPF / employeeData.salary * 100).toFixed(1)}%)</label>
                         <p className="text-lg text-gray-900">S${cpfCalculation.employerCPF.toLocaleString()}</p>
                       </div>
                       <div>
@@ -401,11 +424,11 @@ const EmployeeDetails = () => {
                       </div>
                       <div className="pt-4 border-t">
                         <label className="text-sm font-medium text-gray-600">Annual Leave</label>
-                        <p className="text-lg text-gray-900">{employee.annualLeave} days</p>
+                        <p className="text-lg text-gray-900">{employeeData.annualLeave} days</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Medical Leave</label>
-                        <p className="text-lg text-gray-900">{employee.medicalLeave} days</p>
+                        <p className="text-lg text-gray-900">{employeeData.medicalLeave} days</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -500,19 +523,19 @@ const EmployeeDetails = () => {
                     <CardContent className="space-y-4">
                       <div>
                         <label className="text-sm font-medium text-gray-600">Current Salary</label>
-                        <p className="text-lg text-gray-900">S${employee.salary.toLocaleString()}</p>
+                        <p className="text-lg text-gray-900">S${employeeData.salary.toLocaleString()}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Last Adjustment</label>
-                        <p className="text-lg text-gray-900">{employee.lastAdjustment}</p>
+                        <p className="text-lg text-gray-900">{employeeData.lastAdjustment}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Next Increment</label>
-                        <p className="text-lg text-gray-900">{employee.nextIncrement}</p>
+                        <p className="text-lg text-gray-900">{employeeData.nextIncrement}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Increment Date</label>
-                        <p className="text-lg text-gray-900">{employee.incrementDate}</p>
+                        <p className="text-lg text-gray-900">{employeeData.incrementDate}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -530,11 +553,12 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="text" 
-                            defaultValue={employee.bankName}
+                            value={employeeData.bankName}
+                            onChange={(e) => handleInputChange('bankName', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.bankName}</p>
+                          <p className="text-lg text-gray-900">{employeeData.bankName}</p>
                         )}
                       </div>
                       <div>
@@ -542,11 +566,12 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="text" 
-                            defaultValue={employee.bankAccount}
+                            value={employeeData.bankAccount}
+                            onChange={(e) => handleInputChange('bankAccount', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.bankAccount}</p>
+                          <p className="text-lg text-gray-900">{employeeData.bankAccount}</p>
                         )}
                       </div>
                       <div>
@@ -554,11 +579,12 @@ const EmployeeDetails = () => {
                         {isEditing ? (
                           <input 
                             type="text" 
-                            defaultValue={employee.paynow}
+                            value={employeeData.paynow}
+                            onChange={(e) => handleInputChange('paynow', e.target.value)}
                             className="w-full mt-1 p-2 border border-gray-300 rounded-md"
                           />
                         ) : (
-                          <p className="text-lg text-gray-900">{employee.paynow}</p>
+                          <p className="text-lg text-gray-900">{employeeData.paynow}</p>
                         )}
                       </div>
                     </CardContent>
