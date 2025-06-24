@@ -1,8 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Employees from "./pages/Employees";
@@ -23,15 +24,16 @@ import Payslips from "./pages/Payslips";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PaymentSummary from "./pages/PaymentSummary";
-import PayrollManagement from "./pages/PayrollManagement";
 
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <AuthProvider>
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/employees" element={<Employees />} />
@@ -55,13 +57,12 @@ function App() {
             <Route path="/submit-claim" element={<SubmitClaim />} />
             <Route path="/payslips" element={<Payslips />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/payroll-management" element={<PayrollManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </div>
-      </Router>
-    </AuthProvider>
-  );
-}
+        </BrowserRouter>
+      </AuthProvider>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;
