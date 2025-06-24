@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -15,7 +14,7 @@ const SlotBooking = () => {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
 
-  // Branch configurations matching the Settings page
+  // Branch configurations matching the Settings page and AdminSlotBooking
   const branches = [
     { 
       id: 'headquarters', 
@@ -61,55 +60,66 @@ const SlotBooking = () => {
     },
   ];
 
-  // Mock booking data - in real app this would come from backend
+  // Weekly slot configuration (matching AdminSlotBooking)
+  const weeklySlots = {
+    headquarters: { Monday: 8, Tuesday: 8, Wednesday: 8, Thursday: 8, Friday: 8, Saturday: 4, Sunday: 2 },
+    balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
+    'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
+    kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 1 },
+    yishun: { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 7, Friday: 7, Saturday: 4, Sunday: 2 },
+    'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
+  };
+
+  // Consistent booking data structure with AdminSlotBooking
   const [bookings, setBookings] = useState([
-    { date: '2024-12-23', branchId: 'headquarters', bookedSlots: 3 },
-    { date: '2024-12-24', branchId: 'headquarters', bookedSlots: 5 },
-    { date: '2024-12-23', branchId: 'balmoral', bookedSlots: 2 },
-    { date: '2024-12-25', branchId: 'jurong-west', bookedSlots: 4 },
-    { date: '2024-12-26', branchId: 'kembangan', bookedSlots: 2 },
-    { date: '2024-12-27', branchId: 'yishun', bookedSlots: 3 },
-    { date: '2024-12-28', branchId: 'bukit-merah', bookedSlots: 1 },
+    { id: 1, date: '2024-12-23', employee: 'Alice Tan', branchId: 'headquarters', status: 'pending' },
+    { id: 2, date: '2024-12-23', employee: 'Bob Lim', branchId: 'headquarters', status: 'approved' },
+    { id: 3, date: '2024-12-24', employee: 'Carol Ng', branchId: 'balmoral', status: 'approved' },
+    { id: 4, date: '2024-12-25', employee: 'David Lee', branchId: 'jurong-west', status: 'pending' },
+    { id: 5, date: '2024-12-26', employee: 'Emma Wong', branchId: 'kembangan', status: 'rejected' },
   ]);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
   
   const getBookedSlotsForDate = (date: string, branchId: string) => {
-    const booking = bookings.find(b => b.date === date && b.branchId === branchId);
-    return booking ? booking.bookedSlots : 0;
+    return bookings.filter(b => b.date === date && b.branchId === branchId).length;
   };
 
   const getAvailableSlotsForDate = (date: string, branchId: string) => {
-    const branch = branches.find(b => b.id === branchId);
+    const dateObj = new Date(date);
+    const dayName = format(dateObj, 'EEEE');
     const bookedSlots = getBookedSlotsForDate(date, branchId);
-    return branch ? branch.totalSlots - bookedSlots : 0;
+    const totalSlots = weeklySlots[branchId]?.[dayName] || 0;
+    return Math.max(0, totalSlots - bookedSlots);
   };
 
-  // Calculate monthly statistics
+  // Calculate monthly statistics using consistent data structure
   const currentMonth = new Date();
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  const totalAvailableSlotsThisMonth = branches.reduce((acc, branch) => {
-    // Calculate available slots for all days in current month
-    const daysInMonth = monthEnd.getDate();
-    let branchAvailableSlots = 0;
-    
-    for (let day = 1; day <= daysInMonth; day++) {
+  const calculateMonthlyStats = () => {
+    let totalAvailableSlots = 0;
+    let totalBookings = 0;
+
+    // Calculate for each day in the current month
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
       const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const dateStr = format(checkDate, 'yyyy-MM-dd');
-      branchAvailableSlots += getAvailableSlotsForDate(dateStr, branch.id);
+      const dayName = format(checkDate, 'EEEE');
+      
+      branches.forEach(branch => {
+        const totalSlotsForDay = weeklySlots[branch.id]?.[dayName] || 0;
+        const bookedSlotsForDay = getBookedSlotsForDate(dateStr, branch.id);
+        totalAvailableSlots += Math.max(0, totalSlotsForDay - bookedSlotsForDay);
+        totalBookings += bookedSlotsForDay;
+      });
     }
-    
-    return acc + branchAvailableSlots;
-  }, 0);
 
-  const totalBookingsThisMonth = bookings
-    .filter(b => {
-      const bookingDate = new Date(b.date);
-      return isSameMonth(bookingDate, currentMonth);
-    })
-    .reduce((acc, b) => acc + b.bookedSlots, 0);
+    return { totalAvailableSlots, totalBookings };
+  };
+
+  const { totalAvailableSlots, totalBookings } = calculateMonthlyStats();
 
   const handleBookSlot = () => {
     if (!selectedDate || !currentBranch) {
@@ -125,20 +135,16 @@ const SlotBooking = () => {
       return;
     }
 
-    // Update bookings
-    setBookings(prev => {
-      const existingBooking = prev.find(b => b.date === dateStr && b.branchId === selectedBranch);
-      if (existingBooking) {
-        return prev.map(b => 
-          b.date === dateStr && b.branchId === selectedBranch 
-            ? { ...b, bookedSlots: b.bookedSlots + 1 }
-            : b
-        );
-      } else {
-        return [...prev, { date: dateStr, branchId: selectedBranch, bookedSlots: 1 }];
-      }
-    });
+    // Update bookings with consistent data structure
+    const newBooking = {
+      id: Date.now(),
+      date: dateStr,
+      employee: 'Current User', // In real app, this would be the logged-in user
+      branchId: selectedBranch,
+      status: 'pending'
+    };
 
+    setBookings(prev => [...prev, newBooking]);
     toast(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name}`);
   };
 
@@ -164,7 +170,7 @@ const SlotBooking = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Available Slots</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalAvailableSlotsThisMonth}</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalAvailableSlots}</p>
                       <p className="text-xs text-gray-500">This month</p>
                     </div>
                     <Clock className="w-8 h-8 text-green-500" />
@@ -176,7 +182,7 @@ const SlotBooking = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Number of Bookings</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalBookingsThisMonth}</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalBookings}</p>
                       <p className="text-xs text-gray-500">This month</p>
                     </div>
                     <Users className="w-8 h-8 text-blue-500" />

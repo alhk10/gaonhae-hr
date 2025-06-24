@@ -88,6 +88,14 @@ const AdminSlotBooking = () => {
   const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+  const getAvailableSlotsForDate = (date: Date, branchId: string) => {
+    const dayName = format(date, 'EEEE');
+    const dateString = format(date, 'yyyy-MM-dd');
+    const bookedSlots = bookings.filter(b => b.date === dateString && b.branchId === branchId).length;
+    const totalSlots = weeklySlots[branchId]?.[dayName] || 0;
+    return Math.max(0, totalSlots - bookedSlots);
+  };
+
   const getBookingsForDate = (date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd');
     return bookings.filter(b => 
@@ -142,11 +150,24 @@ const AdminSlotBooking = () => {
   const handleBooking = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const selectedDate = formData.get('date') as string;
+    const selectedBranch = formData.get('branch') as string;
+    const selectedEmployee = formData.get('employee') as string;
+
+    // Check if slot is available
+    const dateObj = new Date(selectedDate);
+    const availableSlots = getAvailableSlotsForDate(dateObj, selectedBranch);
+    
+    if (availableSlots <= 0) {
+      toast("No slots available for this date and branch");
+      return;
+    }
+
     const newBooking = {
       id: Date.now(),
-      date: formData.get('date') as string,
-      employee: formData.get('employee') as string,
-      branchId: formData.get('branch') as string,
+      date: selectedDate,
+      employee: selectedEmployee,
+      branchId: selectedBranch,
       status: 'pending'
     };
 
@@ -526,12 +547,11 @@ const AdminSlotBooking = () => {
                         
                         return (
                           <div className="relative w-full h-full">
-                            <button
-                              {...props}
-                              onClick={() => handleDateClick(date)}
+                            <div
                               className={`w-full h-full p-2 text-sm hover:bg-accent rounded-md cursor-pointer transition-colors flex flex-col items-start justify-start ${
                                 isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
                               } ${hasBookings ? 'bg-blue-50' : ''}`}
+                              onClick={() => handleDateClick(date)}
                             >
                               <div className="w-full h-full flex flex-col">
                                 <span className="font-medium text-left mb-1">{date.getDate()}</span>
@@ -540,14 +560,14 @@ const AdminSlotBooking = () => {
                                     {dayBookings.slice(0, 4).map((booking, idx) => {
                                       const branch = branches.find(b => b.id === booking.branchId);
                                       return (
-                                        <button
+                                        <div
                                           key={idx}
                                           onClick={(e) => handleEmployeeClick(booking, e)}
-                                          className={`text-xs px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity ${branch?.color || 'bg-gray-500'}`}
+                                          className={`text-xs px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer ${branch?.color || 'bg-gray-500'}`}
                                           title={`${booking.employee} - ${branch?.name} (${booking.status})`}
                                         >
                                           {booking.employee.split(' ')[0]}
-                                        </button>
+                                        </div>
                                       );
                                     })}
                                     {dayBookings.length > 4 && (
@@ -556,7 +576,7 @@ const AdminSlotBooking = () => {
                                   </div>
                                 )}
                               </div>
-                            </button>
+                            </div>
                           </div>
                         );
                       }
