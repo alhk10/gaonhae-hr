@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -19,6 +18,7 @@ const AdminSlotBooking = () => {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
   
   // Branch configurations matching the Settings page
   const branches = [
@@ -94,6 +94,12 @@ const AdminSlotBooking = () => {
     );
   };
 
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setQuickAddDate(date);
+    setIsBookingDialogOpen(true);
+  };
+
   const getSlotSummary = () => {
     const currentMonth = selectedDate;
     const monthStart = startOfMonth(currentMonth);
@@ -138,6 +144,7 @@ const AdminSlotBooking = () => {
 
     setBookings(prev => [...prev, newBooking]);
     setIsBookingDialogOpen(false);
+    setQuickAddDate(null);
     toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
   };
 
@@ -189,7 +196,10 @@ const AdminSlotBooking = () => {
                 <p className="text-gray-600">Manage casual employee work schedules with monthly calendar view</p>
               </div>
               <div className="flex space-x-2">
-                <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+                <Dialog open={isBookingDialogOpen} onOpenChange={(open) => {
+                  setIsBookingDialogOpen(open);
+                  if (!open) setQuickAddDate(null);
+                }}>
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
@@ -205,7 +215,12 @@ const AdminSlotBooking = () => {
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                           <Label htmlFor="date">Date</Label>
-                          <Input name="date" type="date" required />
+                          <Input 
+                            name="date" 
+                            type="date" 
+                            defaultValue={quickAddDate ? format(quickAddDate, 'yyyy-MM-dd') : ''}
+                            required 
+                          />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="branch">Branch</Label>
@@ -239,7 +254,10 @@ const AdminSlotBooking = () => {
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsBookingDialogOpen(false)}>
+                        <Button type="button" variant="outline" onClick={() => {
+                          setIsBookingDialogOpen(false);
+                          setQuickAddDate(null);
+                        }}>
                           Cancel
                         </Button>
                         <Button type="submit">Add Booking</Button>
@@ -343,7 +361,7 @@ const AdminSlotBooking = () => {
               </Card>
             </div>
 
-            {/* Branch Filter */}
+            {/* Branch Filter and Calendar */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -385,32 +403,34 @@ const AdminSlotBooking = () => {
                         Day: ({ date, ...props }) => {
                           const dayBookings = getBookingsForDate(date);
                           const hasBookings = dayBookings.length > 0;
-                          const hasPending = dayBookings.some(b => b.status === 'pending');
                           
                           return (
                             <div className="relative w-full h-full">
                               <button
                                 {...props}
-                                className={`w-full h-full p-2 text-sm hover:bg-accent rounded-md ${
+                                onClick={() => handleDateClick(date)}
+                                className={`w-full h-full p-2 text-sm hover:bg-accent rounded-md cursor-pointer transition-colors ${
                                   isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
                                 } ${hasBookings ? 'bg-blue-50' : ''}`}
                               >
-                                <div className="flex flex-col items-center space-y-1">
-                                  <span>{date.getDate()}</span>
+                                <div className="flex flex-col items-center space-y-1 min-h-[60px]">
+                                  <span className="font-medium">{date.getDate()}</span>
                                   {hasBookings && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {dayBookings.slice(0, 3).map((booking, idx) => (
-                                        <div
-                                          key={idx}
-                                          className={`w-2 h-2 rounded-full ${
-                                            booking.status === 'approved' ? 'bg-green-500' :
-                                            booking.status === 'pending' ? 'bg-yellow-500' :
-                                            'bg-red-500'
-                                          }`}
-                                        />
-                                      ))}
-                                      {dayBookings.length > 3 && (
-                                        <span className="text-xs">+{dayBookings.length - 3}</span>
+                                    <div className="flex flex-col gap-1 w-full">
+                                      {dayBookings.slice(0, 2).map((booking, idx) => {
+                                        const branch = branches.find(b => b.id === booking.branchId);
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className={`text-xs px-1 py-0.5 rounded text-white truncate ${branch?.color || 'bg-gray-500'}`}
+                                            title={`${booking.employee} - ${branch?.name}`}
+                                          >
+                                            {booking.employee.split(' ')[0]}
+                                          </div>
+                                        );
+                                      })}
+                                      {dayBookings.length > 2 && (
+                                        <span className="text-xs text-gray-600">+{dayBookings.length - 2}</span>
                                       )}
                                     </div>
                                   )}
