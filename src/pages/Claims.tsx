@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Receipt, Settings, Check, X, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getAllClaims, updateClaimStatus, type Claim } from '@/data/claimsData';
+import { getClaims, updateClaimStatus, type Claim } from '@/services/claimsService';
 
 const Claims = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [claimTypes, setClaimTypes] = useState(['Travel', 'Meals', 'Office Supplies', 'Medical', 'Training']);
   const [claimLimits, setClaimLimits] = useState<Record<string, number>>({
@@ -25,25 +26,46 @@ const Claims = () => {
   });
 
   useEffect(() => {
-    // Load claims data on component mount
-    const claimsData = getAllClaims();
-    setClaims(claimsData);
+    const loadClaims = async () => {
+      try {
+        setIsLoading(true);
+        const claimsData = await getClaims();
+        setClaims(claimsData);
+      } catch (error) {
+        console.error('Error loading claims:', error);
+        toast('Error loading claims');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadClaims();
   }, []);
 
-  const handleApprove = (id: number) => {
-    updateClaimStatus(id, 'Approved');
-    setClaims(prev => prev.map(claim => 
-      claim.id === id ? { ...claim, status: 'Approved' as const } : claim
-    ));
-    toast("Claim approved");
+  const handleApprove = async (id: number) => {
+    try {
+      await updateClaimStatus(id, 'Approved');
+      setClaims(prev => prev.map(claim => 
+        claim.id === id ? { ...claim, status: 'Approved' as const } : claim
+      ));
+      toast("Claim approved");
+    } catch (error) {
+      console.error('Error approving claim:', error);
+      toast('Error approving claim');
+    }
   };
 
-  const handleReject = (id: number) => {
-    updateClaimStatus(id, 'Rejected');
-    setClaims(prev => prev.map(claim => 
-      claim.id === id ? { ...claim, status: 'Rejected' as const } : claim
-    ));
-    toast("Claim rejected");
+  const handleReject = async (id: number) => {
+    try {
+      await updateClaimStatus(id, 'Rejected');
+      setClaims(prev => prev.map(claim => 
+        claim.id === id ? { ...claim, status: 'Rejected' as const } : claim
+      ));
+      toast("Claim rejected");
+    } catch (error) {
+      console.error('Error rejecting claim:', error);
+      toast('Error rejecting claim');
+    }
   };
 
   const handleSaveSettings = (e: React.FormEvent<HTMLFormElement>) => {
@@ -87,6 +109,22 @@ const Claims = () => {
       default: return 'secondary';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <p>Loading claims...</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

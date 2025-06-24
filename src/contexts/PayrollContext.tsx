@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { employeeDatabase, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
-import { getEmployeeClaims } from '@/data/claimsData';
+import { getEmployeeClaims } from '@/services/claimsService';
 
 interface PayrollState {
   currentPeriod: string;
@@ -52,62 +52,71 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     lastUpdated: new Date()
   });
 
-  const getApprovedClaimsTotal = (employeeId: string): number => {
-    const claims = getEmployeeClaims(employeeId);
-    return claims
-      .filter(claim => claim.status === 'Approved')
-      .reduce((sum, claim) => sum + claim.amount, 0);
+  const getApprovedClaimsTotal = async (employeeId: string): Promise<number> => {
+    try {
+      const claims = await getEmployeeClaims(employeeId);
+      return claims
+        .filter(claim => claim.status === 'Approved')
+        .reduce((sum, claim) => sum + claim.amount, 0);
+    } catch (error) {
+      console.error('Error fetching approved claims:', error);
+      return 0;
+    }
   };
 
-  const initializePayroll = () => {
+  const initializePayroll = async () => {
     console.log('Initializing payroll from employee database');
     
     // Initialize full-time employees
-    const fullTimeEmps: PayrollEmployee[] = getFullTimeEmployees().map(emp => {
-      const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-      const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-      const grossSalary = (emp.baseSalary || 0) + totalAllowances;
-      
-      const age = calculateAge(emp.dateOfBirth);
-      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-      const approvedClaims = getApprovedClaimsTotal(emp.id);
-      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
-      
-      return {
-        id: emp.id,
-        name: emp.name,
-        type: emp.type,
-        baseSalary: emp.baseSalary || 0,
-        allowances: totalAllowances,
-        deductions: totalDeductions,
-        cpf: cpfCalc.employerCPF,
-        total: netSalary
-      };
-    });
+    const fullTimeEmps: PayrollEmployee[] = await Promise.all(
+      getFullTimeEmployees().map(async (emp) => {
+        const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+        const grossSalary = (emp.baseSalary || 0) + totalAllowances;
+        
+        const age = calculateAge(emp.dateOfBirth);
+        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
+        const approvedClaims = await getApprovedClaimsTotal(emp.id);
+        const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+        
+        return {
+          id: emp.id,
+          name: emp.name,
+          type: emp.type,
+          baseSalary: emp.baseSalary || 0,
+          allowances: totalAllowances,
+          deductions: totalDeductions,
+          cpf: cpfCalc.employerCPF,
+          total: netSalary
+        };
+      })
+    );
 
     // Initialize casual employees
-    const casualEmps: CasualEmployeePayroll[] = getCasualEmployees().map(emp => {
-      const hoursWorked = 120; // This should come from slot bookings
-      const daysWorked = 15; // This should come from slot bookings
-      const grossPay = (emp.hourlyRate || 0) * hoursWorked;
-      
-      const age = calculateAge(emp.dateOfBirth);
-      const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
-      const approvedClaims = getApprovedClaimsTotal(emp.id);
-      const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
-      
-      return {
-        id: emp.id,
-        name: emp.name,
-        type: emp.type,
-        hourlyRate: emp.hourlyRate || 0,
-        hoursWorked,
-        daysWorked,
-        totalPay,
-        employeeCPF: cpfCalc.employeeCPF,
-        employerCPF: cpfCalc.employerCPF
-      };
-    });
+    const casualEmps: CasualEmployeePayroll[] = await Promise.all(
+      getCasualEmployees().map(async (emp) => {
+        const hoursWorked = 120; // This should come from slot bookings
+        const daysWorked = 15; // This should come from slot bookings
+        const grossPay = (emp.hourlyRate || 0) * hoursWorked;
+        
+        const age = calculateAge(emp.dateOfBirth);
+        const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
+        const approvedClaims = await getApprovedClaimsTotal(emp.id);
+        const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
+        
+        return {
+          id: emp.id,
+          name: emp.name,
+          type: emp.type,
+          hourlyRate: emp.hourlyRate || 0,
+          hoursWorked,
+          daysWorked,
+          totalPay,
+          employeeCPF: cpfCalc.employeeCPF,
+          employerCPF: cpfCalc.employerCPF
+        };
+      })
+    );
 
     setPayrollState(prev => ({
       ...prev,
@@ -135,8 +144,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           
           const age = calculateAge(empData.dateOfBirth);
           const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-          const approvedClaims = getApprovedClaimsTotal(employeeId);
-          const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+          // Note: This should be updated to async but keeping current structure for now
+          const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
           
           return {
             ...emp,
@@ -165,8 +174,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           if (empData) {
             const age = calculateAge(empData.dateOfBirth);
             const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-            const approvedClaims = getApprovedClaimsTotal(employeeId);
-            const netSalary = grossSalary - cpfCalc.employeeCPF - emp.deductions + approvedClaims;
+            const netSalary = grossSalary - cpfCalc.employeeCPF - emp.deductions;
             
             return {
               ...emp,
@@ -191,8 +199,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         if (emp.id === employeeId) {
           const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
           const grossSalary = emp.baseSalary + emp.allowances;
-          const approvedClaims = getApprovedClaimsTotal(employeeId);
-          const netSalary = grossSalary - emp.cpf - totalDeductions + approvedClaims;
+          const netSalary = grossSalary - emp.cpf - totalDeductions;
           
           return {
             ...emp,
@@ -220,8 +227,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           if (empData) {
             const age = calculateAge(empData.dateOfBirth);
             const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-            const approvedClaims = getApprovedClaimsTotal(employeeId);
-            const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
+            const totalPay = grossPay - cpfCalc.employeeCPF;
             
             return {
               ...emp,

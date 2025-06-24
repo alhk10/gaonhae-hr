@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,15 +8,34 @@ import { DollarSign, Download, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { getEmployeeById } from '@/data/employeeData';
-import { getEmployeeClaims } from '@/data/claimsData';
+import { getEmployeeClaims } from '@/services/claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 const Payslips = () => {
   const { payrollState } = usePayroll();
+  const [approvedClaimsTotal, setApprovedClaimsTotal] = useState(0);
   
   // For demo purposes, we'll show payslips for the first full-time employee
   const currentEmployee = getEmployeeById('EMP001'); // In real app, this would come from auth context
   
+  useEffect(() => {
+    const loadApprovedClaims = async () => {
+      if (!currentEmployee) return;
+      
+      try {
+        const claims = await getEmployeeClaims(currentEmployee.id);
+        const approvedTotal = claims
+          .filter(claim => claim.status === 'Approved')
+          .reduce((sum, claim) => sum + claim.amount, 0);
+        setApprovedClaimsTotal(approvedTotal);
+      } catch (error) {
+        console.error('Error loading approved claims:', error);
+      }
+    };
+
+    loadApprovedClaims();
+  }, [currentEmployee]);
+
   if (!currentEmployee) {
     return <div>Employee not found</div>;
   }
@@ -30,11 +49,7 @@ const Payslips = () => {
     const age = calculateAge(currentEmployee.dateOfBirth);
     const cpfCalc = calculateCPF(grossSalary, currentEmployee.residencyStatus, age);
     
-    const approvedClaims = getEmployeeClaims(currentEmployee.id)
-      .filter(claim => claim.status === 'Approved')
-      .reduce((sum, claim) => sum + claim.amount, 0);
-    
-    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaimsTotal;
     
     return {
       baseSalary,
@@ -44,7 +59,7 @@ const Payslips = () => {
       employeeCPF: cpfCalc.employeeCPF,
       employerCPF: cpfCalc.employerCPF,
       totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
-      approvedClaims,
+      approvedClaims: approvedClaimsTotal,
       netSalary
     };
   };
@@ -143,7 +158,7 @@ For queries, please contact HR Department.
                       <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
                       <p className="text-2xl font-bold text-gray-900">S${totalEarningsYear.toLocaleString()}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Including claims: S${payslips.reduce((sum, p) => sum + p.approvedClaims, 0).toLocaleString()}
+                        Including claims: S${(payslips.reduce((sum, p) => sum + p.approvedClaims, 0)).toLocaleString()}
                       </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />

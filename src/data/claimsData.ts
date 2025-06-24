@@ -15,13 +15,13 @@ export interface Claim {
 
 // Re-export the service functions for backward compatibility
 export { 
-  getClaims as getAllClaims, 
+  getClaims, 
   getEmployeeClaims, 
   updateClaimStatus, 
   createClaim as addClaim 
 } from '@/services/claimsService';
 
-// Legacy function names for backward compatibility
+// Legacy function name for backward compatibility
 export const getAllClaims = async (): Promise<Claim[]> => {
   const { getClaims } = await import('@/services/claimsService');
   return getClaims();

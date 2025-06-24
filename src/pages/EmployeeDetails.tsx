@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/layout/Navbar';
@@ -11,12 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
-import { getEmployeeClaims } from '@/data/claimsData';
+import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeLeaveRecords } from '@/data/leaveData';
 import { getEmployeeAttendanceRecords } from '@/data/attendanceData';
 import { getEmployeeSlotBookings } from '@/data/slotBookingData';
 import { AllowanceDeduction } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import type { Claim } from '@/services/claimsService';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -33,9 +34,8 @@ const EmployeeDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingAccess, setIsEditingAccess] = useState(false);
   const [employee, setEmployee] = useState(() => getEmployeeById(id || ''));
-  
-  // Get claims data for this employee using centralized service
-  const employeeClaims = getEmployeeClaims(id || '');
+  const [employeeClaims, setEmployeeClaims] = useState<Claim[]>([]);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(true);
   
   // Get leave records for this employee
   const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
@@ -45,6 +45,25 @@ const EmployeeDetails = () => {
 
   // Get slot booking records for this employee
   const employeeSlotBookings = getEmployeeSlotBookings(id || '');
+
+  // Load claims data asynchronously
+  useEffect(() => {
+    const loadClaims = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingClaims(true);
+        const claims = await getEmployeeClaims(id);
+        setEmployeeClaims(claims);
+      } catch (error) {
+        console.error('Error loading employee claims:', error);
+      } finally {
+        setIsLoadingClaims(false);
+      }
+    };
+
+    loadClaims();
+  }, [id]);
 
   if (!employee) {
     return (
@@ -446,40 +465,46 @@ const EmployeeDetails = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date Submitted</TableHead>
-                          <TableHead>Claim Type</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Description</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {employeeClaims.length > 0 ? (
-                          employeeClaims.map((claim) => (
-                            <TableRow key={claim.id}>
-                              <TableCell>{claim.date}</TableCell>
-                              <TableCell>{claim.type}</TableCell>
-                              <TableCell>S${claim.amount.toFixed(2)}</TableCell>
-                              <TableCell>
-                                <Badge variant={getStatusColor(claim.status)}>
-                                  {claim.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
+                    {isLoadingClaims ? (
+                      <div className="text-center py-4">
+                        <p>Loading claims...</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center text-gray-500">
-                              No claims records found
-                            </TableCell>
+                            <TableHead>Date Submitted</TableHead>
+                            <TableHead>Claim Type</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Description</TableHead>
                           </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {employeeClaims.length > 0 ? (
+                            employeeClaims.map((claim) => (
+                              <TableRow key={claim.id}>
+                                <TableCell>{claim.date}</TableCell>
+                                <TableCell>{claim.type}</TableCell>
+                                <TableCell>S${claim.amount.toFixed(2)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={getStatusColor(claim.status)}>
+                                    {claim.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center text-gray-500">
+                                No claims records found
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
