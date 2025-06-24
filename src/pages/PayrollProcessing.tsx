@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
-import { calculateCPF } from '@/utils/cpfCalculations';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 interface PayrollEmployee {
   id: string;
@@ -164,7 +164,8 @@ const PayrollProcessing = () => {
       const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
       const grossSalary = emp.basicSalary + totalAllowances;
       
-      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+      const age = calculateAge(emp.dateOfBirth);
+      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
       const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
       
       return {
@@ -177,7 +178,8 @@ const PayrollProcessing = () => {
 
     setCasualEmployees(prev => prev.map(emp => {
       const totalPay = emp.hourlyRate * emp.hoursWorked;
-      const cpfCalc = calculateCPF(totalPay, emp.residencyStatus);
+      const age = calculateAge(emp.dateOfBirth);
+      const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
       
       return {
         ...emp,
@@ -195,7 +197,8 @@ const PayrollProcessing = () => {
         const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
         const grossSalary = newSalary + totalAllowances;
         
-        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus);
+        const age = calculateAge(emp.dateOfBirth);
+        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
         const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
         
         return {
@@ -252,7 +255,8 @@ const PayrollProcessing = () => {
     setCasualEmployees(prev => prev.map(emp => {
       if (emp.id === employeeId) {
         const totalPay = emp.hourlyRate * newHours;
-        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus);
+        const age = calculateAge(emp.dateOfBirth);
+        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
         
         return {
           ...emp,
@@ -270,7 +274,8 @@ const PayrollProcessing = () => {
     setCasualEmployees(prev => prev.map(emp => {
       if (emp.id === employeeId) {
         const totalPay = newRate * emp.hoursWorked;
-        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus);
+        const age = calculateAge(emp.dateOfBirth);
+        const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
         
         return {
           ...emp,
