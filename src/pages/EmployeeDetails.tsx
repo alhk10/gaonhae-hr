@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, FileText, CreditCard, Upload, Edit, Key, Plus, Trash2, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { calculateCPF } from '@/utils/cpfCalculations';
@@ -459,15 +460,16 @@ const EmployeeDetails = () => {
                       <div>
                         <label className="text-sm font-medium text-gray-600">Role</label>
                         {isEditing ? (
-                          <select 
-                            value={employeeData.role}
-                            onChange={(e) => handleInputChange('role', e.target.value)}
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                          >
-                            {roles.map(role => (
-                              <option key={role} value={role}>{role}</option>
-                            ))}
-                          </select>
+                          <Select value={employeeData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                            <SelectTrigger className="w-full mt-1">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map(role => (
+                                <SelectItem key={role} value={role}>{role}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <p className="text-lg text-gray-900">{employeeData.role}</p>
                         )}
