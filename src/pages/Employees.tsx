@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -9,18 +10,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Plus, Search, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getAllEmployees, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
+import { EmployeeProfile } from '@/types/employee';
 
 const Employees = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [employees, setEmployees] = useState([
-    { name: 'John Tan', id: 'EMP002', dept: 'Engineering', role: 'Senior Developer', employmentType: 'Full-Time', nextIncrement: 'S$9,000', incrementDate: '2025-01-01' },
-    { name: 'Mary Ng', id: 'EMP003', dept: 'Marketing', role: 'Marketing Manager', employmentType: 'Full-Time', nextIncrement: 'S$8,500', incrementDate: '2025-02-01' },
-    { name: 'David Lim', id: 'EMP004', dept: 'HR', role: 'HR Executive', employmentType: 'Part-Time', nextIncrement: 'S$7,000', incrementDate: '2025-03-01' },
-    { name: 'Alice Wong', id: 'EMP005', dept: 'Operations', role: 'Casual Instructor', employmentType: 'Casual', nextIncrement: 'N/A', incrementDate: 'N/A' },
-  ]);
+
+  // Get employees from centralized database
+  const allEmployees = getAllEmployees();
+  const fullTimeEmployees = getFullTimeEmployees();
+  const casualEmployees = getCasualEmployees();
 
   // Form state for new employee
   const [newEmployee, setNewEmployee] = useState({
@@ -54,20 +56,9 @@ const Employees = () => {
     e.preventDefault();
     console.log('Adding new employee:', newEmployee);
     
-    // Add the new employee to the list
-    const newEmployeeData = {
-      name: newEmployee.fullName,
-      id: newEmployee.employeeId,
-      dept: newEmployee.department,
-      role: newEmployee.role,
-      employmentType: newEmployee.employmentType,
-      nextIncrement: newEmployee.employmentType === 'Casual' ? 'N/A' : 'TBD',
-      incrementDate: newEmployee.employmentType === 'Casual' ? 'N/A' : 'TBD'
-    };
-    
-    setEmployees(prev => [...prev, newEmployeeData]);
-    
-    toast("Employee added successfully");
+    // Note: In a real application, this would save to a database
+    // For now, we'll show a success message but the data won't persist
+    toast("Employee added successfully (Note: Data will not persist in this demo)");
     setShowAddForm(false);
     
     // Reset form
@@ -82,14 +73,28 @@ const Employees = () => {
     });
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.dept.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter employees based on search term
+  const filterEmployees = (employees: EmployeeProfile[]) => {
+    return employees.filter(employee =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  };
 
-  const fullTimeEmployees = filteredEmployees.filter(emp => emp.employmentType === 'Full-Time' || emp.employmentType === 'Part-Time');
-  const casualEmployees = filteredEmployees.filter(emp => emp.employmentType === 'Casual');
+  const filteredFullTimeEmployees = filterEmployees(fullTimeEmployees);
+  const filteredCasualEmployees = filterEmployees(casualEmployees);
+
+  // Helper function to get next increment info (mock data for display)
+  const getIncrementInfo = (employee: EmployeeProfile) => {
+    if (employee.type === 'Casual') {
+      return { nextIncrement: 'N/A', incrementDate: 'N/A' };
+    }
+    return { 
+      nextIncrement: 'TBD', 
+      incrementDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
+    };
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,6 +180,7 @@ const Employees = () => {
                           <option value="Marketing">Marketing</option>
                           <option value="HR">HR</option>
                           <option value="Operations">Operations</option>
+                          <option value="Teaching">Teaching</option>
                         </select>
                       </div>
                       <div>
@@ -230,7 +236,7 @@ const Employees = () => {
                       <Users className="w-5 h-5" />
                       <span>Full-Time Employees</span>
                     </CardTitle>
-                    <CardDescription>{fullTimeEmployees.length} total employees</CardDescription>
+                    <CardDescription>{filteredFullTimeEmployees.length} total employees</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-4 mb-4">
@@ -246,22 +252,29 @@ const Employees = () => {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {fullTimeEmployees.map((employee) => (
-                        <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900">{employee.name}</p>
-                            <p className="text-sm text-gray-600">{employee.id} • {employee.dept} • {employee.role} • {employee.employmentType}</p>
-                            <p className="text-xs text-gray-500">Next Increment: {employee.nextIncrement} on {employee.incrementDate}</p>
+                      {filteredFullTimeEmployees.map((employee) => {
+                        const incrementInfo = getIncrementInfo(employee);
+                        return (
+                          <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium text-gray-900">{employee.name}</p>
+                              <p className="text-sm text-gray-600">
+                                {employee.id} • {employee.department} • {employee.position} • {employee.type}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Next Increment: {incrementInfo.nextIncrement} on {incrementInfo.incrementDate}
+                              </p>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleViewDetails(employee.name, employee.id)}
+                            >
+                              View Details
+                            </Button>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleViewDetails(employee.name, employee.id)}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -274,7 +287,7 @@ const Employees = () => {
                       <Users className="w-5 h-5" />
                       <span>Casual Employees</span>
                     </CardTitle>
-                    <CardDescription>{casualEmployees.length} total employees</CardDescription>
+                    <CardDescription>{filteredCasualEmployees.length} total employees</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-4 mb-4">
@@ -290,11 +303,14 @@ const Employees = () => {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {casualEmployees.map((employee) => (
+                      {filteredCasualEmployees.map((employee) => (
                         <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-900">{employee.name}</p>
-                            <p className="text-sm text-gray-600">{employee.id} • {employee.dept} • {employee.role} • {employee.employmentType}</p>
+                            <p className="text-sm text-gray-600">
+                              {employee.id} • {employee.department} • {employee.position} • {employee.type}
+                            </p>
+                            <p className="text-xs text-gray-500">Hourly Rate: S${employee.hourlyRate}/hour</p>
                           </div>
                           <Button 
                             variant="outline" 
