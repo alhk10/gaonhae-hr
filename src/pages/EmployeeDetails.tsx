@@ -30,7 +30,7 @@ const EmployeeDetails = () => {
     adminAccess: false
   });
 
-  // Employee database - should match the data from Employees.tsx
+  // Updated employee database with correct data for John Tan
   const employeeDatabase = {
     'EMP002': {
       id: 'EMP002',
@@ -128,7 +128,7 @@ const EmployeeDetails = () => {
       employmentType: 'Casual',
       residencyStatus: 'Singapore Citizen',
       paymentType: 'Per Hour',
-      salary: 25, // hourly rate
+      salary: 25,
       lastAdjustment: '2024-04-01',
       nextIncrement: 'N/A',
       incrementDate: 'N/A',
@@ -146,10 +146,15 @@ const EmployeeDetails = () => {
   const [employeeData, setEmployeeData] = useState(null);
 
   useEffect(() => {
+    console.log('Loading employee with ID:', id);
+    console.log('Available employees:', Object.keys(employeeDatabase));
+    
     if (id && employeeDatabase[id]) {
-      setEmployeeData(employeeDatabase[id]);
+      console.log('Found employee data:', employeeDatabase[id]);
+      setEmployeeData({ ...employeeDatabase[id] });
     } else {
-      // If employee not found, redirect back to employees page
+      console.log('Employee not found, redirecting...');
+      toast("Employee not found");
       navigate('/employees');
     }
   }, [id, navigate]);
@@ -200,7 +205,10 @@ const EmployeeDetails = () => {
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center">Loading employee details...</div>
+            <div className="text-center">
+              <p>Loading employee details...</p>
+              <p className="text-sm text-gray-500 mt-2">Employee ID: {id}</p>
+            </div>
           </main>
         </div>
       </div>
@@ -218,7 +226,6 @@ const EmployeeDetails = () => {
 
   const handleEdit = () => {
     if (isEditing) {
-      // Save the changes
       console.log('Saving employee data:', employeeData);
       toast("Employee details updated successfully");
     }
