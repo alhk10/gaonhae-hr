@@ -7,16 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus } from 'lucide-react';
+import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus, Eye, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
-  const [selectedPayroll, setSelectedPayroll] = useState('2024-12');
   const [isNewPayrollOpen, setIsNewPayrollOpen] = useState(false);
   const [newPayrollPeriod, setNewPayrollPeriod] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
@@ -65,31 +63,29 @@ const PaymentSummary = () => {
     },
   ];
 
-  const currentPayroll = payrollHistory.find(p => p.id === selectedPayroll);
-
-  const fullTimeEmployees = [
-    { id: 'EMP001', name: 'John Tan', basicSalary: 8500, allowances: 350, deductions: 100, netSalary: 7100, status: 'Pending' },
-    { id: 'EMP002', name: 'Mary Ng', basicSalary: 7200, allowances: 200, deductions: 50, netSalary: 6200, status: 'Pending' },
-    { id: 'EMP003', name: 'David Lim', basicSalary: 6800, allowances: 250, deductions: 75, netSalary: 5900, status: 'Pending' },
-  ];
-
-  const casualEmployees = [
-    { id: 'CAS001', name: 'Alice Wong', hourlyRate: 25, hoursWorked: 120, totalPay: 3000, status: 'Pending' },
-    { id: 'CAS002', name: 'Bob Chen', hourlyRate: 22, hoursWorked: 100, totalPay: 2200, status: 'Pending' },
-    { id: 'CAS003', name: 'Sarah Lee', hourlyRate: 28, hoursWorked: 80, totalPay: 2240, status: 'Pending' },
-  ];
-
   const allEmployees = [
-    ...fullTimeEmployees.map(emp => ({ id: emp.id, name: emp.name, type: 'Full-Time' })),
-    ...casualEmployees.map(emp => ({ id: emp.id, name: emp.name, type: 'Casual' }))
+    { id: 'EMP001', name: 'John Tan', type: 'Full-Time' },
+    { id: 'EMP002', name: 'Mary Ng', type: 'Full-Time' },
+    { id: 'EMP003', name: 'David Lim', type: 'Full-Time' },
+    { id: 'CAS001', name: 'Alice Wong', type: 'Casual' },
+    { id: 'CAS002', name: 'Bob Chen', type: 'Casual' },
+    { id: 'CAS003', name: 'Sarah Lee', type: 'Casual' },
   ];
 
   const handleProcessPayroll = () => {
     navigate('/payroll-processing');
   };
 
-  const handleEmployeeDetails = (employeeId: string) => {
-    navigate(`/employees/${employeeId}`);
+  const handleViewPayroll = (payrollId: string) => {
+    // Navigate to payroll details view
+    console.log('Viewing payroll:', payrollId);
+    toast(`Viewing payroll details for ${payrollId}`);
+  };
+
+  const handleEditPayroll = (payrollId: string) => {
+    // Navigate to payroll edit mode
+    console.log('Editing payroll:', payrollId);
+    toast(`Editing payroll for ${payrollId}`);
   };
 
   const handleCreateNewPayroll = () => {
@@ -113,9 +109,8 @@ const PaymentSummary = () => {
     }
   };
 
-  const totalFullTimeAmount = fullTimeEmployees.reduce((sum, emp) => sum + emp.netSalary, 0);
-  const totalCasualAmount = casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
   const yearToDateTotal = payrollHistory.reduce((sum, payroll) => sum + payroll.totalAmount, 0);
+  const currentPayroll = payrollHistory.find(p => p.status === 'Current');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -135,80 +130,10 @@ const PaymentSummary = () => {
                   <p className="text-gray-600">Manage and view payroll history for 2024</p>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Dialog open={isNewPayrollOpen} onOpenChange={setIsNewPayrollOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="flex items-center space-x-2">
-                      <Plus className="w-4 h-4" />
-                      <span>Add New Payroll</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Payroll</DialogTitle>
-                      <DialogDescription>
-                        Select the payroll period and employees to include in the new payroll.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">
-                          Payroll Period
-                        </label>
-                        <Select value={newPayrollPeriod} onValueChange={setNewPayrollPeriod}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select payroll period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2025-01">January 2025</SelectItem>
-                            <SelectItem value="2025-02">February 2025</SelectItem>
-                            <SelectItem value="2025-03">March 2025</SelectItem>
-                            <SelectItem value="2025-04">April 2025</SelectItem>
-                            <SelectItem value="2025-05">May 2025</SelectItem>
-                            <SelectItem value="2025-06">June 2025</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">
-                          Select Employees ({selectedEmployees.length} selected)
-                        </label>
-                        <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
-                          {allEmployees.map((employee) => (
-                            <div key={employee.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={employee.id}
-                                checked={selectedEmployees.includes(employee.id)}
-                                onCheckedChange={(checked) => 
-                                  handleEmployeeSelection(employee.id, checked as boolean)
-                                }
-                              />
-                              <label 
-                                htmlFor={employee.id}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
-                              >
-                                {employee.name} ({employee.type})
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline" onClick={() => setIsNewPayrollOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleCreateNewPayroll}>
-                          Create Payroll
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
-                  <Play className="w-4 h-4" />
-                  <span>Process Current Payroll</span>
-                </Button>
-              </div>
+              <Button className="flex items-center space-x-2" onClick={handleProcessPayroll}>
+                <Play className="w-4 h-4" />
+                <span>Process Current Payroll</span>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -260,8 +185,80 @@ const PaymentSummary = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Payroll History - 2024</CardTitle>
-                <CardDescription>Year-to-date payroll summary</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Payroll History - 2024</CardTitle>
+                    <CardDescription>Year-to-date payroll summary</CardDescription>
+                  </div>
+                  <Dialog open={isNewPayrollOpen} onOpenChange={setIsNewPayrollOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex items-center space-x-2">
+                        <Plus className="w-4 h-4" />
+                        <span>Add New Payroll</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Create New Payroll</DialogTitle>
+                        <DialogDescription>
+                          Select the payroll period and employees to include in the new payroll.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            Payroll Period
+                          </label>
+                          <Select value={newPayrollPeriod} onValueChange={setNewPayrollPeriod}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payroll period" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="2025-01">January 2025</SelectItem>
+                              <SelectItem value="2025-02">February 2025</SelectItem>
+                              <SelectItem value="2025-03">March 2025</SelectItem>
+                              <SelectItem value="2025-04">April 2025</SelectItem>
+                              <SelectItem value="2025-05">May 2025</SelectItem>
+                              <SelectItem value="2025-06">June 2025</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            Select Employees ({selectedEmployees.length} selected)
+                          </label>
+                          <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
+                            {allEmployees.map((employee) => (
+                              <div key={employee.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={employee.id}
+                                  checked={selectedEmployees.includes(employee.id)}
+                                  onCheckedChange={(checked) => 
+                                    handleEmployeeSelection(employee.id, checked as boolean)
+                                  }
+                                />
+                                <label 
+                                  htmlFor={employee.id}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                                >
+                                  {employee.name} ({employee.type})
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button variant="outline" onClick={() => setIsNewPayrollOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleCreateNewPayroll}>
+                            Create Payroll
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -288,13 +285,24 @@ const PaymentSummary = () => {
                         <TableCell className="font-bold">S${payroll.totalAmount.toLocaleString()}</TableCell>
                         <TableCell>{payroll.processedDate || '-'}</TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedPayroll(payroll.id)}
-                          >
-                            {payroll.id === selectedPayroll ? 'Viewing' : 'View Details'}
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewPayroll(payroll.id)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditPayroll(payroll.id)}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -302,116 +310,6 @@ const PaymentSummary = () => {
                 </Table>
               </CardContent>
             </Card>
-
-            {currentPayroll && (
-              <Tabs defaultValue="fulltime" className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <TabsList className="grid w-full max-w-md grid-cols-2">
-                    <TabsTrigger value="fulltime">Full-Time Employees</TabsTrigger>
-                    <TabsTrigger value="casual">Casual Employees</TabsTrigger>
-                  </TabsList>
-                  <p className="text-sm text-gray-600">
-                    Showing details for: <span className="font-semibold">{currentPayroll.period}</span>
-                  </p>
-                </div>
-
-                <TabsContent value="fulltime">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Full-Time Employee Payroll - {currentPayroll.period}</CardTitle>
-                      <CardDescription>Monthly salary summary for full-time employees</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Employee Name</TableHead>
-                            <TableHead>Employee ID</TableHead>
-                            <TableHead>Basic Salary</TableHead>
-                            <TableHead>Allowances</TableHead>
-                            <TableHead>Deductions</TableHead>
-                            <TableHead>Net Salary</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {fullTimeEmployees.map((employee) => (
-                            <TableRow key={employee.id}>
-                              <TableCell className="font-medium">{employee.name}</TableCell>
-                              <TableCell>{employee.id}</TableCell>
-                              <TableCell>S${employee.basicSalary.toLocaleString()}</TableCell>
-                              <TableCell>S${employee.allowances}</TableCell>
-                              <TableCell>S${employee.deductions}</TableCell>
-                              <TableCell className="font-bold">S${employee.netSalary.toLocaleString()}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{employee.status}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleEmployeeDetails(employee.id)}
-                                >
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="casual">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Casual Employee Payroll - {currentPayroll.period}</CardTitle>
-                      <CardDescription>Monthly payment summary for casual employees</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Employee Name</TableHead>
-                            <TableHead>Employee ID</TableHead>
-                            <TableHead>Hourly Rate</TableHead>
-                            <TableHead>Hours Worked</TableHead>
-                            <TableHead>Total Pay</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {casualEmployees.map((employee) => (
-                            <TableRow key={employee.id}>
-                              <TableCell className="font-medium">{employee.name}</TableCell>
-                              <TableCell>{employee.id}</TableCell>
-                              <TableCell>S${employee.hourlyRate}/hr</TableCell>
-                              <TableCell>{employee.hoursWorked}h</TableCell>
-                              <TableCell className="font-bold">S${employee.totalPay.toLocaleString()}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{employee.status}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleEmployeeDetails(employee.id)}
-                                >
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            )}
           </div>
         </main>
       </div>
