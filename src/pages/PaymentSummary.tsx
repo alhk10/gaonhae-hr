@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -12,15 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus, Eye, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import PayrollViewDialog from '@/components/payroll/PayrollViewDialog';
+import PayrollEditDialog from '@/components/payroll/PayrollEditDialog';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
   const [isNewPayrollOpen, setIsNewPayrollOpen] = useState(false);
   const [newPayrollPeriod, setNewPayrollPeriod] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [viewPayroll, setViewPayroll] = useState<any>(null);
+  const [editPayroll, setEditPayroll] = useState<any>(null);
 
   // Year-to-date payroll data
-  const payrollHistory = [
+  const [payrollHistory, setPayrollHistory] = useState([
     { 
       id: '2024-12', 
       period: 'December 2024', 
@@ -61,7 +64,7 @@ const PaymentSummary = () => {
       employeeCount: 6,
       processedDate: '2024-08-31' 
     },
-  ];
+  ]);
 
   const allEmployees = [
     { id: 'EMP001', name: 'John Tan', type: 'Full-Time' },
@@ -77,15 +80,19 @@ const PaymentSummary = () => {
   };
 
   const handleViewPayroll = (payrollId: string) => {
-    // Navigate to payroll details view
-    console.log('Viewing payroll:', payrollId);
-    toast(`Viewing payroll details for ${payrollId}`);
+    const payroll = payrollHistory.find(p => p.id === payrollId);
+    setViewPayroll(payroll);
   };
 
   const handleEditPayroll = (payrollId: string) => {
-    // Navigate to payroll edit mode
-    console.log('Editing payroll:', payrollId);
-    toast(`Editing payroll for ${payrollId}`);
+    const payroll = payrollHistory.find(p => p.id === payrollId);
+    setEditPayroll(payroll);
+  };
+
+  const handleSavePayroll = (updatedPayroll: any) => {
+    setPayrollHistory(prev => 
+      prev.map(p => p.id === updatedPayroll.id ? updatedPayroll : p)
+    );
   };
 
   const handleCreateNewPayroll = () => {
@@ -313,6 +320,19 @@ const PaymentSummary = () => {
           </div>
         </main>
       </div>
+
+      <PayrollViewDialog 
+        payroll={viewPayroll}
+        isOpen={!!viewPayroll}
+        onClose={() => setViewPayroll(null)}
+      />
+
+      <PayrollEditDialog 
+        payroll={editPayroll}
+        isOpen={!!editPayroll}
+        onClose={() => setEditPayroll(null)}
+        onSave={handleSavePayroll}
+      />
     </div>
   );
 };
