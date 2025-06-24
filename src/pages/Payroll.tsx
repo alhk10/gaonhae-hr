@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -112,10 +111,14 @@ const Payroll = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
-                <p className="text-gray-600">Process and manage employee payroll</p>
+                <h2 className="text-2xl font-bold text-gray-900">Payroll Dashboard</h2>
+                <p className="text-gray-600">Manage employee compensation and payroll processing</p>
               </div>
               <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => navigate('/payroll-management')}>
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Manage Payrolls
+                </Button>
                 <Button 
                   variant="outline"
                   className="flex items-center space-x-2" 
