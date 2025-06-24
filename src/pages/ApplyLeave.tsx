@@ -4,27 +4,46 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Eye } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Plus, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const ApplyLeave = () => {
-  const [showLeaveTaken, setShowLeaveTaken] = useState(false);
+  const [showApplyForm, setShowApplyForm] = useState(false);
   
-  const leaveTaken = [
-    { date: '2024-12-25', type: 'Annual Leave', status: 'Approved', reason: 'Christmas holiday' },
-    { date: '2024-12-20', type: 'Medical Leave', status: 'Approved', reason: 'Doctor appointment' },
-    { date: '2024-11-15', type: 'Annual Leave', status: 'Approved', reason: 'Personal matters' },
+  const leaveHistory = [
+    { date: '2024-12-25', type: 'Annual Leave', status: 'Approved', reason: 'Christmas holiday', appliedOn: '2024-12-10' },
+    { date: '2024-12-20', type: 'Medical Leave', status: 'Approved', reason: 'Doctor appointment', appliedOn: '2024-12-18' },
+    { date: '2024-11-15', type: 'Annual Leave', status: 'Approved', reason: 'Personal matters', appliedOn: '2024-11-05' },
+    { date: '2024-10-08', type: 'Emergency Leave', status: 'Rejected', reason: 'Family emergency', appliedOn: '2024-10-07' },
+    { date: '2024-09-12', type: 'Annual Leave', status: 'Pending', reason: 'Vacation', appliedOn: '2024-09-10' },
+  ];
+
+  const currentLeaveStatus = [
+    { type: 'Annual Leave', total: 21, used: 6, remaining: 15 },
+    { type: 'Medical Leave', total: 14, used: 2, remaining: 12 },
+    { type: 'Emergency Leave', total: 3, used: 0, remaining: 3 },
   ];
 
   const handleSubmitLeave = () => {
     toast("Leave application submitted successfully");
+    setShowApplyForm(false);
   };
 
-  const handleShowLeaveTaken = () => {
-    setShowLeaveTaken(!showLeaveTaken);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return 'bg-green-100 text-green-800';
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  if (showLeaveTaken) {
+  if (showApplyForm) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -34,31 +53,69 @@ const ApplyLeave = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Leave Taken</h2>
-                  <p className="text-gray-600">Your leave history</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
+                  <p className="text-gray-600">Submit your leave application</p>
                 </div>
-                <Button variant="outline" onClick={handleShowLeaveTaken}>
-                  Back to Apply Leave
+                <Button variant="outline" onClick={() => setShowApplyForm(false)}>
+                  Back to Leave Summary
                 </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {currentLeaveStatus.map((leave) => (
+                  <Card key={leave.type}>
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-600">{leave.type}</p>
+                        <p className="text-2xl font-bold text-gray-900">{leave.remaining}</p>
+                        <p className="text-sm text-gray-500">remaining</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Leave History</CardTitle>
-                  <CardDescription>All your approved and pending leave applications</CardDescription>
+                  <CardTitle>Leave Application Form</CardTitle>
+                  <CardDescription>Fill out the details for your leave request (All leaves are 1 day)</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {leaveTaken.map((leave, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{leave.date}</p>
-                          <p className="text-sm text-gray-600">{leave.type} • {leave.reason}</p>
-                        </div>
-                        <span className="text-green-600 text-sm font-medium">{leave.status}</span>
-                      </div>
-                    ))}
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option>Annual Leave</option>
+                        <option>Medical Leave</option>
+                        <option>Emergency Leave</option>
+                        <option>Maternity Leave</option>
+                        <option>Paternity Leave</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Leave Date</label>
+                      <input type="date" className="w-full p-2 border border-gray-300 rounded-lg" />
+                    </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                    <textarea 
+                      rows={3} 
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      placeholder="Please provide a reason for your leave..."
+                    ></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
+                    <input 
+                      type="file" 
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                  </div>
+                  <Button onClick={handleSubmitLeave} className="w-full">
+                    Submit Leave Application
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -77,86 +134,76 @@ const ApplyLeave = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
-                <p className="text-gray-600">Submit your leave application</p>
+                <h2 className="text-2xl font-bold text-gray-900">Leave Summary</h2>
+                <p className="text-gray-600">Your leave balance and history</p>
               </div>
-              <Button variant="outline" onClick={handleShowLeaveTaken}>
-                <Eye className="w-4 h-4 mr-2" />
-                View Leave Taken
+              <Button onClick={() => setShowApplyForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Apply for Leave
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-600">Annual Leave</p>
-                    <p className="text-2xl font-bold text-gray-900">15</p>
-                    <p className="text-sm text-gray-500">remaining</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-600">Medical Leave</p>
-                    <p className="text-2xl font-bold text-gray-900">12</p>
-                    <p className="text-sm text-gray-500">remaining</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-600">Leave Taken</p>
-                    <p className="text-2xl font-bold text-gray-900">8</p>
-                    <p className="text-sm text-gray-500">this year</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
+            {/* Leave Status Panel */}
             <Card>
               <CardHeader>
-                <CardTitle>Leave Application Form</CardTitle>
-                <CardDescription>Fill out the details for your leave request (All leaves are 1 day)</CardDescription>
+                <CardTitle>Leave Balance</CardTitle>
+                <CardDescription>Your current leave entitlements for 2024</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
-                    <select className="w-full p-2 border border-gray-300 rounded-lg">
-                      <option>Annual Leave</option>
-                      <option>Medical Leave</option>
-                      <option>Emergency Leave</option>
-                      <option>Maternity Leave</option>
-                      <option>Paternity Leave</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Leave Date</label>
-                    <input type="date" className="w-full p-2 border border-gray-300 rounded-lg" />
-                  </div>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {currentLeaveStatus.map((leave) => (
+                    <div key={leave.type} className="text-center p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-medium text-gray-900 mb-2">{leave.type}</h3>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-medium">{leave.total} days</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Used:</span>
+                          <span className="font-medium">{leave.used} days</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Remaining:</span>
+                          <span className="font-medium text-green-600">{leave.remaining} days</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                  <textarea 
-                    rows={3} 
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Please provide a reason for your leave..."
-                  ></textarea>
+              </CardContent>
+            </Card>
+
+            {/* Leave History Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Leave History</CardTitle>
+                <CardDescription>Your recent leave applications and their status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {leaveHistory.map((leave, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <Calendar className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="font-medium text-gray-900">{leave.date}</p>
+                          <p className="text-sm text-gray-600">{leave.type}</p>
+                          <p className="text-sm text-gray-500">{leave.reason}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={getStatusColor(leave.status)}>
+                          {leave.status}
+                        </Badge>
+                        <p className="text-xs text-gray-500 mt-1">
+                          <Clock className="w-3 h-3 inline mr-1" />
+                          Applied: {leave.appliedOn}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
-                  <input 
-                    type="file" 
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                  />
-                </div>
-                <Button onClick={handleSubmitLeave} className="w-full">
-                  Submit Leave Application
-                </Button>
               </CardContent>
             </Card>
           </div>
