@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAllEmployees, employeeDatabase, getEmployeeById } from '@/data/employeeData';
 import { systemAllowances, systemDeductions } from '@/data/employeeData';
 import { EmployeeProfile, AllowanceDeduction } from '@/types/employee';
@@ -15,6 +15,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { toast } from 'sonner';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import CertificateUploadComponent from '@/components/employee/CertificateUpload';
 import { Plus, Edit, Trash2, FileText, Calendar, DollarSign, Clock, CalendarClock } from 'lucide-react';
 
 const EmployeeDetails = () => {
@@ -28,10 +29,13 @@ const EmployeeDetails = () => {
 
   useEffect(() => {
     if (id) {
+      console.log('Loading employee with ID:', id);
       const emp = getEmployeeById(id);
       if (emp) {
+        console.log('Employee loaded:', emp);
         setEmployee(emp);
       } else {
+        console.error('Employee not found:', id);
         toast.error('Employee not found');
       }
     }
@@ -39,6 +43,7 @@ const EmployeeDetails = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log('Input changed:', name, value);
     setEmployee(prev => ({ ...prev, [name]: value }));
   };
 
@@ -54,6 +59,7 @@ const EmployeeDetails = () => {
       type: (formData.get('type') as 'Fixed' | 'Percentage' | 'Manual') || 'Fixed'
     };
 
+    console.log('Adding new allowance:', newAllowance);
     setEmployee(prev => ({
       ...prev,
       allowances: [...(prev?.allowances || []), newAllowance]
@@ -74,6 +80,7 @@ const EmployeeDetails = () => {
       type: (formData.get('type') as 'Fixed' | 'Percentage' | 'Manual') || 'Fixed'
     };
 
+    console.log('Adding new deduction:', newDeduction);
     setEmployee(prev => ({
       ...prev,
       deductions: [...(prev?.deductions || []), newDeduction]
@@ -150,6 +157,7 @@ const EmployeeDetails = () => {
 
   const handleSave = () => {
     if (employee) {
+      console.log('Saving employee data:', employee);
       employeeDatabase[employee.id] = { ...employee };
       setIsEditing(false);
       toast.success('Employee details updated successfully');
@@ -157,7 +165,19 @@ const EmployeeDetails = () => {
   };
 
   if (!employee) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p>Loading employee data...</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -170,7 +190,7 @@ const EmployeeDetails = () => {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Employee Details</h1>
-                <p className="text-gray-600">Manage employee information and settings</p>
+                <p className="text-gray-600">Manage employee information and records</p>
               </div>
               <div className="flex gap-2">
                 {isEditing ? (
@@ -190,38 +210,8 @@ const EmployeeDetails = () => {
               </div>
             </div>
 
-            {/* Employee Records Quick Access */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Employee Records</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
-                    <Calendar className="w-6 h-6 mb-2" />
-                    <span className="text-sm">Leave Records</span>
-                  </Button>
-                  <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
-                    <FileText className="w-6 h-6 mb-2" />
-                    <span className="text-sm">Claims</span>
-                  </Button>
-                  <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
-                    <DollarSign className="w-6 h-6 mb-2" />
-                    <span className="text-sm">Payslips</span>
-                  </Button>
-                  <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
-                    <Clock className="w-6 h-6 mb-2" />
-                    <span className="text-sm">Attendance</span>
-                  </Button>
-                  <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
-                    <CalendarClock className="w-6 h-6 mb-2" />
-                    <span className="text-sm">Slot Booking</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Employee Information Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Basic Information Card */}
               <Card>
                 <CardHeader>
@@ -414,7 +404,112 @@ const EmployeeDetails = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
+            {/* Employee Records with Tabs */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Employee Records</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="leave" className="w-full">
+                  <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="leave" className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>Leave</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="claims" className="flex items-center space-x-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Claims</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="payslips" className="flex items-center space-x-2">
+                      <DollarSign className="w-4 h-4" />
+                      <span>Payslips</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="attendance" className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4" />
+                      <span>Attendance</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="booking" className="flex items-center space-x-2">
+                      <CalendarClock className="w-4 h-4" />
+                      <span>Slot Booking</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="certificates" className="flex items-center space-x-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Certificates</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="leave" className="mt-6">
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Leave Records</h3>
+                      <p className="text-gray-600 mb-4">View leave applications and history for {employee.name}</p>
+                      <Button>View Leave History</Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="claims" className="mt-6">
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Claims Records</h3>
+                      <p className="text-gray-600 mb-4">View expense claims and reimbursements for {employee.name}</p>
+                      <Button>View Claims History</Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="payslips" className="mt-6">
+                    <div className="text-center py-8">
+                      <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Payslip Records</h3>
+                      <p className="text-gray-600 mb-4">View payslips and salary history for {employee.name}</p>
+                      <Button>View Payslip History</Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="attendance" className="mt-6">
+                    <div className="text-center py-8">
+                      <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Attendance Records</h3>
+                      <p className="text-gray-600 mb-4">View attendance and time tracking for {employee.name}</p>
+                      <Button>View Attendance History</Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="booking" className="mt-6">
+                    <div className="text-center py-8">
+                      <CalendarClock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Slot Booking Records</h3>
+                      <p className="text-gray-600 mb-4">View slot bookings and schedules for {employee.name}</p>
+                      <Button>View Booking History</Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="certificates" className="mt-6">
+                    <CertificateUploadComponent
+                      certificates={employee.certificates || []}
+                      onCertificateUpload={(certificate) => {
+                        console.log('Certificate uploaded:', certificate);
+                        setEmployee(prev => ({
+                          ...prev,
+                          certificates: [...(prev?.certificates || []), certificate]
+                        }));
+                      }}
+                      onCertificateRemove={(certificateId) => {
+                        console.log('Certificate removed:', certificateId);
+                        setEmployee(prev => ({
+                          ...prev,
+                          certificates: prev?.certificates?.filter(cert => cert.id !== certificateId) || []
+                        }));
+                      }}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Allowances and Deductions */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Allowances Card */}
               <Card>
                 <CardHeader>
@@ -666,14 +761,17 @@ const EmployeeDetails = () => {
                   </Table>
                 </CardContent>
               </Card>
-
-              {/* Admin Access Permissions */}
-              <AdminAccessManager
-                adminAccess={employee.adminAccess}
-                onAdminAccessChange={(permissions) => setEmployee({ ...employee, adminAccess: permissions })}
-                isEditing={isEditing}
-              />
             </div>
+
+            {/* Admin Access Manager */}
+            <AdminAccessManager
+              adminAccess={employee.adminAccess}
+              onAdminAccessChange={(permissions) => {
+                console.log('Admin access updated:', permissions);
+                setEmployee({ ...employee, adminAccess: permissions });
+              }}
+              isEditing={isEditing}
+            />
           </div>
         </main>
       </div>
