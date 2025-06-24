@@ -8,10 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Plus, Settings, Users, ArrowLeftRight, X, Edit, Trash } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Badge } from '@/components/ui/badge';
+import { Calendar as CalendarIcon, Plus, Settings, Users, Check, X, Edit, Trash, Filter } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 const AdminSlotBooking = () => {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   
@@ -71,35 +76,54 @@ const AdminSlotBooking = () => {
   });
 
   const [bookings, setBookings] = useState([
-    { id: 1, date: '2024-12-23', employee: 'Alice Tan', branchId: 'headquarters' },
-    { id: 2, date: '2024-12-23', employee: 'Bob Lim', branchId: 'headquarters' },
-    { id: 3, date: '2024-12-24', employee: 'Carol Ng', branchId: 'balmoral' },
-    { id: 4, date: '2024-12-25', employee: 'David Lee', branchId: 'jurong-west' },
-    { id: 5, date: '2024-12-26', employee: 'Emma Wong', branchId: 'kembangan' },
+    { id: 1, date: '2024-12-23', employee: 'Alice Tan', branchId: 'headquarters', status: 'pending' },
+    { id: 2, date: '2024-12-23', employee: 'Bob Lim', branchId: 'headquarters', status: 'approved' },
+    { id: 3, date: '2024-12-24', employee: 'Carol Ng', branchId: 'balmoral', status: 'approved' },
+    { id: 4, date: '2024-12-25', employee: 'David Lee', branchId: 'jurong-west', status: 'pending' },
+    { id: 5, date: '2024-12-26', employee: 'Emma Wong', branchId: 'kembangan', status: 'rejected' },
   ]);
 
   const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  const getCurrentWeekDates = () => {
-    const today = new Date();
-    const monday = new Date(today.setDate(today.getDate() - today.getDay() + 1));
-    const weekDates = [];
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      weekDates.push({
-        dayName: days[i],
-        date: date.toISOString().split('T')[0],
-        displayDate: date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-      });
-    }
-    
-    return weekDates;
+  const getBookingsForDate = (date: Date) => {
+    const dateString = format(date, 'yyyy-MM-dd');
+    return bookings.filter(b => 
+      b.date === dateString && 
+      (selectedBranch === 'all' || b.branchId === selectedBranch)
+    );
   };
 
-  const weekDates = getCurrentWeekDates();
+  const getSlotSummary = () => {
+    const currentMonth = selectedDate;
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    let totalSlots = 0;
+    let bookedSlots = 0;
+    let pendingSlots = 0;
+    let approvedSlots = 0;
+
+    daysInMonth.forEach(day => {
+      const dayBookings = getBookingsForDate(day);
+      const dayName = format(day, 'EEEE');
+      
+      if (selectedBranch === 'all') {
+        branches.forEach(branch => {
+          totalSlots += weeklySlots[branch.id]?.[dayName] || 0;
+        });
+      } else {
+        totalSlots += weeklySlots[selectedBranch]?.[dayName] || 0;
+      }
+      
+      bookedSlots += dayBookings.length;
+      pendingSlots += dayBookings.filter(b => b.status === 'pending').length;
+      approvedSlots += dayBookings.filter(b => b.status === 'approved').length;
+    });
+
+    return { totalSlots, bookedSlots, pendingSlots, approvedSlots, availableSlots: totalSlots - bookedSlots };
+  };
 
   const handleBooking = (e) => {
     e.preventDefault();
@@ -108,7 +132,8 @@ const AdminSlotBooking = () => {
       id: Date.now(),
       date: formData.get('date') as string,
       employee: formData.get('employee') as string,
-      branchId: formData.get('branch') as string
+      branchId: formData.get('branch') as string,
+      status: 'pending'
     };
 
     setBookings(prev => [...prev, newBooking]);
@@ -116,27 +141,18 @@ const AdminSlotBooking = () => {
     toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
   };
 
-  const handleQuickBooking = (date, branchId) => {
-    const newBooking = {
-      id: Date.now(),
-      date: date,
-      employee: casualEmployees[0],
-      branchId: branchId
-    };
-
-    setBookings(prev => [...prev, newBooking]);
-    toast(`Quick booked ${newBooking.employee} for ${new Date(date).toLocaleDateString()}`);
+  const handleApproval = (bookingId: number, status: 'approved' | 'rejected') => {
+    setBookings(prev => prev.map(b => 
+      b.id === bookingId ? { ...b, status } : b
+    ));
+    toast(`Booking ${status}`);
   };
 
-  const handleSwap = (bookingId) => {
-    toast("Swap functionality would be implemented here");
-  };
-
-  const handleEdit = (bookingId) => {
+  const handleEdit = (bookingId: number) => {
     toast("Edit functionality would be implemented here");
   };
 
-  const handleRemove = (bookingId) => {
+  const handleRemove = (bookingId: number) => {
     setBookings(prev => prev.filter(b => b.id !== bookingId));
     toast("Booking removed");
   };
@@ -158,15 +174,7 @@ const AdminSlotBooking = () => {
     toast("Booking settings updated");
   };
 
-  const getBookingsForDate = (date, branchId = null) => {
-    return bookings.filter(b => b.date === date && (branchId ? b.branchId === branchId : true));
-  };
-
-  const getAvailableSlots = (date, dayName, branchId) => {
-    const currentBookings = getBookingsForDate(date, branchId);
-    const maxSlots = weeklySlots[branchId]?.[dayName] || 0;
-    return maxSlots - currentBookings.length;
-  };
+  const slotSummary = getSlotSummary();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -178,7 +186,7 @@ const AdminSlotBooking = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Admin Slot Booking</h2>
-                <p className="text-gray-600">Manage casual employee work schedules across all branches</p>
+                <p className="text-gray-600">Manage casual employee work schedules with monthly calendar view</p>
               </div>
               <div className="flex space-x-2">
                 <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
@@ -291,128 +299,217 @@ const AdminSlotBooking = () => {
               </div>
             </div>
 
-            {/* All Bookings Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle>All Bookings</CardTitle>
-                <CardDescription>Complete overview of all branch bookings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {bookings.map((booking) => {
-                    const branch = branches.find(b => b.id === booking.branchId);
-                    return (
-                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${branch?.color}`}></div>
-                          <div>
-                            <p className="font-medium">{booking.employee}</p>
-                            <p className="text-sm text-gray-600">
-                              {new Date(booking.date).toLocaleDateString()} • {branch?.name}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex space-x-1">
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(booking.id)}>
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleSwap(booking.id)}>
-                            <ArrowLeftRight className="w-3 h-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleRemove(booking.id)}>
-                            <Trash className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Weekly Calendar by Branch */}
-            {branches.map((branch) => (
-              <Card key={branch.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <div className={`w-4 h-4 rounded-full ${branch.color}`}></div>
-                    <span>{branch.name}</span>
-                  </CardTitle>
-                  <CardDescription>Weekly schedule for {branch.name}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-4">
-                    {weekDates.map((dayInfo) => (
-                      <div key={`${branch.id}-${dayInfo.date}`} className="border rounded-lg p-3">
-                        <div className="text-center mb-2">
-                          <h4 className="font-medium text-sm">{dayInfo.dayName}</h4>
-                          <p className="text-xs text-gray-600">{dayInfo.displayDate}</p>
-                          <p className="text-xs text-gray-500">
-                            {getAvailableSlots(dayInfo.date, dayInfo.dayName, branch.id)} slots available
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          {getBookingsForDate(dayInfo.date, branch.id).map((booking) => (
-                            <div key={booking.id} className="bg-blue-50 p-2 rounded text-xs">
-                              <p className="font-medium">{booking.employee}</p>
-                              <div className="flex space-x-1 mt-1">
-                                <Button size="sm" variant="outline" className="h-5 text-xs px-1" onClick={() => handleEdit(booking.id)}>
-                                  <Edit className="w-2 h-2" />
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-5 text-xs px-1" onClick={() => handleSwap(booking.id)}>
-                                  <ArrowLeftRight className="w-2 h-2" />
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-5 text-xs px-1" onClick={() => handleRemove(booking.id)}>
-                                  <X className="w-2 h-2" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                          {getBookingsForDate(dayInfo.date, branch.id).length === 0 && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full text-xs h-6"
-                              onClick={() => handleQuickBooking(dayInfo.date, branch.id)}
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Add
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Slot Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Bookings</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{bookings.length}</p>
+                  <div className="text-2xl font-bold">{slotSummary.totalSlots}</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Available Employees</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Available Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{casualEmployees.length}</p>
+                  <div className="text-2xl font-bold text-green-600">{slotSummary.availableSlots}</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Branches</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Booked Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{branches.length}</p>
+                  <div className="text-2xl font-bold text-blue-600">{slotSummary.bookedSlots}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{slotSummary.pendingSlots}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{slotSummary.approvedSlots}</div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Branch Filter */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center space-x-2">
+                    <CalendarIcon className="w-5 h-5" />
+                    <span>Monthly Calendar View</span>
+                  </CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Filter className="w-4 h-4" />
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Filter by branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                              <span>{branch.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Calendar */}
+                  <div className="lg:col-span-2">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      className="w-full border rounded-md"
+                      components={{
+                        Day: ({ date, ...props }) => {
+                          const dayBookings = getBookingsForDate(date);
+                          const hasBookings = dayBookings.length > 0;
+                          const hasPending = dayBookings.some(b => b.status === 'pending');
+                          
+                          return (
+                            <div className="relative w-full h-full">
+                              <button
+                                {...props}
+                                className={`w-full h-full p-2 text-sm hover:bg-accent rounded-md ${
+                                  isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
+                                } ${hasBookings ? 'bg-blue-50' : ''}`}
+                              >
+                                <div className="flex flex-col items-center space-y-1">
+                                  <span>{date.getDate()}</span>
+                                  {hasBookings && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {dayBookings.slice(0, 3).map((booking, idx) => (
+                                        <div
+                                          key={idx}
+                                          className={`w-2 h-2 rounded-full ${
+                                            booking.status === 'approved' ? 'bg-green-500' :
+                                            booking.status === 'pending' ? 'bg-yellow-500' :
+                                            'bg-red-500'
+                                          }`}
+                                        />
+                                      ))}
+                                      {dayBookings.length > 3 && (
+                                        <span className="text-xs">+{dayBookings.length - 3}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            </div>
+                          );
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Selected Date Details */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {getBookingsForDate(selectedDate).length} booking(s) scheduled
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {getBookingsForDate(selectedDate).map((booking) => {
+                        const branch = branches.find(b => b.id === booking.branchId);
+                        return (
+                          <Card key={booking.id} className="p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 rounded-full ${branch?.color}`}></div>
+                                <div>
+                                  <p className="font-medium text-sm">{booking.employee}</p>
+                                  <p className="text-xs text-gray-600">{branch?.name}</p>
+                                  <Badge 
+                                    variant={
+                                      booking.status === 'approved' ? 'default' :
+                                      booking.status === 'pending' ? 'secondary' :
+                                      'destructive'
+                                    }
+                                    className="text-xs mt-1"
+                                  >
+                                    {booking.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex space-x-1">
+                                {booking.status === 'pending' && (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => handleApproval(booking.id, 'approved')}
+                                    >
+                                      <Check className="w-3 h-3 text-green-600" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => handleApproval(booking.id, 'rejected')}
+                                    >
+                                      <X className="w-3 h-3 text-red-600" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleEdit(booking.id)}
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleRemove(booking.id)}
+                                >
+                                  <Trash className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+
+                      {getBookingsForDate(selectedDate).length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">
+                          No bookings for this date
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </main>
       </div>
