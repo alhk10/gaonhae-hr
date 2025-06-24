@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -31,34 +30,129 @@ const EmployeeDetails = () => {
     adminAccess: false
   });
 
+  // Employee database - should match the data from Employees.tsx
+  const employeeDatabase = {
+    'EMP002': {
+      id: 'EMP002',
+      name: 'John Tan',
+      email: 'john.tan@company.sg',
+      phone: '+65 9123 4567',
+      address: '123 Orchard Road, #12-34, Singapore 238874',
+      nric: 'S1234567A',
+      dateOfBirth: '1990-05-15',
+      photo: '/placeholder.svg',
+      department: 'Engineering',
+      role: 'Senior Developer',
+      joinDate: '2022-03-15',
+      employmentType: 'Full-Time',
+      residencyStatus: 'Singapore Citizen',
+      paymentType: 'Per Month',
+      salary: 8500,
+      lastAdjustment: '2024-01-01',
+      nextIncrement: 'S$9,000',
+      incrementDate: '2025-01-01',
+      bankAccount: '1234-567890',
+      bankName: 'DBS Bank',
+      paynow: '+65 9123 4567',
+      annualLeave: 21,
+      medicalLeave: 14,
+      status: 'Active',
+      resignationDate: ''
+    },
+    'EMP003': {
+      id: 'EMP003',
+      name: 'Mary Ng',
+      email: 'mary.ng@company.sg',
+      phone: '+65 9234 5678',
+      address: '456 Marina Bay, #20-15, Singapore 018956',
+      nric: 'S2345678B',
+      dateOfBirth: '1985-08-22',
+      photo: '/placeholder.svg',
+      department: 'Marketing',
+      role: 'Marketing Manager',
+      joinDate: '2021-06-10',
+      employmentType: 'Full-Time',
+      residencyStatus: 'Singapore Citizen',
+      paymentType: 'Per Month',
+      salary: 7500,
+      lastAdjustment: '2024-01-01',
+      nextIncrement: 'S$8,500',
+      incrementDate: '2025-02-01',
+      bankAccount: '2345-678901',
+      bankName: 'OCBC Bank',
+      paynow: '+65 9234 5678',
+      annualLeave: 21,
+      medicalLeave: 14,
+      status: 'Active',
+      resignationDate: ''
+    },
+    'EMP004': {
+      id: 'EMP004',
+      name: 'David Lim',
+      email: 'david.lim@company.sg',
+      phone: '+65 9345 6789',
+      address: '789 Jurong East, #10-05, Singapore 609734',
+      nric: 'S3456789C',
+      dateOfBirth: '1992-03-10',
+      photo: '/placeholder.svg',
+      department: 'HR',
+      role: 'HR Executive',
+      joinDate: '2023-01-15',
+      employmentType: 'Part-Time',
+      residencyStatus: 'Permanent Resident Year 1',
+      paymentType: 'Per Month',
+      salary: 5000,
+      lastAdjustment: '2024-01-01',
+      nextIncrement: 'S$7,000',
+      incrementDate: '2025-03-01',
+      bankAccount: '3456-789012',
+      bankName: 'UOB Bank',
+      paynow: '+65 9345 6789',
+      annualLeave: 14,
+      medicalLeave: 10,
+      status: 'Active',
+      resignationDate: ''
+    },
+    'EMP005': {
+      id: 'EMP005',
+      name: 'Alice Wong',
+      email: 'alice.wong@company.sg',
+      phone: '+65 9456 7890',
+      address: '321 Tampines, #05-12, Singapore 529508',
+      nric: 'S4567890D',
+      dateOfBirth: '1988-12-05',
+      photo: '/placeholder.svg',
+      department: 'Operations',
+      role: 'Casual Instructor',
+      joinDate: '2024-04-01',
+      employmentType: 'Casual',
+      residencyStatus: 'Singapore Citizen',
+      paymentType: 'Per Hour',
+      salary: 25, // hourly rate
+      lastAdjustment: '2024-04-01',
+      nextIncrement: 'N/A',
+      incrementDate: 'N/A',
+      bankAccount: '4567-890123',
+      bankName: 'DBS Bank',
+      paynow: '+65 9456 7890',
+      annualLeave: 0,
+      medicalLeave: 0,
+      status: 'Active',
+      resignationDate: ''
+    }
+  };
+
   // Employee data state for editing
-  const [employeeData, setEmployeeData] = useState({
-    id: id,
-    name: 'John Tan',
-    email: 'john.tan@company.sg',
-    phone: '+65 9123 4567',
-    address: '123 Orchard Road, #12-34, Singapore 238874',
-    nric: 'S1234567A',
-    dateOfBirth: '1990-05-15',
-    photo: '/placeholder.svg',
-    department: 'Headquarters',
-    role: 'Senior Instructor',
-    joinDate: '2022-03-15',
-    employmentType: 'Full-Time',
-    residencyStatus: 'Singapore Citizen',
-    paymentType: 'Per Month',
-    salary: 8500,
-    lastAdjustment: '2024-01-01',
-    nextIncrement: 'S$9,000',
-    incrementDate: '2025-01-01',
-    bankAccount: '1234-567890',
-    bankName: 'DBS Bank',
-    paynow: '+65 9123 4567',
-    annualLeave: 21,
-    medicalLeave: 14,
-    status: 'Active',
-    resignationDate: ''
-  });
+  const [employeeData, setEmployeeData] = useState(null);
+
+  useEffect(() => {
+    if (id && employeeDatabase[id]) {
+      setEmployeeData(employeeDatabase[id]);
+    } else {
+      // If employee not found, redirect back to employees page
+      navigate('/employees');
+    }
+  }, [id, navigate]);
 
   // System allowances and deductions from settings
   const systemAllowances = [
@@ -86,8 +180,8 @@ const EmployeeDetails = () => {
     { type: 'Annual Leave', startDate: '2024-10-10', endDate: '2024-10-12', days: 3, status: 'Pending' }
   ];
 
-  const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah'];
-  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner'];
+  const branches = ['Headquarters', 'Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah', 'Engineering', 'Marketing', 'HR', 'Operations'];
+  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
   const employmentTypes = ['Full-Time', 'Part-Time', 'Casual', 'Contract'];
   const residencyStatuses = [
     'Singapore Citizen',
@@ -98,9 +192,24 @@ const EmployeeDetails = () => {
     'Employment Pass'
   ];
 
+  // Return loading or not found if employee data is not loaded
+  if (!employeeData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">Loading employee details...</div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   const cpfCalculation = calculateCPF(employeeData.salary, employeeData.residencyStatus);
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field, value) => {
     setEmployeeData(prev => ({
       ...prev,
       [field]: value
@@ -120,7 +229,7 @@ const EmployeeDetails = () => {
     toast("Password reset to default 'password'");
   };
 
-  const addAllowanceFromSystem = (systemAllowance: any) => {
+  const addAllowanceFromSystem = (systemAllowance) => {
     const newAllowance = {
       id: Date.now(),
       name: systemAllowance.name,
@@ -130,7 +239,7 @@ const EmployeeDetails = () => {
     toast(`Added ${systemAllowance.name}`);
   };
 
-  const addDeductionFromSystem = (systemDeduction: any) => {
+  const addDeductionFromSystem = (systemDeduction) => {
     const newDeduction = {
       id: Date.now(),
       name: systemDeduction.name,
@@ -140,17 +249,17 @@ const EmployeeDetails = () => {
     toast(`Added ${systemDeduction.name}`);
   };
 
-  const removeAllowance = (id: number) => {
+  const removeAllowance = (id) => {
     setAllowances(allowances.filter(a => a.id !== id));
     toast("Allowance removed");
   };
 
-  const removeDeduction = (id: number) => {
+  const removeDeduction = (id) => {
     setDeductions(deductions.filter(d => d.id !== id));
     toast("Deduction removed");
   };
 
-  const handleModuleChange = (module: string, enabled: boolean) => {
+  const handleModuleChange = (module, enabled) => {
     setEmployeeModules(prev => ({
       ...prev,
       [module]: enabled
@@ -158,7 +267,7 @@ const EmployeeDetails = () => {
     toast(`${module} access ${enabled ? 'enabled' : 'disabled'} for employee`);
   };
 
-  const downloadPayslip = (month: string) => {
+  const downloadPayslip = (month) => {
     toast(`Downloaded payslip for ${month}`);
   };
 
@@ -325,7 +434,7 @@ const EmployeeDetails = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Branch</label>
+                        <label className="text-sm font-medium text-gray-600">Department</label>
                         {isEditing ? (
                           <select 
                             value={employeeData.department}
@@ -522,8 +631,8 @@ const EmployeeDetails = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Current Salary</label>
-                        <p className="text-lg text-gray-900">S${employeeData.salary.toLocaleString()}</p>
+                        <label className="text-sm font-medium text-gray-600">Current {employeeData.paymentType === 'Per Hour' ? 'Hourly Rate' : 'Salary'}</label>
+                        <p className="text-lg text-gray-900">S${employeeData.salary.toLocaleString()}{employeeData.paymentType === 'Per Hour' ? '/hour' : ''}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Last Adjustment</label>
