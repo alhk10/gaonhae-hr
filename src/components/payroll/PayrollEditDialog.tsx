@@ -21,6 +21,8 @@ interface Employee {
   name: string;
   type: string;
   baseSalary: number;
+  allowances: number;
+  deductions: number;
   cpf: number;
   total: number;
 }
@@ -34,12 +36,12 @@ interface PayrollEditDialogProps {
 
 const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDialogProps) => {
   const [employeeDetails, setEmployeeDetails] = useState<Employee[]>([
-    { id: 'EMP001', name: 'John Tan', type: 'Full-Time', baseSalary: 4500, cpf: 765, total: 5265 },
-    { id: 'EMP002', name: 'Mary Ng', type: 'Full-Time', baseSalary: 4200, cpf: 714, total: 4914 },
-    { id: 'EMP003', name: 'David Lim', type: 'Full-Time', baseSalary: 3800, cpf: 646, total: 4446 },
-    { id: 'CAS001', name: 'Alice Wong', type: 'Casual', baseSalary: 2400, cpf: 0, total: 2400 },
-    { id: 'CAS002', name: 'Bob Chen', type: 'Casual', baseSalary: 2200, cpf: 0, total: 2200 },
-    { id: 'CAS003', name: 'Sarah Lee', type: 'Casual', baseSalary: 1800, cpf: 0, total: 1800 },
+    { id: 'EMP001', name: 'John Tan', type: 'Full-Time', baseSalary: 4500, allowances: 300, deductions: 50, cpf: 765, total: 5515 },
+    { id: 'EMP002', name: 'Mary Ng', type: 'Full-Time', baseSalary: 4200, allowances: 250, deductions: 40, cpf: 714, total: 5124 },
+    { id: 'EMP003', name: 'David Lim', type: 'Full-Time', baseSalary: 3800, allowances: 200, deductions: 30, cpf: 646, total: 4616 },
+    { id: 'CAS001', name: 'Alice Wong', type: 'Casual', baseSalary: 2400, allowances: 100, deductions: 0, cpf: 0, total: 2500 },
+    { id: 'CAS002', name: 'Bob Chen', type: 'Casual', baseSalary: 2200, allowances: 80, deductions: 0, cpf: 0, total: 2280 },
+    { id: 'CAS003', name: 'Sarah Lee', type: 'Casual', baseSalary: 1800, allowances: 60, deductions: 0, cpf: 0, total: 1860 },
   ]);
 
   if (!payroll) return null;
@@ -49,11 +51,44 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       prev.map(emp => {
         if (emp.id === employeeId) {
           const cpf = emp.type === 'Full-Time' ? Math.round(newSalary * 0.17) : 0;
+          const total = newSalary + emp.allowances - emp.deductions + cpf;
           return {
             ...emp,
             baseSalary: newSalary,
             cpf,
-            total: newSalary + cpf
+            total
+          };
+        }
+        return emp;
+      })
+    );
+  };
+
+  const handleAllowancesChange = (employeeId: string, newAllowances: number) => {
+    setEmployeeDetails(prev => 
+      prev.map(emp => {
+        if (emp.id === employeeId) {
+          const total = emp.baseSalary + newAllowances - emp.deductions + emp.cpf;
+          return {
+            ...emp,
+            allowances: newAllowances,
+            total
+          };
+        }
+        return emp;
+      })
+    );
+  };
+
+  const handleDeductionsChange = (employeeId: string, newDeductions: number) => {
+    setEmployeeDetails(prev => 
+      prev.map(emp => {
+        if (emp.id === employeeId) {
+          const total = emp.baseSalary + emp.allowances - newDeductions + emp.cpf;
+          return {
+            ...emp,
+            deductions: newDeductions,
+            total
           };
         }
         return emp;
@@ -74,7 +109,7 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-6xl">
         <DialogHeader>
           <DialogTitle>Edit Payroll - {payroll.period}</DialogTitle>
           <DialogDescription>
@@ -91,6 +126,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                   <TableHead>Employee</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Base Salary</TableHead>
+                  <TableHead>Allowances</TableHead>
+                  <TableHead>Deductions</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>Total</TableHead>
                 </TableRow>
@@ -105,6 +142,22 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                         type="number"
                         value={employee.baseSalary}
                         onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
+                        className="w-24"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={employee.allowances}
+                        onChange={(e) => handleAllowancesChange(employee.id, Number(e.target.value))}
+                        className="w-24"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={employee.deductions}
+                        onChange={(e) => handleDeductionsChange(employee.id, Number(e.target.value))}
                         className="w-24"
                       />
                     </TableCell>
