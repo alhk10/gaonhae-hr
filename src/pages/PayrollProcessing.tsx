@@ -11,6 +11,9 @@ import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2,
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { getEmployeeById, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
+import { EmployeeProfile } from '@/types/employee';
+import { usePayroll } from '@/contexts/PayrollContext';
 
 interface PayrollEmployee {
   id: string;
@@ -48,101 +51,12 @@ interface CasualEmployee {
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
+  const { payrollState, updateEmployee, setPayrollStatus } = usePayroll();
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
-  const [employees, setEmployees] = useState<PayrollEmployee[]>([
-    { 
-      id: 'EMP001', 
-      name: 'John Tan', 
-      nric: 'S1234567A',
-      dateOfBirth: '1990-05-15',
-      residencyStatus: 'Singapore Citizen',
-      basicSalary: 8500, 
-      allowances: [
-        { name: 'Transport Allowance', amount: 200 },
-        { name: 'Meal Allowance', amount: 150 }
-      ],
-      deductions: [
-        { name: 'Insurance', amount: 100 }
-      ],
-      employeeCPF: 0,
-      employerCPF: 0,
-      netSalary: 0,
-      bankAccount: '1234-567890',
-      bankName: 'DBS Bank',
-      status: 'draft'
-    },
-    { 
-      id: 'EMP002', 
-      name: 'Mary Ng', 
-      nric: 'S2345678B',
-      dateOfBirth: '1988-08-22',
-      residencyStatus: 'Permanent Resident Year 2',
-      basicSalary: 7200, 
-      allowances: [
-        { name: 'Transport Allowance', amount: 200 }
-      ],
-      deductions: [
-        { name: 'Insurance', amount: 50 }
-      ],
-      employeeCPF: 0,
-      employerCPF: 0,
-      netSalary: 0,
-      bankAccount: '2345-678901',
-      bankName: 'OCBC Bank',
-      status: 'draft'
-    },
-  ]);
-
-  const [casualEmployees, setCasualEmployees] = useState<CasualEmployee[]>([
-    {
-      id: 'CAS001',
-      name: 'Alice Wong',
-      nric: 'S3456789C',
-      dateOfBirth: '1995-03-10',
-      residencyStatus: 'Singapore Citizen',
-      hourlyRate: 25,
-      hoursWorked: 120,
-      daysWorked: 15,
-      totalPay: 0,
-      employeeCPF: 0,
-      employerCPF: 0,
-      bankAccount: '3456-789012',
-      bankName: 'UOB Bank',
-      status: 'draft'
-    },
-    {
-      id: 'CAS002', 
-      name: 'Bob Chen',
-      nric: 'S4567890D',
-      dateOfBirth: '1992-11-25',
-      residencyStatus: 'Permanent Resident Year 1',
-      hourlyRate: 22,
-      hoursWorked: 100,
-      daysWorked: 12,
-      totalPay: 0,
-      employeeCPF: 0,
-      employerCPF: 0,
-      bankAccount: '4567-890123',
-      bankName: 'DBS Bank',
-      status: 'draft'
-    },
-    {
-      id: 'CAS003',
-      name: 'Sarah Lee',
-      nric: 'S5678901E',
-      dateOfBirth: '1993-07-18',
-      residencyStatus: 'Singapore Citizen',
-      hourlyRate: 28,
-      hoursWorked: 80,
-      daysWorked: 10,
-      totalPay: 0,
-      employeeCPF: 0,
-      employerCPF: 0,
-      bankAccount: '5678-901234',
-      bankName: 'OCBC Bank',
-      status: 'draft'
-    }
-  ]);
+  
+  // Initialize employees from centralized data
+  const [employees, setEmployees] = useState<PayrollEmployee[]>([]);
+  const [casualEmployees, setCasualEmployees] = useState<CasualEmployee[]>([]);
 
   const [systemAllowances] = useState([
     { name: 'Transport Allowance', type: 'Fixed', amount: '200' },
@@ -157,37 +71,44 @@ const PayrollProcessing = () => {
     { name: 'Loan Deduction', type: 'Manual', amount: '' }
   ]);
 
-  // Calculate CPF and net salary for each employee
+  // Initialize employee data from centralized store
   React.useEffect(() => {
-    setEmployees(prev => prev.map(emp => {
-      const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-      const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-      const grossSalary = emp.basicSalary + totalAllowances;
-      
-      const age = calculateAge(emp.dateOfBirth);
-      const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
-      
-      return {
-        ...emp,
-        employeeCPF: cpfCalc.employeeCPF,
-        employerCPF: cpfCalc.employerCPF,
-        netSalary: netSalary
-      };
+    const fullTimeEmps = getFullTimeEmployees().map(emp => ({
+      id: emp.id,
+      name: emp.name,
+      nric: emp.nric,
+      dateOfBirth: emp.dateOfBirth,
+      residencyStatus: emp.residencyStatus,
+      basicSalary: emp.baseSalary || 0,
+      allowances: emp.allowances.map(a => ({ name: a.name, amount: a.amount })),
+      deductions: emp.deductions.map(d => ({ name: d.name, amount: d.amount })),
+      employeeCPF: 0,
+      employerCPF: 0,
+      netSalary: 0,
+      bankAccount: emp.bankAccount,
+      bankName: emp.bankName,
+      status: 'draft' as const
     }));
 
-    setCasualEmployees(prev => prev.map(emp => {
-      const totalPay = emp.hourlyRate * emp.hoursWorked;
-      const age = calculateAge(emp.dateOfBirth);
-      const cpfCalc = calculateCPF(totalPay, emp.residencyStatus, age);
-      
-      return {
-        ...emp,
-        totalPay: totalPay - cpfCalc.employeeCPF,
-        employeeCPF: cpfCalc.employeeCPF,
-        employerCPF: cpfCalc.employerCPF
-      };
+    const casualEmps = getCasualEmployees().map(emp => ({
+      id: emp.id,
+      name: emp.name,
+      nric: emp.nric,
+      dateOfBirth: emp.dateOfBirth,
+      residencyStatus: emp.residencyStatus,
+      hourlyRate: emp.hourlyRate || 0,
+      hoursWorked: 120, // This should come from slot bookings
+      daysWorked: 15, // This should come from slot bookings
+      totalPay: 0,
+      employeeCPF: 0,
+      employerCPF: 0,
+      bankAccount: emp.bankAccount,
+      bankName: emp.bankName,
+      status: 'draft' as const
     }));
+
+    setEmployees(fullTimeEmps);
+    setCasualEmployees(casualEmps);
   }, []);
 
   const updateEmployeeSalary = (employeeId: string, newSalary: number) => {

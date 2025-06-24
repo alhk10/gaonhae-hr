@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/sonner';
+import { PayrollEmployee } from '@/types/employee';
+import { getEmployeeById } from '@/data/employeeData';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 interface PayrollData {
   id: string;
@@ -16,17 +18,6 @@ interface PayrollData {
   processedDate: string | null;
 }
 
-interface Employee {
-  id: string;
-  name: string;
-  type: string;
-  baseSalary: number;
-  allowances: number;
-  deductions: number;
-  cpf: number;
-  total: number;
-}
-
 interface PayrollEditDialogProps {
   payroll: PayrollData | null;
   isOpen: boolean;
@@ -34,120 +25,52 @@ interface PayrollEditDialogProps {
   onSave: (updatedPayroll: PayrollData) => void;
 }
 
-interface AllowanceDeduction {
-  id: number;
-  name: string;
-  amount: number;
-}
-
-interface EmployeeData {
-  id: string;
-  name: string;
-  type: string;
-  baseSalary: number;
-  allowances: AllowanceDeduction[];
-  deductions: AllowanceDeduction[];
-}
-
-type EmployeeDatabase = {
-  [key: string]: EmployeeData;
-}
-
 const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDialogProps) => {
-  const [employeeDetails, setEmployeeDetails] = useState<Employee[]>([]);
-
-  // Employee database with allowances and deductions from profiles
-  const employeeDatabase: EmployeeDatabase = {
-    'EMP001': {
-      id: 'EMP001',
-      name: 'John Tan',
-      type: 'Full-Time',
-      baseSalary: 4500,
-      allowances: [
-        { id: 1, name: 'Transport Allowance', amount: 200 },
-        { id: 2, name: 'Meal Allowance', amount: 150 }
-      ],
-      deductions: [
-        { id: 1, name: 'Insurance', amount: 100 }
-      ]
-    },
-    'EMP002': {
-      id: 'EMP002', 
-      name: 'Mary Ng',
-      type: 'Full-Time',
-      baseSalary: 4200,
-      allowances: [
-        { id: 1, name: 'Transport Allowance', amount: 200 },
-        { id: 2, name: 'Meal Allowance', amount: 150 }
-      ],
-      deductions: [
-        { id: 1, name: 'Insurance', amount: 100 }
-      ]
-    },
-    'EMP003': {
-      id: 'EMP003',
-      name: 'David Lim', 
-      type: 'Full-Time',
-      baseSalary: 3800,
-      allowances: [
-        { id: 1, name: 'Transport Allowance', amount: 200 },
-        { id: 2, name: 'Meal Allowance', amount: 150 }
-      ],
-      deductions: [
-        { id: 1, name: 'Insurance', amount: 100 }
-      ]
-    },
-    'CAS001': {
-      id: 'CAS001',
-      name: 'Alice Wong',
-      type: 'Casual', 
-      baseSalary: 2400,
-      allowances: [
-        { id: 1, name: 'Performance Bonus', amount: 100 }
-      ],
-      deductions: []
-    },
-    'CAS002': {
-      id: 'CAS002',
-      name: 'Bob Chen',
-      type: 'Casual',
-      baseSalary: 2200,
-      allowances: [
-        { id: 1, name: 'Performance Bonus', amount: 80 }
-      ],
-      deductions: []
-    },
-    'CAS003': {
-      id: 'CAS003',
-      name: 'Sarah Lee',
-      type: 'Casual',
-      baseSalary: 1800,
-      allowances: [
-        { id: 1, name: 'Performance Bonus', amount: 60 }
-      ],
-      deductions: []
-    }
-  };
+  const [employeeDetails, setEmployeeDetails] = useState<PayrollEmployee[]>([]);
 
   useEffect(() => {
     if (payroll) {
-      const employees = Object.values(employeeDatabase).map(emp => {
-        const totalAllowances: number = (emp.allowances || []).reduce((sum: number, allowance: AllowanceDeduction) => sum + allowance.amount, 0);
-        const totalDeductions: number = (emp.deductions || []).reduce((sum: number, deduction: AllowanceDeduction) => sum + deduction.amount, 0);
-        const cpf = emp.type === 'Full-Time' ? Math.round(emp.baseSalary * 0.17) : 0;
-        const total = emp.baseSalary + totalAllowances - totalDeductions + cpf;
+      // Get all employee IDs that should be in this payroll
+      const employeeIds = ['EMP001', 'EMP002', 'EMP003', 'CAS001', 'CAS002', 'CAS003'];
+      
+      const employees = employeeIds.map(id => {
+        const empData = getEmployeeById(id);
+        if (!empData) return null;
+
+        const totalAllowances = empData.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
+        const totalDeductions = empData.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+        
+        let cpf = 0;
+        let total = 0;
+
+        if (empData.type === 'Full-Time' && empData.baseSalary) {
+          const age = calculateAge(empData.dateOfBirth);
+          const grossSalary = empData.baseSalary + totalAllowances;
+          const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
+          cpf = cpfCalc.employerCPF;
+          total = empData.baseSalary + totalAllowances - totalDeductions + cpf;
+        } else if (empData.type === 'Casual' && empData.hourlyRate) {
+          // For casual employees, assume 120 hours worked (this should come from slot bookings)
+          const hoursWorked = 120;
+          const grossPay = empData.hourlyRate * hoursWorked;
+          const age = calculateAge(empData.dateOfBirth);
+          const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+          cpf = cpfCalc.employerCPF;
+          total = grossPay + totalAllowances - totalDeductions - cpfCalc.employeeCPF;
+        }
 
         return {
-          id: emp.id,
-          name: emp.name,
-          type: emp.type,
-          baseSalary: emp.baseSalary,
+          id: empData.id,
+          name: empData.name,
+          type: empData.type,
+          baseSalary: empData.baseSalary || empData.hourlyRate || 0,
           allowances: totalAllowances,
           deductions: totalDeductions,
           cpf,
           total
         };
-      });
+      }).filter(Boolean) as PayrollEmployee[];
+
       setEmployeeDetails(employees);
     }
   }, [payroll]);
@@ -158,8 +81,20 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     setEmployeeDetails(prev => 
       prev.map(emp => {
         if (emp.id === employeeId) {
-          const cpf = emp.type === 'Full-Time' ? Math.round(newSalary * 0.17) : 0;
-          const total = newSalary + emp.allowances - emp.deductions + cpf;
+          const empData = getEmployeeById(employeeId);
+          if (!empData) return emp;
+
+          const age = calculateAge(empData.dateOfBirth);
+          let cpf = 0;
+          let total = 0;
+
+          if (empData.type === 'Full-Time') {
+            const grossSalary = newSalary + emp.allowances;
+            const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
+            cpf = cpfCalc.employerCPF;
+            total = newSalary + emp.allowances - emp.deductions + cpf;
+          }
+
           return {
             ...emp,
             baseSalary: newSalary,
@@ -215,13 +150,13 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     onClose();
   };
 
-  const getEmployeeAllowanceBreakdown = (employeeId: string): AllowanceDeduction[] => {
-    const empData = employeeDatabase[employeeId];
+  const getEmployeeAllowanceBreakdown = (employeeId: string) => {
+    const empData = getEmployeeById(employeeId);
     return empData?.allowances || [];
   };
 
-  const getEmployeeDeductionBreakdown = (employeeId: string): AllowanceDeduction[] => {
-    const empData = employeeDatabase[employeeId];
+  const getEmployeeDeductionBreakdown = (employeeId: string) => {
+    const empData = getEmployeeById(employeeId);
     return empData?.deductions || [];
   };
 
