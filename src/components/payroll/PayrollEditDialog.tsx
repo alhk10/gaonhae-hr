@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,103 @@ interface PayrollEditDialogProps {
 }
 
 const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDialogProps) => {
-  const [employeeDetails, setEmployeeDetails] = useState<Employee[]>([
-    { id: 'EMP001', name: 'John Tan', type: 'Full-Time', baseSalary: 4500, allowances: 300, deductions: 50, cpf: 765, total: 5515 },
-    { id: 'EMP002', name: 'Mary Ng', type: 'Full-Time', baseSalary: 4200, allowances: 250, deductions: 40, cpf: 714, total: 5124 },
-    { id: 'EMP003', name: 'David Lim', type: 'Full-Time', baseSalary: 3800, allowances: 200, deductions: 30, cpf: 646, total: 4616 },
-    { id: 'CAS001', name: 'Alice Wong', type: 'Casual', baseSalary: 2400, allowances: 100, deductions: 0, cpf: 0, total: 2500 },
-    { id: 'CAS002', name: 'Bob Chen', type: 'Casual', baseSalary: 2200, allowances: 80, deductions: 0, cpf: 0, total: 2280 },
-    { id: 'CAS003', name: 'Sarah Lee', type: 'Casual', baseSalary: 1800, allowances: 60, deductions: 0, cpf: 0, total: 1860 },
-  ]);
+  const [employeeDetails, setEmployeeDetails] = useState<Employee[]>([]);
+
+  // Employee database with allowances and deductions from profiles
+  const employeeDatabase = {
+    'EMP001': {
+      id: 'EMP001',
+      name: 'John Tan',
+      type: 'Full-Time',
+      baseSalary: 4500,
+      allowances: [
+        { id: 1, name: 'Transport Allowance', amount: 200 },
+        { id: 2, name: 'Meal Allowance', amount: 150 }
+      ],
+      deductions: [
+        { id: 1, name: 'Insurance', amount: 100 }
+      ]
+    },
+    'EMP002': {
+      id: 'EMP002', 
+      name: 'Mary Ng',
+      type: 'Full-Time',
+      baseSalary: 4200,
+      allowances: [
+        { id: 1, name: 'Transport Allowance', amount: 200 },
+        { id: 2, name: 'Meal Allowance', amount: 150 }
+      ],
+      deductions: [
+        { id: 1, name: 'Insurance', amount: 100 }
+      ]
+    },
+    'EMP003': {
+      id: 'EMP003',
+      name: 'David Lim', 
+      type: 'Full-Time',
+      baseSalary: 3800,
+      allowances: [
+        { id: 1, name: 'Transport Allowance', amount: 200 },
+        { id: 2, name: 'Meal Allowance', amount: 150 }
+      ],
+      deductions: [
+        { id: 1, name: 'Insurance', amount: 100 }
+      ]
+    },
+    'CAS001': {
+      id: 'CAS001',
+      name: 'Alice Wong',
+      type: 'Casual', 
+      baseSalary: 2400,
+      allowances: [
+        { id: 1, name: 'Performance Bonus', amount: 100 }
+      ],
+      deductions: []
+    },
+    'CAS002': {
+      id: 'CAS002',
+      name: 'Bob Chen',
+      type: 'Casual',
+      baseSalary: 2200,
+      allowances: [
+        { id: 1, name: 'Performance Bonus', amount: 80 }
+      ],
+      deductions: []
+    },
+    'CAS003': {
+      id: 'CAS003',
+      name: 'Sarah Lee',
+      type: 'Casual',
+      baseSalary: 1800,
+      allowances: [
+        { id: 1, name: 'Performance Bonus', amount: 60 }
+      ],
+      deductions: []
+    }
+  };
+
+  useEffect(() => {
+    if (payroll) {
+      const employees = Object.values(employeeDatabase).map(emp => {
+        const totalAllowances = emp.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
+        const totalDeductions = emp.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+        const cpf = emp.type === 'Full-Time' ? Math.round(emp.baseSalary * 0.17) : 0;
+        const total = emp.baseSalary + totalAllowances - totalDeductions + cpf;
+
+        return {
+          id: emp.id,
+          name: emp.name,
+          type: emp.type,
+          baseSalary: emp.baseSalary,
+          allowances: totalAllowances,
+          deductions: totalDeductions,
+          cpf,
+          total
+        };
+      });
+      setEmployeeDetails(employees);
+    }
+  }, [payroll]);
 
   if (!payroll) return null;
 
@@ -107,13 +196,23 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     onClose();
   };
 
+  const getEmployeeAllowanceBreakdown = (employeeId: string) => {
+    const empData = employeeDatabase[employeeId];
+    return empData?.allowances || [];
+  };
+
+  const getEmployeeDeductionBreakdown = (employeeId: string) => {
+    const empData = employeeDatabase[employeeId];
+    return empData?.deductions || [];
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl">
         <DialogHeader>
           <DialogTitle>Edit Payroll - {payroll.period}</DialogTitle>
           <DialogDescription>
-            Modify payroll details for {payroll.period}
+            Modify payroll details for {payroll.period}. Allowances and deductions are pulled from employee profiles.
           </DialogDescription>
         </DialogHeader>
         
@@ -135,7 +234,12 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
               <TableBody>
                 {employeeDetails.map((employee) => (
                   <TableRow key={employee.id}>
-                    <TableCell className="font-medium">{employee.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>
+                        <p>{employee.name}</p>
+                        <p className="text-xs text-gray-500">{employee.id}</p>
+                      </div>
+                    </TableCell>
                     <TableCell>{employee.type}</TableCell>
                     <TableCell>
                       <Input
@@ -146,20 +250,34 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                       />
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        value={employee.allowances}
-                        onChange={(e) => handleAllowancesChange(employee.id, Number(e.target.value))}
-                        className="w-24"
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          value={employee.allowances}
+                          onChange={(e) => handleAllowancesChange(employee.id, Number(e.target.value))}
+                          className="w-24"
+                        />
+                        <div className="text-xs text-gray-500">
+                          {getEmployeeAllowanceBreakdown(employee.id).map((allowance, idx) => (
+                            <div key={idx}>{allowance.name}: S${allowance.amount}</div>
+                          ))}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        value={employee.deductions}
-                        onChange={(e) => handleDeductionsChange(employee.id, Number(e.target.value))}
-                        className="w-24"
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          value={employee.deductions}
+                          onChange={(e) => handleDeductionsChange(employee.id, Number(e.target.value))}
+                          className="w-24"
+                        />
+                        <div className="text-xs text-gray-500">
+                          {getEmployeeDeductionBreakdown(employee.id).map((deduction, idx) => (
+                            <div key={idx}>{deduction.name}: S${deduction.amount}</div>
+                          ))}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>S${employee.cpf.toLocaleString()}</TableCell>
                     <TableCell className="font-bold">S${employee.total.toLocaleString()}</TableCell>
