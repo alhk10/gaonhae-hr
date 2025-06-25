@@ -91,12 +91,19 @@ const Claims = () => {
       return;
     }
 
+    // Find the employee name for the claim
+    const selectedEmployee = employees.find(emp => emp.id === employeeId);
+    const employeeName = selectedEmployee ? selectedEmployee.name : 'Unknown Employee';
+
     try {
       await createClaim({
         employeeId,
+        employee: employeeName,
         type,
         amount,
-        description
+        description,
+        date: new Date().toISOString().split('T')[0],
+        status: 'Pending' as const
       });
       
       // Refresh claims list

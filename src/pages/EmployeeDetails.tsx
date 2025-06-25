@@ -45,11 +45,7 @@ const EmployeeDetails = () => {
   
   // Get leave records for this employee
   const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
-
-  // Get attendance records for this employee
   const employeeAttendanceRecords = getEmployeeAttendanceRecords(id || '');
-
-  // Get slot booking records for this employee
   const employeeSlotBookings = getEmployeeSlotBookings(id || '');
 
   useEffect(() => {
@@ -343,8 +339,6 @@ const EmployeeDetails = () => {
 
                   <AllowanceDeductionManager
                     employeeId={employee.id}
-                    allowances={employeeAllowances}
-                    deductions={employeeDeductions}
                     onUpdate={handleAllowanceDeductionUpdate}
                   />
 
