@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
 
@@ -51,7 +52,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: emp.certificates?.map(cert => ({
       id: cert.id,
@@ -123,7 +124,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: emp.certificates?.map(cert => ({
       id: cert.id,
@@ -201,7 +202,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: employee.certificates?.map(cert => ({
       id: cert.id,
@@ -214,11 +215,11 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     adminAccess: employee.admin_access?.length > 0 ? {
       employees: employee.admin_access[0]?.employees || false,
       payroll: employee.admin_access[0]?.payroll || false,
-      leaveManagement: emp.admin_access[0]?.leave_management || false,
-      claims: emp.admin_access[0]?.claims || false,
-      attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false,
-      reports: emp.admin_access[0]?.reports || false
+      leaveManagement: employee.admin_access[0]?.leave_management || false,
+      claims: employee.admin_access[0]?.claims || false,
+      attendance: employee.admin_access[0]?.attendance || false,
+      slotBooking: employee.admin_access[0]?.slot_booking || false,
+      reports: employee.admin_access[0]?.reports || false
     } : undefined
   };
 };
