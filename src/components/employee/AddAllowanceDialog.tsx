@@ -24,7 +24,9 @@ const AddAllowanceDialog: React.FC<AddAllowanceDialogProps> = ({ open, onOpenCha
 
   useEffect(() => {
     if (open) {
+      console.log('Loading system allowances...');
       const allowances = getSystemAllowances();
+      console.log('System allowances loaded:', allowances);
       setSystemAllowances(allowances);
       // Reset form
       setSelectedAllowance('');
@@ -36,7 +38,10 @@ const AddAllowanceDialog: React.FC<AddAllowanceDialogProps> = ({ open, onOpenCha
 
   const handleAdd = () => {
     const name = selectedAllowance === 'custom' ? customName : selectedAllowance;
-    if (!name || !amount) return;
+    if (!name || !amount) {
+      console.log('Missing required fields:', { name, amount });
+      return;
+    }
 
     const newAllowance: AllowanceDeduction = {
       id: Date.now(),
@@ -45,6 +50,7 @@ const AddAllowanceDialog: React.FC<AddAllowanceDialogProps> = ({ open, onOpenCha
       type: type
     };
 
+    console.log('Adding allowance:', newAllowance);
     onAdd(newAllowance);
     onOpenChange(false);
   };

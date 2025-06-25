@@ -56,6 +56,9 @@ export const getSystemAllowances = (): SystemAllowance[] => {
     { id: 1, name: 'Transport Allowance', type: 'Fixed', amount: '200' },
     { id: 2, name: 'Meal Allowance', type: 'Fixed', amount: '150' },
     { id: 3, name: 'Performance Bonus', type: 'Percentage', amount: '10' },
+    { id: 4, name: 'Phone Allowance', type: 'Fixed', amount: '50' },
+    { id: 5, name: 'Overtime Allowance', type: 'Hourly', amount: '25' },
+    { id: 6, name: 'Travel Allowance', type: 'Fixed', amount: '300' },
   ];
   
   localStorage.setItem('system_allowances', JSON.stringify(defaultAllowances));
@@ -75,6 +78,9 @@ export const getSystemDeductions = (): SystemDeduction[] => {
   const defaultDeductions = [
     { id: 1, name: 'Insurance Premium', type: 'Fixed', amount: '100' },
     { id: 2, name: 'Union Dues', type: 'Percentage', amount: '2' },
+    { id: 3, name: 'Medical Insurance', type: 'Fixed', amount: '80' },
+    { id: 4, name: 'Parking Fee', type: 'Fixed', amount: '30' },
+    { id: 5, name: 'Late Penalty', type: 'Fixed', amount: '50' },
   ];
   
   localStorage.setItem('system_deductions', JSON.stringify(defaultDeductions));

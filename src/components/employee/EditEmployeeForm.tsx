@@ -94,13 +94,15 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   };
 
   const handleAddAllowance = (newAllowance: AllowanceDeduction) => {
+    console.log('Adding new allowance:', newAllowance);
     setAllowances(prev => [...prev, newAllowance]);
-    toast("New allowance added");
+    toast("New allowance added successfully");
   };
 
   const handleAddDeduction = (newDeduction: AllowanceDeduction) => {
+    console.log('Adding new deduction:', newDeduction);
     setDeductions(prev => [...prev, newDeduction]);
-    toast("New deduction added");
+    toast("New deduction added successfully");
   };
 
   const handleRemoveAllowance = (id: number) => {
@@ -116,7 +118,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      console.log('Updating employee:', employee.id, formData);
+      console.log('Saving employee with allowances:', allowances, 'and deductions:', deductions);
       
       const updateData = {
         ...formData,

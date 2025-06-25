@@ -24,7 +24,9 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
 
   useEffect(() => {
     if (open) {
+      console.log('Loading system deductions...');
       const deductions = getSystemDeductions();
+      console.log('System deductions loaded:', deductions);
       setSystemDeductions(deductions);
       // Reset form
       setSelectedDeduction('');
@@ -36,7 +38,10 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
 
   const handleAdd = () => {
     const name = selectedDeduction === 'custom' ? customName : selectedDeduction;
-    if (!name || !amount) return;
+    if (!name || !amount) {
+      console.log('Missing required fields:', { name, amount });
+      return;
+    }
 
     const newDeduction: AllowanceDeduction = {
       id: Date.now(),
@@ -45,6 +50,7 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
       type: type
     };
 
+    console.log('Adding deduction:', newDeduction);
     onAdd(newDeduction);
     onOpenChange(false);
   };
