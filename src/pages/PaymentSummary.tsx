@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -10,14 +9,27 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus, Eye, Edit } from 'lucide-react';
+import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus, Eye, Edit, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
+import { useAuth } from '@/contexts/AuthContext';
 import PayrollViewDialog from '@/components/payroll/PayrollViewDialog';
 import PayrollEditDialog from '@/components/payroll/PayrollEditDialog';
+import PayrollHistoryActions from '@/components/payroll/PayrollHistoryActions';
+
+interface PayrollRecord {
+  id: string;
+  period: string;
+  status: string;
+  totalAmount: number;
+  employeeCount: number;
+  processedDate: string | null;
+  isLocked?: boolean;
+}
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { payrollState, calculatePayrollTotal } = usePayroll();
   const [isNewPayrollOpen, setIsNewPayrollOpen] = useState(false);
   const [newPayrollPeriod, setNewPayrollPeriod] = useState('');
@@ -28,15 +40,16 @@ const PaymentSummary = () => {
   const currentTotal = calculatePayrollTotal();
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
 
-  // Generate payroll history based on current data
-  const [payrollHistory, setPayrollHistory] = useState([
+  // Enhanced payroll history with lock status
+  const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([
     { 
       id: '2024-12', 
       period: payrollState.currentPeriod, 
       status: payrollState.status === 'completed' ? 'Completed' : 'Current', 
       totalAmount: currentTotal, 
       employeeCount: totalEmployees,
-      processedDate: payrollState.status === 'completed' ? payrollState.lastUpdated.toISOString().split('T')[0] : null 
+      processedDate: payrollState.status === 'completed' ? payrollState.lastUpdated.toISOString().split('T')[0] : null,
+      isLocked: false // Current period cannot be locked
     },
     { 
       id: '2024-11', 
@@ -44,7 +57,8 @@ const PaymentSummary = () => {
       status: 'Completed', 
       totalAmount: 25890, 
       employeeCount: 6,
-      processedDate: '2024-11-30' 
+      processedDate: '2024-11-30',
+      isLocked: true // Default to locked for completed periods
     },
     { 
       id: '2024-10', 
@@ -52,7 +66,8 @@ const PaymentSummary = () => {
       status: 'Completed', 
       totalAmount: 26100, 
       employeeCount: 6,
-      processedDate: '2024-10-31' 
+      processedDate: '2024-10-31',
+      isLocked: false
     },
     { 
       id: '2024-09', 
@@ -60,7 +75,8 @@ const PaymentSummary = () => {
       status: 'Completed', 
       totalAmount: 25750, 
       employeeCount: 6,
-      processedDate: '2024-09-30' 
+      processedDate: '2024-09-30',
+      isLocked: true
     },
     { 
       id: '2024-08', 
@@ -68,7 +84,8 @@ const PaymentSummary = () => {
       status: 'Completed', 
       totalAmount: 26200, 
       employeeCount: 6,
-      processedDate: '2024-08-31' 
+      processedDate: '2024-08-31',
+      isLocked: false
     },
   ]);
 
@@ -76,6 +93,8 @@ const PaymentSummary = () => {
     ...payrollState.fullTimeEmployees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })),
     ...payrollState.casualEmployees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type }))
   ];
+
+  const isSuperAdmin = user?.role === 'superadmin';
 
   const handleProcessPayroll = () => {
     navigate('/payroll-processing');
@@ -88,7 +107,38 @@ const PaymentSummary = () => {
 
   const handleEditPayroll = (payrollId: string) => {
     const payroll = payrollHistory.find(p => p.id === payrollId);
+    
+    // Check if payroll is locked
+    if (payroll?.isLocked) {
+      toast('Cannot edit locked payroll. Please unlock it first.');
+      return;
+    }
+    
     setEditPayroll(payroll);
+  };
+
+  const handleLockPayroll = (payrollId: string) => {
+    setPayrollHistory(prev => 
+      prev.map(p => p.id === payrollId ? { ...p, isLocked: true } : p)
+    );
+    console.log(`Payroll ${payrollId} locked by user ${user?.name}`);
+  };
+
+  const handleUnlockPayroll = (payrollId: string) => {
+    setPayrollHistory(prev => 
+      prev.map(p => p.id === payrollId ? { ...p, isLocked: false } : p)
+    );
+    console.log(`Payroll ${payrollId} unlocked by user ${user?.name}`);
+  };
+
+  const handleDeletePayroll = (payrollId: string) => {
+    if (!isSuperAdmin) {
+      toast('Only super administrators can delete payroll records.');
+      return;
+    }
+    
+    setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
+    console.log(`Payroll ${payrollId} deleted by superadmin ${user?.name}`);
   };
 
   const handleSavePayroll = (updatedPayroll: any) => {
@@ -104,13 +154,14 @@ const PaymentSummary = () => {
       return;
     }
 
-    const newPayroll = {
+    const newPayroll: PayrollRecord = {
       id: newPayrollPeriod,
       period: newPayrollPeriod.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
       status: 'Draft',
       totalAmount: 0,
       employeeCount: selectedEmployees.length,
-      processedDate: null
+      processedDate: null,
+      isLocked: false
     };
 
     setPayrollHistory(prev => [newPayroll, ...prev]);
@@ -130,6 +181,8 @@ const PaymentSummary = () => {
 
   const yearToDateTotal = payrollHistory.reduce((sum, payroll) => sum + payroll.totalAmount, 0);
   const currentPayroll = payrollHistory.find(p => p.status === 'Current');
+
+  const lockedPayrollsCount = payrollHistory.filter(p => p.isLocked).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -155,7 +208,7 @@ const PaymentSummary = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -200,14 +253,39 @@ const PaymentSummary = () => {
                   </div>
                 </CardContent>
               </Card>
+               <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Locked Payrolls</p>
+                      <p className="text-2xl font-bold text-gray-900">{lockedPayrollsCount}</p>
+                    </div>
+                    <Shield className="w-8 h-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {isSuperAdmin && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-amber-900">Super Administrator Access</h3>
+                    <p className="text-sm text-amber-700 mt-1">
+                      You have elevated privileges to delete payroll records. Locked payrolls cannot be modified or deleted until unlocked.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Payroll History - 2024</CardTitle>
-                    <CardDescription>Year-to-date payroll summary with real-time data</CardDescription>
+                    <CardDescription>Year-to-date payroll summary with security controls</CardDescription>
                   </div>
                   <Dialog open={isNewPayrollOpen} onOpenChange={setIsNewPayrollOpen}>
                     <DialogTrigger asChild>
@@ -285,6 +363,7 @@ const PaymentSummary = () => {
                     <TableRow>
                       <TableHead>Period</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Security</TableHead>
                       <TableHead>Employees</TableHead>
                       <TableHead>Total Amount</TableHead>
                       <TableHead>Processed Date</TableHead>
@@ -299,6 +378,20 @@ const PaymentSummary = () => {
                           <Badge variant={payroll.status === 'Current' ? 'default' : 'secondary'}>
                             {payroll.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            {payroll.isLocked ? (
+                              <Badge variant="destructive" className="text-xs">
+                                <Shield className="w-3 h-3 mr-1" />
+                                Locked
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Unlocked
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{payroll.employeeCount}</TableCell>
                         <TableCell className="font-bold">S${payroll.totalAmount.toLocaleString()}</TableCell>
@@ -317,10 +410,18 @@ const PaymentSummary = () => {
                               variant="outline" 
                               size="sm"
                               onClick={() => handleEditPayroll(payroll.id)}
+                              disabled={payroll.isLocked}
+                              className={payroll.isLocked ? 'opacity-50 cursor-not-allowed' : ''}
                             >
                               <Edit className="w-4 h-4 mr-1" />
                               Edit
                             </Button>
+                            <PayrollHistoryActions
+                              payroll={payroll}
+                              onLock={handleLockPayroll}
+                              onUnlock={handleUnlockPayroll}
+                              onDelete={handleDeletePayroll}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
