@@ -1,71 +1,102 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User, AuthContextType } from '@/types/auth';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User } from '@/types/auth';
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  isLoading: boolean;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo - expanded with different roles
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@company.sg',
-    name: 'Sarah Lim',
-    role: 'superadmin',
-    employeeId: 'ADM001'
-  },
-  {
-    id: '2',
-    email: 'manager@company.sg',
-    name: 'David Tan',
-    role: 'manager',
-    department: 'Operations',
-    employeeId: 'MGR001'
-  },
-  {
-    id: '3',
-    email: 'employee@company.sg',
-    name: 'Michelle Wong',
-    role: 'employee',
-    department: 'Operations',
-    employeeId: 'EMP001',
-    managerId: '2'
-  }
-];
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (email: string, password: string) => {
-    console.log('Attempting login with email:', email);
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = mockUsers.find(u => u.email === email);
-    console.log('Found user:', foundUser);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      console.log('User logged in successfully with role:', foundUser.role);
-    } else {
-      console.error('Invalid credentials for email:', email);
-      throw new Error('Invalid credentials');
+  useEffect(() => {
+    // Check if user is already logged in
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      console.log('Loading stored user:', userData);
+      setUser(userData);
     }
     setIsLoading(false);
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    console.log('Attempting login with:', email);
+    
+    // Define users with proper roles
+    const users: { [key: string]: User } = {
+      'admin@company.sg': {
+        id: 'ADMIN001',
+        name: 'System Administrator',
+        email: 'admin@company.sg',
+        role: 'superadmin'
+      },
+      'manager@company.sg': {
+        id: 'MANAGER001', 
+        name: 'Department Manager',
+        email: 'manager@company.sg',
+        role: 'manager'
+      },
+      'john.tan@company.sg': {
+        id: 'EMP001',
+        name: 'John Tan',
+        email: 'john.tan@company.sg',
+        role: 'employee'
+      },
+      'mary.ng@company.sg': {
+        id: 'EMP002',
+        name: 'Mary Ng', 
+        email: 'mary.ng@company.sg',
+        role: 'employee'
+      },
+      'david.lim@company.sg': {
+        id: 'EMP003',
+        name: 'David Lim',
+        email: 'david.lim@company.sg', 
+        role: 'employee'
+      },
+      'alice.wong@company.sg': {
+        id: 'CAS001',
+        name: 'Alice Wong',
+        email: 'alice.wong@company.sg',
+        role: 'employee'
+      },
+      'bob.chen@company.sg': {
+        id: 'CAS002',
+        name: 'Bob Chen',
+        email: 'bob.chen@company.sg',
+        role: 'employee'
+      },
+      'sarah.lee@company.sg': {
+        id: 'CAS003',
+        name: 'Sarah Lee',
+        email: 'sarah.lee@company.sg',
+        role: 'employee'
+      }
+    };
+
+    const foundUser = users[email];
+    if (foundUser && password === 'password') {
+      console.log('Login successful for user:', foundUser);
+      setUser(foundUser);
+      localStorage.setItem('currentUser', JSON.stringify(foundUser));
+      return true;
+    }
+
+    console.log('Login failed for email:', email);
+    return false;
   };
 
   const logout = () => {
-    console.log('User logged out');
+    console.log('Logging out user:', user);
     setUser(null);
+    localStorage.removeItem('currentUser');
   };
 
   return (
@@ -73,4 +104,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

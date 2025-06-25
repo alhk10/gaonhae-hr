@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,18 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar as CalendarIcon, Plus, Settings, Users, Check, X, Edit, Trash, Filter, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { getCasualEmployees } from '@/services/employeeService';
+import { EmployeeProfile } from '@/types/employee';
+import {
+  branches,
+  addSlotBooking,
+  getAllSlotBookings,
+  updateSlotBookingStatus,
+  getBookedSlotsForDate,
+  getAvailableSlotsForDate,
+  weeklySlots,
+  SlotBooking
+} from '@/data/slotBookingData';
 
 const AdminSlotBooking = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -19,86 +31,40 @@ const AdminSlotBooking = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isSwapDialogOpen, setIsSwapDialogOpen] = useState(false);
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
   const [selectedBookingForSwap, setSelectedBookingForSwap] = useState<any>(null);
-  
-  // Branch configurations matching the Settings page
-  const branches = [
-    { 
-      id: 'headquarters', 
-      name: 'Headquarters', 
-      address: '123 Business District, #12-34, Singapore 068123',
-      totalSlots: 8,
-      color: 'bg-blue-500'
-    },
-    { 
-      id: 'balmoral', 
-      name: 'Balmoral', 
-      address: '456 Balmoral Road, #05-67, Singapore 259856',
-      totalSlots: 5,
-      color: 'bg-green-500'
-    },
-    { 
-      id: 'jurong-west', 
-      name: 'Jurong West', 
-      address: '789 Jurong West Central, #08-90, Singapore 640789',
-      totalSlots: 6,
-      color: 'bg-purple-500'
-    },
-    { 
-      id: 'kembangan', 
-      name: 'Kembangan', 
-      address: '321 Kembangan Road, #03-45, Singapore 419642',
-      totalSlots: 4,
-      color: 'bg-orange-500'
-    },
-    { 
-      id: 'yishun', 
-      name: 'Yishun', 
-      address: '654 Yishun Ring Road, #07-12, Singapore 760654',
-      totalSlots: 7,
-      color: 'bg-red-500'
-    },
-    { 
-      id: 'bukit-merah', 
-      name: 'Bukit Merah', 
-      address: '987 Bukit Merah Central, #04-56, Singapore 150987',
-      totalSlots: 5,
-      color: 'bg-indigo-500'
-    },
-  ];
+  const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
+  const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
+  const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
 
-  const [weeklySlots, setWeeklySlots] = useState({
-    headquarters: { Monday: 8, Tuesday: 8, Wednesday: 8, Thursday: 8, Friday: 8, Saturday: 4, Sunday: 2 },
-    balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
-    'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
-    kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 1 },
-    yishun: { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 7, Friday: 7, Saturday: 4, Sunday: 2 },
-    'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
-  });
+  // Load casual employees on component mount
+  useEffect(() => {
+    const loadCasualEmployees = async () => {
+      try {
+        console.log('Loading casual employees...');
+        const employees = await getCasualEmployees();
+        console.log('Loaded casual employees:', employees);
+        setCasualEmployees(employees);
+      } catch (error) {
+        console.error('Error loading casual employees:', error);
+        toast("Failed to load employees");
+      }
+    };
 
-  const [bookings, setBookings] = useState([
-    { id: 1, date: '2024-12-23', employee: 'Alice Tan', branchId: 'headquarters', status: 'pending' },
-    { id: 2, date: '2024-12-23', employee: 'Bob Lim', branchId: 'headquarters', status: 'approved' },
-    { id: 3, date: '2024-12-24', employee: 'Carol Ng', branchId: 'balmoral', status: 'approved' },
-    { id: 4, date: '2024-12-25', employee: 'David Lee', branchId: 'jurong-west', status: 'pending' },
-    { id: 5, date: '2024-12-26', employee: 'Emma Wong', branchId: 'kembangan', status: 'rejected' },
-  ]);
+    const loadBookings = () => {
+      const bookings = getAllSlotBookings();
+      console.log('Loaded all bookings:', bookings);
+      setAllBookings(bookings);
+    };
 
-  const casualEmployees = ['Alice Tan', 'Bob Lim', 'Carol Ng', 'David Lee', 'Emma Wong'];
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-  const getAvailableSlotsForDate = (date: Date, branchId: string) => {
-    const dayName = format(date, 'EEEE');
-    const dateString = format(date, 'yyyy-MM-dd');
-    const bookedSlots = bookings.filter(b => b.date === dateString && b.branchId === branchId).length;
-    const totalSlots = weeklySlots[branchId]?.[dayName] || 0;
-    return Math.max(0, totalSlots - bookedSlots);
-  };
+    loadCasualEmployees();
+    loadBookings();
+  }, []);
 
   const getBookingsForDate = (date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd');
-    return bookings.filter(b => 
+    return allBookings.filter(b => 
       b.date === dateString && 
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
@@ -114,6 +80,12 @@ const AdminSlotBooking = () => {
     event.stopPropagation();
     setSelectedBookingForSwap(booking);
     setIsSwapDialogOpen(true);
+  };
+
+  const handleApprovalClick = (booking: SlotBooking, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedBookingForApproval(booking);
+    setIsApprovalDialogOpen(true);
   };
 
   const getSlotSummary = () => {
@@ -152,89 +124,51 @@ const AdminSlotBooking = () => {
     const formData = new FormData(e.target);
     const selectedDate = formData.get('date') as string;
     const selectedBranch = formData.get('branch') as string;
-    const selectedEmployee = formData.get('employee') as string;
+    const selectedEmployeeId = formData.get('employee') as string;
+
+    // Find employee details
+    const employee = casualEmployees.find(emp => emp.id === selectedEmployeeId);
+    if (!employee) {
+      toast("Employee not found");
+      return;
+    }
 
     // Check if slot is available
     const dateObj = new Date(selectedDate);
-    const availableSlots = getAvailableSlotsForDate(dateObj, selectedBranch);
+    const availableSlots = getAvailableSlotsForDate(selectedDate, selectedBranch);
     
     if (availableSlots <= 0) {
       toast("No slots available for this date and branch");
       return;
     }
 
-    const newBooking = {
-      id: Date.now(),
-      date: selectedDate,
-      employee: selectedEmployee,
+    const branch = branches.find(b => b.id === selectedBranch);
+    const newBookingId = addSlotBooking({
+      employeeId: employee.id,
+      employeeName: employee.name,
       branchId: selectedBranch,
+      branchName: branch?.name || 'Unknown Branch',
+      date: selectedDate,
       status: 'pending'
-    };
+    });
 
-    setBookings(prev => [...prev, newBooking]);
+    // Refresh bookings
+    setAllBookings(getAllSlotBookings());
     setIsBookingDialogOpen(false);
     setQuickAddDate(null);
-    toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
+    toast(`Booked ${employee.name} for ${new Date(selectedDate).toLocaleDateString()} (ID: ${newBookingId})`);
   };
 
-  const handleApproval = (bookingId: number, status: 'approved' | 'rejected') => {
-    setBookings(prev => prev.map(b => 
-      b.id === bookingId ? { ...b, status } : b
-    ));
-    toast(`Booking ${status}`);
-  };
-
-  const handleEdit = (bookingId: number) => {
-    toast("Edit functionality would be implemented here");
-  };
-
-  const handleRemove = (bookingId: number) => {
-    setBookings(prev => prev.filter(b => b.id !== bookingId));
-    toast("Booking removed");
-  };
-
-  const handleSwapBooking = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newEmployee = formData.get('employee') as string;
-    const newBranch = formData.get('branch') as string;
-    
-    if (selectedBookingForSwap) {
-      setBookings(prev => prev.map(b => 
-        b.id === selectedBookingForSwap.id 
-          ? { ...b, employee: newEmployee, branchId: newBranch }
-          : b
-      ));
-      setIsSwapDialogOpen(false);
-      setSelectedBookingForSwap(null);
-      toast(`Booking swapped to ${newEmployee}`);
+  const handleApproval = (bookingId: string, status: 'approved' | 'rejected', approvedBy?: string) => {
+    const success = updateSlotBookingStatus(bookingId, status, approvedBy);
+    if (success) {
+      setAllBookings(getAllSlotBookings());
+      setIsApprovalDialogOpen(false);
+      setSelectedBookingForApproval(null);
+      toast(`Booking ${status}`);
+    } else {
+      toast("Failed to update booking status");
     }
-  };
-
-  const handleCancelBooking = () => {
-    if (selectedBookingForSwap) {
-      setBookings(prev => prev.filter(b => b.id !== selectedBookingForSwap.id));
-      setIsSwapDialogOpen(false);
-      setSelectedBookingForSwap(null);
-      toast("Booking cancelled");
-    }
-  };
-
-  const handleSaveSettings = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newSlots = {};
-    
-    branches.forEach(branch => {
-      newSlots[branch.id] = {};
-      days.forEach(day => {
-        newSlots[branch.id][day] = parseInt(formData.get(`${branch.id}-${day.toLowerCase()}`) as string);
-      });
-    });
-    
-    setWeeklySlots(newSlots as typeof weeklySlots);
-    setIsSettingsDialogOpen(false);
-    toast("Booking settings updated");
   };
 
   const slotSummary = getSlotSummary();
@@ -301,8 +235,8 @@ const AdminSlotBooking = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {casualEmployees.map((employee) => (
-                                <SelectItem key={employee} value={employee}>
-                                  {employee}
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.name} ({employee.id})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -322,120 +256,53 @@ const AdminSlotBooking = () => {
                   </DialogContent>
                 </Dialog>
 
-                {/* Swap/Cancel Dialog */}
-                <Dialog open={isSwapDialogOpen} onOpenChange={(open) => {
-                  setIsSwapDialogOpen(open);
-                  if (!open) setSelectedBookingForSwap(null);
+                {/* Approval Dialog */}
+                <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
+                  setIsApprovalDialogOpen(open);
+                  if (!open) setSelectedBookingForApproval(null);
                 }}>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Manage Booking</DialogTitle>
+                      <DialogTitle>Approve/Reject Booking</DialogTitle>
                       <DialogDescription>
-                        {selectedBookingForSwap && 
-                          `Managing booking for ${selectedBookingForSwap.employee} on ${new Date(selectedBookingForSwap.date).toLocaleDateString()}`
+                        {selectedBookingForApproval && 
+                          `Review booking for ${selectedBookingForApproval.employeeName} on ${new Date(selectedBookingForApproval.date).toLocaleDateString()}`
                         }
                       </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSwapBooking}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="employee">Swap Employee</Label>
-                          <Select name="employee" defaultValue={selectedBookingForSwap?.employee} required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select new employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {casualEmployees.map((employee) => (
-                                <SelectItem key={employee} value={employee}>
-                                  {employee}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="branch">Swap Branch</Label>
-                          <Select name="branch" defaultValue={selectedBookingForSwap?.branchId} required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select new branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {branches.map((branch) => (
-                                <SelectItem key={branch.id} value={branch.id}>
-                                  {branch.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <div className="py-4">
+                      <div className="space-y-2">
+                        <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
+                        <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
+                        <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
+                        <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
                       </div>
-                      <DialogFooter className="flex justify-between">
-                        <Button type="button" variant="destructive" onClick={handleCancelBooking}>
-                          Cancel Booking
+                    </div>
+                    <DialogFooter className="flex justify-between">
+                      <Button 
+                        type="button" 
+                        variant="destructive" 
+                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                      <div className="flex space-x-2">
+                        <Button type="button" variant="outline" onClick={() => {
+                          setIsApprovalDialogOpen(false);
+                          setSelectedBookingForApproval(null);
+                        }}>
+                          Close
                         </Button>
-                        <div className="flex space-x-2">
-                          <Button type="button" variant="outline" onClick={() => {
-                            setIsSwapDialogOpen(false);
-                            setSelectedBookingForSwap(null);
-                          }}>
-                            Close
-                          </Button>
-                          <Button type="submit">
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Swap Booking
-                          </Button>
-                        </div>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Booking Settings
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader>
-                      <DialogTitle>Booking Settings</DialogTitle>
-                      <DialogDescription>Adjust slots for each branch and day of the week.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSaveSettings}>
-                      <div className="grid gap-6 py-4 max-h-96 overflow-y-auto">
-                        {branches.map((branch) => (
-                          <div key={branch.id} className="space-y-4">
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-4 h-4 rounded-full ${branch.color}`}></div>
-                              <h3 className="font-medium">{branch.name}</h3>
-                            </div>
-                            <div className="grid grid-cols-7 gap-2">
-                              {days.map((day) => (
-                                <div key={day} className="space-y-2">
-                                  <Label className="text-xs">{day.slice(0, 3)}</Label>
-                                  <Input 
-                                    name={`${branch.id}-${day.toLowerCase()}`}
-                                    type="number" 
-                                    min="0" 
-                                    max="20" 
-                                    defaultValue={weeklySlots[branch.id]?.[day] || 0}
-                                    className="text-center"
-                                    required 
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                        <Button 
+                          type="button"
+                          onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Approve
+                        </Button>
                       </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Save Settings</Button>
-                      </DialogFooter>
-                    </form>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
@@ -485,7 +352,7 @@ const AdminSlotBooking = () => {
               </Card>
             </div>
 
-            {/* Branch Filter and Larger Calendar */}
+            {/* Branch Filter and Calendar */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -562,11 +429,21 @@ const AdminSlotBooking = () => {
                                       return (
                                         <div
                                           key={idx}
-                                          onClick={(e) => handleEmployeeClick(booking, e)}
-                                          className={`text-xs px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer ${branch?.color || 'bg-gray-500'}`}
-                                          title={`${booking.employee} - ${branch?.name} (${booking.status})`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleApprovalClick(booking, e);
+                                          }}
+                                          className={`text-xs px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer ${branch?.color || 'bg-gray-500'} ${
+                                            booking.status === 'pending' ? 'ring-2 ring-yellow-400' : 
+                                            booking.status === 'approved' ? 'ring-2 ring-green-400' :
+                                            'ring-2 ring-red-400'
+                                          }`}
+                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status}) - Click to approve/reject`}
                                         >
-                                          {booking.employee.split(' ')[0]}
+                                          {booking.employeeName.split(' ')[0]}
+                                          {booking.status === 'pending' && ' ⏳'}
+                                          {booking.status === 'approved' && ' ✅'}
+                                          {booking.status === 'rejected' && ' ❌'}
                                         </div>
                                       );
                                     })}
@@ -606,7 +483,7 @@ const AdminSlotBooking = () => {
                           <div className="flex items-center space-x-2">
                             <div className={`w-3 h-3 rounded-full ${branch?.color}`}></div>
                             <div>
-                              <p className="font-medium text-sm">{booking.employee}</p>
+                              <p className="font-medium text-sm">{booking.employeeName}</p>
                               <p className="text-xs text-gray-600">{branch?.name}</p>
                               <Badge 
                                 variant={
@@ -627,7 +504,7 @@ const AdminSlotBooking = () => {
                                   size="sm" 
                                   variant="outline" 
                                   className="h-6 w-6 p-0"
-                                  onClick={() => handleApproval(booking.id, 'approved')}
+                                  onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
                                 >
                                   <Check className="w-3 h-3 text-green-600" />
                                 </Button>
@@ -635,7 +512,7 @@ const AdminSlotBooking = () => {
                                   size="sm" 
                                   variant="outline" 
                                   className="h-6 w-6 p-0"
-                                  onClick={() => handleApproval(booking.id, 'rejected')}
+                                  onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
                                 >
                                   <X className="w-3 h-3 text-red-600" />
                                 </Button>
@@ -645,17 +522,9 @@ const AdminSlotBooking = () => {
                               size="sm" 
                               variant="outline" 
                               className="h-6 w-6 p-0"
-                              onClick={() => handleEdit(booking.id)}
+                              onClick={() => handleApprovalClick(booking, new MouseEvent('click') as any)}
                             >
                               <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-6 w-6 p-0"
-                              onClick={() => handleRemove(booking.id)}
-                            >
-                              <Trash className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
