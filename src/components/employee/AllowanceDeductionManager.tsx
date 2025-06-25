@@ -24,8 +24,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
   const [selectedDeduction, setSelectedDeduction] = useState('');
   const [allowanceAmount, setAllowanceAmount] = useState('');
   const [deductionAmount, setDeductionAmount] = useState('');
-  const [allowanceType, setAllowanceType] = useState('Fixed');
-  const [deductionType, setDeductionType] = useState('Fixed');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,18 +63,14 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
         setEmployeeDeductions(deductions || []);
       }
 
-      // Load system allowances using raw query since TypeScript types haven't updated yet
-      const { data: sysAllowances, error: sysAllowancesError } = await supabase
-        .rpc('get_system_allowances');
+      // Load system allowances - use type assertion to handle the missing table type
+      try {
+        const { data: sysAllowances, error: sysAllowancesError } = await (supabase as any)
+          .from('system_allowances')
+          .select('*');
 
-      if (sysAllowancesError) {
-        console.log('RPC not available, trying direct query...');
-        // Fallback to direct query (will work once types are updated)
-        try {
-          const response = await supabase.from('system_allowances' as any).select('*');
-          setSystemAllowances(response.data || []);
-        } catch (err) {
-          console.error('Error loading system allowances:', err);
+        if (sysAllowancesError) {
+          console.error('Error loading system allowances:', sysAllowancesError);
           // Use hardcoded data as fallback
           setSystemAllowances([
             { id: 1, name: 'Transport Allowance' },
@@ -85,23 +79,29 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
             { id: 4, name: 'Overtime Allowance' },
             { id: 5, name: 'Performance Bonus' }
           ]);
+        } else {
+          console.log('Loaded system allowances:', sysAllowances);
+          setSystemAllowances(sysAllowances || []);
         }
-      } else {
-        setSystemAllowances(sysAllowances || []);
+      } catch (error) {
+        console.error('Error loading system allowances:', error);
+        setSystemAllowances([
+          { id: 1, name: 'Transport Allowance' },
+          { id: 2, name: 'Meal Allowance' },
+          { id: 3, name: 'Mobile Allowance' },
+          { id: 4, name: 'Overtime Allowance' },
+          { id: 5, name: 'Performance Bonus' }
+        ]);
       }
 
-      // Load system deductions using raw query since TypeScript types haven't updated yet
-      const { data: sysDeductions, error: sysDeductionsError } = await supabase
-        .rpc('get_system_deductions');
+      // Load system deductions - use type assertion to handle the missing table type
+      try {
+        const { data: sysDeductions, error: sysDeductionsError } = await (supabase as any)
+          .from('system_deductions')
+          .select('*');
 
-      if (sysDeductionsError) {
-        console.log('RPC not available, trying direct query...');
-        // Fallback to direct query (will work once types are updated)
-        try {
-          const response = await supabase.from('system_deductions' as any).select('*');
-          setSystemDeductions(response.data || []);
-        } catch (err) {
-          console.error('Error loading system deductions:', err);
+        if (sysDeductionsError) {
+          console.error('Error loading system deductions:', sysDeductionsError);
           // Use hardcoded data as fallback
           setSystemDeductions([
             { id: 1, name: 'Late Deduction' },
@@ -110,9 +110,19 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
             { id: 4, name: 'Equipment Damage' },
             { id: 5, name: 'Other Deduction' }
           ]);
+        } else {
+          console.log('Loaded system deductions:', sysDeductions);
+          setSystemDeductions(sysDeductions || []);
         }
-      } else {
-        setSystemDeductions(sysDeductions || []);
+      } catch (error) {
+        console.error('Error loading system deductions:', error);
+        setSystemDeductions([
+          { id: 1, name: 'Late Deduction' },
+          { id: 2, name: 'Absent Deduction' },
+          { id: 3, name: 'Uniform Deduction' },
+          { id: 4, name: 'Equipment Damage' },
+          { id: 5, name: 'Other Deduction' }
+        ]);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -129,13 +139,12 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     }
 
     try {
-      console.log('Adding allowance:', selectedAllowance, allowanceAmount, allowanceType);
+      console.log('Adding allowance:', selectedAllowance, allowanceAmount);
       
       const insertData = {
         employee_id: employeeId,
         name: selectedAllowance,
-        amount: parseFloat(allowanceAmount),
-        type: allowanceType
+        amount: parseFloat(allowanceAmount)
       };
 
       console.log('Inserting allowance data:', insertData);
@@ -154,7 +163,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       setShowAddAllowance(false);
       setSelectedAllowance('');
       setAllowanceAmount('');
-      setAllowanceType('Fixed');
       loadData();
       onUpdate();
     } catch (error) {
@@ -170,13 +178,12 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     }
 
     try {
-      console.log('Adding deduction:', selectedDeduction, deductionAmount, deductionType);
+      console.log('Adding deduction:', selectedDeduction, deductionAmount);
       
       const insertData = {
         employee_id: employeeId,
         name: selectedDeduction,
-        amount: parseFloat(deductionAmount),
-        type: deductionType
+        amount: parseFloat(deductionAmount)
       };
 
       console.log('Inserting deduction data:', insertData);
@@ -195,7 +202,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       setShowAddDeduction(false);
       setSelectedDeduction('');
       setDeductionAmount('');
-      setDeductionType('Fixed');
       loadData();
       onUpdate();
     } catch (error) {
@@ -276,7 +282,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           {showAddAllowance && (
             <div className="mb-4 p-4 border rounded-lg bg-gray-50">
               <h4 className="font-medium mb-3">Add New Allowance</h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">Allowance Type</label>
                   <select 
@@ -290,18 +296,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                         {allowance.name}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
-                  <select 
-                    value={allowanceType}
-                    onChange={(e) => setAllowanceType(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="Fixed">Fixed</option>
-                    <option value="Percentage">Percentage</option>
-                    <option value="Manual">Manual</option>
                   </select>
                 </div>
                 <div>
@@ -332,7 +326,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                     <div>
                       <p className="font-medium">{allowance.name}</p>
                       <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">{allowance.type || 'Fixed'}</Badge>
+                        <Badge variant="secondary">Fixed</Badge>
                         <span className="text-sm text-gray-600">S${allowance.amount}</span>
                       </div>
                     </div>
@@ -369,7 +363,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           {showAddDeduction && (
             <div className="mb-4 p-4 border rounded-lg bg-gray-50">
               <h4 className="font-medium mb-3">Add New Deduction</h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">Deduction Type</label>
                   <select 
@@ -383,18 +377,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                         {deduction.name}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
-                  <select 
-                    value={deductionType}
-                    onChange={(e) => setDeductionType(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="Fixed">Fixed</option>
-                    <option value="Percentage">Percentage</option>
-                    <option value="Manual">Manual</option>
                   </select>
                 </div>
                 <div>
@@ -425,7 +407,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                     <div>
                       <p className="font-medium">{deduction.name}</p>
                       <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">{deduction.type || 'Fixed'}</Badge>
+                        <Badge variant="secondary">Fixed</Badge>
                         <span className="text-sm text-gray-600">S${deduction.amount}</span>
                       </div>
                     </div>
