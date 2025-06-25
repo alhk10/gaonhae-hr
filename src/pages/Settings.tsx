@@ -93,6 +93,13 @@ const Settings = () => {
     toast("Allowance added successfully");
   };
 
+  const handleDeleteAllowance = (id: number) => {
+    const updatedAllowances = allowances.filter(allowance => allowance.id !== id);
+    setAllowances(updatedAllowances);
+    saveSystemAllowances(updatedAllowances);
+    toast("Allowance deleted successfully");
+  };
+
   const handleAddDeduction = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
@@ -107,6 +114,13 @@ const Settings = () => {
     saveSystemDeductions(updatedDeductions);
     setIsAddDeductionOpen(false);
     toast("Deduction added successfully");
+  };
+
+  const handleDeleteDeduction = (id: number) => {
+    const updatedDeductions = deductions.filter(deduction => deduction.id !== id);
+    setDeductions(updatedDeductions);
+    saveSystemDeductions(updatedDeductions);
+    toast("Deduction deleted successfully");
   };
 
   const openEditBranch = (branch: Branch) => {
@@ -243,12 +257,22 @@ const Settings = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {allowances.map((allowance) => (
                         <TableRow key={allowance.id}>
                           <TableCell>{allowance.name}</TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDeleteAllowance(allowance.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -297,12 +321,22 @@ const Settings = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {deductions.map((deduction) => (
                         <TableRow key={deduction.id}>
                           <TableCell>{deduction.name}</TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDeleteDeduction(deduction.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
