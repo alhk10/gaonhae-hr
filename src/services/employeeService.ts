@@ -45,15 +45,22 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       id: a.id,
       name: a.name,
       amount: Number(a.amount),
-      type: a.type || 'Fixed'
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     deductions: emp.deductions?.map(d => ({
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: d.type || 'Fixed'
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
-    certificates: emp.certificates || [],
+    certificates: emp.certificates?.map(cert => ({
+      id: cert.id,
+      name: cert.name,
+      fileName: cert.file_name,
+      uploadDate: cert.upload_date,
+      fileSize: cert.file_size,
+      fileType: cert.file_type
+    })) || [],
     adminAccess: emp.admin_access?.length > 0 ? {
       employees: emp.admin_access[0]?.employees || false,
       payroll: emp.admin_access[0]?.payroll || false,
@@ -113,15 +120,22 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       id: a.id,
       name: a.name,
       amount: Number(a.amount),
-      type: a.type || 'Fixed'
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     deductions: employee.deductions?.map(d => ({
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: d.type || 'Fixed'
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
-    certificates: employee.certificates || [],
+    certificates: employee.certificates?.map(cert => ({
+      id: cert.id,
+      name: cert.name,
+      fileName: cert.file_name,
+      uploadDate: cert.upload_date,
+      fileSize: cert.file_size,
+      fileType: cert.file_type
+    })) || [],
     adminAccess: employee.admin_access?.length > 0 ? {
       employees: employee.admin_access[0]?.employees || false,
       payroll: employee.admin_access[0]?.payroll || false,

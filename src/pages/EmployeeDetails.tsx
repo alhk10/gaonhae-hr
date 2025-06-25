@@ -703,10 +703,10 @@ const EmployeeDetails = () => {
                           employee.certificates.map((cert) => (
                             <TableRow key={cert.id}>
                               <TableCell>{cert.name}</TableCell>
-                              <TableCell>{cert.file_name}</TableCell>
-                              <TableCell>{new Date(cert.upload_date).toLocaleDateString()}</TableCell>
-                              <TableCell>{(cert.file_size / 1024).toFixed(2)} KB</TableCell>
-                              <TableCell>{cert.file_type}</TableCell>
+                              <TableCell>{cert.fileName}</TableCell>
+                              <TableCell>{new Date(cert.uploadDate).toLocaleDateString()}</TableCell>
+                              <TableCell>{(cert.fileSize / 1024).toFixed(2)} KB</TableCell>
+                              <TableCell>{cert.fileType}</TableCell>
                             </TableRow>
                           ))
                         ) : (
