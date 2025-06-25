@@ -427,6 +427,54 @@ export type Database = {
           },
         ]
       }
+      system_allowances: {
+        Row: {
+          created_at: string | null
+          default_amount: number | null
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      system_deductions: {
+        Row: {
+          created_at: string | null
+          default_amount: number | null
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

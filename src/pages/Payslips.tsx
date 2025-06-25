@@ -11,23 +11,28 @@ import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { supabase } from '@/integrations/supabase/client';
+import { EmployeeProfile } from '@/types/employee';
 
 const Payslips = () => {
   const { payrollState } = usePayroll();
+  const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [approvedClaimsTotal, setApprovedClaimsTotal] = useState(0);
   const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
   const [employeeDeductions, setEmployeeDeductions] = useState<any[]>([]);
-  
-  // For demo purposes, we'll show payslips for the first full-time employee
-  const currentEmployee = getEmployeeById('EMP001'); // In real app, this would come from auth context
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const loadPayrollData = async () => {
-      if (!currentEmployee) return;
-      
+    const loadEmployeeData = async () => {
       try {
+        setLoading(true);
+        // For demo purposes, we'll show payslips for the first full-time employee
+        const employee = await getEmployeeById('EMP001'); // In real app, this would come from auth context
+        setCurrentEmployee(employee);
+        
+        if (!employee) return;
+        
         // Load approved claims
-        const claims = await getEmployeeClaims(currentEmployee.id);
+        const claims = await getEmployeeClaims(employee.id);
         const approvedTotal = claims
           .filter(claim => claim.status === 'Approved')
           .reduce((sum, claim) => sum + claim.amount, 0);
@@ -37,25 +42,59 @@ const Payslips = () => {
         const { data: allowances } = await supabase
           .from('allowances')
           .select('*')
-          .eq('employee_id', currentEmployee.id);
+          .eq('employee_id', employee.id);
 
         const { data: deductions } = await supabase
           .from('deductions')
           .select('*')
-          .eq('employee_id', currentEmployee.id);
+          .eq('employee_id', employee.id);
 
         setEmployeeAllowances(allowances || []);
         setEmployeeDeductions(deductions || []);
       } catch (error) {
         console.error('Error loading payroll data:', error);
+        toast("Error loading employee data");
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadPayrollData();
-  }, [currentEmployee]);
+    loadEmployeeData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading payslip data...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentEmployee) {
-    return <div>Employee not found</div>;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p>Employee not found</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const generatePayslipData = (month: string) => {
