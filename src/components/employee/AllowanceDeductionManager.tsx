@@ -3,13 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getSystemAllowances, getSystemDeductions, SystemAllowance, SystemDeduction } from '@/services/settingsService';
+import AddAllowanceDialog from './AddAllowanceDialog';
+import AddDeductionDialog from './AddDeductionDialog';
+import { AllowanceDeduction } from '@/types/employee';
 
 interface AllowanceDeductionManagerProps {
   employeeId: string;
@@ -17,8 +16,6 @@ interface AllowanceDeductionManagerProps {
 }
 
 const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ employeeId, onUpdate }) => {
-  const [systemAllowances, setSystemAllowances] = useState<SystemAllowance[]>([]);
-  const [systemDeductions, setSystemDeductions] = useState<SystemDeduction[]>([]);
   const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
   const [employeeDeductions, setEmployeeDeductions] = useState<any[]>([]);
   const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
@@ -33,12 +30,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     try {
       setLoading(true);
       console.log('Loading allowance/deduction data for employee:', employeeId);
-
-      // Load system settings
-      const systemAllowancesList = getSystemAllowances();
-      const systemDeductionsList = getSystemDeductions();
-      setSystemAllowances(systemAllowancesList);
-      setSystemDeductions(systemDeductionsList);
 
       // Load employee allowances
       const { data: allowances, error: allowancesError } = await supabase
@@ -75,25 +66,15 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     }
   };
 
-  const handleAddAllowance = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const allowanceId = formData.get('allowance') as string;
-    
-    const selectedAllowance = systemAllowances.find(a => a.id.toString() === allowanceId);
-    if (!selectedAllowance) {
-      toast("Please select a valid allowance");
-      return;
-    }
-
+  const handleAddAllowance = async (allowance: AllowanceDeduction) => {
     try {
-      console.log('Adding allowance:', selectedAllowance);
+      console.log('Adding allowance:', allowance);
       
       const insertData = {
         employee_id: employeeId,
-        name: selectedAllowance.name,
-        amount: parseFloat(selectedAllowance.amount),
-        type: selectedAllowance.type || 'Fixed'
+        name: allowance.name,
+        amount: allowance.amount,
+        type: allowance.type || 'Fixed'
       };
 
       console.log('Inserting allowance data:', insertData);
@@ -111,32 +92,21 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       toast("Allowance added successfully");
       loadData();
       onUpdate();
-      setIsAddAllowanceOpen(false);
     } catch (error) {
       console.error('Error adding allowance:', error);
       toast("Error adding allowance");
     }
   };
 
-  const handleAddDeduction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const deductionId = formData.get('deduction') as string;
-    
-    const selectedDeduction = systemDeductions.find(d => d.id.toString() === deductionId);
-    if (!selectedDeduction) {
-      toast("Please select a valid deduction");
-      return;
-    }
-
+  const handleAddDeduction = async (deduction: AllowanceDeduction) => {
     try {
-      console.log('Adding deduction:', selectedDeduction);
+      console.log('Adding deduction:', deduction);
       
       const insertData = {
         employee_id: employeeId,
-        name: selectedDeduction.name,
-        amount: parseFloat(selectedDeduction.amount),
-        type: selectedDeduction.type || 'Fixed'
+        name: deduction.name,
+        amount: deduction.amount,
+        type: deduction.type || 'Fixed'
       };
 
       console.log('Inserting deduction data:', insertData);
@@ -154,7 +124,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       toast("Deduction added successfully");
       loadData();
       onUpdate();
-      setIsAddDeductionOpen(false);
     } catch (error) {
       console.error('Error adding deduction:', error);
       toast("Error adding deduction");
@@ -223,45 +192,10 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
               <CardTitle>Allowances</CardTitle>
               <CardDescription>Manage employee allowances</CardDescription>
             </div>
-            <Dialog open={isAddAllowanceOpen} onOpenChange={setIsAddAllowanceOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Allowance
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Allowance</DialogTitle>
-                  <DialogDescription>Select an allowance from the system settings.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddAllowance}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="allowance">Allowance</Label>
-                      <Select name="allowance" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select allowance" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systemAllowances.map((allowance) => (
-                            <SelectItem key={allowance.id} value={allowance.id.toString()}>
-                              {allowance.name} - {allowance.type} (${allowance.amount})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddAllowanceOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Add Allowance</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setIsAddAllowanceOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Allowance
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -276,7 +210,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                       <p className="font-medium">{allowance.name}</p>
                       <div className="flex items-center space-x-2">
                         <Badge variant="secondary">{allowance.type || 'Fixed'}</Badge>
-                        <span className="text-sm text-gray-600">${allowance.amount}</span>
+                        <span className="text-sm text-gray-600">S${allowance.amount}</span>
                       </div>
                     </div>
                   </div>
@@ -302,45 +236,10 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
               <CardTitle>Deductions</CardTitle>
               <CardDescription>Manage employee deductions</CardDescription>
             </div>
-            <Dialog open={isAddDeductionOpen} onOpenChange={setIsAddDeductionOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Deduction
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Deduction</DialogTitle>
-                  <DialogDescription>Select a deduction from the system settings.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddDeduction}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="deduction">Deduction</Label>
-                      <Select name="deduction" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select deduction" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systemDeductions.map((deduction) => (
-                            <SelectItem key={deduction.id} value={deduction.id.toString()}>
-                              {deduction.name} - {deduction.type} (${deduction.amount})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddDeductionOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Add Deduction</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setIsAddDeductionOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Deduction
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -355,7 +254,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
                       <p className="font-medium">{deduction.name}</p>
                       <div className="flex items-center space-x-2">
                         <Badge variant="secondary">{deduction.type || 'Fixed'}</Badge>
-                        <span className="text-sm text-gray-600">${deduction.amount}</span>
+                        <span className="text-sm text-gray-600">S${deduction.amount}</span>
                       </div>
                     </div>
                   </div>
@@ -372,6 +271,18 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           </div>
         </CardContent>
       </Card>
+
+      <AddAllowanceDialog
+        open={isAddAllowanceOpen}
+        onOpenChange={setIsAddAllowanceOpen}
+        onAdd={handleAddAllowance}
+      />
+
+      <AddDeductionDialog
+        open={isAddDeductionOpen}
+        onOpenChange={setIsAddDeductionOpen}
+        onAdd={handleAddDeduction}
+      />
     </div>
   );
 };

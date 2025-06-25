@@ -83,8 +83,8 @@ const Settings = () => {
     const newAllowance: SystemAllowance = {
       id: Date.now(),
       name: formData.get('name') as string,
-      type: formData.get('type') as string,
-      amount: formData.get('amount') as string || ''
+      type: '',
+      amount: ''
     };
     const updatedAllowances = [...allowances, newAllowance];
     setAllowances(updatedAllowances);
@@ -99,8 +99,8 @@ const Settings = () => {
     const newDeduction: SystemDeduction = {
       id: Date.now(),
       name: formData.get('name') as string,
-      type: formData.get('type') as string,
-      amount: formData.get('amount') as string || ''
+      type: '',
+      amount: ''
     };
     const updatedDeductions = [...deductions, newDeduction];
     setDeductions(updatedDeductions);
@@ -226,17 +226,6 @@ const Settings = () => {
                               <Label htmlFor="name">Name</Label>
                               <Input name="name" required />
                             </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="type">Type</Label>
-                              <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                                <option value="Fixed">Fixed Amount</option>
-                                <option value="Percentage">Percentage</option>
-                              </select>
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="amount">Amount (leave blank for manual entry)</Label>
-                              <Input name="amount" placeholder="Enter amount or percentage" />
-                            </div>
                           </div>
                           <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsAddAllowanceOpen(false)}>
@@ -254,21 +243,12 @@ const Settings = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {allowances.map((allowance) => (
                         <TableRow key={allowance.id}>
                           <TableCell>{allowance.name}</TableCell>
-                          <TableCell>{allowance.type}</TableCell>
-                          <TableCell>
-                            {allowance.amount 
-                              ? `${allowance.type === 'Percentage' ? allowance.amount + '%' : 'S$' + allowance.amount}`
-                              : 'Manual entry'
-                            }
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -300,17 +280,6 @@ const Settings = () => {
                               <Label htmlFor="name">Name</Label>
                               <Input name="name" required />
                             </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="type">Type</Label>
-                              <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                                <option value="Fixed">Fixed Amount</option>
-                                <option value="Percentage">Percentage</option>
-                              </select>
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="amount">Amount (leave blank for manual entry)</Label>
-                              <Input name="amount" placeholder="Enter amount or percentage" />
-                            </div>
                           </div>
                           <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsAddDeductionOpen(false)}>
@@ -328,21 +297,12 @@ const Settings = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {deductions.map((deduction) => (
                         <TableRow key={deduction.id}>
                           <TableCell>{deduction.name}</TableCell>
-                          <TableCell>{deduction.type}</TableCell>
-                          <TableCell>
-                            {deduction.amount 
-                              ? `${deduction.type === 'Percentage' ? deduction.amount + '%' : 'S$' + deduction.amount}`
-                              : 'Manual entry'
-                            }
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
