@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,23 +8,41 @@ import { toast } from '@/components/ui/sonner';
 import { useQuery } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
+import { getEmployeeById } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
+import { EmployeeProfile } from '@/types/employee';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockTime, setClockTime] = useState<string | null>(null);
+  const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
+
+  // Fetch current employee data
+  const { data: currentEmployee } = useQuery({
+    queryKey: ['current-employee', user?.id],
+    queryFn: () => getEmployeeById(user?.id || ''),
+    enabled: !!user?.id,
+  });
+
+  // Update employee data when query resolves
+  useEffect(() => {
+    if (currentEmployee) {
+      setEmployeeData(currentEmployee);
+      console.log('EmployeeDashboard: Employee data loaded:', currentEmployee);
+    }
+  }, [currentEmployee]);
 
   // Fetch employee-specific data
   const { data: employeeClaims = [] } = useQuery({
     queryKey: ['employee-claims', user?.id],
-    queryFn: () => getEmployeeClaims(user?.id || 'EMP001'),
+    queryFn: () => getEmployeeClaims(user?.id || ''),
     enabled: !!user?.id,
   });
 
   const { data: attendanceRecords = [] } = useQuery({
     queryKey: ['employee-attendance', user?.id],
-    queryFn: () => getEmployeeAttendanceRecords(user?.id || 'EMP001'),
+    queryFn: () => getEmployeeAttendanceRecords(user?.id || ''),
     enabled: !!user?.id,
   });
 
@@ -59,11 +77,18 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const displayName = employeeData?.name || user?.name || 'Employee';
+  const displayDepartment = employeeData?.branch || user?.department || 'Not specified';
+  const displayEmployeeId = employeeData?.id || user?.id || user?.employeeId || 'Not specified';
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name || 'Employee'}</h2>
-        <p className="text-gray-600">Employee ID: {user?.id || 'EMP001'} • Engineering Department</p>
+        <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}</h2>
+        <p className="text-gray-600">Employee ID: {displayEmployeeId} • {displayDepartment}</p>
+        {employeeData?.position && (
+          <p className="text-gray-600">Position: {employeeData.position}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -160,6 +185,32 @@ const EmployeeDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Employee Profile Summary */}
+      {employeeData && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Summary</CardTitle>
+            <CardDescription>Your employment details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Employment Type</p>
+                <p className="text-lg text-gray-900">{employeeData.type}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Payment Type</p>
+                <p className="text-lg text-gray-900">{employeeData.paymentType || 'Not specified'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Bank</p>
+                <p className="text-lg text-gray-900">{employeeData.bankName || 'Not specified'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
