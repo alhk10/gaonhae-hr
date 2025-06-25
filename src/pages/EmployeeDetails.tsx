@@ -85,7 +85,14 @@ const EmployeeDetails = () => {
       if (allowancesError) {
         console.error('Error loading allowances:', allowancesError);
       } else {
-        setEmployeeAllowances(allowances || []);
+        // Transform Supabase data to match our interface
+        const transformedAllowances: AllowanceDeduction[] = (allowances || []).map(item => ({
+          id: item.id,
+          name: item.name,
+          amount: item.amount,
+          type: item.type || undefined
+        }));
+        setEmployeeAllowances(transformedAllowances);
       }
 
       // Load deductions
@@ -97,7 +104,14 @@ const EmployeeDetails = () => {
       if (deductionsError) {
         console.error('Error loading deductions:', deductionsError);
       } else {
-        setEmployeeDeductions(deductions || []);
+        // Transform Supabase data to match our interface
+        const transformedDeductions: AllowanceDeduction[] = (deductions || []).map(item => ({
+          id: item.id,
+          name: item.name,
+          amount: item.amount,
+          type: item.type || undefined
+        }));
+        setEmployeeDeductions(transformedDeductions);
       }
     } catch (error) {
       console.error('Error loading allowances/deductions:', error);

@@ -1,9 +1,8 @@
-
 export interface AllowanceDeduction {
   id: number;
   name: string;
   amount: number;
-  type?: 'Fixed' | 'Percentage' | 'Manual';
+  type?: string; // Made more flexible to handle any string from database
 }
 
 export interface EmployeeProfile {
