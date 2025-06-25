@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -55,7 +54,7 @@ const Attendance = () => {
         .from('attendance')
         .select(`
           *,
-          employees:employee_id(name)
+          employee:employee_id(name)
         `)
         .order('date', { ascending: false });
 
@@ -468,7 +467,7 @@ const Attendance = () => {
                     {attendanceRecords.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">
-                          {(record.employees as any)?.name || 'Unknown'} ({record.employee_id})
+                          {(record.employee as any)?.name || 'Unknown'} ({record.employee_id})
                         </TableCell>
                         <TableCell>{record.date}</TableCell>
                         <TableCell>{record.check_in || '-'}</TableCell>
