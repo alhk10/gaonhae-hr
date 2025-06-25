@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -193,7 +194,7 @@ const Claims = () => {
   };
 
   const formatLimit = (limit: number | null) => {
-    return limit === null ? 'Unlimited' : `S$${limit}`;
+    return limit === null ? 'Unlimited' : `S$${limit}/year`;
   };
 
   if (isLoading) {
@@ -308,16 +309,16 @@ const Claims = () => {
                   <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                       <DialogTitle>Claim Settings</DialogTitle>
-                      <DialogDescription>Manage claim types, limits, and employee co-payment percentages.</DialogDescription>
+                      <DialogDescription>Manage claim types, annual limits, and employee co-payment percentages.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveSettings}>
                       <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
                         <div>
-                          <Label className="text-sm font-medium">Claim Types & Limits</Label>
+                          <Label className="text-sm font-medium">Claim Types & Annual Limits</Label>
                           <div className="grid gap-3 mt-2">
                             <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-500">
                               <span>Claim Type</span>
-                              <span>Limit (S$)</span>
+                              <span>Annual Limit (S$)</span>
                               <span>Employee Co-pay (%)</span>
                               <span>Action</span>
                             </div>
@@ -364,7 +365,7 @@ const Claims = () => {
                                 name="newLimit"
                                 type="number"
                                 step="0.01"
-                                placeholder="Limit (S$) or blank"
+                                placeholder="Annual limit (S$) or blank"
                               />
                               <Input 
                                 name="newCoPay"
@@ -378,7 +379,7 @@ const Claims = () => {
                             </div>
                           </div>
                           <p className="text-xs text-gray-500 mt-2">
-                            Leave limit blank for unlimited claims. Co-pay percentage is the amount employee pays.
+                            Annual limits apply per calendar year. Leave limit blank for unlimited claims. Co-pay percentage is the amount employee pays.
                           </p>
                         </div>
                       </div>
@@ -441,7 +442,7 @@ const Claims = () => {
                   <Receipt className="w-5 h-5" />
                   <span>Claims List</span>
                 </CardTitle>
-                <CardDescription>All employee expense claims</CardDescription>
+                <CardDescription>All employee expense claims (limits are per calendar year)</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
