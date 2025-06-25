@@ -31,14 +31,20 @@ const Sidebar = () => {
 
   useEffect(() => {
     const loadCurrentEmployee = async () => {
-      if (user?.email && user.role === 'employee') {
+      console.log('Loading current employee data for user:', user);
+      
+      if (user?.email) {
         try {
           setIsLoading(true);
           const employees = await getEmployees();
+          console.log('All employees:', employees);
+          
           const employee = employees.find(emp => emp.email === user.email);
+          console.log('Found employee for current user:', employee);
+          
           if (employee) {
             setCurrentEmployee(employee);
-            console.log('Current employee loaded with admin access:', employee.adminAccess);
+            console.log('Current employee loaded with role:', user.role, 'and admin access:', employee.adminAccess);
           } else {
             console.log('Employee not found for email:', user.email);
             setCurrentEmployee(null);
@@ -50,6 +56,7 @@ const Sidebar = () => {
           setIsLoading(false);
         }
       } else {
+        console.log('No user email available');
         setIsLoading(false);
       }
     };
@@ -58,11 +65,15 @@ const Sidebar = () => {
   }, [user]);
 
   const getMenuItems = (): MenuItem[] => {
+    console.log('Getting menu items for user role:', user?.role);
+    
     const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
+    // Superadmin gets full access
     if (user?.role === 'superadmin') {
+      console.log('Returning superadmin menu items');
       return [
         ...baseItems,
         { icon: Users, label: 'Employees', path: '/employees' },
@@ -75,7 +86,9 @@ const Sidebar = () => {
       ];
     }
 
+    // Manager gets manager-specific access
     if (user?.role === 'manager') {
+      console.log('Returning manager menu items');
       return [
         ...baseItems,
         { icon: Users, label: 'My Team', path: '/my-team' },
@@ -87,7 +100,8 @@ const Sidebar = () => {
       ];
     }
 
-    // For regular employees, start with basic employee items
+    // For employees, start with basic employee items
+    console.log('Building employee menu items');
     let employeeItems: MenuItem[] = [
       ...baseItems,
       { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
@@ -100,6 +114,7 @@ const Sidebar = () => {
 
     // If still loading employee data, return basic items
     if (isLoading) {
+      console.log('Still loading employee data, returning basic items');
       return employeeItems;
     }
 
@@ -108,7 +123,7 @@ const Sidebar = () => {
       const adminAccess = currentEmployee.adminAccess;
       const adminItems: MenuItem[] = [];
       
-      console.log('Admin access permissions:', adminAccess);
+      console.log('Employee has admin access permissions:', adminAccess);
       
       if (adminAccess.employees) {
         adminItems.push({ icon: Users, label: 'Employees', path: '/employees' });
@@ -134,6 +149,7 @@ const Sidebar = () => {
 
       // Insert admin items after dashboard but before regular employee items
       if (adminItems.length > 0) {
+        console.log('Adding admin items to employee menu:', adminItems);
         employeeItems = [
           baseItems[0], // Dashboard
           ...adminItems,
@@ -142,6 +158,7 @@ const Sidebar = () => {
       }
     }
 
+    console.log('Final menu items:', employeeItems);
     return employeeItems;
   };
 
@@ -150,6 +167,8 @@ const Sidebar = () => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  console.log('Rendering sidebar with user:', user, 'and menu items:', menuItems);
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-full">

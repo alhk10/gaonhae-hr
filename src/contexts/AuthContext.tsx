@@ -45,20 +45,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const login = async (email: string, password: string) => {
+    console.log('Attempting login with email:', email);
     setIsLoading(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const foundUser = mockUsers.find(u => u.email === email);
+    console.log('Found user:', foundUser);
+    
     if (foundUser) {
       setUser(foundUser);
+      console.log('User logged in successfully with role:', foundUser.role);
     } else {
+      console.error('Invalid credentials for email:', email);
       throw new Error('Invalid credentials');
     }
     setIsLoading(false);
   };
 
   const logout = () => {
+    console.log('User logged out');
     setUser(null);
   };
 
