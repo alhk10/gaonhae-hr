@@ -171,6 +171,13 @@ const AdminSlotBooking = () => {
     }
   };
 
+  const handleSettingsSave = (e) => {
+    e.preventDefault();
+    // Handle settings save logic here
+    setIsSettingsDialogOpen(false);
+    toast("Settings saved successfully");
+  };
+
   const slotSummary = getSlotSummary();
 
   return (
@@ -186,6 +193,63 @@ const AdminSlotBooking = () => {
                 <p className="text-gray-600">Manage casual employee work schedules with monthly calendar view</p>
               </div>
               <div className="flex space-x-2">
+                <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Slot Booking Settings</DialogTitle>
+                      <DialogDescription>Configure slot booking parameters and branch settings.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSettingsSave}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="auto-approve">Auto-approve bookings</Label>
+                          <Select name="auto-approve" defaultValue="disabled">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select auto-approve setting" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="enabled">Enabled</SelectItem>
+                              <SelectItem value="disabled">Disabled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="booking-deadline">Booking deadline (hours before)</Label>
+                          <Input 
+                            name="booking-deadline" 
+                            type="number" 
+                            defaultValue="24"
+                            min="1"
+                            max="72"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="max-bookings">Max bookings per employee per month</Label>
+                          <Input 
+                            name="max-bookings" 
+                            type="number" 
+                            defaultValue="20"
+                            min="1"
+                            max="31"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Save Settings</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog open={isBookingDialogOpen} onOpenChange={(open) => {
                   setIsBookingDialogOpen(open);
                   if (!open) setQuickAddDate(null);
