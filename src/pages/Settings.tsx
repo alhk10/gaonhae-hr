@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,94 +11,105 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Settings as SettingsIcon, MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { 
+  getBranches, 
+  saveBranches, 
+  getSystemAllowances, 
+  saveSystemAllowances, 
+  getSystemDeductions, 
+  saveSystemDeductions,
+  Branch,
+  SystemAllowance,
+  SystemDeduction
+} from '@/services/settingsService';
 
 const Settings = () => {
-  const [branches, setBranches] = useState([
-    { id: 1, name: 'Headquarters', address: '123 Business District, #12-34, Singapore 068123' },
-    { id: 2, name: 'Balmoral', address: '456 Balmoral Road, #05-67, Singapore 259856' },
-    { id: 3, name: 'Jurong West', address: '789 Jurong West Central, #08-90, Singapore 640789' },
-    { id: 4, name: 'Kembangan', address: '321 Kembangan Road, #03-45, Singapore 419642' },
-    { id: 5, name: 'Yishun', address: '654 Yishun Ring Road, #07-12, Singapore 760654' },
-    { id: 6, name: 'Bukit Merah', address: '987 Bukit Merah Central, #04-56, Singapore 150987' },
-  ]);
-
-  const [allowances, setAllowances] = useState([
-    { id: 1, name: 'Transport Allowance', type: 'Fixed', amount: '200' },
-    { id: 2, name: 'Meal Allowance', type: 'Fixed', amount: '150' },
-    { id: 3, name: 'Performance Bonus', type: 'Percentage', amount: '10' },
-  ]);
-
-  const [deductions, setDeductions] = useState([
-    { id: 1, name: 'Insurance Premium', type: 'Fixed', amount: '100' },
-    { id: 2, name: 'Union Dues', type: 'Percentage', amount: '2' },
-  ]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [allowances, setAllowances] = useState<SystemAllowance[]>([]);
+  const [deductions, setDeductions] = useState<SystemDeduction[]>([]);
 
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isEditBranchOpen, setIsEditBranchOpen] = useState(false);
   const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
   const [isAddDeductionOpen, setIsAddDeductionOpen] = useState(false);
-  const [editingBranch, setEditingBranch] = useState(null);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
 
-  const handleAddBranch = (e) => {
+  useEffect(() => {
+    setBranches(getBranches());
+    setAllowances(getSystemAllowances());
+    setDeductions(getSystemDeductions());
+  }, []);
+
+  const handleAddBranch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const newBranch = {
+    const formData = new FormData(e.target as HTMLFormElement);
+    const newBranch: Branch = {
       id: Date.now(),
       name: formData.get('name') as string,
       address: formData.get('address') as string
     };
-    setBranches(prev => [...prev, newBranch]);
+    const updatedBranches = [...branches, newBranch];
+    setBranches(updatedBranches);
+    saveBranches(updatedBranches);
     setIsAddBranchOpen(false);
     toast("Branch added successfully");
   };
 
-  const handleEditBranch = (e) => {
+  const handleEditBranch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    setBranches(prev => prev.map(branch => 
-      branch.id === editingBranch.id 
+    const formData = new FormData(e.target as HTMLFormElement);
+    const updatedBranches = branches.map(branch => 
+      branch.id === editingBranch?.id 
         ? { ...branch, name: formData.get('name') as string, address: formData.get('address') as string }
         : branch
-    ));
+    );
+    setBranches(updatedBranches);
+    saveBranches(updatedBranches);
     setIsEditBranchOpen(false);
     setEditingBranch(null);
     toast("Branch updated successfully");
   };
 
-  const handleDeleteBranch = (id) => {
-    setBranches(prev => prev.filter(branch => branch.id !== id));
+  const handleDeleteBranch = (id: number) => {
+    const updatedBranches = branches.filter(branch => branch.id !== id);
+    setBranches(updatedBranches);
+    saveBranches(updatedBranches);
     toast("Branch deleted successfully");
   };
 
-  const handleAddAllowance = (e) => {
+  const handleAddAllowance = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const newAllowance = {
+    const formData = new FormData(e.target as HTMLFormElement);
+    const newAllowance: SystemAllowance = {
       id: Date.now(),
       name: formData.get('name') as string,
       type: formData.get('type') as string,
       amount: formData.get('amount') as string || ''
     };
-    setAllowances(prev => [...prev, newAllowance]);
+    const updatedAllowances = [...allowances, newAllowance];
+    setAllowances(updatedAllowances);
+    saveSystemAllowances(updatedAllowances);
     setIsAddAllowanceOpen(false);
     toast("Allowance added successfully");
   };
 
-  const handleAddDeduction = (e) => {
+  const handleAddDeduction = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const newDeduction = {
+    const formData = new FormData(e.target as HTMLFormElement);
+    const newDeduction: SystemDeduction = {
       id: Date.now(),
       name: formData.get('name') as string,
       type: formData.get('type') as string,
       amount: formData.get('amount') as string || ''
     };
-    setDeductions(prev => [...prev, newDeduction]);
+    const updatedDeductions = [...deductions, newDeduction];
+    setDeductions(updatedDeductions);
+    saveSystemDeductions(updatedDeductions);
     setIsAddDeductionOpen(false);
     toast("Deduction added successfully");
   };
 
-  const openEditBranch = (branch) => {
+  const openEditBranch = (branch: Branch) => {
     setEditingBranch(branch);
     setIsEditBranchOpen(true);
   };

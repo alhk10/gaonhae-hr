@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +11,7 @@ import { Users, Plus, Search, X, Trash2, UserX } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
+import { getBranches } from '@/services/settingsService';
 
 const Employees = () => {
   const { user } = useAuth();
@@ -20,6 +20,7 @@ const Employees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState<Array<{id: number, name: string, address: string}>>([]);
 
   // Form state for new employee
   const [newEmployee, setNewEmployee] = useState({
@@ -42,12 +43,12 @@ const Employees = () => {
   });
 
   const positions = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
-  const branches = ['Main Branch', 'North Branch', 'South Branch', 'East Branch', 'West Branch'];
   const residencyStatuses = ['Singapore Citizen', 'Permanent Resident Year 1', 'Permanent Resident Year 2', 'Work Permit', 'S Pass', 'Employment Pass'];
   const bankNames = ['DBS/POSB', 'UOB', 'OCBC', 'HSBC', 'Citibank', 'Maybank', 'SCB', 'Trustbank'];
 
   useEffect(() => {
     fetchEmployees();
+    setBranches(getBranches());
   }, []);
 
   const fetchEmployees = async () => {
@@ -335,7 +336,7 @@ const Employees = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {branches.map(branch => (
-                              <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                              <SelectItem key={branch.id} value={branch.name}>{branch.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
