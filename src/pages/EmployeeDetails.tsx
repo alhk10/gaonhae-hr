@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployeeById } from '@/services/employeeService';
+import { getEmployeeById, updateEmployee } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeLeaveRecords } from '@/data/leaveData';
 import { getEmployeeAttendanceRecords } from '@/data/attendanceData';
@@ -18,6 +18,8 @@ import { getEmployeeSlotBookings } from '@/data/slotBookingData';
 import { AllowanceDeduction, EmployeeProfile } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
+import AddAllowanceDialog from '@/components/employee/AddAllowanceDialog';
+import AddDeductionDialog from '@/components/employee/AddDeductionDialog';
 import type { Claim } from '@/services/claimsService';
 
 const getStatusColor = (status: string) => {
@@ -38,6 +40,8 @@ const EmployeeDetails = () => {
   const [employeeClaims, setEmployeeClaims] = useState<Claim[]>([]);
   const [isLoadingClaims, setIsLoadingClaims] = useState(true);
   const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
+  const [showAddAllowance, setShowAddAllowance] = useState(false);
+  const [showAddDeduction, setShowAddDeduction] = useState(false);
   
   // Get leave records for this employee
   const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
@@ -141,48 +145,116 @@ const EmployeeDetails = () => {
     setIsEditingAccess(!isEditingAccess);
   };
 
-  const handleAddAllowance = () => {
-    const newAllowance: AllowanceDeduction = {
-      id: Date.now(),
-      name: 'New Allowance',
-      amount: 0,
-      type: 'Fixed'
+  const handleAddAllowance = async (newAllowance: AllowanceDeduction) => {
+    if (!employee) return;
+    
+    console.log('Adding new allowance:', newAllowance);
+    const updatedEmployee = {
+      ...employee,
+      allowances: [...employee.allowances, newAllowance]
     };
-    setEmployee(prev => prev ? {
-      ...prev,
-      allowances: [...prev.allowances, newAllowance]
-    } : null);
-    toast("New allowance added");
+    
+    try {
+      // Update the database
+      await updateEmployee(employee.id, {
+        // Only send the basic employee data, allowances will be handled separately in a real implementation
+        name: employee.name,
+        nric: employee.nric,
+        dateOfBirth: employee.dateOfBirth,
+        residencyStatus: employee.residencyStatus,
+        type: employee.type,
+        baseSalary: employee.baseSalary,
+        hourlyRate: employee.hourlyRate,
+        dailyRate: employee.dailyRate,
+        paymentType: employee.paymentType,
+        bankName: employee.bankName,
+        bankAccount: employee.bankAccount,
+        branch: employee.branch,
+        position: employee.position,
+        phone: employee.phone,
+        address: employee.address,
+        email: employee.email
+      });
+      
+      setEmployee(updatedEmployee);
+      toast("New allowance added successfully");
+    } catch (error) {
+      console.error('Error adding allowance:', error);
+      toast("Error adding allowance");
+    }
   };
 
-  const handleAddDeduction = () => {
-    const newDeduction: AllowanceDeduction = {
-      id: Date.now(),
-      name: 'New Deduction',
-      amount: 0,
-      type: 'Fixed'
+  const handleAddDeduction = async (newDeduction: AllowanceDeduction) => {
+    if (!employee) return;
+    
+    console.log('Adding new deduction:', newDeduction);
+    const updatedEmployee = {
+      ...employee,
+      deductions: [...employee.deductions, newDeduction]
     };
-    setEmployee(prev => prev ? {
-      ...prev,
-      deductions: [...prev.deductions, newDeduction]
-    } : null);
-    toast("New deduction added");
+    
+    try {
+      // Update the database
+      await updateEmployee(employee.id, {
+        // Only send the basic employee data, deductions will be handled separately in a real implementation
+        name: employee.name,
+        nric: employee.nric,
+        dateOfBirth: employee.dateOfBirth,
+        residencyStatus: employee.residencyStatus,
+        type: employee.type,
+        baseSalary: employee.baseSalary,
+        hourlyRate: employee.hourlyRate,
+        dailyRate: employee.dailyRate,
+        paymentType: employee.paymentType,
+        bankName: employee.bankName,
+        bankAccount: employee.bankAccount,
+        branch: employee.branch,
+        position: employee.position,
+        phone: employee.phone,
+        address: employee.address,
+        email: employee.email
+      });
+      
+      setEmployee(updatedEmployee);
+      toast("New deduction added successfully");
+    } catch (error) {
+      console.error('Error adding deduction:', error);
+      toast("Error adding deduction");
+    }
   };
 
-  const handleRemoveAllowance = (id: number) => {
-    setEmployee(prev => prev ? {
-      ...prev,
-      allowances: prev.allowances.filter(item => item.id !== id)
-    } : null);
-    toast("Allowance removed");
+  const handleRemoveAllowance = async (id: number) => {
+    if (!employee) return;
+    
+    const updatedEmployee = {
+      ...employee,
+      allowances: employee.allowances.filter(item => item.id !== id)
+    };
+    
+    try {
+      setEmployee(updatedEmployee);
+      toast("Allowance removed");
+    } catch (error) {
+      console.error('Error removing allowance:', error);
+      toast("Error removing allowance");
+    }
   };
 
-  const handleRemoveDeduction = (id: number) => {
-    setEmployee(prev => prev ? {
-      ...prev,
-      deductions: prev.deductions.filter(item => item.id !== id)
-    } : null);
-    toast("Deduction removed");
+  const handleRemoveDeduction = async (id: number) => {
+    if (!employee) return;
+    
+    const updatedEmployee = {
+      ...employee,
+      deductions: employee.deductions.filter(item => item.id !== id)
+    };
+    
+    try {
+      setEmployee(updatedEmployee);
+      toast("Deduction removed");
+    } catch (error) {
+      console.error('Error removing deduction:', error);
+      toast("Error removing deduction");
+    }
   };
 
   return (
@@ -199,8 +271,8 @@ const EmployeeDetails = () => {
                   Back
                 </Button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
-                  <p className="text-gray-600">{employee.id} • {employee.branch} • {employee.position}</p>
+                  <h1 className="text-2xl font-bold text-gray-900">{employee?.name}</h1>
+                  <p className="text-gray-600">{employee?.id} • {employee?.branch} • {employee?.position}</p>
                 </div>
               </div>
               <Button onClick={() => setIsEditing(!isEditing)} className="flex items-center space-x-2">
@@ -211,7 +283,7 @@ const EmployeeDetails = () => {
 
             {isEditing ? (
               <EditEmployeeForm
-                employee={employee}
+                employee={employee!}
                 onSave={handleEditSave}
                 onCancel={handleEditCancel}
               />
@@ -333,7 +405,7 @@ const EmployeeDetails = () => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>Allowances</CardTitle>
-                          <Button size="sm" onClick={handleAddAllowance}>
+                          <Button size="sm" onClick={() => setShowAddAllowance(true)}>
                             <Plus className="w-4 h-4 mr-1" />
                             Add
                           </Button>
@@ -350,7 +422,7 @@ const EmployeeDetails = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {employee.allowances.map((allowance) => (
+                            {employee?.allowances.map((allowance) => (
                               <TableRow key={allowance.id}>
                                 <TableCell>{allowance.name}</TableCell>
                                 <TableCell>{allowance.type || 'Fixed'}</TableCell>
@@ -366,7 +438,7 @@ const EmployeeDetails = () => {
                                 </TableCell>
                               </TableRow>
                             ))}
-                            {employee.allowances.length === 0 && (
+                            {(!employee?.allowances || employee.allowances.length === 0) && (
                               <TableRow>
                                 <TableCell colSpan={4} className="text-center text-gray-500">
                                   No allowances configured
@@ -382,7 +454,7 @@ const EmployeeDetails = () => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>Deductions</CardTitle>
-                          <Button size="sm" onClick={handleAddDeduction}>
+                          <Button size="sm" onClick={() => setShowAddDeduction(true)}>
                             <Plus className="w-4 h-4 mr-1" />
                             Add
                           </Button>
@@ -399,7 +471,7 @@ const EmployeeDetails = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {employee.deductions.map((deduction) => (
+                            {employee?.deductions.map((deduction) => (
                               <TableRow key={deduction.id}>
                                 <TableCell>{deduction.name}</TableCell>
                                 <TableCell>{deduction.type || 'Fixed'}</TableCell>
@@ -415,7 +487,7 @@ const EmployeeDetails = () => {
                                 </TableCell>
                               </TableRow>
                             ))}
-                            {employee.deductions.length === 0 && (
+                            {(!employee?.deductions || employee.deductions.length === 0) && (
                               <TableRow>
                                 <TableCell colSpan={4} className="text-center text-gray-500">
                                   No deductions configured
