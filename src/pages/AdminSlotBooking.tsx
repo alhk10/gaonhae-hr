@@ -37,6 +37,31 @@ const AdminSlotBooking = () => {
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
+  const [currentWeeklySlots, setCurrentWeeklySlots] = useState(weeklySlots);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const storedSettings = localStorage.getItem('slot_booking_settings');
+        if (storedSettings) {
+          const settings = JSON.parse(storedSettings);
+          console.log('Loaded slot booking settings:', settings);
+        }
+
+        const storedWeeklySlots = localStorage.getItem('weekly_slots_config');
+        if (storedWeeklySlots) {
+          const weeklyConfig = JSON.parse(storedWeeklySlots);
+          console.log('Loaded weekly slots config:', weeklyConfig);
+          setCurrentWeeklySlots(weeklyConfig);
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   // Load casual employees on component mount
   useEffect(() => {
@@ -105,10 +130,10 @@ const AdminSlotBooking = () => {
       
       if (selectedBranch === 'all') {
         branches.forEach(branch => {
-          totalSlots += weeklySlots[branch.id]?.[dayName] || 0;
+          totalSlots += currentWeeklySlots[branch.id]?.[dayName] || 0;
         });
       } else {
-        totalSlots += weeklySlots[selectedBranch]?.[dayName] || 0;
+        totalSlots += currentWeeklySlots[selectedBranch]?.[dayName] || 0;
       }
       
       bookedSlots += dayBookings.length;
@@ -173,9 +198,46 @@ const AdminSlotBooking = () => {
 
   const handleSettingsSave = (e) => {
     e.preventDefault();
-    // Handle settings save logic here
-    setIsSettingsDialogOpen(false);
-    toast("Settings saved successfully");
+    const formData = new FormData(e.target);
+    
+    try {
+      // Save general settings
+      const settings = {
+        autoApprove: formData.get('auto-approve') as string,
+        bookingDeadline: parseInt(formData.get('booking-deadline') as string),
+        maxBookings: parseInt(formData.get('max-bookings') as string)
+      };
+      
+      localStorage.setItem('slot_booking_settings', JSON.stringify(settings));
+      console.log('Saved general settings:', settings);
+
+      // Save weekly slots configuration
+      const updatedWeeklySlots = { ...currentWeeklySlots };
+      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
+      branches.forEach(branch => {
+        daysOfWeek.forEach(day => {
+          const fieldName = `${branch.id}-${day}`;
+          const value = formData.get(fieldName) as string;
+          if (value && !isNaN(parseInt(value))) {
+            if (!updatedWeeklySlots[branch.id]) {
+              updatedWeeklySlots[branch.id] = {};
+            }
+            updatedWeeklySlots[branch.id][day] = parseInt(value);
+          }
+        });
+      });
+
+      setCurrentWeeklySlots(updatedWeeklySlots);
+      localStorage.setItem('weekly_slots_config', JSON.stringify(updatedWeeklySlots));
+      console.log('Saved weekly slots config:', updatedWeeklySlots);
+
+      setIsSettingsDialogOpen(false);
+      toast("Settings saved successfully");
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast("Error saving settings");
+    }
   };
 
   const slotSummary = getSlotSummary();
@@ -200,44 +262,82 @@ const AdminSlotBooking = () => {
                       Settings
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Slot Booking Settings</DialogTitle>
-                      <DialogDescription>Configure slot booking parameters and branch settings.</DialogDescription>
+                      <DialogDescription>Configure slot booking parameters, branch settings, and daily slot allocations.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSettingsSave}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="auto-approve">Auto-approve bookings</Label>
-                          <Select name="auto-approve" defaultValue="disabled">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select auto-approve setting" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="enabled">Enabled</SelectItem>
-                              <SelectItem value="disabled">Disabled</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      <div className="grid gap-6 py-4">
+                        {/* General Settings */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium">General Settings</h3>
+                          <div className="grid gap-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="auto-approve">Auto-approve bookings</Label>
+                              <Select name="auto-approve" defaultValue="disabled">
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select auto-approve setting" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="enabled">Enabled</SelectItem>
+                                  <SelectItem value="disabled">Disabled</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="booking-deadline">Booking deadline (hours before)</Label>
+                              <Input 
+                                name="booking-deadline" 
+                                type="number" 
+                                defaultValue="24"
+                                min="1"
+                                max="72"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="max-bookings">Max bookings per employee per month</Label>
+                              <Input 
+                                name="max-bookings" 
+                                type="number" 
+                                defaultValue="20"
+                                min="1"
+                                max="31"
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="booking-deadline">Booking deadline (hours before)</Label>
-                          <Input 
-                            name="booking-deadline" 
-                            type="number" 
-                            defaultValue="24"
-                            min="1"
-                            max="72"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="max-bookings">Max bookings per employee per month</Label>
-                          <Input 
-                            name="max-bookings" 
-                            type="number" 
-                            defaultValue="20"
-                            min="1"
-                            max="31"
-                          />
+
+                        {/* Weekly Slots Configuration */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
+                          <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week.</p>
+                          
+                          <div className="space-y-6">
+                            {branches.map((branch) => (
+                              <div key={branch.id} className="border rounded-lg p-4">
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                                  <h4 className="font-medium">{branch.name}</h4>
+                                </div>
+                                <div className="grid grid-cols-7 gap-2">
+                                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                                    <div key={day} className="space-y-1">
+                                      <Label className="text-xs font-medium">{day.slice(0, 3)}</Label>
+                                      <Input
+                                        name={`${branch.id}-${day}`}
+                                        type="number"
+                                        min="0"
+                                        max="50"
+                                        defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
+                                        className="text-center"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <DialogFooter>
