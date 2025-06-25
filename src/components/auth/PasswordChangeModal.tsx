@@ -63,9 +63,17 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
     }
   };
 
+  // Prevent dialog from closing by not allowing onOpenChange to set false
+  const handleOpenChange = (open: boolean) => {
+    // Only allow closing if we explicitly call onClose after successful password update
+    if (!open) {
+      return; // Prevent closing
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md" hideCloseButton>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Change Your Password</DialogTitle>
           <DialogDescription>
