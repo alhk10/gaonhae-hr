@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
 export interface LeaveRequest {
   id: number;
@@ -10,66 +10,88 @@ export interface LeaveRequest {
   endDate: string;
   days: number;
   status: 'Pending' | 'Approved' | 'Rejected';
-  reason: string | null;
+  reason: string;
   appliedOn: string;
-  approvedBy?: string | null;
-  approvedOn?: string | null;
-  medicalCertificate?: string | null;
+  approvedBy?: string;
+  approvedOn?: string;
+  medicalCertificate?: string;
 }
 
 export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
-  console.log('Fetching all leave requests from Supabase...');
-  
-  const { data: requests, error } = await supabase
-    .from('leave_requests')
-    .select(`
-      *,
-      employees:employee_id(name)
-    `)
-    .order('applied_date', { ascending: false });
+  try {
+    console.log('Fetching all leave requests...');
+    
+    const { data: leaveData, error } = await supabase
+      .from('leave_requests')
+      .select(`
+        *,
+        employees!inner(name)
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching leave requests:', error);
+    if (error) {
+      console.error('Error fetching leave requests:', error);
+      throw error;
+    }
+
+    console.log('Raw leave data from database:', leaveData);
+
+    const transformedData: LeaveRequest[] = (leaveData || []).map((item: any) => ({
+      id: item.id,
+      employeeId: item.employee_id,
+      employeeName: item.employees?.name || 'Unknown Employee',
+      type: item.type,
+      startDate: item.start_date,
+      endDate: item.end_date,
+      days: item.days_requested,
+      status: item.status,
+      reason: item.reason || '',
+      appliedOn: item.applied_date ? new Date(item.applied_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      approvedBy: item.reviewed_by,
+      approvedOn: item.reviewed_date ? new Date(item.reviewed_date).toISOString().split('T')[0] : undefined,
+      medicalCertificate: item.medical_certificate
+    }));
+
+    console.log('Transformed leave data:', transformedData);
+    return transformedData;
+  } catch (error) {
+    console.error('Error in getAllLeaveRequests:', error);
     throw error;
   }
-
-  return requests.map(request => ({
-    id: request.id,
-    employeeId: request.employee_id,
-    employeeName: (request.employees as any)?.name || 'Unknown',
-    type: request.type,
-    startDate: request.start_date,
-    endDate: request.end_date,
-    days: request.days_requested,
-    status: request.status as 'Pending' | 'Approved' | 'Rejected',
-    reason: request.reason,
-    appliedOn: request.applied_date || new Date().toISOString().split('T')[0],
-    approvedBy: request.reviewed_by,
-    approvedOn: request.reviewed_date,
-    medicalCertificate: request.medical_certificate
-  }));
 };
 
-export const addLeaveRequest = async (leaveData: Omit<LeaveRequest, 'id'>): Promise<void> => {
-  console.log('Adding new leave request:', leaveData);
-  
-  const { error } = await supabase
-    .from('leave_requests')
-    .insert({
-      employee_id: leaveData.employeeId,
-      type: leaveData.type,
-      start_date: leaveData.startDate,
-      end_date: leaveData.endDate,
-      days_requested: leaveData.days,
-      status: leaveData.status,
-      reason: leaveData.reason,
-      applied_date: leaveData.appliedOn,
-      reviewed_by: leaveData.approvedBy,
-      reviewed_date: leaveData.approvedOn
-    });
+export const addLeaveRequest = async (leave: Omit<LeaveRequest, 'id'>): Promise<void> => {
+  try {
+    console.log('Adding new leave request:', leave);
 
-  if (error) {
-    console.error('Error adding leave request:', error);
+    const insertData = {
+      employee_id: leave.employeeId,
+      type: leave.type,
+      start_date: leave.startDate,
+      end_date: leave.endDate,
+      days_requested: leave.days,
+      reason: leave.reason,
+      status: leave.status,
+      applied_date: new Date().toISOString(),
+      reviewed_by: leave.approvedBy,
+      reviewed_date: leave.approvedOn ? new Date(leave.approvedOn).toISOString() : null,
+      medical_certificate: leave.medicalCertificate
+    };
+
+    console.log('Inserting leave data:', insertData);
+
+    const { error } = await supabase
+      .from('leave_requests')
+      .insert([insertData]);
+
+    if (error) {
+      console.error('Error inserting leave request:', error);
+      throw error;
+    }
+
+    console.log('Leave request added successfully');
+  } catch (error) {
+    console.error('Error in addLeaveRequest:', error);
     throw error;
   }
 };
@@ -79,19 +101,31 @@ export const updateLeaveStatus = async (
   status: 'Approved' | 'Rejected', 
   reviewedBy?: string
 ): Promise<void> => {
-  console.log('Updating leave request status:', id, status);
-  
-  const { error } = await supabase
-    .from('leave_requests')
-    .update({
-      status,
-      reviewed_by: reviewedBy,
-      reviewed_date: new Date().toISOString().split('T')[0]
-    })
-    .eq('id', id);
+  try {
+    console.log(`Updating leave ${id} status to ${status}`);
 
-  if (error) {
-    console.error('Error updating leave request status:', error);
+    const updateData: any = {
+      status,
+      reviewed_date: new Date().toISOString()
+    };
+
+    if (reviewedBy) {
+      updateData.reviewed_by = reviewedBy;
+    }
+
+    const { error } = await supabase
+      .from('leave_requests')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating leave status:', error);
+      throw error;
+    }
+
+    console.log('Leave status updated successfully');
+  } catch (error) {
+    console.error('Error in updateLeaveStatus:', error);
     throw error;
   }
 };

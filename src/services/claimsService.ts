@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Claim {
   id: number;
@@ -13,94 +13,133 @@ export interface Claim {
 }
 
 export const getClaims = async (): Promise<Claim[]> => {
-  console.log('Fetching claims from Supabase...');
-  
-  const { data: claims, error } = await supabase
-    .from('claims')
-    .select(`
-      *,
-      employees:employee_id(name)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    console.log('Fetching all claims...');
+    
+    const { data: claimsData, error } = await supabase
+      .from('claims')
+      .select(`
+        *,
+        employees!inner(name)
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching claims:', error);
+    if (error) {
+      console.error('Error fetching claims:', error);
+      throw error;
+    }
+
+    console.log('Raw claims data from database:', claimsData);
+
+    const transformedData: Claim[] = (claimsData || []).map((item: any) => ({
+      id: item.id,
+      employeeId: item.employee_id,
+      employee: item.employees?.name || 'Unknown Employee',
+      type: item.type,
+      amount: parseFloat(item.amount),
+      date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      status: item.status,
+      description: item.description
+    }));
+
+    console.log('Transformed claims data:', transformedData);
+    return transformedData;
+  } catch (error) {
+    console.error('Error in getClaims:', error);
     throw error;
   }
-
-  return claims.map(claim => ({
-    id: claim.id,
-    employeeId: claim.employee_id,
-    employee: (claim.employees as any)?.name || 'Unknown',
-    type: claim.type,
-    amount: claim.amount,
-    date: claim.submitted_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-    status: claim.status as 'Pending' | 'Approved' | 'Rejected',
-    description: claim.description
-  }));
 };
 
 export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> => {
-  console.log('Fetching claims for employee:', employeeId);
-  
-  const { data: claims, error } = await supabase
-    .from('claims')
-    .select(`
-      *,
-      employees:employee_id(name)
-    `)
-    .eq('employee_id', employeeId)
-    .order('created_at', { ascending: false });
+  try {
+    console.log('Fetching claims for employee:', employeeId);
+    
+    const { data: claimsData, error } = await supabase
+      .from('claims')
+      .select(`
+        *,
+        employees!inner(name)
+      `)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching employee claims:', error);
-    throw error;
-  }
+    if (error) {
+      console.error('Error fetching employee claims:', error);
+      throw error;
+    }
 
-  return claims.map(claim => ({
-    id: claim.id,
-    employeeId: claim.employee_id,
-    employee: (claim.employees as any)?.name || 'Unknown',
-    type: claim.type,
-    amount: claim.amount,
-    date: claim.submitted_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-    status: claim.status as 'Pending' | 'Approved' | 'Rejected',
-    description: claim.description
-  }));
-};
+    const transformedData: Claim[] = (claimsData || []).map((item: any) => ({
+      id: item.id,
+      employeeId: item.employee_id,
+      employee: item.employees?.name || 'Unknown Employee',
+      type: item.type,
+      amount: parseFloat(item.amount),
+      date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      status: item.status,
+      description: item.description
+    }));
 
-export const updateClaimStatus = async (claimId: number, status: 'Pending' | 'Approved' | 'Rejected'): Promise<void> => {
-  console.log('Updating claim status:', claimId, status);
-  
-  const { error } = await supabase
-    .from('claims')
-    .update({
-      status,
-      reviewed_date: new Date().toISOString()
-    })
-    .eq('id', claimId);
-
-  if (error) {
-    console.error('Error updating claim status:', error);
+    return transformedData;
+  } catch (error) {
+    console.error('Error in getEmployeeClaims:', error);
     throw error;
   }
 };
 
-export const createClaim = async (claim: Omit<Claim, 'id' | 'employee' | 'date' | 'status'>): Promise<void> => {
-  console.log('Creating new claim:', claim);
-  
-  const { error } = await supabase
-    .from('claims')
-    .insert({
+export const createClaim = async (claim: Omit<Claim, 'id'>): Promise<void> => {
+  try {
+    console.log('Creating new claim:', claim);
+
+    const insertData = {
       employee_id: claim.employeeId,
       type: claim.type,
       amount: claim.amount,
       description: claim.description,
-      status: 'Pending'
-    });
+      status: claim.status || 'Pending',
+      submitted_date: new Date().toISOString()
+    };
 
-  if (error) {
-    console.error('Error creating claim:', error);
+    console.log('Inserting claim data:', insertData);
+
+    const { error } = await supabase
+      .from('claims')
+      .insert([insertData]);
+
+    if (error) {
+      console.error('Error inserting claim:', error);
+      throw error;
+    }
+
+    console.log('Claim created successfully');
+  } catch (error) {
+    console.error('Error in createClaim:', error);
+    throw error;
+  }
+};
+
+export const updateClaimStatus = async (
+  id: number, 
+  status: 'Approved' | 'Rejected'
+): Promise<void> => {
+  try {
+    console.log(`Updating claim ${id} status to ${status}`);
+
+    const { error } = await supabase
+      .from('claims')
+      .update({
+        status,
+        reviewed_date: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating claim status:', error);
+      throw error;
+    }
+
+    console.log('Claim status updated successfully');
+  } catch (error) {
+    console.error('Error in updateClaimStatus:', error);
     throw error;
   }
 };
