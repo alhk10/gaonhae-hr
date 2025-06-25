@@ -6,7 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Clock } from 'lucide-react';
+import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/data/employeeData';
 import { getEmployeeLeaveRecords, getEmployeeLeaveBalance, addLeaveRecord, LeaveRecord } from '@/data/leaveData';
@@ -20,7 +20,7 @@ const ApplyLeave = () => {
   const leaveHistory = getEmployeeLeaveRecords('EMP001');
   const leaveBalance = getEmployeeLeaveBalance('EMP001');
 
-  if (!currentEmployee || !leaveBalance) {
+  if (!currentEmployee) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -29,6 +29,68 @@ const ApplyLeave = () => {
           <main className="flex-1 p-6 overflow-auto">
             <div className="text-center">
               <p>Employee data not found</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if employee is casual - casual employees are not entitled to leaves
+  if (currentEmployee.type === 'Casual') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
+                <p className="text-gray-600">Employee leave information</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Employee: {currentEmployee.name} ({currentEmployee.id})
+                </p>
+              </div>
+
+              <Card>
+                <CardContent className="p-8">
+                  <div className="text-center">
+                    <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      Leave Not Applicable
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      As a casual employee, you are not entitled to annual leave or medical leave benefits.
+                    </p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-left">
+                      <h4 className="font-medium text-orange-800 mb-2">Casual Employee Policy:</h4>
+                      <ul className="text-sm text-orange-700 space-y-1">
+                        <li>• No annual leave entitlement</li>
+                        <li>• No medical leave entitlement</li>
+                        <li>• Pay is based on actual hours/days worked</li>
+                        <li>• Contact HR for any work-related inquiries</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!leaveBalance) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p>Leave balance data not found</p>
             </div>
           </main>
         </div>

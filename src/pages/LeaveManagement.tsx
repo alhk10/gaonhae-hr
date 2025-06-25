@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Users, Plus } from 'lucide-react';
+import { Calendar, Users, Plus, Info } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, updateLeaveStatus, LeaveRequest } from '@/services/leaveService';
@@ -41,7 +42,9 @@ const LeaveManagement = () => {
         console.log('Loaded leaves:', leaveData);
         
         setLeaves(leaveData);
-        setEmployees(employeeData);
+        // Filter out casual employees as they are not entitled to leaves
+        const fullTimeEmployees = employeeData.filter(emp => emp.type === 'Full-Time');
+        setEmployees(fullTimeEmployees);
       } catch (error) {
         console.error('Error loading data:', error);
         toast("Error loading data. Please try again.");
@@ -100,6 +103,12 @@ const LeaveManagement = () => {
       return;
     }
 
+    // Double check that the employee is not casual
+    if (employee.type === 'Casual') {
+      toast("Casual employees are not entitled to leaves");
+      return;
+    }
+
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
     const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)) + 1;
@@ -141,7 +150,7 @@ const LeaveManagement = () => {
     try {
       const promises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
-        if (!employee) return Promise.resolve();
+        if (!employee || employee.type === 'Casual') return Promise.resolve();
 
         const newLeave: Omit<LeaveRequest, 'id'> = {
           employeeId: employee.id,
@@ -217,15 +226,15 @@ const LeaveManagement = () => {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Add Leave</DialogTitle>
-                      <DialogDescription>Add a new leave application for an employee.</DialogDescription>
+                      <DialogDescription>Add a new leave application for a full-time employee.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddLeave}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="employee">Employee</Label>
+                          <Label htmlFor="employee">Employee (Full-Time Only)</Label>
                           <Select name="employee" required>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select employee" />
+                              <SelectValue placeholder="Select full-time employee" />
                             </SelectTrigger>
                             <SelectContent>
                               {employees.map((employee) => (
@@ -286,12 +295,12 @@ const LeaveManagement = () => {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Bulk Leave</DialogTitle>
-                      <DialogDescription>Add leave for multiple employees at once.</DialogDescription>
+                      <DialogDescription>Add leave for multiple full-time employees at once.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleBulkLeave}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label>Select Employees</Label>
+                          <Label>Select Employees (Full-Time Only)</Label>
                           <div className="space-y-2 max-h-32 overflow-y-auto">
                             {employees.map((employee) => (
                               <label key={employee.id} className="flex items-center space-x-2">
@@ -343,13 +352,27 @@ const LeaveManagement = () => {
               </div>
             </div>
 
+            {/* Information Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-blue-900">Leave Policy Information</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Only full-time employees are entitled to annual leave and medical leave benefits. 
+                    Casual employees are not included in leave management as they are paid based on actual hours/days worked.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Calendar className="w-5 h-5" />
                   <span>Leave Applications</span>
                 </CardTitle>
-                <CardDescription>Review and manage leave requests</CardDescription>
+                <CardDescription>Review and manage leave requests from full-time employees</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
