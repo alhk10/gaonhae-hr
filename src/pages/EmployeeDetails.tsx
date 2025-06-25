@@ -155,7 +155,6 @@ const EmployeeDetails = () => {
     };
     
     try {
-      // Update the database
       await updateEmployee(employee.id, {
         // Only send the basic employee data, allowances will be handled separately in a real implementation
         name: employee.name,
@@ -194,7 +193,6 @@ const EmployeeDetails = () => {
     };
     
     try {
-      // Update the database
       await updateEmployee(employee.id, {
         // Only send the basic employee data, deductions will be handled separately in a real implementation
         name: employee.name,
@@ -405,7 +403,13 @@ const EmployeeDetails = () => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>Allowances</CardTitle>
-                          <Button size="sm" onClick={() => setShowAddAllowance(true)}>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              console.log('Add Allowance button clicked');
+                              setShowAddAllowance(true);
+                            }}
+                          >
                             <Plus className="w-4 h-4 mr-1" />
                             Add
                           </Button>
@@ -454,7 +458,13 @@ const EmployeeDetails = () => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>Deductions</CardTitle>
-                          <Button size="sm" onClick={() => setShowAddDeduction(true)}>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              console.log('Add Deduction button clicked');
+                              setShowAddDeduction(true);
+                            }}
+                          >
                             <Plus className="w-4 h-4 mr-1" />
                             Add
                           </Button>
@@ -805,6 +815,19 @@ const EmployeeDetails = () => {
                 </TabsContent>
               </Tabs>
             )}
+
+            {/* Dialog Components */}
+            <AddAllowanceDialog
+              open={showAddAllowance}
+              onOpenChange={setShowAddAllowance}
+              onAdd={handleAddAllowance}
+            />
+
+            <AddDeductionDialog
+              open={showAddDeduction}
+              onOpenChange={setShowAddDeduction}
+              onAdd={handleAddDeduction}
+            />
           </div>
         </main>
       </div>
