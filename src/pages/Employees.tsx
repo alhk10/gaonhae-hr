@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -36,13 +37,14 @@ const Employees = () => {
     baseSalary: '',
     hourlyRate: '',
     dailyRate: '',
-    bankAccount: '',
-    bankName: ''
+    bankName: '',
+    bankAccount: ''
   });
 
   const positions = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
-  const branches = ['Main Branch', 'North Branch', 'South Branch', 'East Branch', 'West Branch']; // This would come from admin settings
+  const branches = ['Main Branch', 'North Branch', 'South Branch', 'East Branch', 'West Branch'];
   const residencyStatuses = ['Singapore Citizen', 'Permanent Resident Year 1', 'Permanent Resident Year 2', 'Work Permit', 'S Pass', 'Employment Pass'];
+  const bankNames = ['DBS/POSB', 'UOB', 'OCBC', 'HSBC', 'Citibank', 'Maybank', 'SCB', 'Trustbank'];
 
   useEffect(() => {
     fetchEmployees();
@@ -76,8 +78,24 @@ const Employees = () => {
     }));
   };
 
+  const validateForm = () => {
+    const requiredFields = ['fullName', 'email', 'dateOfBirth', 'residencyStatus', 'phone', 'employmentType', 'position', 'paymentType'];
+    for (const field of requiredFields) {
+      if (!newEmployee[field as keyof typeof newEmployee]) {
+        toast(`${field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} is required`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSubmitNewEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       const employeeData = {
         name: newEmployee.fullName,
@@ -89,8 +107,8 @@ const Employees = () => {
         hourlyRate: newEmployee.hourlyRate ? parseFloat(newEmployee.hourlyRate) : undefined,
         dailyRate: newEmployee.dailyRate ? parseFloat(newEmployee.dailyRate) : undefined,
         paymentType: newEmployee.paymentType as 'Monthly' | 'Hourly' | 'Daily',
-        bankAccount: newEmployee.bankAccount,
         bankName: newEmployee.bankName,
+        bankAccount: newEmployee.bankAccount,
         branch: newEmployee.branch,
         position: newEmployee.position,
         phone: newEmployee.phone,
@@ -118,8 +136,8 @@ const Employees = () => {
         baseSalary: '',
         hourlyRate: '',
         dailyRate: '',
-        bankAccount: '',
-        bankName: ''
+        bankName: '',
+        bankAccount: ''
       });
 
       // Refresh employee list
@@ -229,7 +247,9 @@ const Employees = () => {
                   <form onSubmit={handleSubmitNewEmployee} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Full Name <span className="text-red-500">*</span>
+                        </label>
                         <input 
                           type="text" 
                           value={newEmployee.fullName}
@@ -239,17 +259,18 @@ const Employees = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">NRIC</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">NRIC/FIN</label>
                         <input 
                           type="text" 
                           value={newEmployee.nric}
                           onChange={(e) => handleInputChange('nric', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required 
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date of Birth <span className="text-red-500">*</span>
+                        </label>
                         <input 
                           type="date" 
                           value={newEmployee.dateOfBirth}
@@ -259,7 +280,9 @@ const Employees = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Residency Status <span className="text-red-500">*</span>
+                        </label>
                         <Select value={newEmployee.residencyStatus} onValueChange={(value) => handleInputChange('residencyStatus', value)}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select residency status" />
@@ -272,7 +295,9 @@ const Employees = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email <span className="text-red-500">*</span>
+                        </label>
                         <input 
                           type="email" 
                           value={newEmployee.email}
@@ -282,7 +307,9 @@ const Employees = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Contact Number <span className="text-red-500">*</span>
+                        </label>
                         <input 
                           type="tel" 
                           value={newEmployee.phone}
@@ -298,7 +325,6 @@ const Employees = () => {
                           value={newEmployee.address}
                           onChange={(e) => handleInputChange('address', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required 
                         />
                       </div>
                       <div>
@@ -315,7 +341,9 @@ const Employees = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Position <span className="text-red-500">*</span>
+                        </label>
                         <Select value={newEmployee.position} onValueChange={(value) => handleInputChange('position', value)}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select position" />
@@ -328,7 +356,9 @@ const Employees = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Employment Type</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Employment Type <span className="text-red-500">*</span>
+                        </label>
                         <Select value={newEmployee.employmentType} onValueChange={(value) => handleInputChange('employmentType', value)}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select employment type" />
@@ -340,7 +370,9 @@ const Employees = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Payment Type <span className="text-red-500">*</span>
+                        </label>
                         <Select value={newEmployee.paymentType} onValueChange={(value) => handleInputChange('paymentType', value)}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select payment type" />
@@ -389,23 +421,25 @@ const Employees = () => {
                         </div>
                       )}
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name</label>
+                        <Select value={newEmployee.bankName} onValueChange={(value) => handleInputChange('bankName', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select bank" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankNames.map(bank => (
+                              <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account</label>
                         <input 
                           type="text" 
                           value={newEmployee.bankAccount}
                           onChange={(e) => handleInputChange('bankAccount', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name</label>
-                        <input 
-                          type="text" 
-                          value={newEmployee.bankName}
-                          onChange={(e) => handleInputChange('bankName', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required 
                         />
                       </div>
                     </div>

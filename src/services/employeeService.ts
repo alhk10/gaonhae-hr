@@ -47,7 +47,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     })) || [],
     bankAccount: emp.bank_account,
     bankName: emp.bank_name,
-    branch: emp.department, // Changed from department to branch
+    branch: emp.department, // Database still uses department field but we map it to branch
     position: emp.position,
     phone: emp.phone,
     address: emp.address,
@@ -120,7 +120,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     })) || [],
     bankAccount: employee.bank_account,
     bankName: employee.bank_name,
-    branch: employee.department, // Changed from department to branch
+    branch: employee.department, // Database still uses department field but we map it to branch
     position: employee.position,
     phone: employee.phone,
     address: employee.address,
@@ -156,8 +156,8 @@ export const createEmployee = async (employeeData: {
   hourlyRate?: number;
   dailyRate?: number;
   paymentType: 'Monthly' | 'Hourly' | 'Daily';
-  bankAccount: string;
   bankName: string;
+  bankAccount: string;
   branch: string;
   position: string;
   phone: string;
@@ -166,12 +166,19 @@ export const createEmployee = async (employeeData: {
 }) => {
   console.log('Creating new employee:', employeeData);
   
+  // Validate required fields
+  if (!employeeData.name || !employeeData.email || !employeeData.dateOfBirth || 
+      !employeeData.residencyStatus || !employeeData.phone || !employeeData.type || 
+      !employeeData.position || !employeeData.paymentType) {
+    throw new Error('Missing required fields');
+  }
+
   const { data, error } = await supabase
     .from('employees')
     .insert({
       id: `EMP${Date.now()}`,
       name: employeeData.name,
-      nric: employeeData.nric,
+      nric: employeeData.nric || '',
       date_of_birth: employeeData.dateOfBirth,
       residency_status: employeeData.residencyStatus,
       type: employeeData.type,
@@ -179,12 +186,12 @@ export const createEmployee = async (employeeData: {
       hourly_rate: employeeData.hourlyRate,
       daily_rate: employeeData.dailyRate,
       payment_type: employeeData.paymentType,
-      bank_account: employeeData.bankAccount,
-      bank_name: employeeData.bankName,
-      department: employeeData.branch, // Store as department in DB but use as branch
+      bank_name: employeeData.bankName || '',
+      bank_account: employeeData.bankAccount || '',
+      department: employeeData.branch || '', // Store as department in DB but use as branch
       position: employeeData.position,
       phone: employeeData.phone,
-      address: employeeData.address,
+      address: employeeData.address || '',
       email: employeeData.email
     })
     .select()
