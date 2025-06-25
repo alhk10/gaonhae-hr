@@ -15,6 +15,7 @@ import { Calendar, Users, Plus, Info } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, updateLeaveStatus, LeaveRequest } from '@/services/leaveService';
+import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 
 const LeaveManagement = () => {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
@@ -365,6 +366,9 @@ const LeaveManagement = () => {
                 </div>
               </div>
             </div>
+
+            {/* Leave Calendar View */}
+            <LeaveCalendarView leaves={leaves} />
 
             <Card>
               <CardHeader>
