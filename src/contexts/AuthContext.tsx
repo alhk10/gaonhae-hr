@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
-import { getEmployeeById } from '@/services/employeeService';
+import { getEmployees } from '@/services/employeeService';
 
 interface AuthContextType {
   user: User | null;
@@ -43,8 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
     
-    // Define users with updated emails from employee details
-    const users: { [key: string]: User } = {
+    // Define system admin users
+    const systemUsers: { [key: string]: User } = {
       'alhk10@gmail.com': {
         id: 'ADMIN001',
         name: 'System Administrator',
@@ -59,75 +59,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     };
 
-    // Load employee emails dynamically from database
-    try {
-      // Get employee emails from the database for a broader range of employee IDs
-      const employeeIds = [
-        'EMP001', 'EMP002', 'EMP003', 'EMP004', 'EMP005',
-        'CAS001', 'CAS002', 'CAS003', 'CAS004', 'CAS005',
-        // Add more potential employee IDs to catch Kim Hasung
-        'KIM001', 'HASUNG001', 'DAVID001'
-      ];
+    // Check system users first
+    if (systemUsers[email] && password === 'password') {
+      console.log('AuthContext: System user login successful:', systemUsers[email]);
+      const foundUser = systemUsers[email];
       
-      console.log('AuthContext: Checking employee IDs:', employeeIds);
-      
-      for (const empId of employeeIds) {
-        try {
-          const employee = await getEmployeeById(empId);
-          if (employee && employee.email) {
-            console.log(`AuthContext: Found employee ${empId} with email: ${employee.email}`);
-            users[employee.email] = {
-              id: employee.id,
-              name: employee.name,
-              email: employee.email,
-              role: 'employee'
-            };
-          }
-        } catch (empError) {
-          // Continue checking other IDs if one fails
-          console.log(`AuthContext: Employee ID ${empId} not found, continuing...`);
-        }
-      }
-
-      // Also try to find employee by email directly if not found by ID
-      console.log('AuthContext: Checking if email exists in database:', email);
-      
-    } catch (error) {
-      console.error('AuthContext: Error loading employee emails:', error);
-    }
-
-    console.log('AuthContext: Available user emails:', Object.keys(users));
-    console.log('AuthContext: Looking for email:', email);
-
-    const foundUser = users[email];
-    if (foundUser && password === 'password') {
-      console.log('AuthContext: Login successful for user:', foundUser);
-      console.log('AuthContext: User role is:', foundUser.role);
-      
-      // Clear any existing stored data
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('requiresPasswordChange');
-      
-      // Store user data
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
       setUser(foundUser);
       
-      // Check if this is first login (using default password)
       if (password === 'password') {
         localStorage.setItem('requiresPasswordChange', 'true');
         setRequiresPasswordChange(true);
-        console.log('AuthContext: Password change required for first login');
       }
-      
-      // Double-check stored data
-      const storedCheck = localStorage.getItem('currentUser');
-      console.log('AuthContext: Stored user verification:', storedCheck ? JSON.parse(storedCheck) : null);
       
       return true;
     }
 
+    // Load all employees from database for regular employee login
+    try {
+      console.log('AuthContext: Loading employees from database...');
+      const employees = await getEmployees();
+      console.log('AuthContext: Loaded employees:', employees.length);
+      
+      // Find employee with matching email
+      const employee = employees.find(emp => emp.email === email);
+      
+      if (employee && password === 'password') {
+        console.log('AuthContext: Employee login successful:', employee);
+        
+        const userRecord: User = {
+          id: employee.id,
+          name: employee.name,
+          email: employee.email,
+          role: 'employee',
+          department: employee.branch,
+          employeeId: employee.id
+        };
+        
+        localStorage.setItem('currentUser', JSON.stringify(userRecord));
+        setUser(userRecord);
+        
+        if (password === 'password') {
+          localStorage.setItem('requiresPasswordChange', 'true');
+          setRequiresPasswordChange(true);
+        }
+        
+        return true;
+      }
+      
+      console.log('AuthContext: No matching employee found for email:', email);
+      console.log('AuthContext: Available employee emails:', employees.map(emp => emp.email).filter(Boolean));
+      
+    } catch (error) {
+      console.error('AuthContext: Error loading employees:', error);
+    }
+
     console.log('AuthContext: Login failed for email:', email);
-    console.log('AuthContext: Available emails were:', Object.keys(users));
     return false;
   };
 

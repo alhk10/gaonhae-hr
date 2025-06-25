@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('Fetching employees from Supabase...');
+  console.log('EmployeeService: Fetching employees from Supabase...');
   
   const { data: employees, error } = await supabase
     .from('employees')
@@ -15,13 +15,14 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     `);
 
   if (error) {
-    console.error('Error fetching employees:', error);
+    console.error('EmployeeService: Error fetching employees:', error);
     throw error;
   }
 
-  console.log('Fetched employees:', employees);
+  console.log('EmployeeService: Fetched employees count:', employees?.length || 0);
+  console.log('EmployeeService: Employee emails found:', employees?.map(emp => emp.email).filter(Boolean) || []);
 
-  return employees.map(emp => ({
+  return employees?.map(emp => ({
     id: emp.id,
     name: emp.name,
     nric: emp.nric || '',
@@ -50,7 +51,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: emp.certificates?.map(cert => ({
       id: cert.id,
@@ -69,11 +70,11 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       slotBooking: emp.admin_access[0]?.slot_booking || false,
       reports: emp.admin_access[0]?.reports || false
     } : undefined
-  }));
+  })) || [];
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('Fetching casual employees from Supabase...');
+  console.log('EmployeeService: Fetching casual employees from Supabase...');
   
   const { data: employees, error } = await supabase
     .from('employees')
@@ -87,13 +88,13 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     .eq('type', 'Casual');
 
   if (error) {
-    console.error('Error fetching casual employees:', error);
+    console.error('EmployeeService: Error fetching casual employees:', error);
     throw error;
   }
 
-  console.log('Fetched casual employees:', employees);
+  console.log('EmployeeService: Fetched casual employees:', employees);
 
-  return employees.map(emp => ({
+  return employees?.map(emp => ({
     id: emp.id,
     name: emp.name,
     nric: emp.nric || '',
@@ -122,7 +123,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: emp.certificates?.map(cert => ({
       id: cert.id,
@@ -141,11 +142,11 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       slotBooking: emp.admin_access[0]?.slot_booking || false,
       reports: emp.admin_access[0]?.reports || false
     } : undefined
-  }));
+  })) || [];
 };
 
 export const getEmployeeById = async (id: string): Promise<EmployeeProfile | null> => {
-  console.log('Fetching employee by ID from Supabase:', id);
+  console.log('EmployeeService: Fetching employee by ID from Supabase:', id);
   
   const { data: employee, error } = await supabase
     .from('employees')
@@ -160,13 +161,16 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     .single();
 
   if (error) {
-    console.error('Error fetching employee by ID:', error);
+    console.error('EmployeeService: Error fetching employee by ID:', error);
     return null;
   }
 
   if (!employee) {
+    console.log('EmployeeService: No employee found with ID:', id);
     return null;
   }
+
+  console.log('EmployeeService: Found employee:', employee.name, employee.email);
 
   return {
     id: employee.id,
@@ -197,7 +201,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       id: d.id,
       name: d.name,
       amount: Number(d.amount),
-      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     certificates: employee.certificates?.map(cert => ({
       id: cert.id,
@@ -210,17 +214,17 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     adminAccess: employee.admin_access?.length > 0 ? {
       employees: employee.admin_access[0]?.employees || false,
       payroll: employee.admin_access[0]?.payroll || false,
-      leaveManagement: employee.admin_access[0]?.leave_management || false,
-      claims: employee.admin_access[0]?.claims || false,
-      attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false,
-      reports: employee.admin_access[0]?.reports || false
+      leaveManagement: emp.admin_access[0]?.leave_management || false,
+      claims: emp.admin_access[0]?.claims || false,
+      attendance: emp.admin_access[0]?.attendance || false,
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
     } : undefined
   };
 };
 
 export const createEmployee = async (employeeData: any) => {
-  console.log('Creating employee in Supabase:', employeeData);
+  console.log('EmployeeService: Creating employee in Supabase:', employeeData);
   
   // Generate employee ID
   const employeeId = `EMP${Date.now()}`;
@@ -250,7 +254,7 @@ export const createEmployee = async (employeeData: any) => {
     .single();
 
   if (error) {
-    console.error('Error creating employee:', error);
+    console.error('EmployeeService: Error creating employee:', error);
     throw error;
   }
 
@@ -258,7 +262,7 @@ export const createEmployee = async (employeeData: any) => {
 };
 
 export const updateEmployee = async (id: string, employeeData: any) => {
-  console.log('Updating employee in Supabase:', id, employeeData);
+  console.log('EmployeeService: Updating employee in Supabase:', id, employeeData);
   
   const { data: employee, error } = await supabase
     .from('employees')
@@ -285,7 +289,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     .single();
 
   if (error) {
-    console.error('Error updating employee:', error);
+    console.error('EmployeeService: Error updating employee:', error);
     throw error;
   }
 
@@ -293,7 +297,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
 };
 
 export const deleteEmployee = async (id: string) => {
-  console.log('Deleting employee from Supabase:', id);
+  console.log('EmployeeService: Deleting employee from Supabase:', id);
   
   const { error } = await supabase
     .from('employees')
@@ -301,13 +305,13 @@ export const deleteEmployee = async (id: string) => {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting employee:', error);
+    console.error('EmployeeService: Error deleting employee:', error);
     throw error;
   }
 };
 
 export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
-  console.log('Updating employee resign date in Supabase:', id, resignDate);
+  console.log('EmployeeService: Updating employee resign date in Supabase:', id, resignDate);
   
   const { error } = await supabase
     .from('employees')
@@ -315,7 +319,7 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating resign date:', error);
+    console.error('EmployeeService: Error updating resign date:', error);
     throw error;
   }
 };
