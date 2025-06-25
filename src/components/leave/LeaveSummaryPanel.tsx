@@ -2,18 +2,14 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { 
-  getUpcomingLeaveCount, 
-  getTotalAnnualLeaveRemaining, 
-  getApprovedLeaveThisMonth, 
-  getPendingLeaveCount 
-} from '@/data/leaveData';
 
 const LeaveSummaryPanel = () => {
-  const upcomingLeave = getUpcomingLeaveCount();
-  const totalAnnualLeaveRemaining = getTotalAnnualLeaveRemaining();
-  const approvedLeaveThisMonth = getApprovedLeaveThisMonth();
-  const pendingApproval = getPendingLeaveCount();
+  // For now, using static data as leave management would need its own service
+  // In a real implementation, this would fetch from a leave service
+  const upcomingLeave = 3;
+  const totalAnnualLeaveRemaining = 124;
+  const approvedLeaveThisMonth = 8;
+  const pendingApproval = 2;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

@@ -3,20 +3,29 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, FileText, Clock, Calendar } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getEmployees } from '@/services/employeeService';
+import { getClaims } from '@/services/claimsService';
+import { getAttendanceRecords } from '@/services/attendanceService';
 
 const SuperadminDashboard = () => {
-  const [stats, setStats] = useState({
-    totalEmployees: 124,
-    pendingClaims: 8,
-    leaveRequests: 12,
-    payrollDue: ''
+  const [payrollDue, setPayrollDue] = useState('');
+
+  // Fetch real data from Supabase
+  const { data: employees = [], isLoading: employeesLoading } = useQuery({
+    queryKey: ['employees'],
+    queryFn: getEmployees,
   });
 
-  const [leaveRequests, setLeaveRequests] = useState([
-    { name: 'John Tan', type: 'Annual Leave', days: '3 days', status: 'pending' },
-    { name: 'Mary Ng', type: 'Medical Leave', days: '2 days', status: 'approved' },
-    { name: 'David Lim', type: 'Maternity Leave', days: '16 weeks', status: 'pending' },
-  ]);
+  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+    queryKey: ['claims'],
+    queryFn: getClaims,
+  });
+
+  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance'],
+    queryFn: getAttendanceRecords,
+  });
 
   useEffect(() => {
     const calculatePayrollDue = () => {
@@ -28,32 +37,32 @@ const SuperadminDashboard = () => {
       return daysDiff > 0 ? `${daysDiff} days` : 'Due today';
     };
 
-    const updateStats = () => {
-      // Simulate real-time updates
-      setStats(prev => ({
-        ...prev,
-        totalEmployees: prev.totalEmployees + Math.floor(Math.random() * 3) - 1,
-        pendingClaims: Math.max(0, prev.pendingClaims + Math.floor(Math.random() * 3) - 1),
-        leaveRequests: Math.max(0, prev.leaveRequests + Math.floor(Math.random() * 3) - 1),
-        payrollDue: calculatePayrollDue()
-      }));
-    };
-
-    // Initial calculation
-    setStats(prev => ({ ...prev, payrollDue: calculatePayrollDue() }));
-    
-    // Update every hour
-    const interval = setInterval(updateStats, 3600000);
-    
-    return () => clearInterval(interval);
+    setPayrollDue(calculatePayrollDue());
   }, []);
 
+  // Calculate real stats
+  const totalEmployees = employees.length;
+  const pendingClaims = claims.filter(claim => claim.status === 'Pending').length;
+  const leaveRequests = 0; // This would need a leave requests service
+  const recentLeaveRequests = []; // This would come from leave service
+
   const statsConfig = [
-    { title: 'Total Employees', value: stats.totalEmployees.toString(), icon: Users, color: 'bg-blue-500' },
-    { title: 'Pending Claims', value: stats.pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
-    { title: 'Leave Requests', value: stats.leaveRequests.toString(), icon: Clock, color: 'bg-green-500' },
-    { title: 'Payroll Due', value: stats.payrollDue, icon: Calendar, color: 'bg-purple-500' },
+    { title: 'Total Employees', value: totalEmployees.toString(), icon: Users, color: 'bg-blue-500' },
+    { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
+    { title: 'Leave Requests', value: leaveRequests.toString(), icon: Clock, color: 'bg-green-500' },
+    { title: 'Payroll Due', value: payrollDue, icon: Calendar, color: 'bg-purple-500' },
   ];
+
+  if (employeesLoading || claimsLoading || attendanceLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Superadmin Dashboard</h2>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -83,22 +92,25 @@ const SuperadminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Leave Requests</CardTitle>
-            <CardDescription>Pending approvals across all departments</CardDescription>
+            <CardTitle>Recent Claims</CardTitle>
+            <CardDescription>Latest submitted claims</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {leaveRequests.map((request, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {claims.slice(0, 3).map((claim) => (
+                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{request.name}</p>
-                    <p className="text-sm text-gray-600">{request.type} • {request.days}</p>
+                    <p className="font-medium text-gray-900">{claim.employee}</p>
+                    <p className="text-sm text-gray-600">{claim.type} • S${claim.amount}</p>
                   </div>
-                  <Badge variant={request.status === 'approved' ? 'default' : 'secondary'}>
-                    {request.status}
+                  <Badge variant={claim.status === 'Approved' ? 'default' : 'secondary'}>
+                    {claim.status}
                   </Badge>
                 </div>
               ))}
+              {claims.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No claims submitted yet</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -118,9 +130,9 @@ const SuperadminDashboard = () => {
                 <Badge className="bg-green-100 text-green-800">Compliant</Badge>
               </div>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>• Ordinary Wage contributions: S$245,680</p>
-                <p>• Additional Wage contributions: S$12,400</p>
-                <p>• Total employees covered: {stats.totalEmployees}</p>
+                <p>• Total employees covered: {totalEmployees}</p>
+                <p>• Pending claims: {pendingClaims}</p>
+                <p>• System status: Active</p>
               </div>
             </div>
           </CardContent>

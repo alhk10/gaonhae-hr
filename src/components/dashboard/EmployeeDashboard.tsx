@@ -5,15 +5,37 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Clock, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { useQuery } from '@tanstack/react-query';
+import { getEmployeeClaims } from '@/services/claimsService';
+import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EmployeeDashboard = () => {
+  const { user } = useAuth();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockTime, setClockTime] = useState<string | null>(null);
 
+  // Fetch employee-specific data
+  const { data: employeeClaims = [] } = useQuery({
+    queryKey: ['employee-claims', user?.id],
+    queryFn: () => getEmployeeClaims(user?.id || 'EMP001'),
+    enabled: !!user?.id,
+  });
+
+  const { data: attendanceRecords = [] } = useQuery({
+    queryKey: ['employee-attendance', user?.id],
+    queryFn: () => getEmployeeAttendanceRecords(user?.id || 'EMP001'),
+    enabled: !!user?.id,
+  });
+
+  // Calculate real stats
+  const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
+  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + record.hours, 0);
+  
   const personalStats = [
     { title: 'Leave Balance', value: '18 days', icon: Calendar, color: 'bg-blue-500' },
-    { title: 'Pending Claims', value: '2', icon: FileText, color: 'bg-orange-500' },
-    { title: 'Hours This Month', value: '168h', icon: Clock, color: 'bg-green-500' },
+    { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
+    { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
     { title: 'Next Payroll', value: '3 days', icon: DollarSign, color: 'bg-purple-500' },
   ];
 
@@ -40,8 +62,8 @@ const EmployeeDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Welcome back, Tan Wei Ming</h2>
-        <p className="text-gray-600">Employee ID: EMP001 • Engineering Department</p>
+        <h2 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name || 'Employee'}</h2>
+        <p className="text-gray-600">Employee ID: {user?.id || 'EMP001'} • Engineering Department</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -117,25 +139,23 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { action: 'Leave Request Approved', details: 'Annual Leave (23-24 Dec)', status: 'approved', date: '2 days ago' },
-                { action: 'Medical Claim Submitted', details: 'GP Visit - S$45', status: 'pending', date: '1 week ago' },
-                { action: 'Payslip Generated', details: 'November 2024', status: 'completed', date: '2 weeks ago' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {employeeClaims.slice(0, 3).map((claim) => (
+                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-sm text-gray-600">{activity.details}</p>
-                    <p className="text-xs text-gray-500">{activity.date}</p>
+                    <p className="font-medium text-gray-900">{claim.type}</p>
+                    <p className="text-sm text-gray-600">S${claim.amount} • {claim.date}</p>
                   </div>
                   <Badge variant={
-                    activity.status === 'approved' ? 'default' : 
-                    activity.status === 'pending' ? 'secondary' : 'outline'
+                    claim.status === 'Approved' ? 'default' : 
+                    claim.status === 'Pending' ? 'secondary' : 'outline'
                   }>
-                    {activity.status}
+                    {claim.status}
                   </Badge>
                 </div>
               ))}
+              {employeeClaims.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+              )}
             </div>
           </CardContent>
         </Card>
