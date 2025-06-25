@@ -19,15 +19,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if user is already logged in
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      console.log('Loading stored user:', userData);
-      setUser(userData);
+      try {
+        const userData = JSON.parse(storedUser);
+        console.log('AuthContext: Loading stored user:', userData);
+        setUser(userData);
+      } catch (error) {
+        console.error('AuthContext: Error parsing stored user:', error);
+        localStorage.removeItem('currentUser');
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    console.log('Attempting login with:', email);
+    console.log('AuthContext: Attempting login with:', email);
     
     // Define users with proper roles
     const users: { [key: string]: User } = {
@@ -83,21 +88,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const foundUser = users[email];
     if (foundUser && password === 'password') {
-      console.log('Login successful for user:', foundUser);
-      setUser(foundUser);
+      console.log('AuthContext: Login successful for user:', foundUser);
+      console.log('AuthContext: User role is:', foundUser.role);
+      
+      // Clear any existing stored data
+      localStorage.removeItem('currentUser');
+      
+      // Store user data
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
+      setUser(foundUser);
+      
+      // Double-check stored data
+      const storedCheck = localStorage.getItem('currentUser');
+      console.log('AuthContext: Stored user verification:', storedCheck ? JSON.parse(storedCheck) : null);
+      
       return true;
     }
 
-    console.log('Login failed for email:', email);
+    console.log('AuthContext: Login failed for email:', email);
     return false;
   };
 
   const logout = () => {
-    console.log('Logging out user:', user);
+    console.log('AuthContext: Logging out user:', user);
     setUser(null);
     localStorage.removeItem('currentUser');
   };
+
+  // Debug log current user state
+  useEffect(() => {
+    console.log('AuthContext: Current user state changed:', user);
+    if (user) {
+      console.log('AuthContext: Current user role:', user.role);
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

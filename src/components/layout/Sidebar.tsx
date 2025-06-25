@@ -29,11 +29,20 @@ const Sidebar = () => {
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Debug current user state
+  useEffect(() => {
+    console.log('Sidebar: User state updated:', user);
+    if (user) {
+      console.log('Sidebar: User role:', user.role);
+      console.log('Sidebar: User email:', user.email);
+    }
+  }, [user]);
+
   useEffect(() => {
     const loadCurrentEmployee = async () => {
       console.log('Sidebar: Loading current employee data for user:', user);
       
-      // Only load employee data for actual employees with admin access
+      // Only load employee data for actual employees (not superadmin or manager)
       if (user?.email && user?.role === 'employee') {
         try {
           setIsLoading(true);
@@ -58,6 +67,7 @@ const Sidebar = () => {
         }
       } else {
         console.log('Sidebar: User is not employee or no email - skipping employee data load');
+        setCurrentEmployee(null);
         setIsLoading(false);
       }
     };
@@ -66,7 +76,8 @@ const Sidebar = () => {
   }, [user]);
 
   const getMenuItems = (): MenuItem[] => {
-    console.log('Sidebar: Getting menu items for user role:', user?.role);
+    console.log('Sidebar: Getting menu items for user:', user);
+    console.log('Sidebar: User role check:', user?.role);
     
     const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
@@ -75,7 +86,7 @@ const Sidebar = () => {
     // Superadmin gets full access - highest priority
     if (user?.role === 'superadmin') {
       console.log('Sidebar: Returning superadmin menu items');
-      return [
+      const adminItems = [
         ...baseItems,
         { icon: Users, label: 'Employees', path: '/employees' },
         { icon: DollarSign, label: 'Payroll', path: '/payroll' },
@@ -85,12 +96,14 @@ const Sidebar = () => {
         { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
+      console.log('Sidebar: Admin menu items:', adminItems);
+      return adminItems;
     }
 
     // Manager gets manager-specific access
     if (user?.role === 'manager') {
       console.log('Sidebar: Returning manager menu items');
-      return [
+      const managerItems = [
         ...baseItems,
         { icon: Users, label: 'My Team', path: '/my-team' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
@@ -99,6 +112,8 @@ const Sidebar = () => {
         { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
       ];
+      console.log('Sidebar: Manager menu items:', managerItems);
+      return managerItems;
     }
 
     // For employees, start with basic employee items
@@ -159,7 +174,7 @@ const Sidebar = () => {
       }
     }
 
-    console.log('Sidebar: Final menu items:', employeeItems);
+    console.log('Sidebar: Final employee menu items:', employeeItems);
     return employeeItems;
   };
 
@@ -170,6 +185,17 @@ const Sidebar = () => {
   };
 
   console.log('Sidebar: Rendering sidebar with user:', user, 'and menu items:', menuItems);
+
+  // Show loading state while auth is loading
+  if (!user) {
+    return (
+      <div className="w-64 bg-white border-r border-gray-200 h-full">
+        <div className="p-6">
+          <div className="text-center text-gray-500">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-full">
