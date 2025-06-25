@@ -26,6 +26,7 @@ interface PayrollContextType {
   initializePayroll: () => void;
   savePayrollDraft: () => void;
   loadPayrollDraft: () => boolean;
+  isLoading: boolean;
 }
 
 const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
@@ -43,6 +44,7 @@ interface PayrollProviderProps {
 }
 
 export const PayrollProvider = ({ children }: PayrollProviderProps) => {
+  const [isLoading, setIsLoading] = useState(true);
   const [payrollState, setPayrollState] = useState<PayrollState>({
     currentPeriod: 'December 2024',
     status: 'draft',
@@ -55,77 +57,117 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const getApprovedClaimsTotal = async (employeeId: string): Promise<number> => {
     try {
       const claims = await getEmployeeClaims(employeeId);
-      return claims
-        .filter(claim => claim.status === 'Approved')
-        .reduce((sum, claim) => sum + claim.amount, 0);
+      const approvedClaims = claims.filter(claim => claim.status === 'Approved');
+      return approvedClaims.reduce((sum, claim) => sum + claim.amount, 0);
     } catch (error) {
-      console.error('Error fetching approved claims:', error);
+      console.error('Error fetching approved claims for employee:', employeeId, error);
       return 0;
     }
   };
 
   const initializePayroll = async () => {
     console.log('Initializing payroll from employee database');
+    setIsLoading(true);
     
-    // Initialize full-time employees
-    const fullTimeEmps: PayrollEmployee[] = await Promise.all(
-      getFullTimeEmployees().map(async (emp) => {
-        const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-        const grossSalary = (emp.baseSalary || 0) + totalAllowances;
-        
-        const age = calculateAge(emp.dateOfBirth);
-        const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-        const approvedClaims = await getApprovedClaimsTotal(emp.id);
-        const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
-        
-        return {
-          id: emp.id,
-          name: emp.name,
-          type: emp.type,
-          baseSalary: emp.baseSalary || 0,
-          allowances: totalAllowances,
-          deductions: totalDeductions,
-          cpf: cpfCalc.employerCPF,
-          total: netSalary
-        };
-      })
-    );
+    try {
+      // Initialize full-time employees
+      const fullTimeEmps: PayrollEmployee[] = await Promise.all(
+        getFullTimeEmployees().map(async (emp) => {
+          try {
+            const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+            const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+            const grossSalary = (emp.baseSalary || 0) + totalAllowances;
+            
+            const age = calculateAge(emp.dateOfBirth);
+            const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
+            const approvedClaims = await getApprovedClaimsTotal(emp.id);
+            const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+            
+            return {
+              id: emp.id,
+              name: emp.name,
+              type: emp.type,
+              baseSalary: emp.baseSalary || 0,
+              allowances: totalAllowances,
+              deductions: totalDeductions,
+              cpf: cpfCalc.employerCPF,
+              total: netSalary
+            };
+          } catch (error) {
+            console.error('Error processing full-time employee:', emp.id, error);
+            return {
+              id: emp.id,
+              name: emp.name,
+              type: emp.type,
+              baseSalary: emp.baseSalary || 0,
+              allowances: 0,
+              deductions: 0,
+              cpf: 0,
+              total: emp.baseSalary || 0
+            };
+          }
+        })
+      );
 
-    // Initialize casual employees
-    const casualEmps: CasualEmployeePayroll[] = await Promise.all(
-      getCasualEmployees().map(async (emp) => {
-        const hoursWorked = 120; // This should come from slot bookings
-        const daysWorked = 15; // This should come from slot bookings
-        const grossPay = (emp.hourlyRate || 0) * hoursWorked;
-        
-        const age = calculateAge(emp.dateOfBirth);
-        const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
-        const approvedClaims = await getApprovedClaimsTotal(emp.id);
-        const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
-        
-        return {
-          id: emp.id,
-          name: emp.name,
-          type: emp.type,
-          hourlyRate: emp.hourlyRate || 0,
-          hoursWorked,
-          daysWorked,
-          totalPay,
-          employeeCPF: cpfCalc.employeeCPF,
-          employerCPF: cpfCalc.employerCPF
-        };
-      })
-    );
+      // Initialize casual employees
+      const casualEmps: CasualEmployeePayroll[] = await Promise.all(
+        getCasualEmployees().map(async (emp) => {
+          try {
+            const hoursWorked = 120; // This should come from slot bookings
+            const daysWorked = 15; // This should come from slot bookings
+            const grossPay = (emp.hourlyRate || 0) * hoursWorked;
+            
+            const age = calculateAge(emp.dateOfBirth);
+            const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
+            const approvedClaims = await getApprovedClaimsTotal(emp.id);
+            const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
+            
+            return {
+              id: emp.id,
+              name: emp.name,
+              type: emp.type,
+              hourlyRate: emp.hourlyRate || 0,
+              hoursWorked,
+              daysWorked,
+              totalPay,
+              employeeCPF: cpfCalc.employeeCPF,
+              employerCPF: cpfCalc.employerCPF
+            };
+          } catch (error) {
+            console.error('Error processing casual employee:', emp.id, error);
+            return {
+              id: emp.id,
+              name: emp.name,
+              type: emp.type,
+              hourlyRate: emp.hourlyRate || 0,
+              hoursWorked: 0,
+              daysWorked: 0,
+              totalPay: 0,
+              employeeCPF: 0,
+              employerCPF: 0
+            };
+          }
+        })
+      );
 
-    setPayrollState(prev => ({
-      ...prev,
-      fullTimeEmployees: fullTimeEmps,
-      casualEmployees: casualEmps,
-      lastUpdated: new Date()
-    }));
-    
-    console.log('Payroll initialized:', { fullTimeCount: fullTimeEmps.length, casualCount: casualEmps.length });
+      setPayrollState(prev => ({
+        ...prev,
+        fullTimeEmployees: fullTimeEmps,
+        casualEmployees: casualEmps,
+        lastUpdated: new Date()
+      }));
+      
+      console.log('Payroll initialized:', { 
+        fullTimeCount: fullTimeEmps.length, 
+        casualCount: casualEmps.length,
+        fullTimeTotal: fullTimeEmps.reduce((sum, emp) => sum + emp.total, 0),
+        casualTotal: casualEmps.reduce((sum, emp) => sum + emp.totalPay, 0)
+      });
+    } catch (error) {
+      console.error('Error initializing payroll:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
@@ -144,7 +186,6 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
           
           const age = calculateAge(empData.dateOfBirth);
           const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-          // Note: This should be updated to async but keeping current structure for now
           const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
           
           return {
@@ -250,8 +291,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     const casualTotal = payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
     const total = fullTimeTotal + casualTotal;
     
-    console.log('Calculating payroll total:', { fullTimeTotal, casualTotal, total });
-    return total;
+    return Math.round(total * 100) / 100; // Round to 2 decimal places
   };
 
   const setPayrollStatus = (status: PayrollState['status']) => {
@@ -330,7 +370,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       resetPayroll,
       initializePayroll,
       savePayrollDraft,
-      loadPayrollDraft
+      loadPayrollDraft,
+      isLoading
     }}>
       {children}
     </PayrollContext.Provider>

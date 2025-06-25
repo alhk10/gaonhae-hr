@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -11,26 +12,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { DollarSign, Calendar, Play, ArrowLeft, Users, Clock, Plus, Eye, Edit } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { usePayroll } from '@/contexts/PayrollContext';
 import PayrollViewDialog from '@/components/payroll/PayrollViewDialog';
 import PayrollEditDialog from '@/components/payroll/PayrollEditDialog';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
+  const { payrollState, calculatePayrollTotal } = usePayroll();
   const [isNewPayrollOpen, setIsNewPayrollOpen] = useState(false);
   const [newPayrollPeriod, setNewPayrollPeriod] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [viewPayroll, setViewPayroll] = useState<any>(null);
   const [editPayroll, setEditPayroll] = useState<any>(null);
 
-  // Year-to-date payroll data
+  const currentTotal = calculatePayrollTotal();
+  const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
+
+  // Generate payroll history based on current data
   const [payrollHistory, setPayrollHistory] = useState([
     { 
       id: '2024-12', 
-      period: 'December 2024', 
-      status: 'Current', 
-      totalAmount: 26540, 
-      employeeCount: 6,
-      processedDate: null 
+      period: payrollState.currentPeriod, 
+      status: payrollState.status === 'completed' ? 'Completed' : 'Current', 
+      totalAmount: currentTotal, 
+      employeeCount: totalEmployees,
+      processedDate: payrollState.status === 'completed' ? payrollState.lastUpdated.toISOString().split('T')[0] : null 
     },
     { 
       id: '2024-11', 
@@ -67,12 +73,8 @@ const PaymentSummary = () => {
   ]);
 
   const allEmployees = [
-    { id: 'EMP001', name: 'John Tan', type: 'Full-Time' },
-    { id: 'EMP002', name: 'Mary Ng', type: 'Full-Time' },
-    { id: 'EMP003', name: 'David Lim', type: 'Full-Time' },
-    { id: 'CAS001', name: 'Alice Wong', type: 'Casual' },
-    { id: 'CAS002', name: 'Bob Chen', type: 'Casual' },
-    { id: 'CAS003', name: 'Sarah Lee', type: 'Casual' },
+    ...payrollState.fullTimeEmployees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })),
+    ...payrollState.casualEmployees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type }))
   ];
 
   const handleProcessPayroll = () => {
@@ -93,6 +95,7 @@ const PaymentSummary = () => {
     setPayrollHistory(prev => 
       prev.map(p => p.id === updatedPayroll.id ? updatedPayroll : p)
     );
+    toast('Payroll updated successfully');
   };
 
   const handleCreateNewPayroll = () => {
@@ -101,8 +104,17 @@ const PaymentSummary = () => {
       return;
     }
 
-    // Create new payroll logic would go here
-    toast(`New payroll created for ${newPayrollPeriod} with ${selectedEmployees.length} employees`);
+    const newPayroll = {
+      id: newPayrollPeriod,
+      period: newPayrollPeriod.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      status: 'Draft',
+      totalAmount: 0,
+      employeeCount: selectedEmployees.length,
+      processedDate: null
+    };
+
+    setPayrollHistory(prev => [newPayroll, ...prev]);
+    toast(`New payroll created for ${newPayroll.period} with ${selectedEmployees.length} employees`);
     setIsNewPayrollOpen(false);
     setNewPayrollPeriod('');
     setSelectedEmployees([]);
@@ -160,7 +172,7 @@ const PaymentSummary = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Current Period</p>
-                      <p className="text-2xl font-bold text-gray-900">S${currentPayroll?.totalAmount.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-gray-900">S${currentTotal.toLocaleString()}</p>
                     </div>
                     <Calendar className="w-8 h-8 text-green-500" />
                   </div>
@@ -182,7 +194,7 @@ const PaymentSummary = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Active Employees</p>
-                      <p className="text-2xl font-bold text-gray-900">{allEmployees.length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
                     </div>
                     <Users className="w-8 h-8 text-orange-500" />
                   </div>
@@ -195,7 +207,7 @@ const PaymentSummary = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Payroll History - 2024</CardTitle>
-                    <CardDescription>Year-to-date payroll summary</CardDescription>
+                    <CardDescription>Year-to-date payroll summary with real-time data</CardDescription>
                   </div>
                   <Dialog open={isNewPayrollOpen} onOpenChange={setIsNewPayrollOpen}>
                     <DialogTrigger asChild>
