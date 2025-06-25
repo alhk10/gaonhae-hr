@@ -12,8 +12,8 @@ import { ArrowLeft, Edit, FileText, Calendar, DollarSign, Clock, BookOpen, Award
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
-import { getEmployeeLeaveRecords } from '@/data/leaveData';
-import { getEmployeeAttendanceRecords } from '@/data/attendanceData';
+import { getAllLeaveRequests } from '@/services/leaveService';
+import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
 import { getEmployeeSlotBookings } from '@/data/slotBookingData';
 import { AllowanceDeduction, EmployeeProfile } from '@/types/employee';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +21,9 @@ import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
 import type { Claim } from '@/services/claimsService';
+import type { LeaveRequest } from '@/services/leaveService';
+import type { AttendanceRecord } from '@/services/attendanceService';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -38,14 +41,17 @@ const EmployeeDetails = () => {
   const [isEditingAccess, setIsEditingAccess] = useState(false);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [employeeClaims, setEmployeeClaims] = useState<Claim[]>([]);
+  const [employeeLeaveRecords, setEmployeeLeaveRecords] = useState<LeaveRequest[]>([]);
+  const [employeeAttendanceRecords, setEmployeeAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [payslipRecords, setPayslipRecords] = useState<any[]>([]);
   const [employeeAllowances, setEmployeeAllowances] = useState<AllowanceDeduction[]>([]);
   const [employeeDeductions, setEmployeeDeductions] = useState<AllowanceDeduction[]>([]);
   const [isLoadingClaims, setIsLoadingClaims] = useState(true);
+  const [isLoadingLeave, setIsLoadingLeave] = useState(true);
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(true);
+  const [isLoadingPayslips, setIsLoadingPayslips] = useState(true);
   const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
   
-  // Get leave records for this employee
-  const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
-  const employeeAttendanceRecords = getEmployeeAttendanceRecords(id || '');
   const employeeSlotBookings = getEmployeeSlotBookings(id || '');
 
   useEffect(() => {
@@ -132,6 +138,104 @@ const EmployeeDetails = () => {
 
     loadClaims();
   }, [id]);
+
+  // Load leave records from Supabase
+  useEffect(() => {
+    const loadLeaveRecords = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingLeave(true);
+        const allLeaveRequests = await getAllLeaveRequests();
+        const employeeLeaves = allLeaveRequests.filter(leave => leave.employeeId === id);
+        setEmployeeLeaveRecords(employeeLeaves);
+      } catch (error) {
+        console.error('Error loading employee leave records:', error);
+      } finally {
+        setIsLoadingLeave(false);
+      }
+    };
+
+    loadLeaveRecords();
+  }, [id]);
+
+  // Load attendance records from Supabase
+  useEffect(() => {
+    const loadAttendanceRecords = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingAttendance(true);
+        const attendanceRecords = await getEmployeeAttendanceRecords(id);
+        setEmployeeAttendanceRecords(attendanceRecords);
+      } catch (error) {
+        console.error('Error loading employee attendance records:', error);
+      } finally {
+        setIsLoadingAttendance(false);
+      }
+    };
+
+    loadAttendanceRecords();
+  }, [id]);
+
+  // Load payslip records - generate from current employee data
+  useEffect(() => {
+    const loadPayslipRecords = async () => {
+      if (!employee) return;
+      
+      try {
+        setIsLoadingPayslips(true);
+        
+        // Load approved claims for this employee
+        const approvedClaims = employeeClaims
+          .filter(claim => claim.status === 'Approved')
+          .reduce((sum, claim) => sum + claim.amount, 0);
+
+        // Generate payslip records for recent months
+        const payslips = [
+          { month: 'December 2024', ...generatePayslipData(employee, approvedClaims, 'December 2024') },
+          { month: 'November 2024', ...generatePayslipData(employee, approvedClaims, 'November 2024') },
+          { month: 'October 2024', ...generatePayslipData(employee, approvedClaims, 'October 2024') },
+          { month: 'September 2024', ...generatePayslipData(employee, approvedClaims, 'September 2024') },
+        ];
+        
+        setPayslipRecords(payslips);
+      } catch (error) {
+        console.error('Error loading payslip records:', error);
+      } finally {
+        setIsLoadingPayslips(false);
+      }
+    };
+
+    if (employee && employeeClaims.length >= 0) {
+      loadPayslipRecords();
+    }
+  }, [employee, employeeClaims]);
+
+  const generatePayslipData = (employee: EmployeeProfile, approvedClaims: number, month: string) => {
+    const baseSalary = employee.baseSalary || 0;
+    const totalAllowances = employeeAllowances.reduce((sum, a) => sum + a.amount, 0);
+    const totalDeductions = employeeDeductions.reduce((sum, d) => sum + d.amount, 0);
+    const grossSalary = baseSalary + totalAllowances;
+    
+    const age = calculateAge(employee.dateOfBirth);
+    const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus, age);
+    
+    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
+    
+    return {
+      baseSalary,
+      totalAllowances,
+      totalDeductions,
+      grossSalary,
+      employeeCPF: cpfCalc.employeeCPF,
+      employerCPF: cpfCalc.employerCPF,
+      totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
+      approvedClaims,
+      netSalary,
+      status: 'Processed'
+    };
+  };
 
   if (isLoadingEmployee) {
     return (
@@ -377,44 +481,50 @@ const EmployeeDetails = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date Applied</TableHead>
-                            <TableHead>Leave Type</TableHead>
-                            <TableHead>Start Date</TableHead>
-                            <TableHead>End Date</TableHead>
-                            <TableHead>Days</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Reason</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employeeLeaveRecords.length > 0 ? (
-                            employeeLeaveRecords.map((leave) => (
-                              <TableRow key={leave.id}>
-                                <TableCell>{leave.appliedOn}</TableCell>
-                                <TableCell>{leave.type}</TableCell>
-                                <TableCell>{leave.startDate}</TableCell>
-                                <TableCell>{leave.endDate}</TableCell>
-                                <TableCell>{leave.days}</TableCell>
-                                <TableCell>
-                                  <Badge variant={getStatusColor(leave.status)}>
-                                    {leave.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
+                      {isLoadingLeave ? (
+                        <div className="text-center py-4">
+                          <p>Loading leave records...</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center text-gray-500">
-                                No leave records found
-                              </TableCell>
+                              <TableHead>Date Applied</TableHead>
+                              <TableHead>Leave Type</TableHead>
+                              <TableHead>Start Date</TableHead>
+                              <TableHead>End Date</TableHead>
+                              <TableHead>Days</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Reason</TableHead>
                             </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {employeeLeaveRecords.length > 0 ? (
+                              employeeLeaveRecords.map((leave) => (
+                                <TableRow key={leave.id}>
+                                  <TableCell>{leave.appliedOn}</TableCell>
+                                  <TableCell>{leave.type}</TableCell>
+                                  <TableCell>{leave.startDate}</TableCell>
+                                  <TableCell>{leave.endDate}</TableCell>
+                                  <TableCell>{leave.days}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={getStatusColor(leave.status)}>
+                                      {leave.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center text-gray-500">
+                                  No leave records found
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -481,26 +591,48 @@ const EmployeeDetails = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Pay Period</TableHead>
-                            <TableHead>Basic Salary</TableHead>
-                            <TableHead>Allowances</TableHead>
-                            <TableHead>Deductions</TableHead>
-                            <TableHead>CPF Employee</TableHead>
-                            <TableHead>Net Pay</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center text-gray-500">
-                              No payslip records found
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+                      {isLoadingPayslips ? (
+                        <div className="text-center py-4">
+                          <p>Loading payslip records...</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Pay Period</TableHead>
+                              <TableHead>Basic Salary</TableHead>
+                              <TableHead>Allowances</TableHead>
+                              <TableHead>Deductions</TableHead>
+                              <TableHead>CPF Employee</TableHead>
+                              <TableHead>Net Pay</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {payslipRecords.length > 0 ? (
+                              payslipRecords.map((payslip, index) => (
+                                <TableRow key={index}>
+                                  <TableCell>{payslip.month}</TableCell>
+                                  <TableCell>S${payslip.baseSalary.toLocaleString()}</TableCell>
+                                  <TableCell>S${payslip.totalAllowances.toLocaleString()}</TableCell>
+                                  <TableCell>S${payslip.totalDeductions.toLocaleString()}</TableCell>
+                                  <TableCell>S${payslip.employeeCPF.toLocaleString()}</TableCell>
+                                  <TableCell>S${payslip.netSalary.toLocaleString()}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="default">{payslip.status}</Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center text-gray-500">
+                                  No payslip records found
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -514,42 +646,48 @@ const EmployeeDetails = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Check In</TableHead>
-                            <TableHead>Check Out</TableHead>
-                            <TableHead>Hours Worked</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Location</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employeeAttendanceRecords.length > 0 ? (
-                            employeeAttendanceRecords.map((record) => (
-                              <TableRow key={record.id}>
-                                <TableCell>{record.date}</TableCell>
-                                <TableCell>{record.clockIn || '-'}</TableCell>
-                                <TableCell>{record.clockOut || '-'}</TableCell>
-                                <TableCell>{record.hours}h</TableCell>
-                                <TableCell>
-                                  <Badge variant={record.status === 'Present' ? 'default' : 'secondary'}>
-                                    {record.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{record.location || '-'}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
+                      {isLoadingAttendance ? (
+                        <div className="text-center py-4">
+                          <p>Loading attendance records...</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-gray-500">
-                                No attendance records found
-                              </TableCell>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Check In</TableHead>
+                              <TableHead>Check Out</TableHead>
+                              <TableHead>Hours Worked</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Location</TableHead>
                             </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {employeeAttendanceRecords.length > 0 ? (
+                              employeeAttendanceRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell>{record.date}</TableCell>
+                                  <TableCell>{record.clockIn || '-'}</TableCell>
+                                  <TableCell>{record.clockOut || '-'}</TableCell>
+                                  <TableCell>{record.hours}h</TableCell>
+                                  <TableCell>
+                                    <Badge variant={record.status === 'Present' ? 'default' : 'secondary'}>
+                                      {record.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{record.location || '-'}</TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-gray-500">
+                                  No attendance records found
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>

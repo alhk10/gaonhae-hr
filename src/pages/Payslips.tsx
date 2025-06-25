@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -6,33 +7,51 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, Download, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
-import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { supabase } from '@/integrations/supabase/client';
 
 const Payslips = () => {
   const { payrollState } = usePayroll();
   const [approvedClaimsTotal, setApprovedClaimsTotal] = useState(0);
+  const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
+  const [employeeDeductions, setEmployeeDeductions] = useState<any[]>([]);
   
   // For demo purposes, we'll show payslips for the first full-time employee
   const currentEmployee = getEmployeeById('EMP001'); // In real app, this would come from auth context
   
   useEffect(() => {
-    const loadApprovedClaims = async () => {
+    const loadPayrollData = async () => {
       if (!currentEmployee) return;
       
       try {
+        // Load approved claims
         const claims = await getEmployeeClaims(currentEmployee.id);
         const approvedTotal = claims
           .filter(claim => claim.status === 'Approved')
           .reduce((sum, claim) => sum + claim.amount, 0);
         setApprovedClaimsTotal(approvedTotal);
+
+        // Load current allowances and deductions from Supabase
+        const { data: allowances } = await supabase
+          .from('allowances')
+          .select('*')
+          .eq('employee_id', currentEmployee.id);
+
+        const { data: deductions } = await supabase
+          .from('deductions')
+          .select('*')
+          .eq('employee_id', currentEmployee.id);
+
+        setEmployeeAllowances(allowances || []);
+        setEmployeeDeductions(deductions || []);
       } catch (error) {
-        console.error('Error loading approved claims:', error);
+        console.error('Error loading payroll data:', error);
       }
     };
 
-    loadApprovedClaims();
+    loadPayrollData();
   }, [currentEmployee]);
 
   if (!currentEmployee) {
@@ -41,8 +60,8 @@ const Payslips = () => {
 
   const generatePayslipData = (month: string) => {
     const baseSalary = currentEmployee.baseSalary || 0;
-    const totalAllowances = currentEmployee.allowances.reduce((sum, a) => sum + a.amount, 0);
-    const totalDeductions = currentEmployee.deductions.reduce((sum, d) => sum + d.amount, 0);
+    const totalAllowances = employeeAllowances.reduce((sum, a) => sum + Number(a.amount), 0);
+    const totalDeductions = employeeDeductions.reduce((sum, d) => sum + Number(d.amount), 0);
     const grossSalary = baseSalary + totalAllowances;
     
     const age = calculateAge(currentEmployee.dateOfBirth);
@@ -83,14 +102,14 @@ PAY PERIOD: ${month}
 
 EARNINGS:
 Basic Salary                S$ ${payslipData.baseSalary.toFixed(2)}
-${currentEmployee.allowances.map(a => `${a.name.padEnd(26)} S$ ${a.amount.toFixed(2)}`).join('\n')}
+${employeeAllowances.map(a => `${a.name.padEnd(26)} S$ ${Number(a.amount).toFixed(2)}`).join('\n')}
 ${payslipData.approvedClaims > 0 ? `Approved Claims            S$ ${payslipData.approvedClaims.toFixed(2)}` : ''}
                           ___________
 Gross Earnings             S$ ${(payslipData.grossSalary + payslipData.approvedClaims).toFixed(2)}
 
 DEDUCTIONS:
 CPF (Employee 20%)         S$ ${payslipData.employeeCPF.toFixed(2)}
-${currentEmployee.deductions.map(d => `${d.name.padEnd(26)} S$ ${d.amount.toFixed(2)}`).join('\n')}
+${employeeDeductions.map(d => `${d.name.padEnd(26)} S$ ${Number(d.amount).toFixed(2)}`).join('\n')}
                           ___________
 Total Deductions           S$ ${(payslipData.employeeCPF + payslipData.totalDeductions).toFixed(2)}
 
@@ -143,7 +162,7 @@ For queries, please contact HR Department.
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-              <p className="text-gray-600">View and download your payslips</p>
+              <p className="text-gray-600">View and download your payslips with live data</p>
               <p className="text-sm text-gray-500 mt-1">
                 Employee: {currentEmployee.name} ({currentEmployee.id})
               </p>
@@ -183,7 +202,7 @@ For queries, please contact HR Department.
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips with live data</CardDescription>
+                <CardDescription>Download your monthly payslips with current allowances and deductions</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

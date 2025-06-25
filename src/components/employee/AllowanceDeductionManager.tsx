@@ -6,8 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import AddAllowanceDialog from './AddAllowanceDialog';
-import AddDeductionDialog from './AddDeductionDialog';
 import { AllowanceDeduction } from '@/types/employee';
 
 interface AllowanceDeductionManagerProps {
@@ -18,8 +16,16 @@ interface AllowanceDeductionManagerProps {
 const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ employeeId, onUpdate }) => {
   const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
   const [employeeDeductions, setEmployeeDeductions] = useState<any[]>([]);
-  const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
-  const [isAddDeductionOpen, setIsAddDeductionOpen] = useState(false);
+  const [systemAllowances, setSystemAllowances] = useState<any[]>([]);
+  const [systemDeductions, setSystemDeductions] = useState<any[]>([]);
+  const [showAddAllowance, setShowAddAllowance] = useState(false);
+  const [showAddDeduction, setShowAddDeduction] = useState(false);
+  const [selectedAllowance, setSelectedAllowance] = useState('');
+  const [selectedDeduction, setSelectedDeduction] = useState('');
+  const [allowanceAmount, setAllowanceAmount] = useState('');
+  const [deductionAmount, setDeductionAmount] = useState('');
+  const [allowanceType, setAllowanceType] = useState('Fixed');
+  const [deductionType, setDeductionType] = useState('Fixed');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +64,30 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
         console.log('Loaded employee deductions:', deductions);
         setEmployeeDeductions(deductions || []);
       }
+
+      // Load system allowances
+      const { data: sysAllowances, error: sysAllowancesError } = await supabase
+        .from('system_allowances')
+        .select('*');
+
+      if (sysAllowancesError) {
+        console.error('Error loading system allowances:', sysAllowancesError);
+      } else {
+        console.log('Loaded system allowances:', sysAllowances);
+        setSystemAllowances(sysAllowances || []);
+      }
+
+      // Load system deductions
+      const { data: sysDeductions, error: sysDeductionsError } = await supabase
+        .from('system_deductions')
+        .select('*');
+
+      if (sysDeductionsError) {
+        console.error('Error loading system deductions:', sysDeductionsError);
+      } else {
+        console.log('Loaded system deductions:', sysDeductions);
+        setSystemDeductions(sysDeductions || []);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast("Error loading data");
@@ -66,15 +96,20 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     }
   };
 
-  const handleAddAllowance = async (allowance: AllowanceDeduction) => {
+  const handleAddAllowance = async () => {
+    if (!selectedAllowance || !allowanceAmount) {
+      toast("Please select an allowance and enter amount");
+      return;
+    }
+
     try {
-      console.log('Adding allowance:', allowance);
+      console.log('Adding allowance:', selectedAllowance, allowanceAmount, allowanceType);
       
       const insertData = {
         employee_id: employeeId,
-        name: allowance.name,
-        amount: allowance.amount,
-        type: allowance.type || 'Fixed'
+        name: selectedAllowance,
+        amount: parseFloat(allowanceAmount),
+        type: allowanceType
       };
 
       console.log('Inserting allowance data:', insertData);
@@ -90,6 +125,10 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       }
 
       toast("Allowance added successfully");
+      setShowAddAllowance(false);
+      setSelectedAllowance('');
+      setAllowanceAmount('');
+      setAllowanceType('Fixed');
       loadData();
       onUpdate();
     } catch (error) {
@@ -98,15 +137,20 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
     }
   };
 
-  const handleAddDeduction = async (deduction: AllowanceDeduction) => {
+  const handleAddDeduction = async () => {
+    if (!selectedDeduction || !deductionAmount) {
+      toast("Please select a deduction and enter amount");
+      return;
+    }
+
     try {
-      console.log('Adding deduction:', deduction);
+      console.log('Adding deduction:', selectedDeduction, deductionAmount, deductionType);
       
       const insertData = {
         employee_id: employeeId,
-        name: deduction.name,
-        amount: deduction.amount,
-        type: deduction.type || 'Fixed'
+        name: selectedDeduction,
+        amount: parseFloat(deductionAmount),
+        type: deductionType
       };
 
       console.log('Inserting deduction data:', insertData);
@@ -122,6 +166,10 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       }
 
       toast("Deduction added successfully");
+      setShowAddDeduction(false);
+      setSelectedDeduction('');
+      setDeductionAmount('');
+      setDeductionType('Fixed');
       loadData();
       onUpdate();
     } catch (error) {
@@ -190,15 +238,64 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Allowances</CardTitle>
-              <CardDescription>Manage employee allowances</CardDescription>
+              <CardDescription>Manage employee allowances from system settings</CardDescription>
             </div>
-            <Button onClick={() => setIsAddAllowanceOpen(true)}>
+            <Button onClick={() => setShowAddAllowance(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Allowance
             </Button>
           </div>
         </CardHeader>
         <CardContent>
+          {showAddAllowance && (
+            <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-medium mb-3">Add New Allowance</h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Allowance Type</label>
+                  <select 
+                    value={selectedAllowance}
+                    onChange={(e) => setSelectedAllowance(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="">Select allowance</option>
+                    {systemAllowances.map((allowance) => (
+                      <option key={allowance.id} value={allowance.name}>
+                        {allowance.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Type</label>
+                  <select 
+                    value={allowanceType}
+                    onChange={(e) => setAllowanceType(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="Fixed">Fixed</option>
+                    <option value="Percentage">Percentage</option>
+                    <option value="Manual">Manual</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Amount</label>
+                  <input
+                    type="number"
+                    value={allowanceAmount}
+                    onChange={(e) => setAllowanceAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={handleAddAllowance} size="sm">Add</Button>
+                  <Button onClick={() => setShowAddAllowance(false)} variant="outline" size="sm">Cancel</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-3">
             {employeeAllowances.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No allowances assigned</p>
@@ -234,15 +331,64 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Deductions</CardTitle>
-              <CardDescription>Manage employee deductions</CardDescription>
+              <CardDescription>Manage employee deductions from system settings</CardDescription>
             </div>
-            <Button onClick={() => setIsAddDeductionOpen(true)}>
+            <Button onClick={() => setShowAddDeduction(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Deduction
             </Button>
           </div>
         </CardHeader>
         <CardContent>
+          {showAddDeduction && (
+            <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-medium mb-3">Add New Deduction</h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Deduction Type</label>
+                  <select 
+                    value={selectedDeduction}
+                    onChange={(e) => setSelectedDeduction(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="">Select deduction</option>
+                    {systemDeductions.map((deduction) => (
+                      <option key={deduction.id} value={deduction.name}>
+                        {deduction.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Type</label>
+                  <select 
+                    value={deductionType}
+                    onChange={(e) => setDeductionType(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="Fixed">Fixed</option>
+                    <option value="Percentage">Percentage</option>
+                    <option value="Manual">Manual</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Amount</label>
+                  <input
+                    type="number"
+                    value={deductionAmount}
+                    onChange={(e) => setDeductionAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={handleAddDeduction} size="sm">Add</Button>
+                  <Button onClick={() => setShowAddDeduction(false)} variant="outline" size="sm">Cancel</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-3">
             {employeeDeductions.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No deductions assigned</p>
@@ -271,18 +417,6 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
           </div>
         </CardContent>
       </Card>
-
-      <AddAllowanceDialog
-        open={isAddAllowanceOpen}
-        onOpenChange={setIsAddAllowanceOpen}
-        onAdd={handleAddAllowance}
-      />
-
-      <AddDeductionDialog
-        open={isAddDeductionOpen}
-        onOpenChange={setIsAddDeductionOpen}
-        onAdd={handleAddDeduction}
-      />
     </div>
   );
 };
