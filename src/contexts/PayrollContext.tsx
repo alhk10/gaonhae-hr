@@ -3,6 +3,7 @@ import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types
 import { getEmployees } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { getEmployeeClaims } from '@/services/claimsService';
+import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
 
 interface PayrollState {
   currentPeriod: string;
@@ -62,6 +63,32 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     } catch (error) {
       console.error('Error fetching approved claims for employee:', employeeId, error);
       return 0;
+    }
+  };
+
+  const getEmployeeMonthlyHours = async (employeeId: string, period: string): Promise<number> => {
+    try {
+      const attendanceRecords = await getEmployeeAttendanceRecords(employeeId);
+      
+      // Parse the payroll period (e.g., "December 2024") to get month and year
+      const [monthName, year] = period.split(' ');
+      const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
+      
+      // Filter attendance records for the specific month/year
+      const monthlyRecords = attendanceRecords.filter(record => {
+        const recordDate = new Date(record.date);
+        return recordDate.getMonth() + 1 === monthNumber && 
+               recordDate.getFullYear() === parseInt(year);
+      });
+      
+      // Sum up the hours worked for that month
+      const totalHours = monthlyRecords.reduce((sum, record) => sum + record.hours, 0);
+      console.log(`Employee ${employeeId} worked ${totalHours} hours in ${period}`);
+      
+      return totalHours;
+    } catch (error) {
+      console.error(`Error fetching monthly hours for employee ${employeeId}:`, error);
+      return 0; // Return 0 if unable to fetch attendance data
     }
   };
 
@@ -128,25 +155,30 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         })
       );
 
-      // Initialize casual employees
+      // Initialize casual employees with actual attendance hours
       const casualPayroll: CasualEmployeePayroll[] = await Promise.all(
         casualEmps.map(async (emp) => {
           try {
-            const hoursWorked = 120; // This should come from slot bookings in the future
-            const daysWorked = 15; // This should come from slot bookings in the future
-            const grossPay = (emp.hourlyRate || emp.dailyRate || 0) * (emp.paymentType === 'Daily' ? daysWorked : hoursWorked);
+            // Get actual hours worked from attendance records for the current payroll period
+            const hoursWorked = await getEmployeeMonthlyHours(emp.id, payrollState.currentPeriod);
+            const daysWorked = Math.ceil(hoursWorked / 8); // Estimate days based on 8-hour workdays
+            
+            const hourlyRate = emp.hourlyRate || emp.dailyRate || 0;
+            const grossPay = hourlyRate * hoursWorked; // Use actual hours worked
             
             const age = calculateAge(emp.dateOfBirth);
             const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
             const approvedClaims = await getApprovedClaimsTotal(emp.id);
             const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
             
+            console.log(`Casual employee ${emp.name}: ${hoursWorked}h × S$${hourlyRate}/h = S$${grossPay}`);
+            
             return {
               id: emp.id,
               name: emp.name,
               type: emp.type,
-              hourlyRate: emp.hourlyRate || emp.dailyRate || 0,
-              hoursWorked: emp.paymentType === 'Daily' ? daysWorked : hoursWorked,
+              hourlyRate,
+              hoursWorked,
               daysWorked,
               totalPay,
               employeeCPF: cpfCalc.employeeCPF,
