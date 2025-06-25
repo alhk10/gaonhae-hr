@@ -7,13 +7,56 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
 import { updateEmployee } from '@/services/employeeService';
-import { EmployeeProfile } from '@/types/employee';
+import { getBranches } from '@/services/settingsService';
+import { EmployeeProfile, AllowanceDeduction } from '@/types/employee';
+import { Plus, Trash2 } from 'lucide-react';
+import AddAllowanceDialog from './AddAllowanceDialog';
+import AddDeductionDialog from './AddDeductionDialog';
 
 interface EditEmployeeFormProps {
   employee: EmployeeProfile;
   onSave: (updatedEmployee: EmployeeProfile) => void;
   onCancel: () => void;
 }
+
+// Common positions in Singapore companies
+const POSITION_OPTIONS = [
+  'Manager',
+  'Assistant Manager',
+  'Senior Executive',
+  'Executive',
+  'Senior Officer',
+  'Officer',
+  'Assistant',
+  'Clerk',
+  'Supervisor',
+  'Team Leader',
+  'Senior Specialist',
+  'Specialist',
+  'Analyst',
+  'Senior Analyst',
+  'Coordinator',
+  'Administrator',
+  'Receptionist',
+  'Sales Executive',
+  'Sales Manager',
+  'Marketing Executive',
+  'HR Executive',
+  'HR Manager',
+  'Finance Executive',
+  'Finance Manager',
+  'Operations Executive',
+  'Operations Manager',
+  'IT Support',
+  'IT Manager',
+  'Developer',
+  'Senior Developer',
+  'Project Manager',
+  'Director',
+  'Senior Director',
+  'General Manager',
+  'Other'
+];
 
 const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -35,13 +78,39 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     email: employee.email || ''
   });
 
+  const [allowances, setAllowances] = useState<AllowanceDeduction[]>(employee.allowances);
+  const [deductions, setDeductions] = useState<AllowanceDeduction[]>(employee.deductions);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAddAllowance, setShowAddAllowance] = useState(false);
+  const [showAddDeduction, setShowAddDeduction] = useState(false);
+
+  const branches = getBranches();
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleAddAllowance = (newAllowance: AllowanceDeduction) => {
+    setAllowances(prev => [...prev, newAllowance]);
+    toast("New allowance added");
+  };
+
+  const handleAddDeduction = (newDeduction: AllowanceDeduction) => {
+    setDeductions(prev => [...prev, newDeduction]);
+    toast("New deduction added");
+  };
+
+  const handleRemoveAllowance = (id: number) => {
+    setAllowances(prev => prev.filter(item => item.id !== id));
+    toast("Allowance removed");
+  };
+
+  const handleRemoveDeduction = (id: number) => {
+    setDeductions(prev => prev.filter(item => item.id !== id));
+    toast("Deduction removed");
   };
 
   const handleSave = async () => {
@@ -64,6 +133,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
         dailyRate: updateData.dailyRate || undefined,
+        allowances,
+        deductions,
       };
       
       onSave(updatedEmployee);
@@ -164,20 +235,34 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
             
             <div>
               <Label htmlFor="branch">Branch</Label>
-              <Input
-                id="branch"
-                value={formData.branch}
-                onChange={(e) => handleInputChange('branch', e.target.value)}
-              />
+              <Select value={formData.branch} onValueChange={(value) => handleInputChange('branch', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.name}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <Label htmlFor="position">Position</Label>
-              <Input
-                id="position"
-                value={formData.position}
-                onChange={(e) => handleInputChange('position', e.target.value)}
-              />
+              <Select value={formData.position} onValueChange={(value) => handleInputChange('position', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {POSITION_OPTIONS.map((position) => (
+                    <SelectItem key={position} value={position}>
+                      {position}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -264,6 +349,82 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Allowances</h3>
+              <Button size="sm" onClick={() => setShowAddAllowance(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {allowances.map((allowance) => (
+                <div key={allowance.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium">{allowance.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {allowance.type || 'Fixed'} - S${allowance.amount}
+                      {allowance.type === 'Percentage' ? '%' : ''}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleRemoveAllowance(allowance.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+              {allowances.length === 0 && (
+                <div className="text-center text-gray-500 py-4">
+                  No allowances configured
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Deductions</h3>
+              <Button size="sm" onClick={() => setShowAddDeduction(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {deductions.map((deduction) => (
+                <div key={deduction.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium">{deduction.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {deduction.type || 'Fixed'} - S${deduction.amount}
+                      {deduction.type === 'Percentage' ? '%' : ''}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleRemoveDeduction(deduction.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+              {deductions.length === 0 && (
+                <div className="text-center text-gray-500 py-4">
+                  No deductions configured
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex justify-end space-x-4">
         <Button variant="outline" onClick={onCancel} disabled={isSaving}>
           Cancel
@@ -272,6 +433,18 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
           {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
+
+      <AddAllowanceDialog
+        open={showAddAllowance}
+        onOpenChange={setShowAddAllowance}
+        onAdd={handleAddAllowance}
+      />
+
+      <AddDeductionDialog
+        open={showAddDeduction}
+        onOpenChange={setShowAddDeduction}
+        onAdd={handleAddDeduction}
+      />
     </div>
   );
 };

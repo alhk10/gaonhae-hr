@@ -27,20 +27,30 @@ const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadCurrentEmployee = async () => {
       if (user?.email && user.role === 'employee') {
         try {
+          setIsLoading(true);
           const employees = await getEmployees();
           const employee = employees.find(emp => emp.email === user.email);
           if (employee) {
             setCurrentEmployee(employee);
             console.log('Current employee loaded with admin access:', employee.adminAccess);
+          } else {
+            console.log('Employee not found for email:', user.email);
+            setCurrentEmployee(null);
           }
         } catch (error) {
           console.error('Error loading current employee:', error);
+          setCurrentEmployee(null);
+        } finally {
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
 
@@ -77,8 +87,8 @@ const Sidebar = () => {
       ];
     }
 
-    // For regular employees, check their admin access permissions
-    let employeeItems = [
+    // For regular employees, start with basic employee items
+    let employeeItems: MenuItem[] = [
       ...baseItems,
       { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
       { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
@@ -88,10 +98,17 @@ const Sidebar = () => {
       { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
 
-    // Check if employee has admin access permissions
+    // If still loading employee data, return basic items
+    if (isLoading) {
+      return employeeItems;
+    }
+
+    // Check if employee has admin access permissions and add admin menu items
     if (currentEmployee?.adminAccess) {
       const adminAccess = currentEmployee.adminAccess;
       const adminItems: MenuItem[] = [];
+      
+      console.log('Admin access permissions:', adminAccess);
       
       if (adminAccess.employees) {
         adminItems.push({ icon: Users, label: 'Employees', path: '/employees' });
@@ -116,11 +133,13 @@ const Sidebar = () => {
       }
 
       // Insert admin items after dashboard but before regular employee items
-      employeeItems = [
-        baseItems[0], // Dashboard
-        ...adminItems,
-        ...employeeItems.slice(1) // Rest of employee items
-      ];
+      if (adminItems.length > 0) {
+        employeeItems = [
+          baseItems[0], // Dashboard
+          ...adminItems,
+          ...employeeItems.slice(1) // Rest of employee items
+        ];
+      }
     }
 
     return employeeItems;
