@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -364,12 +363,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
             <div className="space-y-2">
               {allowances.map((allowance) => (
                 <div key={allowance.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
+                  <div className="flex-1">
                     <div className="font-medium">{allowance.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {allowance.type || 'Fixed'} - S${allowance.amount}
-                      {allowance.type === 'Percentage' ? '%' : ''}
-                    </div>
                   </div>
                   <Button
                     size="sm"
@@ -401,12 +396,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
             <div className="space-y-2">
               {deductions.map((deduction) => (
                 <div key={deduction.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
+                  <div className="flex-1">
                     <div className="font-medium">{deduction.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {deduction.type || 'Fixed'} - S${deduction.amount}
-                      {deduction.type === 'Percentage' ? '%' : ''}
-                    </div>
                   </div>
                   <Button
                     size="sm"

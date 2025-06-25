@@ -12,22 +12,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar, Users, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getAllEmployees } from '@/data/employeeData';
+import { getEmployees } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, updateLeaveStatus, LeaveRequest } from '@/services/leaveService';
 
 const LeaveManagement = () => {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [isAddLeaveOpen, setIsAddLeaveOpen] = useState(false);
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const employees = getAllEmployees();
   const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
 
   useEffect(() => {
-    fetchLeaveRequests();
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        console.log('Loading leave and employee data...');
+        
+        const [leaveData, employeeData] = await Promise.all([
+          getAllLeaveRequests(),
+          getEmployees()
+        ]);
+        
+        console.log('Loaded employees:', employeeData);
+        console.log('Loaded leaves:', leaveData);
+        
+        setLeaves(leaveData);
+        setEmployees(employeeData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast("Error loading data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const fetchLeaveRequests = async () => {
@@ -71,7 +94,11 @@ const LeaveManagement = () => {
     
     const employeeId = formData.get('employee') as string;
     const employee = employees.find(emp => emp.id === employeeId);
-    if (!employee) return;
+    
+    if (!employee) {
+      toast("Please select a valid employee");
+      return;
+    }
 
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
@@ -93,7 +120,7 @@ const LeaveManagement = () => {
 
     try {
       await addLeaveRequest(newLeave);
-      await fetchLeaveRequests(); // Refresh data
+      await fetchLeaveRequests();
       setIsAddLeaveOpen(false);
       toast("Leave added successfully");
     } catch (error) {
@@ -134,7 +161,7 @@ const LeaveManagement = () => {
       });
       
       await Promise.all(promises);
-      await fetchLeaveRequests(); // Refresh data
+      await fetchLeaveRequests();
       setIsBulkLeaveOpen(false);
       toast(`Bulk leave added for ${selectedEmployees.length} employees`);
     } catch (error) {

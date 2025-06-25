@@ -8,14 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Receipt, Settings, Check, X, Eye } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Receipt, Settings, Check, X, Eye, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getClaims, updateClaimStatus, type Claim } from '@/services/claimsService';
+import { getClaims, updateClaimStatus, createClaim, type Claim } from '@/services/claimsService';
+import { getEmployees } from '@/services/employeeService';
 
 const Claims = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
   const [claimTypes, setClaimTypes] = useState(['Travel', 'Meals', 'Office Supplies', 'Medical', 'Training']);
   const [claimLimits, setClaimLimits] = useState<Record<string, number>>({
     'Travel': 500,
@@ -26,20 +31,24 @@ const Claims = () => {
   });
 
   useEffect(() => {
-    const loadClaims = async () => {
+    const loadData = async () => {
       try {
         setIsLoading(true);
-        const claimsData = await getClaims();
+        const [claimsData, employeesData] = await Promise.all([
+          getClaims(),
+          getEmployees()
+        ]);
         setClaims(claimsData);
+        setEmployees(employeesData);
       } catch (error) {
-        console.error('Error loading claims:', error);
-        toast('Error loading claims');
+        console.error('Error loading data:', error);
+        toast('Error loading data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadClaims();
+    loadData();
   }, []);
 
   const handleApprove = async (id: number) => {
@@ -65,6 +74,39 @@ const Claims = () => {
     } catch (error) {
       console.error('Error rejecting claim:', error);
       toast('Error rejecting claim');
+    }
+  };
+
+  const handleAddClaim = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const employeeId = formData.get('employee') as string;
+    const type = formData.get('type') as string;
+    const amount = parseFloat(formData.get('amount') as string);
+    const description = formData.get('description') as string;
+
+    if (!employeeId || !type || !amount || !description) {
+      toast('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      await createClaim({
+        employeeId,
+        type,
+        amount,
+        description
+      });
+      
+      // Refresh claims list
+      const updatedClaims = await getClaims();
+      setClaims(updatedClaims);
+      setIsAddClaimOpen(false);
+      toast("Claim added successfully");
+    } catch (error) {
+      console.error('Error adding claim:', error);
+      toast('Error adding claim');
     }
   };
 
@@ -138,63 +180,137 @@ const Claims = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Claims Management</h2>
                 <p className="text-gray-600">Review and manage employee expense claims</p>
               </div>
-              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Claim Settings
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Claim Settings</DialogTitle>
-                    <DialogDescription>Manage claim types and limits.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSaveSettings}>
-                    <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
-                      <div>
-                        <Label className="text-sm font-medium">Claim Types & Limits</Label>
-                        <div className="grid gap-3 mt-2">
-                          {claimTypes.map((type, index) => (
-                            <div key={index} className="grid grid-cols-2 gap-2">
+              <div className="flex space-x-2">
+                <Dialog open={isAddClaimOpen} onOpenChange={setIsAddClaimOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Claim
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add New Claim</DialogTitle>
+                      <DialogDescription>Create a new expense claim for an employee.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddClaim}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="employee">Employee</Label>
+                          <Select name="employee" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.name} ({employee.id})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="type">Claim Type</Label>
+                          <Select name="type" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select claim type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {claimTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="amount">Amount (S$)</Label>
+                          <Input
+                            name="amount"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            required
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            name="description"
+                            placeholder="Enter claim description"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsAddClaimOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Add Claim</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Claim Settings
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Claim Settings</DialogTitle>
+                      <DialogDescription>Manage claim types and limits.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSaveSettings}>
+                      <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                        <div>
+                          <Label className="text-sm font-medium">Claim Types & Limits</Label>
+                          <div className="grid gap-3 mt-2">
+                            {claimTypes.map((type, index) => (
+                              <div key={index} className="grid grid-cols-2 gap-2">
+                                <Input 
+                                  name="claimTypes" 
+                                  defaultValue={type}
+                                  placeholder="Claim type name"
+                                />
+                                <Input 
+                                  name={`limit_${type}`}
+                                  type="number"
+                                  step="0.01"
+                                  defaultValue={claimLimits[type] || 0}
+                                  placeholder="Limit (S$)"
+                                />
+                              </div>
+                            ))}
+                            <div className="grid grid-cols-2 gap-2">
                               <Input 
                                 name="claimTypes" 
-                                defaultValue={type}
-                                placeholder="Claim type name"
+                                placeholder="Add new claim type"
                               />
                               <Input 
-                                name={`limit_${type}`}
+                                name="limit_new"
                                 type="number"
                                 step="0.01"
-                                defaultValue={claimLimits[type] || 0}
                                 placeholder="Limit (S$)"
                               />
                             </div>
-                          ))}
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input 
-                              name="claimTypes" 
-                              placeholder="Add new claim type"
-                            />
-                            <Input 
-                              name="limit_new"
-                              type="number"
-                              step="0.01"
-                              placeholder="Limit (S$)"
-                            />
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsSettingsOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save Settings</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsSettingsOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Save Settings</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
