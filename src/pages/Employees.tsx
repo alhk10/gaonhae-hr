@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Plus, Search, X } from 'lucide-react';
+import { Users, Plus, Search, X, Trash2, UserX } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, createEmployee } from '@/services/employeeService';
+import { getEmployees, createEmployee, deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 
 const Employees = () => {
@@ -23,15 +23,26 @@ const Employees = () => {
   // Form state for new employee
   const [newEmployee, setNewEmployee] = useState({
     fullName: '',
-    employeeId: '',
+    nric: '',
+    dateOfBirth: '',
+    residencyStatus: '',
     email: '',
     phone: '',
-    department: '',
-    role: '',
-    employmentType: ''
+    address: '',
+    branch: '',
+    position: '',
+    employmentType: 'Full-Time',
+    paymentType: 'Monthly',
+    baseSalary: '',
+    hourlyRate: '',
+    dailyRate: '',
+    bankAccount: '',
+    bankName: ''
   });
 
-  const roles = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
+  const positions = ['Senior Instructor', 'Instructor', 'Junior Instructor', 'Casual Instructor', 'Administrative Manager', 'Administrative Assistant', 'General Manager', 'Partner', 'Senior Partner', 'Senior Developer', 'Marketing Manager', 'HR Executive'];
+  const branches = ['Main Branch', 'North Branch', 'South Branch', 'East Branch', 'West Branch']; // This would come from admin settings
+  const residencyStatuses = ['Singapore Citizen', 'Permanent Resident Year 1', 'Permanent Resident Year 2', 'Work Permit', 'S Pass', 'Employment Pass'];
 
   useEffect(() => {
     fetchEmployees();
@@ -68,53 +79,104 @@ const Employees = () => {
   const handleSubmitNewEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // For now, create a basic employee record - this would need to be expanded
-      // to include all required fields based on your form
-      toast("Employee creation feature will be implemented with proper form validation");
+      const employeeData = {
+        name: newEmployee.fullName,
+        nric: newEmployee.nric,
+        dateOfBirth: newEmployee.dateOfBirth,
+        residencyStatus: newEmployee.residencyStatus,
+        type: newEmployee.employmentType as 'Full-Time' | 'Casual',
+        baseSalary: newEmployee.baseSalary ? parseFloat(newEmployee.baseSalary) : undefined,
+        hourlyRate: newEmployee.hourlyRate ? parseFloat(newEmployee.hourlyRate) : undefined,
+        dailyRate: newEmployee.dailyRate ? parseFloat(newEmployee.dailyRate) : undefined,
+        paymentType: newEmployee.paymentType as 'Monthly' | 'Hourly' | 'Daily',
+        bankAccount: newEmployee.bankAccount,
+        bankName: newEmployee.bankName,
+        branch: newEmployee.branch,
+        position: newEmployee.position,
+        phone: newEmployee.phone,
+        address: newEmployee.address,
+        email: newEmployee.email
+      };
+
+      await createEmployee(employeeData);
+      toast("Employee created successfully!");
       setShowAddForm(false);
       
       // Reset form
       setNewEmployee({
         fullName: '',
-        employeeId: '',
+        nric: '',
+        dateOfBirth: '',
+        residencyStatus: '',
         email: '',
         phone: '',
-        department: '',
-        role: '',
-        employmentType: ''
+        address: '',
+        branch: '',
+        position: '',
+        employmentType: 'Full-Time',
+        paymentType: 'Monthly',
+        baseSalary: '',
+        hourlyRate: '',
+        dailyRate: '',
+        bankAccount: '',
+        bankName: ''
       });
+
+      // Refresh employee list
+      fetchEmployees();
     } catch (error) {
       console.error('Error creating employee:', error);
       toast("Error creating employee. Please try again.");
     }
   };
 
-  // Separate full-time and casual employees
-  const fullTimeEmployees = employees.filter(emp => emp.type === 'Full-Time');
-  const casualEmployees = employees.filter(emp => emp.type === 'Casual');
+  const handleDeleteEmployee = async (employeeId: string, employeeName: string) => {
+    if (window.confirm(`Are you sure you want to delete ${employeeName}? This action cannot be undone.`)) {
+      try {
+        await deleteEmployee(employeeId);
+        toast("Employee deleted successfully!");
+        fetchEmployees();
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+        toast("Error deleting employee. Please try again.");
+      }
+    }
+  };
+
+  const handleResignEmployee = async (employeeId: string, employeeName: string) => {
+    const resignDate = prompt(`Enter resign date for ${employeeName} (YYYY-MM-DD):`);
+    if (resignDate) {
+      try {
+        await updateEmployeeResignDate(employeeId, resignDate);
+        toast("Employee resign date updated successfully!");
+        fetchEmployees();
+      } catch (error) {
+        console.error('Error updating resign date:', error);
+        toast("Error updating resign date. Please try again.");
+      }
+    }
+  };
+
+  // Separate active and resigned employees
+  const activeEmployees = employees.filter(emp => !emp.resignDate);
+  const resignedEmployees = employees.filter(emp => emp.resignDate);
+
+  // Further separate by type
+  const activeFullTimeEmployees = activeEmployees.filter(emp => emp.type === 'Full-Time');
+  const activeCasualEmployees = activeEmployees.filter(emp => emp.type === 'Casual');
 
   // Filter employees based on search term
   const filterEmployees = (employees: EmployeeProfile[]) => {
     return employees.filter(employee =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase()))
+      (employee.branch && employee.branch.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   };
 
-  const filteredFullTimeEmployees = filterEmployees(fullTimeEmployees);
-  const filteredCasualEmployees = filterEmployees(casualEmployees);
-
-  // Helper function to get next increment info (mock data for display)
-  const getIncrementInfo = (employee: EmployeeProfile) => {
-    if (employee.type === 'Casual') {
-      return { nextIncrement: 'N/A', incrementDate: 'N/A' };
-    }
-    return { 
-      nextIncrement: 'TBD', 
-      incrementDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
-    };
-  };
+  const filteredActiveFullTimeEmployees = filterEmployees(activeFullTimeEmployees);
+  const filteredActiveCasualEmployees = filterEmployees(activeCasualEmployees);
+  const filteredResignedEmployees = filterEmployees(resignedEmployees);
 
   if (loading) {
     return (
@@ -177,14 +239,37 @@ const Employees = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">NRIC</label>
                         <input 
                           type="text" 
-                          value={newEmployee.employeeId}
-                          onChange={(e) => handleInputChange('employeeId', e.target.value)}
+                          value={newEmployee.nric}
+                          onChange={(e) => handleInputChange('nric', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
                           required 
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                        <input 
+                          type="date" 
+                          value={newEmployee.dateOfBirth}
+                          onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status</label>
+                        <Select value={newEmployee.residencyStatus} onValueChange={(value) => handleInputChange('residencyStatus', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select residency status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {residencyStatuses.map(status => (
+                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
@@ -207,48 +292,121 @@ const Employees = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                        <select 
-                          value={newEmployee.department}
-                          onChange={(e) => handleInputChange('department', e.target.value)}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        <input 
+                          type="text" 
+                          value={newEmployee.address}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required
-                        >
-                          <option value="">Select Department</option>
-                          <option value="Engineering">Engineering</option>
-                          <option value="Marketing">Marketing</option>
-                          <option value="HR">HR</option>
-                          <option value="Operations">Operations</option>
-                          <option value="Teaching">Teaching</option>
-                        </select>
+                          required 
+                        />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                        <Select value={newEmployee.role} onValueChange={(value) => handleInputChange('role', value)}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                        <Select value={newEmployee.branch} onValueChange={(value) => handleInputChange('branch', value)}>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select role" />
+                            <SelectValue placeholder="Select branch" />
                           </SelectTrigger>
                           <SelectContent>
-                            {roles.map(role => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            {branches.map(branch => (
+                              <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                        <Select value={newEmployee.position} onValueChange={(value) => handleInputChange('position', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select position" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {positions.map(position => (
+                              <SelectItem key={position} value={position}>{position}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Employment Type</label>
-                        <select 
-                          value={newEmployee.employmentType}
-                          onChange={(e) => handleInputChange('employmentType', e.target.value)}
+                        <Select value={newEmployee.employmentType} onValueChange={(value) => handleInputChange('employmentType', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select employment type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Full-Time">Full-Time</SelectItem>
+                            <SelectItem value="Casual">Casual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                        <Select value={newEmployee.paymentType} onValueChange={(value) => handleInputChange('paymentType', value)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select payment type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Monthly">Monthly</SelectItem>
+                            <SelectItem value="Hourly">Hourly</SelectItem>
+                            <SelectItem value="Daily">Daily</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {newEmployee.paymentType === 'Monthly' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary</label>
+                          <input 
+                            type="number" 
+                            value={newEmployee.baseSalary}
+                            onChange={(e) => handleInputChange('baseSalary', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg" 
+                            step="0.01"
+                          />
+                        </div>
+                      )}
+                      {newEmployee.paymentType === 'Hourly' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate</label>
+                          <input 
+                            type="number" 
+                            value={newEmployee.hourlyRate}
+                            onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg" 
+                            step="0.01"
+                          />
+                        </div>
+                      )}
+                      {newEmployee.paymentType === 'Daily' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate</label>
+                          <input 
+                            type="number" 
+                            value={newEmployee.dailyRate}
+                            onChange={(e) => handleInputChange('dailyRate', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg" 
+                            step="0.01"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account</label>
+                        <input 
+                          type="text" 
+                          value={newEmployee.bankAccount}
+                          onChange={(e) => handleInputChange('bankAccount', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg" 
-                          required
-                        >
-                          <option value="">Select Employment Type</option>
-                          <option value="Full-Time">Full-Time</option>
-                          <option value="Part-Time">Part-Time</option>
-                          <option value="Casual">Casual</option>
-                          <option value="Contract">Contract</option>
-                        </select>
+                          required 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name</label>
+                        <input 
+                          type="text" 
+                          value={newEmployee.bankName}
+                          onChange={(e) => handleInputChange('bankName', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required 
+                        />
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
@@ -263,9 +421,10 @@ const Employees = () => {
             )}
 
             <Tabs defaultValue="fulltime" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="fulltime">Full-Time</TabsTrigger>
                 <TabsTrigger value="casual">Casual</TabsTrigger>
+                <TabsTrigger value="resigned">Resigned</TabsTrigger>
               </TabsList>
 
               <TabsContent value="fulltime">
@@ -275,7 +434,7 @@ const Employees = () => {
                       <Users className="w-5 h-5" />
                       <span>Full-Time Employees</span>
                     </CardTitle>
-                    <CardDescription>{filteredFullTimeEmployees.length} total employees</CardDescription>
+                    <CardDescription>{filteredActiveFullTimeEmployees.length} active employees</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-4 mb-4">
@@ -291,19 +450,18 @@ const Employees = () => {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {filteredFullTimeEmployees.map((employee) => {
-                        const incrementInfo = getIncrementInfo(employee);
-                        return (
-                          <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-gray-900">{employee.name}</p>
-                              <p className="text-sm text-gray-600">
-                                {employee.id} • {employee.department} • {employee.position} • {employee.type}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Next Increment: {incrementInfo.nextIncrement} on {incrementInfo.incrementDate}
-                              </p>
-                            </div>
+                      {filteredActiveFullTimeEmployees.map((employee) => (
+                        <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {employee.id} • {employee.branch} • {employee.position} • {employee.type}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Base Salary: S${employee.baseSalary}/month
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -311,9 +469,23 @@ const Employees = () => {
                             >
                               View Details
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleResignEmployee(employee.id, employee.name)}
+                            >
+                              <UserX className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -326,7 +498,7 @@ const Employees = () => {
                       <Users className="w-5 h-5" />
                       <span>Casual Employees</span>
                     </CardTitle>
-                    <CardDescription>{filteredCasualEmployees.length} total employees</CardDescription>
+                    <CardDescription>{filteredActiveCasualEmployees.length} active employees</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-4 mb-4">
@@ -342,25 +514,98 @@ const Employees = () => {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {filteredCasualEmployees.map((employee) => (
+                      {filteredActiveCasualEmployees.map((employee) => (
                         <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-900">{employee.name}</p>
                             <p className="text-sm text-gray-600">
-                              {employee.id} • {employee.department} • {employee.position} • {employee.type}
+                              {employee.id} • {employee.branch} • {employee.position} • {employee.type}
                             </p>
                             <p className="text-xs text-gray-500">
                               {employee.hourlyRate ? `Hourly Rate: S$${employee.hourlyRate}/hour` : 
                                employee.dailyRate ? `Daily Rate: S$${employee.dailyRate}/day` : 'Rate not set'}
                             </p>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleViewDetails(employee.name, employee.id)}
-                          >
-                            View Details
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleViewDetails(employee.name, employee.id)}
+                            >
+                              View Details
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleResignEmployee(employee.id, employee.name)}
+                            >
+                              <UserX className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="resigned">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <UserX className="w-5 h-5" />
+                      <span>Resigned Employees</span>
+                    </CardTitle>
+                    <CardDescription>{filteredResignedEmployees.length} resigned employees</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search resigned employees..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {filteredResignedEmployees.map((employee) => (
+                        <div key={employee.id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {employee.id} • {employee.branch} • {employee.position} • {employee.type}
+                            </p>
+                            <p className="text-xs text-red-600">
+                              Resigned on: {employee.resignDate}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleViewDetails(employee.name, employee.id)}
+                            >
+                              View Details
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>

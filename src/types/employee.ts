@@ -1,3 +1,4 @@
+
 export interface AllowanceDeduction {
   id: number;
   name: string;
@@ -20,11 +21,12 @@ export interface EmployeeProfile {
   deductions: AllowanceDeduction[];
   bankAccount: string;
   bankName: string;
-  department?: string;
+  branch?: string; // Changed from department to branch
   position?: string;
   phone?: string;
   address?: string;
   email?: string;
+  resignDate?: string; // Added resign date
   certificates?: CertificateUpload[];
   adminAccess?: AdminAccessPermissions;
 }

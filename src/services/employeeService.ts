@@ -47,11 +47,12 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     })) || [],
     bankAccount: emp.bank_account,
     bankName: emp.bank_name,
-    department: emp.department,
+    branch: emp.department, // Changed from department to branch
     position: emp.position,
     phone: emp.phone,
     address: emp.address,
     email: emp.email,
+    resignDate: emp.resign_date,
     certificates: emp.certificates?.map((c: any) => ({
       id: c.id,
       name: c.name,
@@ -119,11 +120,12 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     })) || [],
     bankAccount: employee.bank_account,
     bankName: employee.bank_name,
-    department: employee.department,
+    branch: employee.department, // Changed from department to branch
     position: employee.position,
     phone: employee.phone,
     address: employee.address,
     email: employee.email,
+    resignDate: employee.resign_date,
     certificates: employee.certificates?.map((c: any) => ({
       id: c.id,
       name: c.name,
@@ -144,29 +146,46 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
   };
 };
 
-export const createEmployee = async (employee: Omit<EmployeeProfile, 'id' | 'allowances' | 'deductions' | 'certificates' | 'adminAccess'>) => {
-  console.log('Creating new employee:', employee);
+export const createEmployee = async (employeeData: {
+  name: string;
+  nric: string;
+  dateOfBirth: string;
+  residencyStatus: string;
+  type: 'Full-Time' | 'Casual';
+  baseSalary?: number;
+  hourlyRate?: number;
+  dailyRate?: number;
+  paymentType: 'Monthly' | 'Hourly' | 'Daily';
+  bankAccount: string;
+  bankName: string;
+  branch: string;
+  position: string;
+  phone: string;
+  address: string;
+  email: string;
+}) => {
+  console.log('Creating new employee:', employeeData);
   
   const { data, error } = await supabase
     .from('employees')
     .insert({
-      id: `EMP${Date.now()}`, // Generate a unique ID
-      name: employee.name,
-      nric: employee.nric,
-      date_of_birth: employee.dateOfBirth,
-      residency_status: employee.residencyStatus,
-      type: employee.type,
-      base_salary: employee.baseSalary,
-      hourly_rate: employee.hourlyRate,
-      daily_rate: employee.dailyRate,
-      payment_type: employee.paymentType,
-      bank_account: employee.bankAccount,
-      bank_name: employee.bankName,
-      department: employee.department,
-      position: employee.position,
-      phone: employee.phone,
-      address: employee.address,
-      email: employee.email
+      id: `EMP${Date.now()}`,
+      name: employeeData.name,
+      nric: employeeData.nric,
+      date_of_birth: employeeData.dateOfBirth,
+      residency_status: employeeData.residencyStatus,
+      type: employeeData.type,
+      base_salary: employeeData.baseSalary,
+      hourly_rate: employeeData.hourlyRate,
+      daily_rate: employeeData.dailyRate,
+      payment_type: employeeData.paymentType,
+      bank_account: employeeData.bankAccount,
+      bank_name: employeeData.bankName,
+      department: employeeData.branch, // Store as department in DB but use as branch
+      position: employeeData.position,
+      phone: employeeData.phone,
+      address: employeeData.address,
+      email: employeeData.email
     })
     .select()
     .single();
@@ -177,4 +196,32 @@ export const createEmployee = async (employee: Omit<EmployeeProfile, 'id' | 'all
   }
 
   return data;
+};
+
+export const deleteEmployee = async (id: string) => {
+  console.log('Deleting employee:', id);
+  
+  const { error } = await supabase
+    .from('employees')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting employee:', error);
+    throw error;
+  }
+};
+
+export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
+  console.log('Updating employee resign date:', id, resignDate);
+  
+  const { error } = await supabase
+    .from('employees')
+    .update({ resign_date: resignDate })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating employee resign date:', error);
+    throw error;
+  }
 };
