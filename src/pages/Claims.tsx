@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Receipt, Settings, Check, X, Eye, Plus } from 'lucide-react';
+import { Receipt, Settings, Check, X, Eye, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getClaims, updateClaimStatus, createClaim, type Claim } from '@/services/claimsService';
 import { getEmployees } from '@/services/employeeService';
@@ -22,12 +22,19 @@ const Claims = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
   const [claimTypes, setClaimTypes] = useState(['Travel', 'Meals', 'Office Supplies', 'Medical', 'Training']);
-  const [claimLimits, setClaimLimits] = useState<Record<string, number>>({
+  const [claimLimits, setClaimLimits] = useState<Record<string, number | null>>({
     'Travel': 500,
     'Meals': 100,
     'Office Supplies': 200,
     'Medical': 1000,
     'Training': 2000
+  });
+  const [employeeCoPayments, setEmployeeCoPayments] = useState<Record<string, number>>({
+    'Travel': 0,
+    'Meals': 10,
+    'Office Supplies': 0,
+    'Medical': 20,
+    'Training': 0
   });
 
   useEffect(() => {
@@ -117,6 +124,22 @@ const Claims = () => {
     }
   };
 
+  const handleRemoveClaimType = (typeToRemove: string) => {
+    const updatedTypes = claimTypes.filter(type => type !== typeToRemove);
+    setClaimTypes(updatedTypes);
+    
+    // Remove from limits and co-payments
+    const updatedLimits = { ...claimLimits };
+    delete updatedLimits[typeToRemove];
+    setClaimLimits(updatedLimits);
+    
+    const updatedCoPayments = { ...employeeCoPayments };
+    delete updatedCoPayments[typeToRemove];
+    setEmployeeCoPayments(updatedCoPayments);
+    
+    toast(`${typeToRemove} claim type removed`);
+  };
+
   const handleSaveSettings = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
@@ -130,23 +153,33 @@ const Claims = () => {
       }
     });
     
-    // Update claim limits
-    const newClaimLimits: Record<string, number> = {};
+    // Update claim limits (null for unlimited)
+    const newClaimLimits: Record<string, number | null> = {};
+    const newCoPayments: Record<string, number> = {};
+    
     newClaimTypes.forEach((type) => {
-      const limit = formData.get(`limit_${type}`) as string;
-      newClaimLimits[type] = parseFloat(limit) || 0;
+      const limitValue = formData.get(`limit_${type}`) as string;
+      const coPayValue = formData.get(`copay_${type}`) as string;
+      
+      // If limit is empty or blank, set to null for unlimited
+      newClaimLimits[type] = limitValue && limitValue.trim() ? parseFloat(limitValue) : null;
+      newCoPayments[type] = coPayValue ? parseFloat(coPayValue) : 0;
     });
     
     // Handle the new claim type if provided
-    const newClaimType = formData.get('claimTypes') as string;
-    const newLimit = formData.get('limit_new') as string;
+    const newClaimType = formData.get('newClaimType') as string;
+    const newLimit = formData.get('newLimit') as string;
+    const newCoPay = formData.get('newCoPay') as string;
+    
     if (newClaimType && newClaimType.trim() && !newClaimTypes.includes(newClaimType.trim())) {
       newClaimTypes.push(newClaimType.trim());
-      newClaimLimits[newClaimType.trim()] = parseFloat(newLimit) || 0;
+      newClaimLimits[newClaimType.trim()] = newLimit && newLimit.trim() ? parseFloat(newLimit) : null;
+      newCoPayments[newClaimType.trim()] = newCoPay ? parseFloat(newCoPay) : 0;
     }
     
     setClaimTypes(newClaimTypes.length > 0 ? newClaimTypes : claimTypes);
     setClaimLimits(Object.keys(newClaimLimits).length > 0 ? newClaimLimits : claimLimits);
+    setEmployeeCoPayments(Object.keys(newCoPayments).length > 0 ? newCoPayments : employeeCoPayments);
     setIsSettingsOpen(false);
     toast("Claim settings updated");
   };
@@ -157,6 +190,10 @@ const Claims = () => {
       case 'Rejected': return 'destructive';
       default: return 'secondary';
     }
+  };
+
+  const formatLimit = (limit: number | null) => {
+    return limit === null ? 'Unlimited' : `S$${limit}`;
   };
 
   if (isLoading) {
@@ -226,7 +263,8 @@ const Claims = () => {
                             <SelectContent>
                               {claimTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
-                                  {type}
+                                  {type} ({formatLimit(claimLimits[type])})
+                                  {employeeCoPayments[type] > 0 && ` - ${employeeCoPayments[type]}% co-pay`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -267,18 +305,24 @@ const Claims = () => {
                       Claim Settings
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg">
+                  <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                       <DialogTitle>Claim Settings</DialogTitle>
-                      <DialogDescription>Manage claim types and limits.</DialogDescription>
+                      <DialogDescription>Manage claim types, limits, and employee co-payment percentages.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveSettings}>
                       <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
                         <div>
                           <Label className="text-sm font-medium">Claim Types & Limits</Label>
                           <div className="grid gap-3 mt-2">
+                            <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-500">
+                              <span>Claim Type</span>
+                              <span>Limit (S$)</span>
+                              <span>Employee Co-pay (%)</span>
+                              <span>Action</span>
+                            </div>
                             {claimTypes.map((type, index) => (
-                              <div key={index} className="grid grid-cols-2 gap-2">
+                              <div key={index} className="grid grid-cols-4 gap-2 items-center">
                                 <Input 
                                   name="claimTypes" 
                                   defaultValue={type}
@@ -288,24 +332,54 @@ const Claims = () => {
                                   name={`limit_${type}`}
                                   type="number"
                                   step="0.01"
-                                  defaultValue={claimLimits[type] || 0}
-                                  placeholder="Limit (S$)"
+                                  defaultValue={claimLimits[type] || ''}
+                                  placeholder="Leave blank for unlimited"
                                 />
+                                <Input 
+                                  name={`copay_${type}`}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  defaultValue={employeeCoPayments[type] || 0}
+                                  placeholder="0"
+                                />
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleRemoveClaimType(type)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
                               </div>
                             ))}
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-4 gap-2 border-t pt-2">
                               <Input 
-                                name="claimTypes" 
+                                name="newClaimType" 
                                 placeholder="Add new claim type"
                               />
                               <Input 
-                                name="limit_new"
+                                name="newLimit"
                                 type="number"
                                 step="0.01"
-                                placeholder="Limit (S$)"
+                                placeholder="Limit (S$) or blank"
                               />
+                              <Input 
+                                name="newCoPay"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="Co-pay %"
+                              />
+                              <div></div>
                             </div>
                           </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Leave limit blank for unlimited claims. Co-pay percentage is the amount employee pays.
+                          </p>
                         </div>
                       </div>
                       <DialogFooter>
@@ -376,6 +450,7 @@ const Claims = () => {
                       <TableHead>Employee</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Amount</TableHead>
+                      <TableHead>Co-pay</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
@@ -383,45 +458,58 @@ const Claims = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {claims.map((claim) => (
-                      <TableRow key={claim.id}>
-                        <TableCell className="font-medium">{claim.employee}</TableCell>
-                        <TableCell>{claim.type}</TableCell>
-                        <TableCell>S${claim.amount.toFixed(2)}</TableCell>
-                        <TableCell>{claim.date}</TableCell>
-                        <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusColor(claim.status)}>
-                            {claim.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            {claim.status === 'Pending' && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleApprove(claim.id)}
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleReject(claim.id)}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </>
+                    {claims.map((claim) => {
+                      const coPayPercentage = employeeCoPayments[claim.type] || 0;
+                      const coPayAmount = (claim.amount * coPayPercentage) / 100;
+                      return (
+                        <TableRow key={claim.id}>
+                          <TableCell className="font-medium">{claim.employee}</TableCell>
+                          <TableCell>{claim.type}</TableCell>
+                          <TableCell>S${claim.amount.toFixed(2)}</TableCell>
+                          <TableCell>
+                            {coPayPercentage > 0 ? (
+                              <span className="text-sm">
+                                {coPayPercentage}% (S${coPayAmount.toFixed(2)})
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>{claim.date}</TableCell>
+                          <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusColor(claim.status)}>
+                              {claim.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              {claim.status === 'Pending' && (
+                                <>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleApprove(claim.id)}
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleReject(claim.id)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button size="sm" variant="outline">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
