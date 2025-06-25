@@ -1,12 +1,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
+import { getEmployeeById } from '@/services/employeeService';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  requiresPasswordChange: boolean;
+  updatePassword: (newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -14,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -23,9 +27,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = JSON.parse(storedUser);
         console.log('AuthContext: Loading stored user:', userData);
         setUser(userData);
+        
+        // Check if password change is required
+        const passwordChangeRequired = localStorage.getItem('requiresPasswordChange');
+        setRequiresPasswordChange(passwordChangeRequired === 'true');
       } catch (error) {
         console.error('AuthContext: Error parsing stored user:', error);
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('requiresPasswordChange');
       }
     }
     setIsLoading(false);
@@ -34,12 +43,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
     
-    // Define users with proper roles
+    // Define users with updated emails from employee details
     const users: { [key: string]: User } = {
-      'admin@company.sg': {
+      'alhk10@gmail.com': {
         id: 'ADMIN001',
         name: 'System Administrator',
-        email: 'admin@company.sg',
+        email: 'alhk10@gmail.com',
         role: 'superadmin'
       },
       'manager@company.sg': {
@@ -48,43 +57,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: 'manager@company.sg',
         role: 'manager'
       },
-      'john.tan@company.sg': {
-        id: 'EMP001',
-        name: 'John Tan',
-        email: 'john.tan@company.sg',
-        role: 'employee'
-      },
-      'mary.ng@company.sg': {
-        id: 'EMP002',
-        name: 'Mary Ng', 
-        email: 'mary.ng@company.sg',
-        role: 'employee'
-      },
-      'david.lim@company.sg': {
-        id: 'EMP003',
-        name: 'David Lim',
-        email: 'david.lim@company.sg', 
-        role: 'employee'
-      },
-      'alice.wong@company.sg': {
-        id: 'CAS001',
-        name: 'Alice Wong',
-        email: 'alice.wong@company.sg',
-        role: 'employee'
-      },
-      'bob.chen@company.sg': {
-        id: 'CAS002',
-        name: 'Bob Chen',
-        email: 'bob.chen@company.sg',
-        role: 'employee'
-      },
-      'sarah.lee@company.sg': {
-        id: 'CAS003',
-        name: 'Sarah Lee',
-        email: 'sarah.lee@company.sg',
-        role: 'employee'
-      }
     };
+
+    // Load employee emails dynamically from database
+    try {
+      // Get employee emails from the database for EMP001, EMP002, EMP003
+      const employeeIds = ['EMP001', 'EMP002', 'EMP003', 'CAS001', 'CAS002', 'CAS003'];
+      
+      for (const empId of employeeIds) {
+        const employee = await getEmployeeById(empId);
+        if (employee && employee.email) {
+          users[employee.email] = {
+            id: employee.id,
+            name: employee.name,
+            email: employee.email,
+            role: 'employee'
+          };
+        }
+      }
+    } catch (error) {
+      console.error('AuthContext: Error loading employee emails:', error);
+    }
 
     const foundUser = users[email];
     if (foundUser && password === 'password') {
@@ -93,10 +86,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Clear any existing stored data
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('requiresPasswordChange');
       
       // Store user data
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
       setUser(foundUser);
+      
+      // Check if this is first login (using default password)
+      if (password === 'password') {
+        localStorage.setItem('requiresPasswordChange', 'true');
+        setRequiresPasswordChange(true);
+        console.log('AuthContext: Password change required for first login');
+      }
       
       // Double-check stored data
       const storedCheck = localStorage.getItem('currentUser');
@@ -109,10 +110,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
+  const updatePassword = async (newPassword: string): Promise<boolean> => {
+    console.log('AuthContext: Updating password for user:', user?.email);
+    
+    // In a real implementation, this would call an API
+    // For now, we'll just clear the password change requirement
+    localStorage.removeItem('requiresPasswordChange');
+    setRequiresPasswordChange(false);
+    
+    console.log('AuthContext: Password updated successfully');
+    return true;
+  };
+
   const logout = () => {
     console.log('AuthContext: Logging out user:', user);
     setUser(null);
+    setRequiresPasswordChange(false);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('requiresPasswordChange');
   };
 
   // Debug log current user state
@@ -124,7 +139,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      isLoading, 
+      requiresPasswordChange, 
+      updatePassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -17,9 +17,12 @@ const LoginForm = () => {
     setError('');
     
     try {
-      await login(email, password);
+      const success = await login(email, password);
+      if (!success) {
+        setError('Invalid credentials. Please check your email and password.');
+      }
     } catch (err) {
-      setError('Invalid credentials. Use one of the demo accounts below.');
+      setError('Invalid credentials. Please check your email and password.');
     }
   };
 
@@ -76,10 +79,11 @@ const LoginForm = () => {
           </form>
           <div className="mt-6 text-xs text-gray-500 space-y-1">
             <p className="font-medium">Demo credentials:</p>
-            <p>• admin@company.sg (Superadmin)</p>
+            <p>• alhk10@gmail.com (Superadmin)</p>
             <p>• manager@company.sg (Manager)</p>
-            <p>• employee@company.sg (Employee)</p>
-            <p className="text-gray-400 mt-2">Any password works</p>
+            <p>• Use employee emails from their profiles (Employee)</p>
+            <p className="text-gray-400 mt-2">Default password: password</p>
+            <p className="text-gray-400">You'll be prompted to change it on first login</p>
           </div>
         </CardContent>
       </Card>
