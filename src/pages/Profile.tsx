@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -123,8 +122,8 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Department</label>
-                    <p className="text-lg text-gray-900">{employeeData.department || 'Not specified'}</p>
+                    <label className="text-sm font-medium text-gray-600">Branch</label>
+                    <p className="text-lg text-gray-900">{employeeData.branch || 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Position</label>

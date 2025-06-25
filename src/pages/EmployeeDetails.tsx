@@ -158,7 +158,7 @@ const EmployeeDetails = () => {
                 </Button>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
-                  <p className="text-gray-600">{employee.id} • {employee.department} • {employee.position}</p>
+                  <p className="text-gray-600">{employee.id} • {employee.branch} • {employee.position}</p>
                 </div>
               </div>
               <Button onClick={handleEdit} className="flex items-center space-x-2">
@@ -232,8 +232,8 @@ const EmployeeDetails = () => {
                       <Table>
                         <TableBody>
                           <TableRow>
-                            <TableCell className="font-medium">Department</TableCell>
-                            <TableCell>{employee.department || 'Not specified'}</TableCell>
+                            <TableCell className="font-medium">Branch</TableCell>
+                            <TableCell>{employee.branch || 'Not specified'}</TableCell>
                           </TableRow>
                           <TableRow>
                             <TableCell className="font-medium">Position</TableCell>

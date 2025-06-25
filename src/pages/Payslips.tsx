@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -77,7 +76,7 @@ EMPLOYEE DETAILS:
 Name: ${currentEmployee.name}
 Employee ID: ${currentEmployee.id}
 NRIC/FIN: ${currentEmployee.nric}
-Department: ${currentEmployee.department || 'N/A'}
+Branch: ${currentEmployee.branch || 'N/A'}
 Position: ${currentEmployee.position || 'N/A'}
 
 PAY PERIOD: ${month}

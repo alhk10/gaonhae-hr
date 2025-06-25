@@ -1,3 +1,4 @@
+
 import { EmployeeProfile } from '@/types/employee';
 
 export const employeeDatabase: { [key: string]: EmployeeProfile } = {
@@ -19,7 +20,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     ],
     bankAccount: '1234-567890',
     bankName: 'DBS Bank',
-    department: 'Engineering',
+    branch: 'Engineering',
     position: 'Senior Developer',
     phone: '+65 9123 4567',
     address: '123 Orchard Road, #12-34, Singapore 238858',
@@ -49,7 +50,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     ],
     bankAccount: '2345-678901',
     bankName: 'OCBC Bank',
-    department: 'Marketing',
+    branch: 'Marketing',
     position: 'Marketing Manager',
     phone: '+65 9234 5678',
     address: '456 Marina Bay, #08-21, Singapore 018956',
@@ -79,7 +80,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     ],
     bankAccount: '3456-789012',
     bankName: 'UOB Bank',
-    department: 'Operations',
+    branch: 'Operations',
     position: 'Operations Assistant',
     phone: '+65 9345 6789',
     address: '789 Jurong East, #15-67, Singapore 609729',
@@ -101,7 +102,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     deductions: [],
     bankAccount: '4567-890123',
     bankName: 'UOB Bank',
-    department: 'Teaching',
+    branch: 'Teaching',
     position: 'Casual Teacher',
     phone: '+65 9456 7890',
     address: '321 Tampines, #22-11, Singapore 529543',
@@ -123,7 +124,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     deductions: [],
     bankAccount: '5678-901234',
     bankName: 'DBS Bank',
-    department: 'Teaching',
+    branch: 'Teaching',
     position: 'Casual Teacher',
     phone: '+65 9567 8901',
     address: '654 Woodlands, #05-43, Singapore 730654',
@@ -145,7 +146,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     deductions: [],
     bankAccount: '6789-012345',
     bankName: 'OCBC Bank',
-    department: 'Teaching',
+    branch: 'Teaching',
     position: 'Casual Teacher',
     phone: '+65 9678 9012',
     address: '987 Yishun, #18-29, Singapore 760987',
