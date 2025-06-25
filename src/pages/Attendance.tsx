@@ -6,98 +6,202 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, Search, X } from 'lucide-react';
+import { Calendar, Clock, Users, Plus, UserPlus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getAttendanceRecords, updateAttendanceStatus, AttendanceRecord } from '@/services/attendanceService';
+import { supabase } from '@/integrations/supabase/client';
+import { getEmployees } from '@/services/employeeService';
+
+interface AttendanceRecord {
+  id: number;
+  employee_id: string;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  break_start: string | null;
+  break_end: string | null;
+  status: string;
+  hours_worked: number | null;
+  employee?: {
+    name: string;
+  };
+}
+
+interface Employee {
+  id: string;
+  name: string;
+}
 
 const Attendance = () => {
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddAttendanceOpen, setIsAddAttendanceOpen] = useState(false);
+  const [isBulkAttendanceOpen, setIsBulkAttendanceOpen] = useState(false);
 
   useEffect(() => {
-    fetchAttendanceData();
+    loadData();
   }, []);
 
-  const fetchAttendanceData = async () => {
+  const loadData = async () => {
     try {
-      setLoading(true);
-      const data = await getAttendanceRecords();
-      setAttendanceData(data);
-    } catch (error) {
-      console.error('Error fetching attendance data:', error);
-      toast("Error loading attendance data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredData = attendanceData.filter(record => {
-    const matchesSearch = record.employee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || record.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesDate = !dateFilter || record.date === dateFilter;
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  });
-
-  const handleEditRecord = (record: AttendanceRecord) => {
-    setEditingRecord(record);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingRecord) return;
-
-    const formData = new FormData(e.target as HTMLFormElement);
-    const clockIn = formData.get('clockIn') as string;
-    const clockOut = formData.get('clockOut') as string;
-    
-    let status: 'Present' | 'Absent' | 'Half Day' | 'Late' = 'Present';
-    let hours = 0;
-    
-    if (!clockIn || !clockOut) {
-      status = 'Absent';
-      hours = 0;
-    } else {
-      const inTime = new Date(`2000-01-01 ${clockIn}`);
-      const outTime = new Date(`2000-01-01 ${clockOut}`);
-      hours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+      setIsLoading(true);
       
-      // Check if late (after 9:00 AM)
-      const startTime = new Date(`2000-01-01 09:00`);
-      if (inTime > startTime) {
-        status = 'Late';
+      // Load attendance records
+      const { data: attendance, error: attendanceError } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          employees:employee_id(name)
+        `)
+        .order('date', { ascending: false });
+
+      if (attendanceError) {
+        console.error('Error fetching attendance:', attendanceError);
+        toast('Error loading attendance data');
+      } else {
+        setAttendanceRecords(attendance || []);
       }
+
+      // Load employees
+      const employeesData = await getEmployees();
+      setEmployees(employeesData);
+      
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast('Error loading data');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const calculateHours = (checkIn: string, checkOut: string, breakStart?: string, breakEnd?: string) => {
+    if (!checkIn || !checkOut) return 0;
+    
+    const checkInTime = new Date(`2000-01-01T${checkIn}`);
+    const checkOutTime = new Date(`2000-01-01T${checkOut}`);
+    let totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
+    
+    if (breakStart && breakEnd) {
+      const breakStartTime = new Date(`2000-01-01T${breakStart}`);
+      const breakEndTime = new Date(`2000-01-01T${breakEnd}`);
+      const breakMinutes = (breakEndTime.getTime() - breakStartTime.getTime()) / (1000 * 60);
+      totalMinutes -= breakMinutes;
+    }
+    
+    return Math.max(0, totalMinutes / 60);
+  };
+
+  const handleAddAttendance = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const employeeId = formData.get('employee') as string;
+    const date = formData.get('date') as string;
+    const checkIn = formData.get('checkIn') as string;
+    const checkOut = formData.get('checkOut') as string;
+    const breakStart = formData.get('breakStart') as string;
+    const breakEnd = formData.get('breakEnd') as string;
+    const status = formData.get('status') as string;
+
+    if (!employeeId || !date || !status) {
+      toast('Please fill in all required fields');
+      return;
+    }
+
+    const hoursWorked = calculateHours(checkIn, checkOut, breakStart, breakEnd);
 
     try {
-      await updateAttendanceStatus(editingRecord.employeeId, editingRecord.date, status);
-      await fetchAttendanceData(); // Refresh data
-      setIsEditDialogOpen(false);
-      setEditingRecord(null);
-      toast("Attendance record updated");
+      const { error } = await supabase
+        .from('attendance')
+        .insert({
+          employee_id: employeeId,
+          date,
+          check_in: checkIn || null,
+          check_out: checkOut || null,
+          break_start: breakStart || null,
+          break_end: breakEnd || null,
+          status,
+          hours_worked: hoursWorked
+        });
+
+      if (error) {
+        console.error('Error adding attendance:', error);
+        toast('Error adding attendance record');
+      } else {
+        toast('Attendance record added successfully');
+        setIsAddAttendanceOpen(false);
+        loadData();
+      }
     } catch (error) {
-      console.error('Error updating attendance:', error);
-      toast("Error updating attendance. Please try again.");
+      console.error('Error adding attendance:', error);
+      toast('Error adding attendance record');
     }
   };
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setDateFilter('');
+  const handleBulkAttendance = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const selectedEmployees = formData.getAll('employees') as string[];
+    const date = formData.get('date') as string;
+    const checkIn = formData.get('checkIn') as string;
+    const checkOut = formData.get('checkOut') as string;
+    const breakStart = formData.get('breakStart') as string;
+    const breakEnd = formData.get('breakEnd') as string;
+    const status = formData.get('status') as string;
+
+    if (selectedEmployees.length === 0 || !date || !status) {
+      toast('Please select employees and fill in required fields');
+      return;
+    }
+
+    const hoursWorked = calculateHours(checkIn, checkOut, breakStart, breakEnd);
+
+    try {
+      const attendanceRecords = selectedEmployees.map(employeeId => ({
+        employee_id: employeeId,
+        date,
+        check_in: checkIn || null,
+        check_out: checkOut || null,
+        break_start: breakStart || null,
+        break_end: breakEnd || null,
+        status,
+        hours_worked: hoursWorked
+      }));
+
+      const { error } = await supabase
+        .from('attendance')
+        .insert(attendanceRecords);
+
+      if (error) {
+        console.error('Error adding bulk attendance:', error);
+        toast('Error adding bulk attendance records');
+      } else {
+        toast(`Bulk attendance added for ${selectedEmployees.length} employees`);
+        setIsBulkAttendanceOpen(false);
+        loadData();
+      }
+    } catch (error) {
+      console.error('Error adding bulk attendance:', error);
+      toast('Error adding bulk attendance records');
+    }
   };
 
-  if (loading) {
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'present': return 'default';
+      case 'absent': return 'destructive';
+      case 'late': return 'secondary';
+      case 'half-day': return 'outline';
+      default: return 'secondary';
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -105,16 +209,20 @@ const Attendance = () => {
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
             <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading attendance data...</p>
-              </div>
+              <p>Loading attendance data...</p>
             </div>
           </main>
         </div>
       </div>
     );
   }
+
+  const todayRecords = attendanceRecords.filter(record => 
+    record.date === new Date().toISOString().split('T')[0]
+  );
+  const presentToday = todayRecords.filter(record => record.status === 'Present').length;
+  const absentToday = todayRecords.filter(record => record.status === 'Absent').length;
+  const lateToday = todayRecords.filter(record => record.status === 'Late').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,28 +231,190 @@ const Attendance = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
-              <p className="text-gray-600">View and edit employee attendance records</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
+                <p className="text-gray-600">Track and manage employee attendance</p>
+              </div>
+              <div className="flex space-x-2">
+                <Dialog open={isAddAttendanceOpen} onOpenChange={setIsAddAttendanceOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Attendance
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add Attendance Record</DialogTitle>
+                      <DialogDescription>Add attendance record for a single employee.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddAttendance}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="employee">Employee</Label>
+                          <Select name="employee" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.name} ({employee.id})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="date">Date</Label>
+                          <Input
+                            name="date"
+                            type="date"
+                            required
+                            defaultValue={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="status">Status</Label>
+                          <Select name="status" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Present">Present</SelectItem>
+                              <SelectItem value="Absent">Absent</SelectItem>
+                              <SelectItem value="Late">Late</SelectItem>
+                              <SelectItem value="Half-Day">Half-Day</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="checkIn">Check In</Label>
+                            <Input name="checkIn" type="time" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="checkOut">Check Out</Label>
+                            <Input name="checkOut" type="time" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="breakStart">Break Start</Label>
+                            <Input name="breakStart" type="time" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="breakEnd">Break End</Label>
+                            <Input name="breakEnd" type="time" />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsAddAttendanceOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Add Attendance</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isBulkAttendanceOpen} onOpenChange={setIsBulkAttendanceOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Add Bulk Attendance
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Add Bulk Attendance</DialogTitle>
+                      <DialogDescription>Add attendance records for multiple employees at once.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleBulkAttendance}>
+                      <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                        <div className="grid gap-2">
+                          <Label>Select Employees</Label>
+                          <div className="max-h-32 overflow-y-auto border rounded p-2">
+                            {employees.map((employee) => (
+                              <div key={employee.id} className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  name="employees"
+                                  value={employee.id}
+                                  id={`emp-${employee.id}`}
+                                />
+                                <label htmlFor={`emp-${employee.id}`} className="text-sm">
+                                  {employee.name} ({employee.id})
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="date">Date</Label>
+                          <Input
+                            name="date"
+                            type="date"
+                            required
+                            defaultValue={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="status">Status</Label>
+                          <Select name="status" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Present">Present</SelectItem>
+                              <SelectItem value="Absent">Absent</SelectItem>
+                              <SelectItem value="Late">Late</SelectItem>
+                              <SelectItem value="Half-Day">Half-Day</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="checkIn">Check In</Label>
+                            <Input name="checkIn" type="time" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="checkOut">Check Out</Label>
+                            <Input name="checkOut" type="time" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="breakStart">Break Start</Label>
+                            <Input name="breakStart" type="time" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="breakEnd">Break End</Label>
+                            <Input name="breakEnd" type="time" />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsBulkAttendanceOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">Add Bulk Attendance</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Records</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{attendanceData.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
                   <CardTitle>Present Today</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-green-600">
-                    {attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length}
-                  </p>
+                  <p className="text-2xl font-bold text-green-600">{presentToday}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -152,176 +422,75 @@ const Attendance = () => {
                   <CardTitle>Absent Today</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-red-600">
-                    {attendanceData.filter(record => record.status === 'Absent').length}
-                  </p>
+                  <p className="text-2xl font-bold text-red-600">{absentToday}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle>Average Hours</CardTitle>
+                  <CardTitle>Late Today</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">
-                    {attendanceData.length > 0 ? (attendanceData.reduce((sum, record) => sum + record.hours, 0) / attendanceData.length).toFixed(1) : '0'}h
-                  </p>
+                  <p className="text-2xl font-bold text-yellow-600">{lateToday}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Records</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{attendanceRecords.length}</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Clock className="w-5 h-5" />
-                      <span>Attendance Records</span>
-                    </CardTitle>
-                    <CardDescription>Employee attendance with search and filters</CardDescription>
-                  </div>
-                </div>
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="w-5 h-5" />
+                  <span>Attendance Records</span>
+                </CardTitle>
+                <CardDescription>All employee attendance records</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search by employee name..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="absent">Absent</SelectItem>
-                      <SelectItem value="late">Late</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-40"
-                  />
-                  <Button variant="outline" onClick={clearFilters}>
-                    <X className="w-4 h-4 mr-2" />
-                    Clear
-                  </Button>
-                </div>
-
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Clock In</TableHead>
-                      <TableHead>Clock Out</TableHead>
+                      <TableHead>Check In</TableHead>
+                      <TableHead>Check Out</TableHead>
+                      <TableHead>Break</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData.map((record) => (
+                    {attendanceRecords.map((record) => (
                       <TableRow key={record.id}>
-                        <TableCell className="font-medium">{record.employee}</TableCell>
+                        <TableCell className="font-medium">
+                          {(record.employees as any)?.name || 'Unknown'} ({record.employee_id})
+                        </TableCell>
                         <TableCell>{record.date}</TableCell>
-                        <TableCell>{record.clockIn || '-'}</TableCell>
-                        <TableCell>{record.clockOut || '-'}</TableCell>
-                        <TableCell>{record.hours}h</TableCell>
+                        <TableCell>{record.check_in || '-'}</TableCell>
+                        <TableCell>{record.check_out || '-'}</TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={
-                              record.status === 'Present' ? 'default' : 
-                              record.status === 'Late' ? 'secondary' :
-                              'outline'
-                            }
-                          >
+                          {record.break_start && record.break_end 
+                            ? `${record.break_start} - ${record.break_end}`
+                            : '-'
+                          }
+                        </TableCell>
+                        <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusColor(record.status)}>
                             {record.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEditRecord(record)}
-                          >
-                            Edit
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
-                    {filteredData.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                          No attendance records found matching your filters.
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
-
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Edit Attendance</DialogTitle>
-                  <DialogDescription>
-                    Edit attendance record for {editingRecord?.employee}
-                  </DialogDescription>
-                </DialogHeader>
-                {editingRecord && (
-                  <form onSubmit={handleSaveEdit}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="employee">Employee</Label>
-                        <Input value={editingRecord.employee} disabled />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input value={editingRecord.date} disabled />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="clockIn">Clock In</Label>
-                          <Input 
-                            name="clockIn" 
-                            type="time" 
-                            defaultValue={editingRecord.clockIn || ''}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="clockOut">Clock Out</Label>
-                          <Input 
-                            name="clockOut" 
-                            type="time" 
-                            defaultValue={editingRecord.clockOut || ''}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Leave times empty to mark as absent
-                      </p>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save Changes</Button>
-                    </DialogFooter>
-                  </form>
-                )}
-              </DialogContent>
-            </Dialog>
           </div>
         </main>
       </div>
