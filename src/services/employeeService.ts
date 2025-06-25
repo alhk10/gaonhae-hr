@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
 
@@ -21,6 +20,78 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   }
 
   console.log('Fetched employees:', employees);
+
+  return employees.map(emp => ({
+    id: emp.id,
+    name: emp.name,
+    nric: emp.nric || '',
+    dateOfBirth: emp.date_of_birth,
+    residencyStatus: emp.residency_status,
+    type: emp.type as 'Full-Time' | 'Casual',
+    baseSalary: emp.base_salary || undefined,
+    hourlyRate: emp.hourly_rate || undefined,
+    dailyRate: emp.daily_rate || undefined,
+    paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
+    bankName: emp.bank_name || '',
+    bankAccount: emp.bank_account || '',
+    branch: emp.department || '',
+    position: emp.position || '',
+    phone: emp.phone || '',
+    address: emp.address || '',
+    email: emp.email || '',
+    resignDate: emp.resign_date || undefined,
+    allowances: emp.allowances?.map(a => ({
+      id: a.id,
+      name: a.name,
+      amount: Number(a.amount),
+      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+    })) || [],
+    deductions: emp.deductions?.map(d => ({
+      id: d.id,
+      name: d.name,
+      amount: Number(d.amount),
+      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+    })) || [],
+    certificates: emp.certificates?.map(cert => ({
+      id: cert.id,
+      name: cert.name,
+      fileName: cert.file_name,
+      uploadDate: cert.upload_date,
+      fileSize: cert.file_size,
+      fileType: cert.file_type
+    })) || [],
+    adminAccess: emp.admin_access?.length > 0 ? {
+      employees: emp.admin_access[0]?.employees || false,
+      payroll: emp.admin_access[0]?.payroll || false,
+      leaveManagement: emp.admin_access[0]?.leave_management || false,
+      claims: emp.admin_access[0]?.claims || false,
+      attendance: emp.admin_access[0]?.attendance || false,
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
+    } : undefined
+  }));
+};
+
+export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
+  console.log('Fetching casual employees from Supabase...');
+  
+  const { data: employees, error } = await supabase
+    .from('employees')
+    .select(`
+      *,
+      allowances (*),
+      deductions (*),
+      admin_access (*),
+      certificates (*)
+    `)
+    .eq('type', 'Casual');
+
+  if (error) {
+    console.error('Error fetching casual employees:', error);
+    throw error;
+  }
+
+  console.log('Fetched casual employees:', employees);
 
   return employees.map(emp => ({
     id: emp.id,
