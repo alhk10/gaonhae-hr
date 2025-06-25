@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
-import { employeeDatabase, getFullTimeEmployees, getCasualEmployees } from '@/data/employeeData';
+import { getEmployees } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { getEmployeeClaims } from '@/services/claimsService';
 
@@ -66,13 +66,32 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   };
 
   const initializePayroll = async () => {
-    console.log('Initializing payroll from employee database');
+    console.log('Initializing payroll from Supabase employee database');
     setIsLoading(true);
     
     try {
+      // Fetch employees from Supabase
+      const allEmployees = await getEmployees();
+      console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
+      
+      if (allEmployees.length === 0) {
+        console.log('No employees found in Supabase database');
+        setPayrollState(prev => ({
+          ...prev,
+          fullTimeEmployees: [],
+          casualEmployees: [],
+          lastUpdated: new Date()
+        }));
+        setIsLoading(false);
+        return;
+      }
+
+      const fullTimeEmps = allEmployees.filter(emp => emp.type === 'Full-Time');
+      const casualEmps = allEmployees.filter(emp => emp.type === 'Casual');
+
       // Initialize full-time employees
-      const fullTimeEmps: PayrollEmployee[] = await Promise.all(
-        getFullTimeEmployees().map(async (emp) => {
+      const fullTimePayroll: PayrollEmployee[] = await Promise.all(
+        fullTimeEmps.map(async (emp) => {
           try {
             const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
             const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
@@ -110,12 +129,12 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       );
 
       // Initialize casual employees
-      const casualEmps: CasualEmployeePayroll[] = await Promise.all(
-        getCasualEmployees().map(async (emp) => {
+      const casualPayroll: CasualEmployeePayroll[] = await Promise.all(
+        casualEmps.map(async (emp) => {
           try {
-            const hoursWorked = 120; // This should come from slot bookings
-            const daysWorked = 15; // This should come from slot bookings
-            const grossPay = (emp.hourlyRate || 0) * hoursWorked;
+            const hoursWorked = 120; // This should come from slot bookings in the future
+            const daysWorked = 15; // This should come from slot bookings in the future
+            const grossPay = (emp.hourlyRate || emp.dailyRate || 0) * (emp.paymentType === 'Daily' ? daysWorked : hoursWorked);
             
             const age = calculateAge(emp.dateOfBirth);
             const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
@@ -126,8 +145,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
-              hourlyRate: emp.hourlyRate || 0,
-              hoursWorked,
+              hourlyRate: emp.hourlyRate || emp.dailyRate || 0,
+              hoursWorked: emp.paymentType === 'Daily' ? daysWorked : hoursWorked,
               daysWorked,
               totalPay,
               employeeCPF: cpfCalc.employeeCPF,
@@ -139,7 +158,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
-              hourlyRate: emp.hourlyRate || 0,
+              hourlyRate: emp.hourlyRate || emp.dailyRate || 0,
               hoursWorked: 0,
               daysWorked: 0,
               totalPay: 0,
@@ -152,19 +171,26 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
 
       setPayrollState(prev => ({
         ...prev,
-        fullTimeEmployees: fullTimeEmps,
-        casualEmployees: casualEmps,
+        fullTimeEmployees: fullTimePayroll,
+        casualEmployees: casualPayroll,
         lastUpdated: new Date()
       }));
       
-      console.log('Payroll initialized:', { 
-        fullTimeCount: fullTimeEmps.length, 
-        casualCount: casualEmps.length,
-        fullTimeTotal: fullTimeEmps.reduce((sum, emp) => sum + emp.total, 0),
-        casualTotal: casualEmps.reduce((sum, emp) => sum + emp.totalPay, 0)
+      console.log('Payroll initialized from Supabase:', { 
+        fullTimeCount: fullTimePayroll.length, 
+        casualCount: casualPayroll.length,
+        fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.total, 0),
+        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0)
       });
     } catch (error) {
-      console.error('Error initializing payroll:', error);
+      console.error('Error initializing payroll from Supabase:', error);
+      // Set empty state if there's an error
+      setPayrollState(prev => ({
+        ...prev,
+        fullTimeEmployees: [],
+        casualEmployees: [],
+        lastUpdated: new Date()
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -177,21 +203,12 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       ...prev,
       fullTimeEmployees: prev.fullTimeEmployees.map(emp => {
         if (emp.id === employeeId) {
-          const empData = employeeDatabase[employeeId];
-          if (!empData) return emp;
-          
-          const totalAllowances = empData.allowances.reduce((sum, a) => sum + a.amount, 0);
-          const totalDeductions = empData.deductions.reduce((sum, d) => sum + d.amount, 0);
-          const grossSalary = newSalary + totalAllowances;
-          
-          const age = calculateAge(empData.dateOfBirth);
-          const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-          const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions;
+          const grossSalary = newSalary + emp.allowances;
+          const netSalary = grossSalary - emp.cpf - emp.deductions;
           
           return {
             ...emp,
             baseSalary: newSalary,
-            cpf: cpfCalc.employerCPF,
             total: netSalary
           };
         }
@@ -210,20 +227,13 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         if (emp.id === employeeId) {
           const totalAllowances = allowances.reduce((sum, a) => sum + a.amount, 0);
           const grossSalary = emp.baseSalary + totalAllowances;
+          const netSalary = grossSalary - emp.cpf - emp.deductions;
           
-          const empData = employeeDatabase[employeeId];
-          if (empData) {
-            const age = calculateAge(empData.dateOfBirth);
-            const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-            const netSalary = grossSalary - cpfCalc.employeeCPF - emp.deductions;
-            
-            return {
-              ...emp,
-              allowances: totalAllowances,
-              cpf: cpfCalc.employerCPF,
-              total: netSalary
-            };
-          }
+          return {
+            ...emp,
+            allowances: totalAllowances,
+            total: netSalary
+          };
         }
         return emp;
       }),
@@ -263,22 +273,14 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         if (emp.id === employeeId) {
           const newRate = rate || emp.hourlyRate;
           const grossPay = newRate * hours;
+          const totalPay = grossPay - emp.employeeCPF;
           
-          const empData = employeeDatabase[employeeId];
-          if (empData) {
-            const age = calculateAge(empData.dateOfBirth);
-            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-            const totalPay = grossPay - cpfCalc.employeeCPF;
-            
-            return {
-              ...emp,
-              hourlyRate: newRate,
-              hoursWorked: hours,
-              totalPay,
-              employeeCPF: cpfCalc.employeeCPF,
-              employerCPF: cpfCalc.employerCPF
-            };
-          }
+          return {
+            ...emp,
+            hourlyRate: newRate,
+            hoursWorked: hours,
+            totalPay
+          };
         }
         return emp;
       }),
@@ -346,9 +348,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
 
   // Initialize payroll on mount
   useEffect(() => {
-    if (!loadPayrollDraft()) {
-      initializePayroll();
-    }
+    // Always initialize from Supabase, don't use localStorage as fallback for employee data
+    initializePayroll();
   }, []);
 
   // Update total amount when employees change

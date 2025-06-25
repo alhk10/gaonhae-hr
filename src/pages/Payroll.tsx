@@ -1,20 +1,24 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Calendar, Download, TrendingUp, Eye, Users, Clock } from 'lucide-react';
+import { DollarSign, Calendar, Download, TrendingUp, Eye, Users, Clock, Plus, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Payroll = () => {
   const navigate = useNavigate();
-  const { payrollState, calculatePayrollTotal, setPayrollStatus } = usePayroll();
+  const { payrollState, calculatePayrollTotal, setPayrollStatus, isLoading } = usePayroll();
 
   const handleProcessPayroll = () => {
+    if (payrollState.fullTimeEmployees.length === 0 && payrollState.casualEmployees.length === 0) {
+      toast('No employees found. Please add employees before processing payroll.');
+      return;
+    }
     navigate('/payroll-processing');
   };
 
@@ -26,7 +30,16 @@ const Payroll = () => {
     navigate('/payment-summary');
   };
 
+  const handleAddEmployees = () => {
+    navigate('/employees');
+  };
+
   const generatePDF = (month: string) => {
+    if (payrollState.fullTimeEmployees.length === 0 && payrollState.casualEmployees.length === 0) {
+      toast('No employees found. Cannot generate payroll report.');
+      return;
+    }
+
     const pdfContent = `
 <!DOCTYPE html>
 <html>
@@ -94,9 +107,29 @@ const Payroll = () => {
     toast(`Downloaded payroll summary for ${month}`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading payroll data...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   const currentTotal = calculatePayrollTotal();
   const yearlyTotal = currentTotal * 12;
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
+  const hasEmployees = totalEmployees > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,12 +163,29 @@ const Payroll = () => {
                 <Button 
                   className="flex items-center space-x-2" 
                   onClick={handleProcessPayroll}
+                  disabled={!hasEmployees}
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Process Payroll</span>
                 </Button>
               </div>
             </div>
+
+            {!hasEmployees && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No employees found in the database. Please add employees before processing payroll.
+                  <Button 
+                    variant="link" 
+                    className="ml-2 p-0 h-auto text-blue-600"
+                    onClick={handleAddEmployees}
+                  >
+                    Add Employees
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
@@ -207,7 +257,7 @@ const Payroll = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {payrollState.fullTimeEmployees.slice(0, 5).map((employee) => (
+                    {hasEmployees && payrollState.fullTimeEmployees.slice(0, 5).map((employee) => (
                       <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium text-gray-900">{employee.name}</p>
@@ -222,8 +272,20 @@ const Payroll = () => {
                         </div>
                       </div>
                     ))}
-                    {payrollState.fullTimeEmployees.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No full-time employees</p>
+                    {!hasEmployees && (
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 mb-3">No full-time employees found</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleAddEmployees}
+                          className="flex items-center space-x-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add Employees</span>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -236,7 +298,7 @@ const Payroll = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {payrollState.casualEmployees.slice(0, 5).map((employee) => (
+                    {hasEmployees && payrollState.casualEmployees.slice(0, 5).map((employee) => (
                       <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium text-gray-900">{employee.name}</p>
@@ -250,8 +312,20 @@ const Payroll = () => {
                         </div>
                       </div>
                     ))}
-                    {payrollState.casualEmployees.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No casual employees</p>
+                    {!hasEmployees && (
+                      <div className="text-center py-8">
+                        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 mb-3">No casual employees found</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleAddEmployees}
+                          className="flex items-center space-x-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add Employees</span>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -277,6 +351,7 @@ const Payroll = () => {
                     variant="outline"
                     className="flex items-center space-x-2"
                     onClick={() => generatePDF(payrollState.currentPeriod)}
+                    disabled={!hasEmployees}
                   >
                     <Download className="w-4 h-4" />
                     <span>Download Report</span>
@@ -288,6 +363,7 @@ const Payroll = () => {
                       setPayrollStatus('processing');
                       toast('Payroll status updated to processing');
                     }}
+                    disabled={!hasEmployees}
                   >
                     <Calendar className="w-4 h-4" />
                     <span>Mark as Processing</span>
