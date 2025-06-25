@@ -280,6 +280,7 @@ export type Database = {
           phone: string | null
           position: string | null
           residency_status: string
+          resign_date: string | null
           type: string
           updated_at: string | null
         }
@@ -301,6 +302,7 @@ export type Database = {
           phone?: string | null
           position?: string | null
           residency_status: string
+          resign_date?: string | null
           type: string
           updated_at?: string | null
         }
@@ -322,6 +324,7 @@ export type Database = {
           phone?: string | null
           position?: string | null
           residency_status?: string
+          resign_date?: string | null
           type?: string
           updated_at?: string | null
         }
