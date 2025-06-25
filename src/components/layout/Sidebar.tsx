@@ -33,7 +33,8 @@ const Sidebar = () => {
     const loadCurrentEmployee = async () => {
       console.log('Loading current employee data for user:', user);
       
-      if (user?.email) {
+      // Only load employee data for actual employees, not superadmin/manager
+      if (user?.email && user?.role === 'employee') {
         try {
           setIsLoading(true);
           const employees = await getEmployees();
@@ -56,7 +57,7 @@ const Sidebar = () => {
           setIsLoading(false);
         }
       } else {
-        console.log('No user email available');
+        console.log('User is not employee or no email - skipping employee data load');
         setIsLoading(false);
       }
     };
@@ -71,7 +72,7 @@ const Sidebar = () => {
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
-    // Superadmin gets full access
+    // Superadmin gets full access - should not depend on employee data
     if (user?.role === 'superadmin') {
       console.log('Returning superadmin menu items');
       return [
@@ -86,7 +87,7 @@ const Sidebar = () => {
       ];
     }
 
-    // Manager gets manager-specific access
+    // Manager gets manager-specific access - should not depend on employee data
     if (user?.role === 'manager') {
       console.log('Returning manager menu items');
       return [

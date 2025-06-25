@@ -1,32 +1,44 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, Calendar, Edit, Save, X, Search, Filter } from 'lucide-react';
+import { Clock, Search, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getAttendanceRecords, updateAttendanceStatus, AttendanceRecord } from '@/services/attendanceService';
 
 const Attendance = () => {
-  const [attendanceData, setAttendanceData] = useState([
-    { id: 1, employee: 'John Tan', date: '2024-12-20', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
-    { id: 2, employee: 'Mary Ng', date: '2024-12-20', clockIn: '09:15', clockOut: '18:30', status: 'Present', hours: 8.25 },
-    { id: 3, employee: 'David Lim', date: '2024-12-20', clockIn: '', clockOut: '', status: 'Absent', hours: 0 },
-    { id: 4, employee: 'Sarah Wong', date: '2024-12-19', clockIn: '09:00', clockOut: '18:00', status: 'Present', hours: 8 },
-    { id: 5, employee: 'Peter Lee', date: '2024-12-19', clockIn: '', clockOut: '', status: 'Absent', hours: 0 },
-  ]);
-
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAttendanceData();
+  }, []);
+
+  const fetchAttendanceData = async () => {
+    try {
+      setLoading(true);
+      const data = await getAttendanceRecords();
+      setAttendanceData(data);
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      toast("Error loading attendance data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredData = attendanceData.filter(record => {
     const matchesSearch = record.employee.toLowerCase().includes(searchTerm.toLowerCase());
@@ -36,18 +48,20 @@ const Attendance = () => {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const handleEditRecord = (record) => {
+  const handleEditRecord = (record: AttendanceRecord) => {
     setEditingRecord(record);
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    if (!editingRecord) return;
+
+    const formData = new FormData(e.target as HTMLFormElement);
     const clockIn = formData.get('clockIn') as string;
     const clockOut = formData.get('clockOut') as string;
     
-    let status = 'Present';
+    let status: 'Present' | 'Absent' | 'Half Day' | 'Late' = 'Present';
     let hours = 0;
     
     if (!clockIn || !clockOut) {
@@ -57,23 +71,24 @@ const Attendance = () => {
       const inTime = new Date(`2000-01-01 ${clockIn}`);
       const outTime = new Date(`2000-01-01 ${clockOut}`);
       hours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+      
+      // Check if late (after 9:00 AM)
+      const startTime = new Date(`2000-01-01 09:00`);
+      if (inTime > startTime) {
+        status = 'Late';
+      }
     }
 
-    setAttendanceData(prev => prev.map(record => 
-      record.id === editingRecord.id 
-        ? { 
-            ...record, 
-            clockIn: clockIn || '', 
-            clockOut: clockOut || '', 
-            status,
-            hours: parseFloat(hours.toFixed(2))
-          }
-        : record
-    ));
-
-    setIsEditDialogOpen(false);
-    setEditingRecord(null);
-    toast("Attendance record updated");
+    try {
+      await updateAttendanceStatus(editingRecord.employeeId, editingRecord.date, status);
+      await fetchAttendanceData(); // Refresh data
+      setIsEditDialogOpen(false);
+      setEditingRecord(null);
+      toast("Attendance record updated");
+    } catch (error) {
+      console.error('Error updating attendance:', error);
+      toast("Error updating attendance. Please try again.");
+    }
   };
 
   const clearFilters = () => {
@@ -81,6 +96,25 @@ const Attendance = () => {
     setStatusFilter('all');
     setDateFilter('');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading attendance data...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -97,7 +131,7 @@ const Attendance = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Employees</CardTitle>
+                  <CardTitle>Total Records</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">{attendanceData.length}</p>
@@ -109,7 +143,7 @@ const Attendance = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">
-                    {attendanceData.filter(record => record.status === 'Present').length}
+                    {attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length}
                   </p>
                 </CardContent>
               </Card>
@@ -129,7 +163,7 @@ const Attendance = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">
-                    {(attendanceData.reduce((sum, record) => sum + record.hours, 0) / attendanceData.length).toFixed(1)}h
+                    {attendanceData.length > 0 ? (attendanceData.reduce((sum, record) => sum + record.hours, 0) / attendanceData.length).toFixed(1) : '0'}h
                   </p>
                 </CardContent>
               </Card>
@@ -168,6 +202,7 @@ const Attendance = () => {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="present">Present</SelectItem>
                       <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="late">Late</SelectItem>
                     </SelectContent>
                   </Select>
                   <Input
@@ -204,7 +239,11 @@ const Attendance = () => {
                         <TableCell>{record.hours}h</TableCell>
                         <TableCell>
                           <Badge 
-                            variant={record.status === 'Present' ? 'default' : 'destructive'}
+                            variant={
+                              record.status === 'Present' ? 'default' : 
+                              record.status === 'Late' ? 'secondary' :
+                              'outline'
+                            }
                           >
                             {record.status}
                           </Badge>
@@ -215,7 +254,6 @@ const Attendance = () => {
                             size="sm"
                             onClick={() => handleEditRecord(record)}
                           >
-                            <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </Button>
                         </TableCell>
@@ -258,7 +296,7 @@ const Attendance = () => {
                           <Input 
                             name="clockIn" 
                             type="time" 
-                            defaultValue={editingRecord.clockIn}
+                            defaultValue={editingRecord.clockIn || ''}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -266,7 +304,7 @@ const Attendance = () => {
                           <Input 
                             name="clockOut" 
                             type="time" 
-                            defaultValue={editingRecord.clockOut}
+                            defaultValue={editingRecord.clockOut || ''}
                           />
                         </div>
                       </div>
@@ -278,10 +316,7 @@ const Attendance = () => {
                       <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button type="submit">
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </Button>
+                      <Button type="submit">Save Changes</Button>
                     </DialogFooter>
                   </form>
                 )}
