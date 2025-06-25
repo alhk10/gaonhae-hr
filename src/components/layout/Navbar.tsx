@@ -18,8 +18,8 @@ const Navbar = () => {
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
-              src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
-              alt="Gaonhae HR Logo"
+              src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" 
+              alt="Gaonhae Taekwondo Logo"
               className="w-full h-full object-contain"
             />
           </div>

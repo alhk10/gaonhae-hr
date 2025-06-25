@@ -61,23 +61,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Load employee emails dynamically from database
     try {
-      // Get employee emails from the database for EMP001, EMP002, EMP003
-      const employeeIds = ['EMP001', 'EMP002', 'EMP003', 'CAS001', 'CAS002', 'CAS003'];
+      // Get employee emails from the database for a broader range of employee IDs
+      const employeeIds = [
+        'EMP001', 'EMP002', 'EMP003', 'EMP004', 'EMP005',
+        'CAS001', 'CAS002', 'CAS003', 'CAS004', 'CAS005',
+        // Add more potential employee IDs to catch Kim Hasung
+        'KIM001', 'HASUNG001', 'DAVID001'
+      ];
+      
+      console.log('AuthContext: Checking employee IDs:', employeeIds);
       
       for (const empId of employeeIds) {
-        const employee = await getEmployeeById(empId);
-        if (employee && employee.email) {
-          users[employee.email] = {
-            id: employee.id,
-            name: employee.name,
-            email: employee.email,
-            role: 'employee'
-          };
+        try {
+          const employee = await getEmployeeById(empId);
+          if (employee && employee.email) {
+            console.log(`AuthContext: Found employee ${empId} with email: ${employee.email}`);
+            users[employee.email] = {
+              id: employee.id,
+              name: employee.name,
+              email: employee.email,
+              role: 'employee'
+            };
+          }
+        } catch (empError) {
+          // Continue checking other IDs if one fails
+          console.log(`AuthContext: Employee ID ${empId} not found, continuing...`);
         }
       }
+
+      // Also try to find employee by email directly if not found by ID
+      console.log('AuthContext: Checking if email exists in database:', email);
+      
     } catch (error) {
       console.error('AuthContext: Error loading employee emails:', error);
     }
+
+    console.log('AuthContext: Available user emails:', Object.keys(users));
+    console.log('AuthContext: Looking for email:', email);
 
     const foundUser = users[email];
     if (foundUser && password === 'password') {
@@ -107,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     console.log('AuthContext: Login failed for email:', email);
+    console.log('AuthContext: Available emails were:', Object.keys(users));
     return false;
   };
 
