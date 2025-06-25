@@ -10,13 +10,23 @@ import { Input } from '@/components/ui/input';
 import { Clock, Calendar, Filter, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  getEmployeeAttendanceRecords, 
-  getClockInOutStatus, 
-  updateClockInOut,
-  AttendanceRecord,
-  ClockInOutRecord 
-} from '@/services/attendanceService';
+import { supabase } from '@/integrations/supabase/client';
+
+interface AttendanceRecord {
+  id: number;
+  employee_id: string;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  status: string;
+  hours_worked: number | null;
+}
+
+interface ClockInOutRecord {
+  status: 'clocked-in' | 'clocked-out';
+  clockIn?: string;
+  clockOut?: string;
+}
 
 const MyAttendance = () => {
   const { user } = useAuth();
@@ -27,16 +37,25 @@ const MyAttendance = () => {
 
   useEffect(() => {
     fetchAttendanceData();
-    // Get current clock-in/out status
-    const status = getClockInOutStatus(user?.id || 'EMP001');
-    setClockStatus(status);
+    // Check if user is currently clocked in for today
+    checkClockStatus();
   }, [user?.id]);
 
   const fetchAttendanceData = async () => {
     try {
       setLoading(true);
-      const data = await getEmployeeAttendanceRecords(user?.id || 'EMP001');
-      setAttendanceData(data);
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user?.id || 'EMP001')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching attendance:', error);
+        toast("Error loading attendance data. Please try again.");
+      } else {
+        setAttendanceData(data || []);
+      }
     } catch (error) {
       console.error('Error fetching attendance data:', error);
       toast("Error loading attendance data. Please try again.");
@@ -45,30 +64,104 @@ const MyAttendance = () => {
     }
   };
 
+  const checkClockStatus = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('employee_id', user?.id || 'EMP001')
+      .eq('date', today)
+      .single();
+
+    if (data) {
+      setClockStatus({
+        status: data.check_out ? 'clocked-out' : 'clocked-in',
+        clockIn: data.check_in,
+        clockOut: data.check_out
+      });
+    } else {
+      setClockStatus({ status: 'clocked-out' });
+    }
+  };
+
   const filteredData = attendanceData.filter(record => {
     return !dateFilter || record.date === dateFilter;
   });
 
-  const handleClockInOut = () => {
-    const currentTime = new Date().toLocaleTimeString('en-SG', { 
+  const handleClockInOut = async () => {
+    const currentTime = new Date().toLocaleTimeString('en-US', { 
       hour12: false,
       hour: '2-digit',
       minute: '2-digit'
     });
+    const today = new Date().toISOString().split('T')[0];
     
     const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
     
-    if (isCurrentlyClockedIn) {
-      updateClockInOut(user?.id || 'EMP001', 'out');
-      toast(`Clocked out at ${currentTime}`);
-    } else {
-      updateClockInOut(user?.id || 'EMP001', 'in');
-      toast(`Clocked in at ${currentTime}`);
+    try {
+      if (isCurrentlyClockedIn) {
+        // Clock out
+        const { error } = await supabase
+          .from('attendance')
+          .update({ 
+            check_out: currentTime,
+            hours_worked: calculateHours(clockStatus?.clockIn || '', currentTime)
+          })
+          .eq('employee_id', user?.id || 'EMP001')
+          .eq('date', today);
+
+        if (error) {
+          console.error('Error clocking out:', error);
+          toast("Error clocking out. Please try again.");
+        } else {
+          toast(`Clocked out at ${currentTime}`);
+          setClockStatus({ status: 'clocked-out', clockIn: clockStatus?.clockIn, clockOut: currentTime });
+        }
+      } else {
+        // Clock in
+        const status = determineStatus(currentTime);
+        const { error } = await supabase
+          .from('attendance')
+          .insert({
+            employee_id: user?.id || 'EMP001',
+            date: today,
+            check_in: currentTime,
+            status: status,
+            hours_worked: 0
+          });
+
+        if (error) {
+          console.error('Error clocking in:', error);
+          toast("Error clocking in. Please try again.");
+        } else {
+          toast(`Clocked in at ${currentTime}`);
+          setClockStatus({ status: 'clocked-in', clockIn: currentTime });
+        }
+      }
+      
+      // Refresh attendance data
+      fetchAttendanceData();
+    } catch (error) {
+      console.error('Clock in/out error:', error);
+      toast("Error processing clock in/out. Please try again.");
     }
+  };
+
+  const calculateHours = (checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) return 0;
     
-    // Update local state
-    const updatedStatus = getClockInOutStatus(user?.id || 'EMP001');
-    setClockStatus(updatedStatus);
+    const checkInTime = new Date(`2000-01-01T${checkIn}`);
+    const checkOutTime = new Date(`2000-01-01T${checkOut}`);
+    const totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
+    
+    return Math.max(0, totalMinutes / 60);
+  };
+
+  const determineStatus = (checkIn: string) => {
+    const checkInTime = new Date(`2000-01-01T${checkIn}`);
+    const nineAM = new Date(`2000-01-01T09:00`);
+    
+    return checkInTime > nineAM ? 'Late' : 'Present';
   };
 
   const exportAttendance = () => {
@@ -77,7 +170,7 @@ const MyAttendance = () => {
 
   // Calculate statistics
   const presentDays = attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
-  const totalHours = attendanceData.reduce((sum, record) => sum + record.hours, 0);
+  const totalHours = attendanceData.reduce((sum, record) => sum + (record.hours_worked || 0), 0);
   const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
 
   const isClockedIn = clockStatus?.status === 'clocked-in';
@@ -153,7 +246,7 @@ const MyAttendance = () => {
                   <CardTitle>Total Hours</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{totalHours}h</p>
+                  <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
                   <p className="text-sm text-gray-600">This month</p>
                 </CardContent>
               </Card>
@@ -219,16 +312,15 @@ const MyAttendance = () => {
                       <TableHead>Clock Out</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Location</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredData.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">{record.date}</TableCell>
-                        <TableCell>{record.clockIn || '-'}</TableCell>
-                        <TableCell>{record.clockOut || '-'}</TableCell>
-                        <TableCell>{record.hours}h</TableCell>
+                        <TableCell>{record.check_in || '-'}</TableCell>
+                        <TableCell>{record.check_out || '-'}</TableCell>
+                        <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
                         <TableCell>
                           <Badge 
                             variant={record.status === 'Present' ? 'default' : 
@@ -238,12 +330,11 @@ const MyAttendance = () => {
                             {record.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{record.location || '-'}</TableCell>
                       </TableRow>
                     ))}
                     {filteredData.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
                           No attendance records found for the selected date.
                         </TableCell>
                       </TableRow>

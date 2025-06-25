@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -20,8 +21,6 @@ interface AttendanceRecord {
   date: string;
   check_in: string | null;
   check_out: string | null;
-  break_start: string | null;
-  break_end: string | null;
   status: string;
   hours_worked: number | null;
   employee?: {
@@ -77,21 +76,23 @@ const Attendance = () => {
     }
   };
 
-  const calculateHours = (checkIn: string, checkOut: string, breakStart?: string, breakEnd?: string) => {
+  const calculateHours = (checkIn: string, checkOut: string) => {
     if (!checkIn || !checkOut) return 0;
     
     const checkInTime = new Date(`2000-01-01T${checkIn}`);
     const checkOutTime = new Date(`2000-01-01T${checkOut}`);
-    let totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
-    
-    if (breakStart && breakEnd) {
-      const breakStartTime = new Date(`2000-01-01T${breakStart}`);
-      const breakEndTime = new Date(`2000-01-01T${breakEnd}`);
-      const breakMinutes = (breakEndTime.getTime() - breakStartTime.getTime()) / (1000 * 60);
-      totalMinutes -= breakMinutes;
-    }
+    const totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
     
     return Math.max(0, totalMinutes / 60);
+  };
+
+  const determineStatus = (checkIn: string, date: string) => {
+    if (!checkIn) return 'Absent';
+    
+    const checkInTime = new Date(`2000-01-01T${checkIn}`);
+    const nineAM = new Date(`2000-01-01T09:00`);
+    
+    return checkInTime > nineAM ? 'Late' : 'Present';
   };
 
   const handleAddAttendance = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -102,16 +103,14 @@ const Attendance = () => {
     const date = formData.get('date') as string;
     const checkIn = formData.get('checkIn') as string;
     const checkOut = formData.get('checkOut') as string;
-    const breakStart = formData.get('breakStart') as string;
-    const breakEnd = formData.get('breakEnd') as string;
-    const status = formData.get('status') as string;
 
-    if (!employeeId || !date || !status) {
+    if (!employeeId || !date) {
       toast('Please fill in all required fields');
       return;
     }
 
-    const hoursWorked = calculateHours(checkIn, checkOut, breakStart, breakEnd);
+    const hoursWorked = calculateHours(checkIn, checkOut);
+    const status = determineStatus(checkIn, date);
 
     try {
       const { error } = await supabase
@@ -121,8 +120,6 @@ const Attendance = () => {
           date,
           check_in: checkIn || null,
           check_out: checkOut || null,
-          break_start: breakStart || null,
-          break_end: breakEnd || null,
           status,
           hours_worked: hoursWorked
         });
@@ -149,16 +146,14 @@ const Attendance = () => {
     const date = formData.get('date') as string;
     const checkIn = formData.get('checkIn') as string;
     const checkOut = formData.get('checkOut') as string;
-    const breakStart = formData.get('breakStart') as string;
-    const breakEnd = formData.get('breakEnd') as string;
-    const status = formData.get('status') as string;
 
-    if (selectedEmployees.length === 0 || !date || !status) {
+    if (selectedEmployees.length === 0 || !date) {
       toast('Please select employees and fill in required fields');
       return;
     }
 
-    const hoursWorked = calculateHours(checkIn, checkOut, breakStart, breakEnd);
+    const hoursWorked = calculateHours(checkIn, checkOut);
+    const status = determineStatus(checkIn, date);
 
     try {
       const attendanceRecords = selectedEmployees.map(employeeId => ({
@@ -166,8 +161,6 @@ const Attendance = () => {
         date,
         check_in: checkIn || null,
         check_out: checkOut || null,
-        break_start: breakStart || null,
-        break_end: breakEnd || null,
         status,
         hours_worked: hoursWorked
       }));
@@ -274,20 +267,6 @@ const Attendance = () => {
                             defaultValue={new Date().toISOString().split('T')[0]}
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="status">Status</Label>
-                          <Select name="status" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Present">Present</SelectItem>
-                              <SelectItem value="Absent">Absent</SelectItem>
-                              <SelectItem value="Late">Late</SelectItem>
-                              <SelectItem value="Half-Day">Half-Day</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="grid gap-2">
                             <Label htmlFor="checkIn">Check In</Label>
@@ -296,16 +275,6 @@ const Attendance = () => {
                           <div className="grid gap-2">
                             <Label htmlFor="checkOut">Check Out</Label>
                             <Input name="checkOut" type="time" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="grid gap-2">
-                            <Label htmlFor="breakStart">Break Start</Label>
-                            <Input name="breakStart" type="time" />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="breakEnd">Break End</Label>
-                            <Input name="breakEnd" type="time" />
                           </div>
                         </div>
                       </div>
@@ -360,20 +329,6 @@ const Attendance = () => {
                             defaultValue={new Date().toISOString().split('T')[0]}
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="status">Status</Label>
-                          <Select name="status" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Present">Present</SelectItem>
-                              <SelectItem value="Absent">Absent</SelectItem>
-                              <SelectItem value="Late">Late</SelectItem>
-                              <SelectItem value="Half-Day">Half-Day</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="grid gap-2">
                             <Label htmlFor="checkIn">Check In</Label>
@@ -382,16 +337,6 @@ const Attendance = () => {
                           <div className="grid gap-2">
                             <Label htmlFor="checkOut">Check Out</Label>
                             <Input name="checkOut" type="time" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="grid gap-2">
-                            <Label htmlFor="breakStart">Break Start</Label>
-                            <Input name="breakStart" type="time" />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="breakEnd">Break End</Label>
-                            <Input name="breakEnd" type="time" />
                           </div>
                         </div>
                       </div>
@@ -458,7 +403,6 @@ const Attendance = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Check In</TableHead>
                       <TableHead>Check Out</TableHead>
-                      <TableHead>Break</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -472,12 +416,6 @@ const Attendance = () => {
                         <TableCell>{record.date}</TableCell>
                         <TableCell>{record.check_in || '-'}</TableCell>
                         <TableCell>{record.check_out || '-'}</TableCell>
-                        <TableCell>
-                          {record.break_start && record.break_end 
-                            ? `${record.break_start} - ${record.break_end}`
-                            : '-'
-                          }
-                        </TableCell>
                         <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
                         <TableCell>
                           <Badge variant={getStatusColor(record.status)}>
