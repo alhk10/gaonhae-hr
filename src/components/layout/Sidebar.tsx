@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
@@ -14,7 +14,8 @@ import {
   Clock,
   CalendarClock
 } from 'lucide-react';
-import { getEmployeeById } from '@/data/employeeData';
+import { getEmployees } from '@/services/employeeService';
+import { EmployeeProfile } from '@/types/employee';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -25,6 +26,26 @@ interface MenuItem {
 const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
+
+  useEffect(() => {
+    const loadCurrentEmployee = async () => {
+      if (user?.email && user.role === 'employee') {
+        try {
+          const employees = await getEmployees();
+          const employee = employees.find(emp => emp.email === user.email);
+          if (employee) {
+            setCurrentEmployee(employee);
+            console.log('Current employee loaded with admin access:', employee.adminAccess);
+          }
+        } catch (error) {
+          console.error('Error loading current employee:', error);
+        }
+      }
+    };
+
+    loadCurrentEmployee();
+  }, [user]);
 
   const getMenuItems = (): MenuItem[] => {
     const baseItems: MenuItem[] = [
@@ -68,42 +89,38 @@ const Sidebar = () => {
     ];
 
     // Check if employee has admin access permissions
-    if (user?.employeeId) {
-      const employee = getEmployeeById(user.employeeId);
-      const adminAccess = employee?.adminAccess;
-
-      if (adminAccess) {
-        const adminItems: MenuItem[] = [];
-        
-        if (adminAccess.employees) {
-          adminItems.push({ icon: Users, label: 'Employees', path: '/employees' });
-        }
-        if (adminAccess.payroll) {
-          adminItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
-        }
-        if (adminAccess.leaveManagement) {
-          adminItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
-        }
-        if (adminAccess.claims) {
-          adminItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
-        }
-        if (adminAccess.attendance) {
-          adminItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
-        }
-        if (adminAccess.slotBooking) {
-          adminItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
-        }
-        if (adminAccess.reports) {
-          adminItems.push({ icon: BarChart3, label: 'Reports', path: '/reports' });
-        }
-
-        // Insert admin items after dashboard but before regular employee items
-        employeeItems = [
-          baseItems[0], // Dashboard
-          ...adminItems,
-          ...employeeItems.slice(1) // Rest of employee items
-        ];
+    if (currentEmployee?.adminAccess) {
+      const adminAccess = currentEmployee.adminAccess;
+      const adminItems: MenuItem[] = [];
+      
+      if (adminAccess.employees) {
+        adminItems.push({ icon: Users, label: 'Employees', path: '/employees' });
       }
+      if (adminAccess.payroll) {
+        adminItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
+      }
+      if (adminAccess.leaveManagement) {
+        adminItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
+      }
+      if (adminAccess.claims) {
+        adminItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
+      }
+      if (adminAccess.attendance) {
+        adminItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
+      }
+      if (adminAccess.slotBooking) {
+        adminItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
+      }
+      if (adminAccess.reports) {
+        adminItems.push({ icon: BarChart3, label: 'Reports', path: '/reports' });
+      }
+
+      // Insert admin items after dashboard but before regular employee items
+      employeeItems = [
+        baseItems[0], // Dashboard
+        ...adminItems,
+        ...employeeItems.slice(1) // Rest of employee items
+      ];
     }
 
     return employeeItems;

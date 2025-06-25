@@ -1,6 +1,6 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { EmployeeProfile, AllowanceDeduction, AdminAccessPermissions, CertificateUpload } from "@/types/employee";
+import { supabase } from '@/integrations/supabase/client';
+import { EmployeeProfile } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('Fetching employees from Supabase...');
@@ -9,10 +9,10 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     .from('employees')
     .select(`
       *,
-      allowances:allowances(*),
-      deductions:deductions(*),
-      admin_access:admin_access(*),
-      certificates:certificates(*)
+      allowances (*),
+      deductions (*),
+      admin_access (*),
+      certificates (*)
     `);
 
   if (error) {
@@ -25,158 +25,125 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   return employees.map(emp => ({
     id: emp.id,
     name: emp.name,
-    nric: emp.nric,
+    nric: emp.nric || '',
     dateOfBirth: emp.date_of_birth,
     residencyStatus: emp.residency_status,
     type: emp.type as 'Full-Time' | 'Casual',
-    baseSalary: emp.base_salary,
-    hourlyRate: emp.hourly_rate,
-    dailyRate: emp.daily_rate,
+    baseSalary: emp.base_salary || undefined,
+    hourlyRate: emp.hourly_rate || undefined,
+    dailyRate: emp.daily_rate || undefined,
     paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
-    allowances: emp.allowances?.map((a: any) => ({
+    bankName: emp.bank_name || '',
+    bankAccount: emp.bank_account || '',
+    branch: emp.department || '',
+    position: emp.position || '',
+    phone: emp.phone || '',
+    address: emp.address || '',
+    email: emp.email || '',
+    resignDate: emp.resign_date || undefined,
+    allowances: emp.allowances?.map(a => ({
       id: a.id,
       name: a.name,
-      amount: a.amount,
-      type: a.type as 'Fixed' | 'Percentage' | 'Manual'
+      amount: Number(a.amount),
+      type: a.type || 'Fixed'
     })) || [],
-    deductions: emp.deductions?.map((d: any) => ({
+    deductions: emp.deductions?.map(d => ({
       id: d.id,
       name: d.name,
-      amount: d.amount,
-      type: d.type as 'Fixed' | 'Percentage' | 'Manual'
+      amount: Number(d.amount),
+      type: d.type || 'Fixed'
     })) || [],
-    bankAccount: emp.bank_account,
-    bankName: emp.bank_name,
-    branch: emp.department, // Database still uses department field but we map it to branch
-    position: emp.position,
-    phone: emp.phone,
-    address: emp.address,
-    email: emp.email,
-    resignDate: emp.resign_date,
-    certificates: emp.certificates?.map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      fileName: c.file_name,
-      uploadDate: c.upload_date,
-      fileSize: c.file_size,
-      fileType: c.file_type
-    })) || [],
-    adminAccess: emp.admin_access?.[0] ? {
-      employees: emp.admin_access[0].employees,
-      payroll: emp.admin_access[0].payroll,
-      leaveManagement: emp.admin_access[0].leave_management,
-      claims: emp.admin_access[0].claims,
-      attendance: emp.admin_access[0].attendance,
-      slotBooking: emp.admin_access[0].slot_booking,
-      reports: emp.admin_access[0].reports
+    certificates: emp.certificates || [],
+    adminAccess: emp.admin_access?.length > 0 ? {
+      employees: emp.admin_access[0]?.employees || false,
+      payroll: emp.admin_access[0]?.payroll || false,
+      leaveManagement: emp.admin_access[0]?.leave_management || false,
+      claims: emp.admin_access[0]?.claims || false,
+      attendance: emp.admin_access[0]?.attendance || false,
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
     } : undefined
   }));
 };
 
 export const getEmployeeById = async (id: string): Promise<EmployeeProfile | null> => {
-  console.log('Fetching employee by ID:', id);
+  console.log('Fetching employee by ID from Supabase:', id);
   
   const { data: employee, error } = await supabase
     .from('employees')
     .select(`
       *,
-      allowances:allowances(*),
-      deductions:deductions(*),
-      admin_access:admin_access(*),
-      certificates:certificates(*)
+      allowances (*),
+      deductions (*),
+      admin_access (*),
+      certificates (*)
     `)
     .eq('id', id)
     .single();
 
   if (error) {
-    console.error('Error fetching employee:', error);
+    console.error('Error fetching employee by ID:', error);
     return null;
   }
 
-  if (!employee) return null;
+  if (!employee) {
+    return null;
+  }
 
   return {
     id: employee.id,
     name: employee.name,
-    nric: employee.nric,
+    nric: employee.nric || '',
     dateOfBirth: employee.date_of_birth,
     residencyStatus: employee.residency_status,
     type: employee.type as 'Full-Time' | 'Casual',
-    baseSalary: employee.base_salary,
-    hourlyRate: employee.hourly_rate,
-    dailyRate: employee.daily_rate,
+    baseSalary: employee.base_salary || undefined,
+    hourlyRate: employee.hourly_rate || undefined,
+    dailyRate: employee.daily_rate || undefined,
     paymentType: employee.payment_type as 'Monthly' | 'Hourly' | 'Daily',
-    allowances: employee.allowances?.map((a: any) => ({
+    bankName: employee.bank_name || '',
+    bankAccount: employee.bank_account || '',
+    branch: employee.department || '',
+    position: employee.position || '',
+    phone: employee.phone || '',
+    address: employee.address || '',
+    email: employee.email || '',
+    resignDate: employee.resign_date || undefined,
+    allowances: employee.allowances?.map(a => ({
       id: a.id,
       name: a.name,
-      amount: a.amount,
-      type: a.type as 'Fixed' | 'Percentage' | 'Manual'
+      amount: Number(a.amount),
+      type: a.type || 'Fixed'
     })) || [],
-    deductions: employee.deductions?.map((d: any) => ({
+    deductions: employee.deductions?.map(d => ({
       id: d.id,
       name: d.name,
-      amount: d.amount,
-      type: d.type as 'Fixed' | 'Percentage' | 'Manual'
+      amount: Number(d.amount),
+      type: d.type || 'Fixed'
     })) || [],
-    bankAccount: employee.bank_account,
-    bankName: employee.bank_name,
-    branch: employee.department, // Database still uses department field but we map it to branch
-    position: employee.position,
-    phone: employee.phone,
-    address: employee.address,
-    email: employee.email,
-    resignDate: employee.resign_date,
-    certificates: employee.certificates?.map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      fileName: c.file_name,
-      uploadDate: c.upload_date,
-      fileSize: c.file_size,
-      fileType: c.file_type
-    })) || [],
-    adminAccess: employee.admin_access?.[0] ? {
-      employees: employee.admin_access[0].employees,
-      payroll: employee.admin_access[0].payroll,
-      leaveManagement: employee.admin_access[0].leave_management,
-      claims: employee.admin_access[0].claims,
-      attendance: employee.admin_access[0].attendance,
-      slotBooking: employee.admin_access[0].slot_booking,
-      reports: employee.admin_access[0].reports
+    certificates: employee.certificates || [],
+    adminAccess: employee.admin_access?.length > 0 ? {
+      employees: employee.admin_access[0]?.employees || false,
+      payroll: employee.admin_access[0]?.payroll || false,
+      leaveManagement: employee.admin_access[0]?.leave_management || false,
+      claims: employee.admin_access[0]?.claims || false,
+      attendance: employee.admin_access[0]?.attendance || false,
+      slotBooking: employee.admin_access[0]?.slot_booking || false,
+      reports: employee.admin_access[0]?.reports || false
     } : undefined
   };
 };
 
-export const createEmployee = async (employeeData: {
-  name: string;
-  nric: string;
-  dateOfBirth: string;
-  residencyStatus: string;
-  type: 'Full-Time' | 'Casual';
-  baseSalary?: number;
-  hourlyRate?: number;
-  dailyRate?: number;
-  paymentType: 'Monthly' | 'Hourly' | 'Daily';
-  bankName: string;
-  bankAccount: string;
-  branch: string;
-  position: string;
-  phone: string;
-  address: string;
-  email: string;
-}) => {
-  console.log('Creating new employee:', employeeData);
+export const createEmployee = async (employeeData: any) => {
+  console.log('Creating employee in Supabase:', employeeData);
   
-  // Validate required fields
-  if (!employeeData.name || !employeeData.email || !employeeData.dateOfBirth || 
-      !employeeData.residencyStatus || !employeeData.phone || !employeeData.type || 
-      !employeeData.position || !employeeData.paymentType) {
-    throw new Error('Missing required fields');
-  }
-
-  const { data, error } = await supabase
+  // Generate employee ID
+  const employeeId = `EMP${Date.now()}`;
+  
+  const { data: employee, error } = await supabase
     .from('employees')
-    .insert({
-      id: `EMP${Date.now()}`,
+    .insert([{
+      id: employeeId,
       name: employeeData.name,
       nric: employeeData.nric || '',
       date_of_birth: employeeData.dateOfBirth,
@@ -188,12 +155,12 @@ export const createEmployee = async (employeeData: {
       payment_type: employeeData.paymentType,
       bank_name: employeeData.bankName || '',
       bank_account: employeeData.bankAccount || '',
-      department: employeeData.branch || '', // Store as department in DB but use as branch
-      position: employeeData.position,
-      phone: employeeData.phone,
+      department: employeeData.branch || '',
+      position: employeeData.position || '',
+      phone: employeeData.phone || '',
       address: employeeData.address || '',
-      email: employeeData.email
-    })
+      email: employeeData.email || ''
+    }])
     .select()
     .single();
 
@@ -202,11 +169,46 @@ export const createEmployee = async (employeeData: {
     throw error;
   }
 
-  return data;
+  return employee;
+};
+
+export const updateEmployee = async (id: string, employeeData: any) => {
+  console.log('Updating employee in Supabase:', id, employeeData);
+  
+  const { data: employee, error } = await supabase
+    .from('employees')
+    .update({
+      name: employeeData.name,
+      nric: employeeData.nric,
+      date_of_birth: employeeData.dateOfBirth,
+      residency_status: employeeData.residencyStatus,
+      type: employeeData.type,
+      base_salary: employeeData.baseSalary,
+      hourly_rate: employeeData.hourlyRate,
+      daily_rate: employeeData.dailyRate,
+      payment_type: employeeData.paymentType,
+      bank_name: employeeData.bankName,
+      bank_account: employeeData.bankAccount,
+      department: employeeData.branch,
+      position: employeeData.position,
+      phone: employeeData.phone,
+      address: employeeData.address,
+      email: employeeData.email
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating employee:', error);
+    throw error;
+  }
+
+  return employee;
 };
 
 export const deleteEmployee = async (id: string) => {
-  console.log('Deleting employee:', id);
+  console.log('Deleting employee from Supabase:', id);
   
   const { error } = await supabase
     .from('employees')
@@ -220,7 +222,7 @@ export const deleteEmployee = async (id: string) => {
 };
 
 export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
-  console.log('Updating employee resign date:', id, resignDate);
+  console.log('Updating employee resign date in Supabase:', id, resignDate);
   
   const { error } = await supabase
     .from('employees')
@@ -228,7 +230,7 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating employee resign date:', error);
+    console.error('Error updating resign date:', error);
     throw error;
   }
 };

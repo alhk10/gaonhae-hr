@@ -10,12 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Plus, Trash2, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeLeaveRecords } from '@/data/leaveData';
 import { getEmployeeAttendanceRecords } from '@/data/attendanceData';
 import { getEmployeeSlotBookings } from '@/data/slotBookingData';
-import { AllowanceDeduction } from '@/types/employee';
+import { AllowanceDeduction, EmployeeProfile } from '@/types/employee';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import type { Claim } from '@/services/claimsService';
 
@@ -33,9 +33,10 @@ const EmployeeDetails = () => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingAccess, setIsEditingAccess] = useState(false);
-  const [employee, setEmployee] = useState(() => getEmployeeById(id || ''));
+  const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [employeeClaims, setEmployeeClaims] = useState<Claim[]>([]);
   const [isLoadingClaims, setIsLoadingClaims] = useState(true);
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
   
   // Get leave records for this employee
   const employeeLeaveRecords = getEmployeeLeaveRecords(id || '');
@@ -45,6 +46,25 @@ const EmployeeDetails = () => {
 
   // Get slot booking records for this employee
   const employeeSlotBookings = getEmployeeSlotBookings(id || '');
+
+  useEffect(() => {
+    const loadEmployee = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingEmployee(true);
+        const employeeData = await getEmployeeById(id);
+        setEmployee(employeeData);
+      } catch (error) {
+        console.error('Error loading employee:', error);
+        toast("Error loading employee details");
+      } finally {
+        setIsLoadingEmployee(false);
+      }
+    };
+
+    loadEmployee();
+  }, [id]);
 
   // Load claims data asynchronously
   useEffect(() => {
@@ -64,6 +84,25 @@ const EmployeeDetails = () => {
 
     loadClaims();
   }, [id]);
+
+  if (isLoadingEmployee) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading employee details...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (!employee) {
     return (
@@ -657,7 +696,6 @@ const EmployeeDetails = () => {
                           <TableHead>Upload Date</TableHead>
                           <TableHead>File Size</TableHead>
                           <TableHead>File Type</TableHead>
-                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -665,20 +703,15 @@ const EmployeeDetails = () => {
                           employee.certificates.map((cert) => (
                             <TableRow key={cert.id}>
                               <TableCell>{cert.name}</TableCell>
-                              <TableCell>{cert.fileName}</TableCell>
-                              <TableCell>{cert.uploadDate}</TableCell>
-                              <TableCell>{(cert.fileSize / 1024).toFixed(2)} KB</TableCell>
-                              <TableCell>{cert.fileType}</TableCell>
-                              <TableCell>
-                                <Button size="sm" variant="outline">
-                                  Download
-                                </Button>
-                              </TableCell>
+                              <TableCell>{cert.file_name}</TableCell>
+                              <TableCell>{new Date(cert.upload_date).toLocaleDateString()}</TableCell>
+                              <TableCell>{(cert.file_size / 1024).toFixed(2)} KB</TableCell>
+                              <TableCell>{cert.file_type}</TableCell>
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center text-gray-500">
+                            <TableCell colSpan={5} className="text-center text-gray-500">
                               No certificates uploaded
                             </TableCell>
                           </TableRow>
