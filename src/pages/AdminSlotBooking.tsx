@@ -22,7 +22,8 @@ import {
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
   weeklySlots,
-  SlotBooking
+  SlotBooking,
+  WeeklySlotConfig
 } from '@/data/slotBookingData';
 
 const AdminSlotBooking = () => {
@@ -126,7 +127,7 @@ const AdminSlotBooking = () => {
 
     daysInMonth.forEach(day => {
       const dayBookings = getBookingsForDate(day);
-      const dayName = format(day, 'EEEE');
+      const dayName = format(day, 'EEEE') as keyof WeeklySlotConfig[string];
       
       if (selectedBranch === 'all') {
         branches.forEach(branch => {
@@ -196,9 +197,9 @@ const AdminSlotBooking = () => {
     }
   };
 
-  const handleSettingsSave = (e) => {
+  const handleSettingsSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const formData = new FormData(e.target as HTMLFormElement);
     
     try {
       // Save general settings
@@ -212,8 +213,8 @@ const AdminSlotBooking = () => {
       console.log('Saved general settings:', settings);
 
       // Save weekly slots configuration
-      const updatedWeeklySlots = { ...currentWeeklySlots };
-      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const updatedWeeklySlots: WeeklySlotConfig = { ...currentWeeklySlots };
+      const daysOfWeek: (keyof WeeklySlotConfig[string])[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
       branches.forEach(branch => {
         daysOfWeek.forEach(day => {
@@ -221,7 +222,16 @@ const AdminSlotBooking = () => {
           const value = formData.get(fieldName) as string;
           if (value && !isNaN(parseInt(value))) {
             if (!updatedWeeklySlots[branch.id]) {
-              updatedWeeklySlots[branch.id] = {};
+              // Initialize with all required day properties
+              updatedWeeklySlots[branch.id] = {
+                Monday: 0,
+                Tuesday: 0,
+                Wednesday: 0,
+                Thursday: 0,
+                Friday: 0,
+                Saturday: 0,
+                Sunday: 0
+              };
             }
             updatedWeeklySlots[branch.id][day] = parseInt(value);
           }
@@ -329,7 +339,7 @@ const AdminSlotBooking = () => {
                                         type="number"
                                         min="0"
                                         max="50"
-                                        defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
+                                        defaultValue={currentWeeklySlots[branch.id]?.[day as keyof WeeklySlotConfig[string]] || 0}
                                         className="text-center"
                                       />
                                     </div>
