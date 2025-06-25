@@ -13,7 +13,7 @@ import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { getEmployeeById, systemAllowances, systemDeductions } from '@/data/employeeData';
-import { getEmployeeClaims, type Claim } from '@/data/claimsData';
+import { getEmployeeClaims, type Claim } from '@/services/claimsService';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -34,12 +34,26 @@ const PayrollProcessing = () => {
 
   // Load employee claims data
   useEffect(() => {
-    const claimsData: {[key: string]: Claim[]} = {};
-    [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees].forEach(emp => {
-      claimsData[emp.id] = getEmployeeClaims(emp.id);
-    });
-    setEmployeeClaims(claimsData);
-    console.log('Loaded employee claims:', claimsData);
+    const loadEmployeeClaims = async () => {
+      const claimsData: {[key: string]: Claim[]} = {};
+      
+      for (const emp of [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]) {
+        try {
+          const claims = await getEmployeeClaims(emp.id);
+          claimsData[emp.id] = claims;
+        } catch (error) {
+          console.error(`Error loading claims for employee ${emp.id}:`, error);
+          claimsData[emp.id] = [];
+        }
+      }
+      
+      setEmployeeClaims(claimsData);
+      console.log('Loaded employee claims:', claimsData);
+    };
+
+    if (payrollState.fullTimeEmployees.length > 0 || payrollState.casualEmployees.length > 0) {
+      loadEmployeeClaims();
+    }
   }, [payrollState.fullTimeEmployees, payrollState.casualEmployees]);
 
   // Log current state for debugging
