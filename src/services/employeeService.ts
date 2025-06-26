@@ -69,7 +69,15 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       attendance: emp.admin_access[0]?.attendance || false,
       slotBooking: emp.admin_access[0]?.slot_booking || false,
       reports: emp.admin_access[0]?.reports || false
-    } : undefined
+    } : {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   })) || [];
 };
 
@@ -141,7 +149,15 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       attendance: emp.admin_access[0]?.attendance || false,
       slotBooking: emp.admin_access[0]?.slot_booking || false,
       reports: emp.admin_access[0]?.reports || false
-    } : undefined
+    } : {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   })) || [];
 };
 
@@ -216,10 +232,18 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       payroll: employee.admin_access[0]?.payroll || false,
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
-      attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false,
-      reports: employee.admin_access[0]?.reports || false
-    } : undefined
+      attendance: emp.admin_access[0]?.attendance || false,
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
+    } : {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   };
 };
 

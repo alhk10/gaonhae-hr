@@ -38,10 +38,12 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
   ];
 
   useEffect(() => {
-    if (open) {
+    if (open && employees.length > 0) {
+      console.log('EmployeeModuleSettings: Initializing permissions for employees:', employees.length);
       // Initialize permissions state with current employee permissions
       const permissions: {[key: string]: AdminAccessPermissions} = {};
       employees.forEach(emp => {
+        console.log('EmployeeModuleSettings: Setting permissions for employee:', emp.id, emp.name, emp.adminAccess);
         permissions[emp.id] = emp.adminAccess || {
           employees: false,
           payroll: false,
@@ -53,10 +55,12 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
         };
       });
       setEmployeePermissions(permissions);
+      console.log('EmployeeModuleSettings: Initialized permissions:', permissions);
     }
   }, [open, employees]);
 
   const handlePermissionChange = (employeeId: string, moduleKey: string, checked: boolean) => {
+    console.log('EmployeeModuleSettings: Permission change:', employeeId, moduleKey, checked);
     setEmployeePermissions(prev => ({
       ...prev,
       [employeeId]: {
@@ -67,12 +71,14 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
   };
 
   const handleSaveChanges = async () => {
+    console.log('EmployeeModuleSettings: Saving changes for permissions:', employeePermissions);
     setIsLoading(true);
     try {
       // Update each employee's permissions
-      const updatePromises = Object.entries(employeePermissions).map(([employeeId, permissions]) => 
-        updateEmployeeAdminAccess(employeeId, permissions)
-      );
+      const updatePromises = Object.entries(employeePermissions).map(([employeeId, permissions]) => {
+        console.log('EmployeeModuleSettings: Updating permissions for employee:', employeeId, permissions);
+        return updateEmployeeAdminAccess(employeeId, permissions);
+      });
       
       await Promise.all(updatePromises);
       
@@ -84,7 +90,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
       onEmployeesUpdate();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating employee permissions:', error);
+      console.error('EmployeeModuleSettings: Error updating employee permissions:', error);
       toast({
         title: "Error",
         description: "Failed to update employee permissions",
@@ -101,9 +107,11 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     return Object.values(permissions).filter(Boolean).length;
   };
 
+  console.log('EmployeeModuleSettings: Rendering with employees:', employees.length, 'permissions:', Object.keys(employeePermissions).length);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Employee Module Settings</DialogTitle>
         </DialogHeader>
@@ -125,16 +133,16 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
             </CardContent>
           </Card>
 
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 max-h-96">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-48">Employee</TableHead>
                   <TableHead className="w-20 text-center">Permissions</TableHead>
                   {modules.map(module => (
-                    <TableHead key={module.key} className="w-32 text-center">
+                    <TableHead key={module.key} className="w-28 text-center">
                       <div className="flex flex-col items-center space-y-1">
-                        <span className="text-xs font-medium">{module.label}</span>
+                        <span className="text-xs font-medium leading-tight">{module.label.replace(' ', '\n')}</span>
                       </div>
                     </TableHead>
                   ))}
@@ -147,7 +155,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                       <div className="flex flex-col">
                         <span className="font-medium text-sm">{employee.name}</span>
                         <span className="text-xs text-gray-500">{employee.id}</span>
-                        <span className="text-xs text-gray-400">{employee.email}</span>
+                        <span className="text-xs text-gray-400">{employee.email || 'No email'}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -169,15 +177,25 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                 ))}
               </TableBody>
             </Table>
+            {employees.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No employees found</p>
+              </div>
+            )}
           </ScrollArea>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveChanges} disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
+          <div className="flex justify-between items-center pt-4 border-t bg-white">
+            <div className="text-sm text-gray-600">
+              Managing permissions for {employees.length} employees
+            </div>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveChanges} disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
