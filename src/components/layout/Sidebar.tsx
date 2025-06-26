@@ -81,6 +81,7 @@ const Sidebar = () => {
     
     const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
+      { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
 
     // Superadmin gets full access - highest priority
@@ -88,12 +89,18 @@ const Sidebar = () => {
       console.log('Sidebar: Returning superadmin menu items');
       const adminItems = [
         ...baseItems,
+        { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
+        { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
+        { icon: DollarSign, label: 'Payslips', path: '/payslips' },
+        { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
+        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: Users, label: 'Employees', path: '/employees' },
         { icon: DollarSign, label: 'Payroll', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: UserCheck, label: 'Attendance', path: '/attendance' },
         { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
+        { icon: BarChart3, label: 'Reports', path: '/reports' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
       console.log('Sidebar: Admin menu items:', adminItems);
@@ -105,6 +112,11 @@ const Sidebar = () => {
       console.log('Sidebar: Returning manager menu items');
       const managerItems = [
         ...baseItems,
+        { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
+        { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
+        { icon: DollarSign, label: 'Payslips', path: '/payslips' },
+        { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
+        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: Users, label: 'My Team', path: '/my-team' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims', path: '/claims' },
@@ -125,7 +137,6 @@ const Sidebar = () => {
       { icon: DollarSign, label: 'Payslips', path: '/payslips' },
       { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
       { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
-      { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
 
     // If still loading employee data, return basic items
@@ -163,13 +174,12 @@ const Sidebar = () => {
         adminItems.push({ icon: BarChart3, label: 'Reports', path: '/reports' });
       }
 
-      // Insert admin items after dashboard but before regular employee items
+      // Add admin items at the end after regular employee items
       if (adminItems.length > 0) {
         console.log('Sidebar: Adding admin items to employee menu:', adminItems);
         employeeItems = [
-          baseItems[0], // Dashboard
-          ...adminItems,
-          ...employeeItems.slice(1) // Rest of employee items
+          ...employeeItems,
+          ...adminItems
         ];
       }
     }
