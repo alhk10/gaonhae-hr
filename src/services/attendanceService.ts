@@ -57,8 +57,8 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
     hours: record.hours_worked || 0,
     location: record.location || 'Office',
-    clockInLocation: record.clock_in_location,
-    clockOutLocation: record.clock_out_location
+    clockInLocation: record.clock_in_location || undefined,
+    clockOutLocation: record.clock_out_location || undefined
   }));
 };
 
@@ -91,8 +91,8 @@ export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
     hours: record.hours_worked || 0,
     location: record.location || 'Office',
-    clockInLocation: record.clock_in_location,
-    clockOutLocation: record.clock_out_location
+    clockInLocation: record.clock_in_location || undefined,
+    clockOutLocation: record.clock_out_location || undefined
   }));
 };
 

@@ -97,11 +97,14 @@ export type Database = {
           break_start: string | null
           check_in: string | null
           check_out: string | null
+          clock_in_location: string | null
+          clock_out_location: string | null
           created_at: string | null
           date: string
           employee_id: string | null
           hours_worked: number | null
           id: number
+          location: string | null
           status: string
         }
         Insert: {
@@ -109,11 +112,14 @@ export type Database = {
           break_start?: string | null
           check_in?: string | null
           check_out?: string | null
+          clock_in_location?: string | null
+          clock_out_location?: string | null
           created_at?: string | null
           date: string
           employee_id?: string | null
           hours_worked?: number | null
           id?: number
+          location?: string | null
           status: string
         }
         Update: {
@@ -121,11 +127,14 @@ export type Database = {
           break_start?: string | null
           check_in?: string | null
           check_out?: string | null
+          clock_in_location?: string | null
+          clock_out_location?: string | null
           created_at?: string | null
           date?: string
           employee_id?: string | null
           hours_worked?: number | null
           id?: number
+          location?: string | null
           status?: string
         }
         Relationships: [
