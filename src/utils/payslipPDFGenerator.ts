@@ -26,7 +26,8 @@ interface PayslipData {
 }
 
 export const generatePayslipPDF = (data: PayslipData) => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  // Change paper size to A5
+  const doc = new jsPDF('p', 'mm', 'a5');
   
   // Set font
   doc.setFont('helvetica');
@@ -34,168 +35,168 @@ export const generatePayslipPDF = (data: PayslipData) => {
   // Generate PayslipID (using employee ID and month)
   const payslipId = `PS-${data.employee.id}-${data.month.replace(' ', '').substring(0, 3).toLowerCase()}${new Date().getFullYear()}`;
   
-  // Company details (top left)
+  // Company details (top left) - adjusted for A5
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', 20, 16);
+  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', 10, 16);
   doc.setFont('helvetica', 'normal');
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', 20, 19.72);
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', 10, 20);
   
-  // PayslipID
-  doc.setFontSize(6.48);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`PayslipID: ${payslipId}`, 20, 24.34);
-  
-  // Header - PAYSLIP (centered)
+  // Header - PAYSLIP (centered) - adjusted for A5
   doc.setFontSize(11.34);
   doc.setFont('helvetica', 'bold');
-  doc.text('PAYSLIP', 105, 30.24, { align: 'center' });
+  doc.text('PAYSLIP', 74, 30, { align: 'center' });
   
-  // Pay period (left-aligned under payslip)
+  // Pay period (left-aligned under payslip) - increased spacing
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 20, 34.86);
+  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 10, 38);
   
-  // Employee details section (left side)
+  // PayslipID moved under pay period - increased spacing
+  doc.setFontSize(6.48);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PayslipID: ${payslipId}`, 10, 44);
+  
+  // Employee details section (left side) - increased spacing
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('EMPLOYEE DETAILS:', 20, 41.58);
+  doc.text('EMPLOYEE DETAILS:', 10, 52);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.48);
   
-  // Employee info
-  doc.text(`Name: ${data.employee.name}`, 20, 46.2);
-  doc.text(`NRIC/FIN: ${data.employee.nric}`, 20, 49.14);
-  doc.text(`Position: ${data.employee.position || 'N/A'}`, 20, 52.08);
+  // Employee info - increased spacing
+  doc.text(`Name: ${data.employee.name}`, 10, 58);
+  doc.text(`NRIC/FIN: ${data.employee.nric}`, 10, 62);
+  doc.text(`Position: ${data.employee.position || 'N/A'}`, 10, 66);
   
-  // Bank Transfer Details (right side of employee details)
+  // Bank Transfer Details (right side of employee details) - adjusted for A5
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('BANK TRANSFER DETAILS:', 105, 41.58);
+  doc.text('BANK TRANSFER DETAILS:', 75, 52);
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Bank Name: ${data.employee.bankName || 'N/A'}`, 105, 46.2);
-  doc.text(`Account Number: ${data.employee.bankAccount || 'N/A'}`, 105, 49.14);
+  doc.text(`Bank Name: ${data.employee.bankName || 'N/A'}`, 75, 58);
+  doc.text(`Account Number: ${data.employee.bankAccount || 'N/A'}`, 75, 62);
   
-  // Line separator
-  doc.line(20, 55.02, 190, 55.02);
+  // Line separator - adjusted for A5
+  doc.line(10, 72, 138, 72);
   
-  // Earnings section
-  let yPos = 58.02;
+  // Earnings section - increased spacing
+  let yPos = 78;
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('EARNINGS:', 20, yPos);
-  yPos += 1.25;
+  doc.text('EARNINGS:', 10, yPos);
+  yPos += 6;
   
-  // Table headers
+  // Table headers - increased spacing
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'bold');
-  doc.text('Description', 20, yPos);
-  doc.text('Amount (S$)', 150, yPos, { align: 'right' });
-  yPos += 0.75;
-  doc.line(20, yPos, 190, yPos);
-  yPos += 1;
+  doc.text('Description', 10, yPos);
+  doc.text('Amount (S$)', 120, yPos, { align: 'right' });
+  yPos += 4;
+  doc.line(10, yPos, 138, yPos);
+  yPos += 5;
   
-  // Basic salary
+  // Basic salary - increased spacing
   doc.setFont('helvetica', 'normal');
-  doc.text('Basic Salary', 20, yPos);
-  doc.text(data.baseSalary.toFixed(2), 150, yPos, { align: 'right' });
-  yPos += 1;
+  doc.text('Basic Salary', 10, yPos);
+  doc.text(data.baseSalary.toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 5;
   
-  // Add allowances
+  // Add allowances - increased spacing
   data.allowances.forEach(allowance => {
-    doc.text(allowance.name, 20, yPos);
-    doc.text(allowance.amount.toFixed(2), 150, yPos, { align: 'right' });
-    yPos += 1;
+    doc.text(allowance.name, 10, yPos);
+    doc.text(allowance.amount.toFixed(2), 120, yPos, { align: 'right' });
+    yPos += 5;
   });
   
-  // Add approved claims if any
+  // Add approved claims if any - increased spacing
   if (data.approvedClaims > 0) {
-    doc.text('Approved Claims', 20, yPos);
-    doc.text(data.approvedClaims.toFixed(2), 150, yPos, { align: 'right' });
-    yPos += 1;
+    doc.text('Approved Claims', 10, yPos);
+    doc.text(data.approvedClaims.toFixed(2), 120, yPos, { align: 'right' });
+    yPos += 5;
   }
   
-  // Gross earnings line
-  yPos += 0.5;
-  doc.line(20, yPos, 150, yPos);
-  yPos += 1;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Gross Earnings', 20, yPos);
-  doc.text((data.grossSalary + data.approvedClaims).toFixed(2), 150, yPos, { align: 'right' });
+  // Gross earnings line - increased spacing
   yPos += 2;
+  doc.line(10, yPos, 120, yPos);
+  yPos += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gross Earnings', 10, yPos);
+  doc.text((data.grossSalary + data.approvedClaims).toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 8;
   
-  // Deductions section
+  // Deductions section - increased spacing
   doc.setFontSize(8.1);
-  doc.text('DEDUCTIONS:', 20, yPos);
-  yPos += 1.25;
+  doc.text('DEDUCTIONS:', 10, yPos);
+  yPos += 6;
   
-  // Table headers for deductions
+  // Table headers for deductions - increased spacing
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'bold');
-  doc.text('Description', 20, yPos);
-  doc.text('Amount (S$)', 150, yPos, { align: 'right' });
-  yPos += 0.75;
-  doc.line(20, yPos, 190, yPos);
-  yPos += 1;
+  doc.text('Description', 10, yPos);
+  doc.text('Amount (S$)', 120, yPos, { align: 'right' });
+  yPos += 4;
+  doc.line(10, yPos, 138, yPos);
+  yPos += 5;
   
-  // CPF Employee contribution
+  // CPF Employee contribution - increased spacing
   doc.setFont('helvetica', 'normal');
-  doc.text('CPF (Employee 20%)', 20, yPos);
-  doc.text(data.employeeCPF.toFixed(2), 150, yPos, { align: 'right' });
-  yPos += 1;
+  doc.text('CPF (Employee 20%)', 10, yPos);
+  doc.text(data.employeeCPF.toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 5;
   
-  // Add other deductions
+  // Add other deductions - increased spacing
   data.deductions.forEach(deduction => {
-    doc.text(deduction.name, 20, yPos);
-    doc.text(deduction.amount.toFixed(2), 150, yPos, { align: 'right' });
-    yPos += 1;
+    doc.text(deduction.name, 10, yPos);
+    doc.text(deduction.amount.toFixed(2), 120, yPos, { align: 'right' });
+    yPos += 5;
   });
   
-  // Total deductions line
-  yPos += 0.5;
-  doc.line(20, yPos, 150, yPos);
-  yPos += 1;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total Deductions', 20, yPos);
-  doc.text((data.employeeCPF + data.totalDeductions).toFixed(2), 150, yPos, { align: 'right' });
+  // Total deductions line - increased spacing
   yPos += 2;
+  doc.line(10, yPos, 120, yPos);
+  yPos += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Deductions', 10, yPos);
+  doc.text((data.employeeCPF + data.totalDeductions).toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 8;
   
-  // Net pay (highlighted)
+  // Net pay (highlighted) - adjusted for A5 and increased spacing
   doc.setDrawColor(0);
   doc.setFillColor(240, 240, 240);
-  doc.rect(20, yPos - 0.75, 170, 2, 'F');
+  doc.rect(10, yPos - 3, 128, 8, 'F');
   doc.setFontSize(9.72);
   doc.setFont('helvetica', 'bold');
-  doc.text('NET PAY', 25, yPos + 0.75);
-  doc.text(`S$ ${data.netSalary.toFixed(2)}`, 145, yPos + 0.75, { align: 'right' });
-  yPos += 3.25;
+  doc.text('NET PAY', 15, yPos + 1);
+  doc.text(`S$ ${data.netSalary.toFixed(2)}`, 115, yPos + 1, { align: 'right' });
+  yPos += 12;
   
-  // CPF contributions summary
+  // CPF contributions summary - increased spacing
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('CPF CONTRIBUTIONS SUMMARY:', 20, yPos);
-  yPos += 1.25;
+  doc.text('CPF CONTRIBUTIONS SUMMARY:', 10, yPos);
+  yPos += 6;
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
   
-  // CPF table
-  doc.text('Employee CPF (20%)', 20, yPos);
-  doc.text(data.employeeCPF.toFixed(2), 150, yPos, { align: 'right' });
-  yPos += 1;
-  doc.text('Employer CPF (17%)', 20, yPos);
-  doc.text(data.employerCPF.toFixed(2), 150, yPos, { align: 'right' });
-  yPos += 1;
-  doc.line(20, yPos, 150, yPos);
-  yPos += 1;
+  // CPF table - increased spacing
+  doc.text('Employee CPF (20%)', 10, yPos);
+  doc.text(data.employeeCPF.toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 5;
+  doc.text('Employer CPF (17%)', 10, yPos);
+  doc.text(data.employerCPF.toFixed(2), 120, yPos, { align: 'right' });
+  yPos += 5;
+  doc.line(10, yPos, 120, yPos);
+  yPos += 5;
   doc.setFont('helvetica', 'bold');
-  doc.text('Total CPF Contributions', 20, yPos);
-  doc.text(data.totalCPF.toFixed(2), 150, yPos, { align: 'right' });
+  doc.text('Total CPF Contributions', 10, yPos);
+  doc.text(data.totalCPF.toFixed(2), 120, yPos, { align: 'right' });
   
-  // Footer (simplified)
+  // Footer (simplified) - adjusted for A5
   doc.setFontSize(4.86);
   doc.setFont('helvetica', 'normal');
-  doc.text('This payslip is computer generated and does not require signature.', 105, 275, { align: 'center' });
+  doc.text('This payslip is computer generated and does not require signature.', 74, 195, { align: 'center' });
   
   // Save the PDF with proper filename including PayslipID
   const fileName = `${payslipId}_${data.employee.name.replace(/\s+/g, '_')}.pdf`;
