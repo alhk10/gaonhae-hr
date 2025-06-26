@@ -88,16 +88,12 @@ export const generatePayslipPDF = (data: PayslipData) => {
   doc.text('EARNINGS:', 10, yPos);
   yPos += 4;
   
-  // Table headers - reduced spacing
-  doc.setFontSize(6.48);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Description', 10, yPos);
-  doc.text('Amount (S$)', 120, yPos, { align: 'right' });
-  yPos += 3;
+  // Line separator under earnings title
   doc.line(10, yPos, 138, yPos);
   yPos += 3;
   
   // Basic salary - reduced spacing
+  doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
   doc.text('Basic Salary', 10, yPos);
   doc.text(data.baseSalary.toFixed(2), 120, yPos, { align: 'right' });
@@ -131,16 +127,12 @@ export const generatePayslipPDF = (data: PayslipData) => {
   doc.text('DEDUCTIONS:', 10, yPos);
   yPos += 4;
   
-  // Table headers for deductions - reduced spacing
-  doc.setFontSize(6.48);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Description', 10, yPos);
-  doc.text('Amount (S$)', 120, yPos, { align: 'right' });
-  yPos += 3;
+  // Line separator under deductions title
   doc.line(10, yPos, 138, yPos);
   yPos += 3;
   
   // CPF Employee contribution - reduced spacing
+  doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
   doc.text('CPF (Employee 20%)', 10, yPos);
   doc.text(data.employeeCPF.toFixed(2), 120, yPos, { align: 'right' });
