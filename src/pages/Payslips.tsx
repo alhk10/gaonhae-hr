@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, Download, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
@@ -15,6 +15,7 @@ import { EmployeeProfile } from '@/types/employee';
 
 const Payslips = () => {
   const { payrollState } = usePayroll();
+  const { user } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [approvedClaimsTotal, setApprovedClaimsTotal] = useState(0);
   const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
@@ -25,11 +26,22 @@ const Payslips = () => {
     const loadEmployeeData = async () => {
       try {
         setLoading(true);
-        // For demo purposes, we'll show payslips for the first full-time employee
-        const employee = await getEmployeeById('EMP001'); // In real app, this would come from auth context
+        
+        if (!user?.employeeId) {
+          console.error('No employee ID found for current user');
+          setLoading(false);
+          return;
+        }
+
+        // Use the current user's employee ID
+        const employee = await getEmployeeById(user.employeeId);
         setCurrentEmployee(employee);
         
-        if (!employee) return;
+        if (!employee) {
+          console.error('Employee not found:', user.employeeId);
+          setLoading(false);
+          return;
+        }
         
         // Load approved claims
         const claims = await getEmployeeClaims(employee.id);
@@ -59,8 +71,12 @@ const Payslips = () => {
       }
     };
 
-    loadEmployeeData();
-  }, []);
+    if (user?.employeeId) {
+      loadEmployeeData();
+    } else {
+      setLoading(false);
+    }
+  }, [user?.employeeId]);
 
   if (loading) {
     return (
@@ -81,6 +97,23 @@ const Payslips = () => {
     );
   }
 
+  if (!user?.employeeId) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p className="text-red-600">No employee ID found for current user</p>
+              <p className="text-sm text-gray-500 mt-2">Please contact your administrator</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentEmployee) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -89,7 +122,10 @@ const Payslips = () => {
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
             <div className="text-center">
-              <p>Employee not found</p>
+              <p className="text-red-600">Employee record not found</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Employee ID: {user.employeeId} could not be found in the system
+              </p>
             </div>
           </main>
         </div>
