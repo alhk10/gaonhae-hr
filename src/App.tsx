@@ -23,7 +23,6 @@ import SlotBooking from './pages/SlotBooking';
 import Payslips from './pages/Payslips';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import ModuleSettings from './pages/ModuleSettings';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -56,7 +55,6 @@ function App() {
                 <Route path="/payslips" element={<Payslips />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/module-settings" element={<ModuleSettings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <Toaster />
