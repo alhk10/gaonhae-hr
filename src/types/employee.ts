@@ -1,3 +1,4 @@
+
 export interface AllowanceDeduction {
   id: number;
   name: string;
@@ -26,6 +27,7 @@ export interface EmployeeProfile {
   address?: string;
   email?: string;
   resignDate?: string; // Added resign date
+  profilePhoto?: string; // Added profile photo property
   certificates?: CertificateUpload[];
   adminAccess?: AdminAccessPermissions;
 }
