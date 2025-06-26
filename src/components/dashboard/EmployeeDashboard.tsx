@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +13,11 @@ import { getEmployeeById } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
+import { updateClockInOut, getClockInOutStatus } from '@/data/attendanceData';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockTime, setClockTime] = useState<string | null>(null);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
@@ -48,6 +51,17 @@ const EmployeeDashboard = () => {
     }
   }, [supabaseEmployee, supabaseError, user?.id]);
 
+  // Check clock-in status on load
+  useEffect(() => {
+    if (user?.id) {
+      const clockStatus = getClockInOutStatus(user.id);
+      if (clockStatus) {
+        setIsClockedIn(clockStatus.status === 'clocked-in');
+        setClockTime(clockStatus.clockIn || null);
+      }
+    }
+  }, [user?.id]);
+
   // Fetch employee-specific data
   const { data: employeeClaims = [], error: claimsError } = useQuery({
     queryKey: ['employee-claims', user?.id],
@@ -77,23 +91,50 @@ const EmployeeDashboard = () => {
   ];
 
   const handleClockInOut = () => {
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
+
     const currentTime = new Date().toLocaleTimeString('en-SG', { 
       hour12: false,
       hour: '2-digit',
       minute: '2-digit'
     });
     
-    if (isClockedIn) {
-      // Clock out
-      setIsClockedIn(false);
-      setClockTime(null);
-      toast.success(`Clocked out at ${currentTime}`);
-    } else {
-      // Clock in
-      setIsClockedIn(true);
-      setClockTime(currentTime);
-      toast.success(`Clocked in at ${currentTime}`);
+    try {
+      if (isClockedIn) {
+        // Clock out
+        updateClockInOut(user.id, 'out');
+        setIsClockedIn(false);
+        setClockTime(null);
+        toast.success(`Clocked out at ${currentTime}`);
+      } else {
+        // Clock in
+        updateClockInOut(user.id, 'in');
+        setIsClockedIn(true);
+        setClockTime(currentTime);
+        toast.success(`Clocked in at ${currentTime}`);
+      }
+    } catch (error) {
+      console.error('Clock in/out error:', error);
+      toast.error('Failed to update clock status');
     }
+  };
+
+  const handleApplyLeave = () => {
+    console.log('Navigating to apply leave page');
+    navigate('/apply-leave');
+  };
+
+  const handleSubmitClaim = () => {
+    console.log('Navigating to submit claim page');
+    navigate('/submit-claim');
+  };
+
+  const handleViewPayslip = () => {
+    console.log('Navigating to payslips page');
+    navigate('/payslips');
   };
 
   const displayName = employeeData?.name || user?.name || 'Employee';
@@ -107,7 +148,9 @@ const EmployeeDashboard = () => {
     employeeClaims: employeeClaims.length,
     attendanceRecords: attendanceRecords.length,
     pendingClaims,
-    hoursThisMonth
+    hoursThisMonth,
+    isClockedIn,
+    clockTime
   });
 
   if (claimsError) {
@@ -168,21 +211,35 @@ const EmployeeDashboard = () => {
                 </div>
               </Button>
               
-              <Button className="justify-start h-auto p-4" variant="outline">
+              <Button 
+                className="justify-start h-auto p-4" 
+                variant="outline"
+                onClick={handleApplyLeave}
+              >
                 <Calendar className="w-5 h-5 mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Apply for Leave</p>
                   <p className="text-sm text-gray-500">Submit new leave request</p>
                 </div>
               </Button>
-              <Button className="justify-start h-auto p-4" variant="outline">
+              
+              <Button 
+                className="justify-start h-auto p-4" 
+                variant="outline"
+                onClick={handleSubmitClaim}
+              >
                 <FileText className="w-5 h-5 mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Submit Claim</p>
                   <p className="text-sm text-gray-500">Medical, transport, or other claims</p>
                 </div>
               </Button>
-              <Button className="justify-start h-auto p-4" variant="outline">
+              
+              <Button 
+                className="justify-start h-auto p-4" 
+                variant="outline"
+                onClick={handleViewPayslip}
+              >
                 <Clock className="w-5 h-5 mr-3" />
                 <div className="text-left">
                   <p className="font-medium">View Payslip</p>
