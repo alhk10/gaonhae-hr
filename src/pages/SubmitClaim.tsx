@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -26,20 +25,63 @@ interface Claim {
   description: string;
 }
 
+interface ClaimType {
+  id: string;
+  name: string;
+  limit: number | null;
+  coPay: number;
+}
+
 const SubmitClaim = () => {
   const { user } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+  const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    type: 'Transport',
+    type: '',
     amount: '',
     gstAmount: '',
     date: '',
     vendor: '',
     description: ''
   });
+
+  // Load claim types from localStorage (same as Claims Management)
+  useEffect(() => {
+    const loadClaimTypes = () => {
+      try {
+        const stored = localStorage.getItem('claim_types');
+        if (stored) {
+          const parsedTypes = JSON.parse(stored);
+          console.log('Loaded claim types:', parsedTypes);
+          setClaimTypes(parsedTypes);
+          // Set default type to first available type
+          if (parsedTypes.length > 0 && !formData.type) {
+            setFormData(prev => ({ ...prev, type: parsedTypes[0].name }));
+          }
+        } else {
+          // Default claim types (same as Claims Management)
+          const defaultTypes: ClaimType[] = [
+            { id: 'medical', name: 'Medical', limit: 1000, coPay: 0 },
+            { id: 'transport', name: 'Transport', limit: 500, coPay: 0 },
+            { id: 'meal', name: 'Meal', limit: 300, coPay: 20 },
+            { id: 'equipment', name: 'Equipment', limit: null, coPay: 10 }
+          ];
+          console.log('Setting default claim types:', defaultTypes);
+          setClaimTypes(defaultTypes);
+          setFormData(prev => ({ ...prev, type: 'Medical' }));
+          localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
+        }
+      } catch (error) {
+        console.error('Error loading claim types:', error);
+        toast("Error loading claim types");
+      }
+    };
+
+    loadClaimTypes();
+  }, []);
 
   // Load current employee and their claims
   useEffect(() => {
@@ -110,15 +152,15 @@ const SubmitClaim = () => {
       const updatedClaims = await getEmployeeClaims(currentEmployee.id);
       setClaims(updatedClaims);
       
-      // Reset form
-      setFormData({
-        type: 'Transport',
+      // Reset form but keep the same claim type
+      setFormData(prev => ({
+        type: prev.type,
         amount: '',
         gstAmount: '',
         date: '',
         vendor: '',
         description: ''
-      });
+      }));
 
       toast("Claim submitted successfully");
     } catch (error) {
@@ -142,6 +184,35 @@ const SubmitClaim = () => {
 
   const formatAmount = (amount: number) => {
     return `S$${amount.toFixed(2)}`;
+  };
+
+  const getClaimTypeIcon = (typeName: string) => {
+    switch (typeName.toLowerCase()) {
+      case 'medical':
+        return '🏥';
+      case 'transport':
+        return '🚗';
+      case 'meal':
+        return '🍽️';
+      case 'equipment':
+        return '💻';
+      case 'travel':
+        return '✈️';
+      case 'accommodation':
+        return '🏨';
+      default:
+        return '📋';
+    }
+  };
+
+  const getClaimTypeInfo = (typeName: string) => {
+    const claimType = claimTypes.find(type => type.name === typeName);
+    if (!claimType) return null;
+    
+    const limitText = claimType.limit ? `Limit: S$${claimType.limit}/year` : 'No limit';
+    const coPayText = claimType.coPay > 0 ? `Co-pay: ${claimType.coPay}%` : 'No co-pay';
+    
+    return { limitText, coPayText };
   };
 
   if (isLoading) {
@@ -227,13 +298,18 @@ const SubmitClaim = () => {
                           value={formData.type}
                           onChange={(e) => handleInputChange('type', e.target.value)}
                         >
-                          <option value="Transport">🚗 Transport</option>
-                          <option value="Meals">🍽️ Meals</option>
-                          <option value="Equipment">💻 Equipment</option>
-                          <option value="Training">📚 Training</option>
-                          <option value="Medical">🏥 Medical</option>
-                          <option value="Others">📋 Others</option>
+                          {claimTypes.map((claimType) => (
+                            <option key={claimType.id} value={claimType.name}>
+                              {getClaimTypeIcon(claimType.name)} {claimType.name}
+                            </option>
+                          ))}
                         </select>
+                        {formData.type && getClaimTypeInfo(formData.type) && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            <p>{getClaimTypeInfo(formData.type)?.limitText}</p>
+                            <p>{getClaimTypeInfo(formData.type)?.coPayText}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
