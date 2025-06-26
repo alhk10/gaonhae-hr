@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -303,7 +302,7 @@ const Profile = () => {
                   </div>
                   {employeeData.baseSalary && (
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Basic Salary</label>
+                      <label className="text-sm font-medium text-gray-600">Base Salary</label>
                       <p className="text-base md:text-lg text-gray-900">S${employeeData.baseSalary.toLocaleString()}</p>
                     </div>
                   )}
