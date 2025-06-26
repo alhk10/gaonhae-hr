@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Edit, Loader2 } from 'lucide-react';
+import { User, Edit, Loader2, Camera } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById, updateEmployee } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,6 +102,14 @@ const Profile = () => {
     }
   };
 
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Here you would typically upload to your storage service
+      toast.success("Photo upload feature coming soon!");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -174,19 +182,34 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-center mb-4">
-                    <img 
-                      src="/placeholder.svg" 
-                      alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
-                    />
+                    <div className="relative">
+                      <img 
+                        src="/placeholder.svg" 
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
+                      />
+                      <label 
+                        htmlFor="photo-upload"
+                        className="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <input
+                          id="photo-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Full Name</label>
                     <p className="text-lg text-gray-900">{employeeData.name}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Employee ID</label>
-                    <p className="text-lg text-gray-900">{employeeData.id}</p>
+                    <label className="text-sm font-medium text-gray-600">Date of Birth</label>
+                    <p className="text-lg text-gray-900">{employeeData.dateOfBirth}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">NRIC/FIN</label>
@@ -243,8 +266,8 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Branch</label>
-                    <p className="text-lg text-gray-900">{employeeData.branch || 'Not specified'}</p>
+                    <label className="text-sm font-medium text-gray-600">Employee ID</label>
+                    <p className="text-lg text-gray-900">{employeeData.id}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Position</label>
@@ -255,10 +278,6 @@ const Profile = () => {
                     <p className="text-lg text-gray-900">{employeeData.type}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Date of Birth</label>
-                    <p className="text-lg text-gray-900">{employeeData.dateOfBirth}</p>
-                  </div>
-                  <div>
                     <label className="text-sm font-medium text-gray-600">Residency Status</label>
                     <p className="text-lg text-gray-900">{employeeData.residencyStatus}</p>
                   </div>
@@ -267,12 +286,6 @@ const Profile = () => {
                     <p className="text-lg text-gray-900">{employeeData.bankName}</p>
                     <p className="text-sm text-gray-600">{employeeData.bankAccount}</p>
                   </div>
-                  {employeeData.paymentType && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Payment Type</label>
-                      <p className="text-lg text-gray-900">{employeeData.paymentType}</p>
-                    </div>
-                  )}
                   {employeeData.baseSalary && (
                     <div>
                       <label className="text-sm font-medium text-gray-600">Base Salary</label>
@@ -295,44 +308,24 @@ const Profile = () => {
               </Card>
             </div>
 
-            {/* Allowances and Deductions */}
-            {(employeeData.allowances?.length > 0 || employeeData.deductions?.length > 0) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {employeeData.allowances?.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Allowances</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {employeeData.allowances.map((allowance) => (
-                          <div key={allowance.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span className="font-medium">{allowance.name}</span>
-                            <span className="text-green-600">+S${allowance.amount}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {employeeData.deductions?.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Deductions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {employeeData.deductions.map((deduction) => (
-                          <div key={deduction.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span className="font-medium">{deduction.name}</span>
-                            <span className="text-red-600">-S${deduction.amount}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+            {/* Deductions only */}
+            {employeeData.deductions?.length > 0 && (
+              <div className="grid grid-cols-1 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Deductions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {employeeData.deductions.map((deduction) => (
+                        <div key={deduction.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                          <span className="font-medium">{deduction.name}</span>
+                          <span className="text-red-600">-S${deduction.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>

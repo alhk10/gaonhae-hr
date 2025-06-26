@@ -16,7 +16,7 @@ const Navbar = () => {
     <nav className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
               src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" 
               alt="Gaonhae Taekwondo Logo"
@@ -25,7 +25,6 @@ const Navbar = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Gaonhae HR</h1>
-            <p className="text-xs text-gray-500">MOM & CPF Compliant</p>
           </div>
         </div>
         
