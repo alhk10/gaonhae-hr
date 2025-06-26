@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -164,9 +165,6 @@ const Sidebar = () => {
       }
       if (adminAccess.slotBooking) {
         adminItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
-      }
-      if (adminAccess.reports) {
-        adminItems.push({ icon: BarChart3, label: 'Reports', path: '/reports' });
       }
 
       // Add admin items at the end after regular employee items

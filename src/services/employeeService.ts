@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
@@ -41,7 +40,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     phone: emp.phone || '',
     address: emp.address || '',
     email: emp.email || '',
-    joinDate: emp.join_date || undefined,
+    joinDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined,
     resignDate: emp.resign_date || undefined,
     allowances: emp.allowances?.map(a => ({
       id: String(a.id),
@@ -69,16 +68,14 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       leaveManagement: emp.admin_access[0]?.leave_management || false,
       claims: emp.admin_access[0]?.claims || false,
       attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false,
-      reports: emp.admin_access[0]?.reports || false
+      slotBooking: emp.admin_access[0]?.slot_booking || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false,
-      reports: false
+      slotBooking: false
     }
   })) || [];
 };
@@ -122,7 +119,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     phone: emp.phone || '',
     address: emp.address || '',
     email: emp.email || '',
-    joinDate: emp.join_date || undefined,
+    joinDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined,
     resignDate: emp.resign_date || undefined,
     allowances: emp.allowances?.map(a => ({
       id: String(a.id),
@@ -150,16 +147,14 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       leaveManagement: emp.admin_access[0]?.leave_management || false,
       claims: emp.admin_access[0]?.claims || false,
       attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false,
-      reports: emp.admin_access[0]?.reports || false
+      slotBooking: emp.admin_access[0]?.slot_booking || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false,
-      reports: false
+      slotBooking: false
     }
   })) || [];
 };
@@ -209,7 +204,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     phone: employee.phone || '',
     address: employee.address || '',
     email: employee.email || '',
-    joinDate: employee.join_date || undefined,
+    joinDate: employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined,
     resignDate: employee.resign_date || undefined,
     allowances: employee.allowances?.map(a => ({
       id: String(a.id),
@@ -237,16 +232,14 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
       attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false,
-      reports: employee.admin_access[0]?.reports || false
+      slotBooking: employee.admin_access[0]?.slot_booking || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false,
-      reports: false
+      slotBooking: false
     }
   };
 };
@@ -379,8 +372,7 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     leave_management: adminAccess.leaveManagement,
     claims: adminAccess.claims,
     attendance: adminAccess.attendance,
-    slot_booking: adminAccess.slotBooking,
-    reports: adminAccess.reports
+    slot_booking: adminAccess.slotBooking
   };
 
   if (existingAccess) {

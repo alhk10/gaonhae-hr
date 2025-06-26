@@ -44,7 +44,7 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
     }
 
     const newDeduction: AllowanceDeduction = {
-      id: Date.now(),
+      id: Date.now().toString(),
       name: name,
       amount: Number(amount),
       type: type

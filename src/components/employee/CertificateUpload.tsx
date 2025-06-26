@@ -42,6 +42,7 @@ const CertificateUploadComponent: React.FC<CertificateUploadProps> = ({
 
     const newCertificate: CertificateUpload = {
       id: Date.now().toString(),
+      file: file,
       name: file.name.split('.')[0],
       fileName: file.name,
       uploadDate: new Date().toISOString().split('T')[0],
