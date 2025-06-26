@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
@@ -232,9 +233,9 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       payroll: employee.admin_access[0]?.payroll || false,
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
-      attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false,
-      reports: emp.admin_access[0]?.reports || false
+      attendance: employee.admin_access[0]?.attendance || false,
+      slotBooking: employee.admin_access[0]?.slot_booking || false,
+      reports: employee.admin_access[0]?.reports || false
     } : {
       employees: false,
       payroll: false,
