@@ -3,7 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Download, Calendar, FileText } from 'lucide-react';
+import { DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -216,66 +216,6 @@ const Payslips = () => {
     }
   };
 
-  const handleDownloadPayslip = (month: string) => {
-    const payslipData = generatePayslipData(month);
-    
-    const payslipContent = `
-PAYSLIP FOR ${month.toUpperCase()}
-
-COMPANY NAME: ABC Learning Centre Pte Ltd
-COMPANY ADDRESS: 123 Main Street, Singapore 123456
-
-EMPLOYEE DETAILS:
-Name: ${currentEmployee.name}
-Employee ID: ${currentEmployee.id}
-NRIC/FIN: ${currentEmployee.nric}
-Branch: ${currentEmployee.branch || 'N/A'}
-Position: ${currentEmployee.position || 'N/A'}
-
-PAY PERIOD: ${month}
-
-EARNINGS:
-Basic Salary                S$ ${payslipData.baseSalary.toFixed(2)}
-${employeeAllowances.map(a => `${a.name.padEnd(26)} S$ ${Number(a.amount).toFixed(2)}`).join('\n')}
-${payslipData.approvedClaims > 0 ? `Approved Claims            S$ ${payslipData.approvedClaims.toFixed(2)}` : ''}
-                          ___________
-Gross Earnings             S$ ${(payslipData.grossSalary + payslipData.approvedClaims).toFixed(2)}
-
-DEDUCTIONS:
-CPF (Employee 20%)         S$ ${payslipData.employeeCPF.toFixed(2)}
-${employeeDeductions.map(d => `${d.name.padEnd(26)} S$ ${Number(d.amount).toFixed(2)}`).join('\n')}
-                          ___________
-Total Deductions           S$ ${(payslipData.employeeCPF + payslipData.totalDeductions).toFixed(2)}
-
-                          ___________
-NET PAY                    S$ ${payslipData.netSalary.toFixed(2)}
-
-BANK TRANSFER DETAILS:
-Bank: ${currentEmployee.bankName}
-Account Number: ${currentEmployee.bankAccount}
-
-CPF CONTRIBUTIONS:
-Employee CPF (20%)         S$ ${payslipData.employeeCPF.toFixed(2)}
-Employer CPF (17%)         S$ ${payslipData.employerCPF.toFixed(2)}
-Total CPF                  S$ ${payslipData.totalCPF.toFixed(2)}
-
-This payslip is computer generated and does not require signature.
-For queries, please contact HR Department.
-    `;
-
-    const blob = new Blob([payslipContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `payslip-${month.replace(' ', '-').toLowerCase()}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast(`Downloaded payslip for ${month}`);
-  };
-
   // Generate payslips for recent months using current employee data
   const payslips = [
     { month: 'December 2024', ...generatePayslipData('December 2024') },
@@ -298,7 +238,7 @@ For queries, please contact HR Department.
               <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
               <p className="text-gray-600">View and download your payslips with live data</p>
               <p className="text-sm text-gray-500 mt-1">
-                Employee: {currentEmployee.name} ({currentEmployee.id})
+                Employee: {currentEmployee?.name} ({currentEmployee?.id})
               </p>
             </div>
 
@@ -336,7 +276,7 @@ For queries, please contact HR Department.
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips as PDF or text format</CardDescription>
+                <CardDescription>Download your monthly payslips as PDF</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -360,14 +300,6 @@ For queries, please contact HR Department.
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Download PDF
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDownloadPayslip(payslip.month)}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download TXT
                         </Button>
                       </div>
                     </div>
