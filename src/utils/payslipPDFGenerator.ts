@@ -31,56 +31,53 @@ export const generatePayslipPDF = (data: PayslipData) => {
   // Set font
   doc.setFont('helvetica');
   
-  // Header
-  doc.setFontSize(18);
+  // Generate PayslipID (using employee ID and month)
+  const payslipId = `PS-${data.employee.id}-${data.month.replace(' ', '').substring(0, 3).toLowerCase()}${new Date().getFullYear()}`;
+  
+  // Company logo placeholder (top left)
+  doc.setFontSize(9); // Reduced from 10
+  doc.setFont('helvetica', 'normal');
+  doc.text('[COMPANY LOGO]', 20, 20);
+  
+  // Header - PAYSLIP (centered)
+  doc.setFontSize(16); // Reduced from 18
   doc.setFont('helvetica', 'bold');
   doc.text('PAYSLIP', 105, 20, { align: 'center' });
   
-  // Company details
-  doc.setFontSize(12);
+  // Pay period (moved to right)
+  doc.setFontSize(11); // Reduced from 12
   doc.setFont('helvetica', 'bold');
-  doc.text('ABC Learning Centre Pte Ltd', 20, 35);
+  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 190, 20, { align: 'right' });
+  
+  // PayslipID
+  doc.setFontSize(9); // Reduced from 10
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text('123 Main Street, Singapore 123456', 20, 42);
-  doc.text('Tel: +65 6123 4567 | Email: hr@abclearning.com.sg', 20, 47);
-  
-  // Line separator
-  doc.line(20, 52, 190, 52);
-  
-  // Pay period
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 20, 62);
+  doc.text(`PayslipID: ${payslipId}`, 20, 35);
   
   // Employee details section
+  doc.setFontSize(11); // Reduced from 12
   doc.setFont('helvetica', 'bold');
-  doc.text('EMPLOYEE DETAILS:', 20, 75);
+  doc.text('EMPLOYEE DETAILS:', 20, 50);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Reduced from 10
   
-  // Left column - Employee info
-  doc.text(`Name: ${data.employee.name}`, 20, 85);
-  doc.text(`Employee ID: ${data.employee.id}`, 20, 92);
-  doc.text(`NRIC/FIN: ${data.employee.nric}`, 20, 99);
-  
-  // Right column - Position info
-  doc.text(`Branch: ${data.employee.branch || 'N/A'}`, 110, 85);
-  doc.text(`Position: ${data.employee.position || 'N/A'}`, 110, 92);
-  doc.text(`Pay Date: ${new Date().toLocaleDateString('en-SG')}`, 110, 99);
+  // Employee info (removed employee ID, branch, and pay date)
+  doc.text(`Name: ${data.employee.name}`, 20, 60);
+  doc.text(`NRIC/FIN: ${data.employee.nric}`, 20, 67);
+  doc.text(`Position: ${data.employee.position || 'N/A'}`, 20, 74);
   
   // Line separator
-  doc.line(20, 107, 190, 107);
+  doc.line(20, 82, 190, 82);
   
   // Earnings section
-  let yPos = 120;
-  doc.setFontSize(12);
+  let yPos = 95;
+  doc.setFontSize(11); // Reduced from 12
   doc.setFont('helvetica', 'bold');
   doc.text('EARNINGS:', 20, yPos);
   yPos += 10;
   
   // Table headers
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Reduced from 10
   doc.setFont('helvetica', 'bold');
   doc.text('Description', 20, yPos);
   doc.text('Amount (S$)', 150, yPos, { align: 'right' });
@@ -118,12 +115,12 @@ export const generatePayslipPDF = (data: PayslipData) => {
   yPos += 15;
   
   // Deductions section
-  doc.setFontSize(12);
+  doc.setFontSize(11); // Reduced from 12
   doc.text('DEDUCTIONS:', 20, yPos);
   yPos += 10;
   
   // Table headers for deductions
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Reduced from 10
   doc.setFont('helvetica', 'bold');
   doc.text('Description', 20, yPos);
   doc.text('Amount (S$)', 150, yPos, { align: 'right' });
@@ -157,18 +154,18 @@ export const generatePayslipPDF = (data: PayslipData) => {
   doc.setDrawColor(0);
   doc.setFillColor(240, 240, 240);
   doc.rect(20, yPos - 5, 170, 15, 'F');
-  doc.setFontSize(14);
+  doc.setFontSize(13); // Reduced from 14
   doc.setFont('helvetica', 'bold');
   doc.text('NET PAY', 25, yPos + 5);
   doc.text(`S$ ${data.netSalary.toFixed(2)}`, 145, yPos + 5, { align: 'right' });
   yPos += 25;
   
   // Bank details section
-  doc.setFontSize(12);
+  doc.setFontSize(11); // Reduced from 12
   doc.setFont('helvetica', 'bold');
   doc.text('BANK TRANSFER DETAILS:', 20, yPos);
   yPos += 10;
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Reduced from 10
   doc.setFont('helvetica', 'normal');
   doc.text(`Bank Name: ${data.employee.bankName || 'N/A'}`, 20, yPos);
   yPos += 7;
@@ -176,11 +173,11 @@ export const generatePayslipPDF = (data: PayslipData) => {
   yPos += 15;
   
   // CPF contributions summary
-  doc.setFontSize(12);
+  doc.setFontSize(11); // Reduced from 12
   doc.setFont('helvetica', 'bold');
   doc.text('CPF CONTRIBUTIONS SUMMARY:', 20, yPos);
   yPos += 10;
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Reduced from 10
   doc.setFont('helvetica', 'normal');
   
   // CPF table
@@ -196,18 +193,17 @@ export const generatePayslipPDF = (data: PayslipData) => {
   doc.text('Total CPF Contributions', 20, yPos);
   doc.text(data.totalCPF.toFixed(2), 150, yPos, { align: 'right' });
   
-  // Footer
-  doc.setFontSize(8);
+  // Footer (simplified - removed contact info and generation timestamp)
+  doc.setFontSize(7); // Reduced from 8
   doc.setFont('helvetica', 'normal');
-  doc.text('This payslip is computer generated and does not require signature.', 105, 270, { align: 'center' });
-  doc.text('For queries, please contact HR Department at hr@abclearning.com.sg', 105, 275, { align: 'center' });
-  doc.text(`Generated on: ${new Date().toLocaleString('en-SG')}`, 105, 280, { align: 'center' });
+  doc.text('This payslip is computer generated and does not require signature.', 105, 275, { align: 'center' });
   
-  // Save the PDF with proper filename
-  const fileName = `Payslip_${data.employee.name.replace(/\s+/g, '_')}_${data.month.replace(/\s+/g, '_')}.pdf`;
+  // Save the PDF with proper filename including PayslipID
+  const fileName = `${payslipId}_${data.employee.name.replace(/\s+/g, '_')}.pdf`;
   doc.save(fileName);
   
   console.log('PDF generated successfully:', fileName);
+  console.log('PayslipID:', payslipId);
   console.log('Employee data:', data.employee);
   console.log('Payslip calculations:', {
     baseSalary: data.baseSalary,
