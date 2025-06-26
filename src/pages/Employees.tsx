@@ -1,134 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Users, Plus, Search, Trash2, Calendar, Eye, Settings } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { getEmployees, deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
-import { EmployeeProfile } from '@/types/employee';
+import { Plus, Search, Settings, Edit, Trash2, Eye } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
+import { getEmployees, addEmployee } from '@/services/employeeService';
+import { useNavigate } from 'react-router-dom';
+import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 
 const Employees = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<EmployeeProfile[]>([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [resignDialogOpen, setResignDialogOpen] = useState(false);
-  const [moduleSettingsOpen, setModuleSettingsOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeProfile | null>(null);
-  const [resignDate, setResignDate] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [showModuleSettings, setShowModuleSettings] = useState(false);
 
-  useEffect(() => {
-    loadEmployees();
-  }, []);
+  const { data: employees = [], isLoading, error } = useQuery({
+    queryKey: ['employees'],
+    queryFn: getEmployees,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const loadEmployees = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getEmployees();
-      setEmployees(data);
-      setFilteredEmployees(data);
-    } catch (error) {
-      console.error('Error loading employees:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load employees",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  const addEmployeeMutation = useMutation({
+    mutationFn: addEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast("Employee added successfully");
+      setShowAddForm(false);
+    },
+    onError: (error) => {
+      console.error('Error adding employee:', error);
+      toast("Error adding employee. Please try again.");
     }
+  });
+
+  const handleAddEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const newEmployee = {
+      id: `EMP${Date.now()}`,
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      nric: formData.get('nric') as string,
+      date_of_birth: formData.get('dateOfBirth') as string,
+      address: formData.get('address') as string,
+      position: formData.get('position') as string,
+      department: formData.get('department') as string,
+      type: formData.get('type') as string,
+      residency_status: formData.get('residencyStatus') as string,
+      bank_name: formData.get('bankName') as string,
+      bank_account: formData.get('bankAccount') as string,
+      payment_type: formData.get('paymentType') as string,
+      base_salary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
+      hourly_rate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
+      daily_rate: formData.get('dailyRate') ? parseFloat(formData.get('dailyRate') as string) : null,
+      join_date: formData.get('joinDate') as string,
+    };
+
+    addEmployeeMutation.mutate(newEmployee);
   };
 
-  useEffect(() => {
-    const filtered = employees.filter(employee =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.position?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredEmployees(filtered);
-  }, [searchTerm, employees]);
-
-  const handleDeleteEmployee = async () => {
-    if (!selectedEmployee) return;
-
-    // Only allow superadmin to delete employees
-    if (user?.role !== 'superadmin') {
-      toast({
-        title: "Access Denied",
-        description: "Only superadmin can delete employees",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await deleteEmployee(selectedEmployee.id);
-      toast({
-        title: "Success",
-        description: "Employee deleted successfully",
-      });
-      await loadEmployees();
-      setDeleteDialogOpen(false);
-      setSelectedEmployee(null);
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete employee",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleResignEmployee = async () => {
-    if (!selectedEmployee || !resignDate) return;
-
-    try {
-      await updateEmployeeResignDate(selectedEmployee.id, resignDate);
-      toast({
-        title: "Success",
-        description: "Employee resignation date updated successfully",
-      });
-      await loadEmployees();
-      setResignDialogOpen(false);
-      setSelectedEmployee(null);
-      setResignDate('');
-    } catch (error) {
-      console.error('Error updating resignation date:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update resignation date",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const canDeleteEmployee = () => {
-    return user?.role === 'superadmin';
-  };
-
-  const getEmployeeTypeColor = (type: string) => {
-    switch (type) {
-      case 'Full-Time':
-        return 'default';
-      case 'Casual':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
+  const filteredEmployees = employees.filter(employee =>
+    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (isLoading) {
     return (
@@ -149,6 +94,156 @@ const Employees = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="text-center">
+              <p className="text-red-600">Error loading employees. Please try again.</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAddForm) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Add New Employee</h2>
+                  <p className="text-gray-600">Fill out the employee information</p>
+                </div>
+                <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                  Back to Employees
+                </Button>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Employee Information</CardTitle>
+                  <CardDescription>Enter the details for the new employee</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleAddEmployee} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                        <Input name="name" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                        <Input name="email" type="email" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                        <Input name="phone" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
+                        <Input name="nric" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+                        <Input name="dateOfBirth" type="date" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
+                        <Input name="joinDate" type="date" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                        <Input name="position" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                        <Input name="department" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
+                        <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                          <option value="">Select Type</option>
+                          <option value="Full-time">Full-time</option>
+                          <option value="Part-time">Part-time</option>
+                          <option value="Casual">Casual</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
+                        <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                          <option value="">Select Status</option>
+                          <option value="Citizen">Citizen</option>
+                          <option value="PR">Permanent Resident</option>
+                          <option value="Work Permit">Work Permit</option>
+                          <option value="S Pass">S Pass</option>
+                          <option value="Employment Pass">Employment Pass</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
+                        <Input name="bankName" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
+                        <Input name="bankAccount" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                        <select name="paymentType" className="w-full p-2 border border-gray-300 rounded-lg">
+                          <option value="">Select Payment Type</option>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Hourly">Hourly</option>
+                          <option value="Daily">Daily</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary</label>
+                        <Input name="baseSalary" type="number" step="0.01" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate</label>
+                        <Input name="hourlyRate" type="number" step="0.01" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate</label>
+                        <Input name="dailyRate" type="number" step="0.01" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                      <textarea 
+                        name="address"
+                        rows={3} 
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        placeholder="Enter full address..."
+                      ></textarea>
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full"
+                      disabled={addEmployeeMutation.isPending}
+                    >
+                      {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -158,182 +253,107 @@ const Employees = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
+                <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
                 <p className="text-gray-600">Manage your workforce efficiently</p>
               </div>
-              <div className="flex items-center space-x-2">
-                {user?.role === 'superadmin' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setModuleSettingsOpen(true)}
-                    className="flex items-center space-x-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>Module Settings</span>
-                  </Button>
-                )}
-                <Button onClick={() => navigate('/employees/new')} className="flex items-center space-x-2">
-                  <Plus className="w-4 h-4" />
-                  <span>Add Employee</span>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowModuleSettings(true)}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Module Settings
+                </Button>
+                <Button onClick={() => setShowAddForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Employee
                 </Button>
               </div>
             </div>
 
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="w-5 h-5" />
-                    <span>All Employees ({filteredEmployees.length})</span>
-                  </CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>All Employees ({employees.length})</span>
                   <div className="flex items-center space-x-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search employees..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
-                      />
-                    </div>
+                    <Search className="w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Search employees..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-64"
+                    />
                   </div>
-                </div>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Position</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEmployees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell className="font-medium">{employee.id}</TableCell>
-                        <TableCell>{employee.name}</TableCell>
-                        <TableCell>{employee.email || 'Not specified'}</TableCell>
-                        <TableCell>{employee.position || 'Not specified'}</TableCell>
-                        <TableCell>{employee.branch || 'Not specified'}</TableCell>
-                        <TableCell>
-                          <Badge variant={getEmployeeTypeColor(employee.type)}>
-                            {employee.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={employee.resignDate ? 'destructive' : 'default'}>
-                            {employee.resignDate ? 'Resigned' : 'Active'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/employees/${employee.id}`)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedEmployee(employee);
-                                setResignDialogOpen(true);
-                              }}
-                            >
-                              <Calendar className="w-4 h-4" />
-                            </Button>
-                            {canDeleteEmployee() && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-gray-600">Employee ID</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Name</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Email</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Position</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Department</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Type</th>
+                        <th className="text-left p-3 font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEmployees.map((employee) => (
+                        <tr key={employee.id} className="border-b hover:bg-gray-50">
+                          <td className="p-3 font-mono text-sm">{employee.id}</td>
+                          <td className="p-3 font-medium">{employee.name}</td>
+                          <td className="p-3 text-sm text-gray-600">{employee.email}</td>
+                          <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
+                          <td className="p-3 text-sm">{employee.department || 'Not specified'}</td>
+                          <td className="p-3">
+                            <Badge variant={employee.type === 'Full-time' ? 'default' : 'secondary'}>
+                              {employee.type}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex space-x-1">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  setSelectedEmployee(employee);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="text-red-600 hover:text-red-700"
+                                onClick={() => navigate(`/employees/${employee.id}`)}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {filteredEmployees.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No employees found</p>
-                  </div>
-                )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingEmployee(employee)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </div>
         </main>
       </div>
 
-      {/* Employee Module Settings Dialog */}
-      <EmployeeModuleSettings
-        open={moduleSettingsOpen}
-        onOpenChange={setModuleSettingsOpen}
-        employees={employees}
-        onEmployeesUpdate={loadEmployees}
-      />
+      {editingEmployee && (
+        <EditEmployeeForm
+          employee={editingEmployee}
+          onClose={() => setEditingEmployee(null)}
+        />
+      )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedEmployee?.name}? This action cannot be undone.
-              Only superadmins can perform this action.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteEmployee}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={!canDeleteEmployee()}
-            >
-              Delete Employee
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={resignDialogOpen} onOpenChange={setResignDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Mark Employee as Resigned</AlertDialogTitle>
-            <AlertDialogDescription>
-              Set resignation date for {selectedEmployee?.name}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Input
-              type="date"
-              value={resignDate}
-              onChange={(e) => setResignDate(e.target.value)}
-              placeholder="Resignation Date"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResignEmployee}>
-              Update Resignation Date
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {showModuleSettings && (
+        <EmployeeModuleSettings
+          onClose={() => setShowModuleSettings(false)}
+        />
+      )}
     </div>
   );
 };

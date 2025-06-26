@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -81,19 +80,13 @@ const Sidebar = () => {
     
     const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
-      { icon: UserCheck, label: 'Profile', path: '/profile' },
     ];
 
-    // Superadmin gets full access - highest priority
+    // Superadmin gets admin-only access - no personal employee functions
     if (user?.role === 'superadmin') {
       console.log('Sidebar: Returning superadmin menu items');
       const adminItems = [
         ...baseItems,
-        { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
-        { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
-        { icon: DollarSign, label: 'Payslips', path: '/payslips' },
-        { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
-        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
         { icon: Users, label: 'Employees', path: '/employees' },
         { icon: DollarSign, label: 'Payroll', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
@@ -107,11 +100,12 @@ const Sidebar = () => {
       return adminItems;
     }
 
-    // Manager gets manager-specific access
+    // Manager gets manager-specific access with personal functions
     if (user?.role === 'manager') {
       console.log('Sidebar: Returning manager menu items');
       const managerItems = [
         ...baseItems,
+        { icon: UserCheck, label: 'Profile', path: '/profile' },
         { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
         { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
         { icon: DollarSign, label: 'Payslips', path: '/payslips' },
@@ -128,10 +122,11 @@ const Sidebar = () => {
       return managerItems;
     }
 
-    // For employees, start with basic employee items
+    // For employees, start with basic employee items including personal functions
     console.log('Sidebar: Building employee menu items');
     let employeeItems: MenuItem[] = [
       ...baseItems,
+      { icon: UserCheck, label: 'Profile', path: '/profile' },
       { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
       { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
       { icon: DollarSign, label: 'Payslips', path: '/payslips' },

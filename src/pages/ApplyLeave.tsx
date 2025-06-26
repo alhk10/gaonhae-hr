@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,11 +10,14 @@ import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, LeaveRequest } from '@/services/leaveService';
+import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showApplyForm, setShowApplyForm] = useState(false);
+  const [selectedLeaveType, setSelectedLeaveType] = useState('');
+  const [medicalCertificate, setMedicalCertificate] = useState<File | null>(null);
   
   // Get current employee data from Supabase
   const { data: currentEmployee, isLoading: employeeLoading, error: employeeError } = useQuery({
@@ -179,6 +181,12 @@ const ApplyLeave = () => {
       return;
     }
 
+    // Check if medical certificate is required for Medical Leave
+    if (leaveType === 'Medical Leave' && !medicalCertificate) {
+      toast("Medical certificate is required for Medical Leave");
+      return;
+    }
+
     // Check if employee has remaining leave days
     const selectedLeaveBalance = currentLeaveStatus.find(leave => leave.type === leaveType);
     if (selectedLeaveBalance && selectedLeaveBalance.remaining <= 0) {
@@ -195,7 +203,8 @@ const ApplyLeave = () => {
       days: 1,
       status: 'Pending',
       reason,
-      appliedOn: new Date().toISOString().split('T')[0]
+      appliedOn: new Date().toISOString().split('T')[0],
+      medicalCertificate: medicalCertificate ? medicalCertificate.name : undefined
     };
 
     addLeaveMutation.mutate(newLeave);
@@ -259,7 +268,13 @@ const ApplyLeave = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
-                        <select name="leaveType" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                        <select 
+                          name="leaveType" 
+                          className="w-full p-2 border border-gray-300 rounded-lg" 
+                          required
+                          value={selectedLeaveType}
+                          onChange={(e) => setSelectedLeaveType(e.target.value)}
+                        >
                           <option value="">Select leave type</option>
                           <option value="Annual Leave">Annual Leave</option>
                           <option value="Medical Leave">Medical Leave</option>
@@ -283,18 +298,35 @@ const ApplyLeave = () => {
                         required
                       ></textarea>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
-                      <input 
-                        type="file" 
-                        className="w-full p-2 border border-gray-300 rounded-lg"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                      />
-                    </div>
+                    
+                    {selectedLeaveType === 'Medical Leave' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Medical Certificate <span className="text-red-500">*</span>
+                        </label>
+                        <MedicalCertificateUpload 
+                          onFileUpload={setMedicalCertificate}
+                          uploadedFile={medicalCertificate}
+                        />
+                        <p className="text-sm text-red-600 mt-1">Medical certificate is required for Medical Leave</p>
+                      </div>
+                    )}
+                    
+                    {selectedLeaveType && selectedLeaveType !== 'Medical Leave' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents (if any)</label>
+                        <input 
+                          type="file" 
+                          className="w-full p-2 border border-gray-300 rounded-lg"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                        />
+                      </div>
+                    )}
+                    
                     <Button 
                       type="submit" 
                       className="w-full"
-                      disabled={addLeaveMutation.isPending}
+                      disabled={addLeaveMutation.isPending || (selectedLeaveType === 'Medical Leave' && !medicalCertificate)}
                     >
                       {addLeaveMutation.isPending ? 'Submitting...' : 'Submit Leave Application'}
                     </Button>
