@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -7,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar, Filter, Download } from 'lucide-react';
+import { Clock, Calendar, Filter, Download, MapPin } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 
 interface AttendanceRecord {
   id: number;
@@ -20,12 +20,16 @@ interface AttendanceRecord {
   check_out: string | null;
   status: string;
   hours_worked: number | null;
+  location?: string;
+  clock_in_location?: string;
+  clock_out_location?: string;
 }
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
   clockIn?: string;
   clockOut?: string;
+  location?: string;
 }
 
 const MyAttendance = () => {
@@ -34,10 +38,10 @@ const MyAttendance = () => {
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isClockingInOut, setIsClockingInOut] = useState(false);
 
   useEffect(() => {
     fetchAttendanceData();
-    // Check if user is currently clocked in for today
     checkClockStatus();
   }, [user?.id]);
 
@@ -64,23 +68,10 @@ const MyAttendance = () => {
     }
   };
 
-  const checkClockStatus = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', user?.id || 'EMP001')
-      .eq('date', today)
-      .single();
-
-    if (data) {
-      setClockStatus({
-        status: data.check_out ? 'clocked-out' : 'clocked-in',
-        clockIn: data.check_in,
-        clockOut: data.check_out
-      });
-    } else {
-      setClockStatus({ status: 'clocked-out' });
+  const checkClockStatus = () => {
+    if (user?.id) {
+      const status = getClockInOutStatus(user.id);
+      setClockStatus(status);
     }
   };
 
@@ -89,61 +80,45 @@ const MyAttendance = () => {
   });
 
   const handleClockInOut = async () => {
-    const currentTime = new Date().toLocaleTimeString('en-US', { 
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    const today = new Date().toISOString().split('T')[0];
-    
-    const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
+    if (!user?.id) {
+      toast("User authentication required");
+      return;
+    }
+
+    setIsClockingInOut(true);
     
     try {
-      if (isCurrentlyClockedIn) {
-        // Clock out
-        const { error } = await supabase
-          .from('attendance')
-          .update({ 
-            check_out: currentTime,
-            hours_worked: calculateHours(clockStatus?.clockIn || '', currentTime)
-          })
-          .eq('employee_id', user?.id || 'EMP001')
-          .eq('date', today);
-
-        if (error) {
-          console.error('Error clocking out:', error);
-          toast("Error clocking out. Please try again.");
-        } else {
-          toast(`Clocked out at ${currentTime}`);
-          setClockStatus({ status: 'clocked-out', clockIn: clockStatus?.clockIn, clockOut: currentTime });
-        }
+      const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
+      const action = isCurrentlyClockedIn ? 'out' : 'in';
+      
+      await updateClockInOut(user.id, action);
+      
+      const currentTime = new Date().toLocaleTimeString('en-SG', { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Update local state
+      checkClockStatus();
+      
+      const newStatus = getClockInOutStatus(user.id);
+      const locationText = newStatus?.location ? ` at ${newStatus.location}` : '';
+      
+      if (action === 'out') {
+        toast(`Clocked out at ${currentTime}${locationText}`);
       } else {
-        // Clock in
-        const status = determineStatus(currentTime);
-        const { error } = await supabase
-          .from('attendance')
-          .insert({
-            employee_id: user?.id || 'EMP001',
-            date: today,
-            check_in: currentTime,
-            status: status,
-            hours_worked: 0
-          });
-
-        if (error) {
-          console.error('Error clocking in:', error);
-          toast("Error clocking in. Please try again.");
-        } else {
-          toast(`Clocked in at ${currentTime}`);
-          setClockStatus({ status: 'clocked-in', clockIn: currentTime });
-        }
+        toast(`Clocked in at ${currentTime}${locationText}`);
       }
       
       // Refresh attendance data
       fetchAttendanceData();
     } catch (error) {
       console.error('Clock in/out error:', error);
-      toast("Error processing clock in/out. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : 'Error processing clock in/out. Please try again.';
+      toast(errorMessage);
+    } finally {
+      setIsClockingInOut(false);
     }
   };
 
@@ -210,21 +185,34 @@ const MyAttendance = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Time Tracking</CardTitle>
-                <CardDescription>Clock in and out for your work day</CardDescription>
+                <CardDescription>Clock in and out for your work day (must be within 100m of branch)</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button 
                   className={`w-full sm:w-auto h-auto p-6 ${isClockedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
                   onClick={handleClockInOut}
+                  disabled={isClockingInOut}
                 >
                   <Clock className="w-6 h-6 mr-3" />
-                  <div className="text-left">
+                  <div className="text-left flex-1">
                     <p className="text-lg font-medium text-white">
-                      {isClockedIn ? 'Clock Out' : 'Clock In'}
+                      {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                     </p>
-                    <p className="text-sm text-white/80">
-                      {isClockedIn && clockStatus?.clockIn ? `Clocked in at ${clockStatus.clockIn}` : 'Start your work day'}
-                    </p>
+                    <div className="text-sm text-white/80 flex items-center">
+                      {isClockedIn && clockStatus?.clockIn ? (
+                        <>
+                          Clocked in at {clockStatus.clockIn}
+                          {clockStatus.location && (
+                            <>
+                              <MapPin className="w-3 h-3 mx-1" />
+                              {clockStatus.location}
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        'Must be within 100m of any branch'
+                      )}
+                    </div>
                   </div>
                 </Button>
               </CardContent>
@@ -310,6 +298,7 @@ const MyAttendance = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Clock In</TableHead>
                       <TableHead>Clock Out</TableHead>
+                      <TableHead>Location</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -320,6 +309,17 @@ const MyAttendance = () => {
                         <TableCell className="font-medium">{record.date}</TableCell>
                         <TableCell>{record.check_in || '-'}</TableCell>
                         <TableCell>{record.check_out || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            {record.clock_in_location && (
+                              <>
+                                <MapPin className="w-3 h-3 mr-1" />
+                                {record.clock_in_location}
+                              </>
+                            )}
+                            {!record.clock_in_location && (record.location || '-')}
+                          </div>
+                        </TableCell>
                         <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
                         <TableCell>
                           <Badge 
@@ -334,7 +334,7 @@ const MyAttendance = () => {
                     ))}
                     {filteredData.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                           No attendance records found for the selected date.
                         </TableCell>
                       </TableRow>

@@ -1,3 +1,4 @@
+import { isWithinBranchRange } from '@/services/geolocationService';
 
 export interface AttendanceRecord {
   id: string;
@@ -10,6 +11,8 @@ export interface AttendanceRecord {
   hours: number;
   overtime?: number;
   location?: string;
+  clockInLocation?: string;
+  clockOutLocation?: string;
   notes?: string;
 }
 
@@ -19,6 +22,8 @@ export interface ClockInOutRecord {
   date: string;
   clockIn?: string;
   clockOut?: string;
+  clockInLocation?: string;
+  clockOutLocation?: string;
   status: 'clocked-in' | 'clocked-out' | 'not-started';
 }
 
@@ -33,7 +38,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:00',
     status: 'Present',
     hours: 8,
-    location: 'Headquarters'
+    location: 'Headquarters',
+    clockInLocation: 'Headquarters',
+    clockOutLocation: 'Headquarters'
   },
   {
     id: 'ATT002',
@@ -44,7 +51,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:15',
     status: 'Late',
     hours: 8.17,
-    location: 'Headquarters'
+    location: 'Headquarters',
+    clockInLocation: 'Headquarters',
+    clockOutLocation: 'Headquarters'
   },
   {
     id: 'ATT003',
@@ -55,7 +64,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '17:55',
     status: 'Present',
     hours: 8,
-    location: 'Headquarters'
+    location: 'Headquarters',
+    clockInLocation: 'Headquarters',
+    clockOutLocation: 'Headquarters'
   },
   {
     id: 'ATT004',
@@ -66,7 +77,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:00',
     status: 'Present',
     hours: 8,
-    location: 'Headquarters'
+    location: 'Headquarters',
+    clockInLocation: 'Headquarters',
+    clockOutLocation: 'Headquarters'
   },
   {
     id: 'ATT005',
@@ -85,7 +98,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:00',
     status: 'Present',
     hours: 8,
-    location: 'Balmoral'
+    location: 'Balmoral',
+    clockInLocation: 'Balmoral',
+    clockOutLocation: 'Balmoral'
   },
   {
     id: 'ATT007',
@@ -96,7 +111,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:15',
     status: 'Late',
     hours: 8,
-    location: 'Jurong West'
+    location: 'Jurong West',
+    clockInLocation: 'Jurong West',
+    clockOutLocation: 'Jurong West'
   },
   {
     id: 'ATT008',
@@ -107,7 +124,9 @@ const attendanceRecords: AttendanceRecord[] = [
     clockOut: '18:00',
     status: 'Present',
     hours: 8,
-    location: 'Kembangan'
+    location: 'Kembangan',
+    clockInLocation: 'Kembangan',
+    clockOutLocation: 'Kembangan'
   }
 ];
 
@@ -144,7 +163,17 @@ export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | unde
   return clockInOutRecords.find(record => record.employeeId === employeeId && record.date === today);
 };
 
-export const updateClockInOut = (employeeId: string, type: 'in' | 'out'): void => {
+export const updateClockInOut = async (employeeId: string, type: 'in' | 'out'): Promise<void> => {
+  // Verify location before allowing clock in/out
+  const locationCheck = await isWithinBranchRange(100);
+  
+  if (!locationCheck.withinRange) {
+    throw new Error(
+      `You must be within 100m of a branch to clock ${type}. ` +
+      `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
+    );
+  }
+
   const today = new Date().toISOString().split('T')[0];
   const currentTime = new Date().toLocaleTimeString('en-SG', { 
     hour12: false,
@@ -166,11 +195,15 @@ export const updateClockInOut = (employeeId: string, type: 'in' | 'out'): void =
   
   if (type === 'in') {
     record.clockIn = currentTime;
+    record.clockInLocation = locationCheck.nearestBranch;
     record.status = 'clocked-in';
   } else {
     record.clockOut = currentTime;
+    record.clockOutLocation = locationCheck.nearestBranch;
     record.status = 'clocked-out';
   }
+
+  console.log(`Employee ${employeeId} clocked ${type} at ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`);
 };
 
 export const getTodayAttendanceStats = () => {

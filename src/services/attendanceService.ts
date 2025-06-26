@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { isWithinBranchRange } from "./geolocationService";
 
 export interface AttendanceRecord {
   id: number;
@@ -13,6 +14,8 @@ export interface AttendanceRecord {
   status: 'Present' | 'Absent' | 'Half Day' | 'Late';
   hours: number;
   location?: string;
+  clockInLocation?: string;
+  clockOutLocation?: string;
 }
 
 export interface ClockInOutRecord {
@@ -20,6 +23,7 @@ export interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
   clockIn?: string;
   clockOut?: string;
+  location?: string;
 }
 
 // Mock clock status storage (in production, this would be in database)
@@ -52,7 +56,9 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
     breakEnd: record.break_end,
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
     hours: record.hours_worked || 0,
-    location: 'Office' // Default location
+    location: record.location || 'Office',
+    clockInLocation: record.clock_in_location,
+    clockOutLocation: record.clock_out_location
   }));
 };
 
@@ -84,7 +90,9 @@ export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<
     breakEnd: record.break_end,
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
     hours: record.hours_worked || 0,
-    location: 'Office'
+    location: record.location || 'Office',
+    clockInLocation: record.clock_in_location,
+    clockOutLocation: record.clock_out_location
   }));
 };
 
@@ -92,7 +100,17 @@ export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | unde
   return clockStatusStorage[employeeId];
 };
 
-export const updateClockInOut = (employeeId: string, action: 'in' | 'out'): void => {
+export const updateClockInOut = async (employeeId: string, action: 'in' | 'out'): Promise<void> => {
+  // Verify location before allowing clock in/out
+  const locationCheck = await isWithinBranchRange(100);
+  
+  if (!locationCheck.withinRange) {
+    throw new Error(
+      `You must be within 100m of a branch to clock ${action}. ` +
+      `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
+    );
+  }
+
   const currentTime = new Date().toLocaleTimeString('en-SG', { 
     hour12: false,
     hour: '2-digit',
@@ -103,7 +121,8 @@ export const updateClockInOut = (employeeId: string, action: 'in' | 'out'): void
     clockStatusStorage[employeeId] = {
       employeeId,
       status: 'clocked-in',
-      clockIn: currentTime
+      clockIn: currentTime,
+      location: locationCheck.nearestBranch
     };
   } else {
     const existing = clockStatusStorage[employeeId];
@@ -111,9 +130,12 @@ export const updateClockInOut = (employeeId: string, action: 'in' | 'out'): void
       employeeId,
       status: 'clocked-out',
       clockIn: existing?.clockIn,
-      clockOut: currentTime
+      clockOut: currentTime,
+      location: existing?.location
     };
   }
+
+  console.log(`Employee ${employeeId} clocked ${action} at ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`);
 };
 
 export const updateAttendanceStatus = async (

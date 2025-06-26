@@ -1,26 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, DollarSign } from 'lucide-react';
+import { Calendar, FileText, Clock, DollarSign, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
-import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
+import { getEmployeeAttendanceRecords, updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
-import { updateClockInOut, getClockInOutStatus } from '@/data/attendanceData';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockTime, setClockTime] = useState<string | null>(null);
+  const [clockLocation, setClockLocation] = useState<string | null>(null);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
+  const [isClockingInOut, setIsClockingInOut] = useState(false);
 
   // Try to fetch employee data from Supabase first, then fallback to local data
   const { data: supabaseEmployee, error: supabaseError } = useQuery({
@@ -58,6 +58,7 @@ const EmployeeDashboard = () => {
       if (clockStatus) {
         setIsClockedIn(clockStatus.status === 'clocked-in');
         setClockTime(clockStatus.clockIn || null);
+        setClockLocation(clockStatus.location || null);
       }
     }
   }, [user?.id]);
@@ -90,35 +91,42 @@ const EmployeeDashboard = () => {
     { title: 'Next Payroll', value: '3 days', icon: DollarSign, color: 'bg-purple-500' },
   ];
 
-  const handleClockInOut = () => {
+  const handleClockInOut = async () => {
     if (!user?.id) {
       toast.error('User not authenticated');
       return;
     }
 
-    const currentTime = new Date().toLocaleTimeString('en-SG', { 
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    setIsClockingInOut(true);
     
     try {
-      if (isClockedIn) {
-        // Clock out
-        updateClockInOut(user.id, 'out');
+      const action = isClockedIn ? 'out' : 'in';
+      await updateClockInOut(user.id, action);
+      
+      const currentTime = new Date().toLocaleTimeString('en-SG', { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      if (action === 'out') {
         setIsClockedIn(false);
         setClockTime(null);
+        setClockLocation(null);
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        // Clock in
-        updateClockInOut(user.id, 'in');
+        const clockStatus = getClockInOutStatus(user.id);
         setIsClockedIn(true);
         setClockTime(currentTime);
-        toast.success(`Clocked in at ${currentTime}`);
+        setClockLocation(clockStatus?.location || null);
+        toast.success(`Clocked in at ${currentTime}${clockStatus?.location ? ` at ${clockStatus.location}` : ''}`);
       }
     } catch (error) {
       console.error('Clock in/out error:', error);
-      toast.error('Failed to update clock status');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
+      toast.error(errorMessage);
+    } finally {
+      setIsClockingInOut(false);
     }
   };
 
@@ -150,7 +158,8 @@ const EmployeeDashboard = () => {
     pendingClaims,
     hoursThisMonth,
     isClockedIn,
-    clockTime
+    clockTime,
+    clockLocation
   });
 
   if (claimsError) {
@@ -199,15 +208,28 @@ const EmployeeDashboard = () => {
               <Button 
                 className={`justify-start h-auto p-4 ${isClockedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
                 onClick={handleClockInOut}
+                disabled={isClockingInOut}
               >
                 <Clock className="w-5 h-5 mr-3" />
-                <div className="text-left">
+                <div className="text-left flex-1">
                   <p className="font-medium text-white">
-                    {isClockedIn ? 'Clock Out' : 'Clock In'}
+                    {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
-                  <p className="text-sm text-white/80">
-                    {isClockedIn && clockTime ? `Clocked in at ${clockTime}` : 'Start your work day'}
-                  </p>
+                  <div className="text-sm text-white/80 flex items-center">
+                    {isClockedIn && clockTime ? (
+                      <>
+                        Clocked in at {clockTime}
+                        {clockLocation && (
+                          <>
+                            <MapPin className="w-3 h-3 mx-1" />
+                            {clockLocation}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      'Must be within 100m of branch'
+                    )}
+                  </div>
                 </div>
               </Button>
               
