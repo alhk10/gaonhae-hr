@@ -34,8 +34,11 @@ const Payslips = () => {
           return;
         }
 
+        console.log('Loading employee data for ID:', user.employeeId);
+        
         // Use the current user's employee ID
         const employee = await getEmployeeById(user.employeeId);
+        console.log('Loaded employee:', employee);
         setCurrentEmployee(employee);
         
         if (!employee) {
@@ -46,9 +49,11 @@ const Payslips = () => {
         
         // Load approved claims
         const claims = await getEmployeeClaims(employee.id);
+        console.log('Loaded claims:', claims);
         const approvedTotal = claims
           .filter(claim => claim.status === 'Approved')
           .reduce((sum, claim) => sum + claim.amount, 0);
+        console.log('Approved claims total:', approvedTotal);
         setApprovedClaimsTotal(approvedTotal);
 
         // Load current allowances and deductions from Supabase
@@ -61,6 +66,9 @@ const Payslips = () => {
           .from('deductions')
           .select('*')
           .eq('employee_id', employee.id);
+
+        console.log('Loaded allowances:', allowances);
+        console.log('Loaded deductions:', deductions);
 
         setEmployeeAllowances(allowances || []);
         setEmployeeDeductions(deductions || []);
@@ -135,17 +143,22 @@ const Payslips = () => {
   }
 
   const generatePayslipData = (month: string) => {
-    const baseSalary = currentEmployee.baseSalary || 0;
+    console.log('Generating payslip data for month:', month);
+    console.log('Current employee:', currentEmployee);
+    console.log('Employee allowances:', employeeAllowances);
+    console.log('Employee deductions:', employeeDeductions);
+    
+    const baseSalary = currentEmployee?.baseSalary || 0;
     const totalAllowances = employeeAllowances.reduce((sum, a) => sum + Number(a.amount), 0);
     const totalDeductions = employeeDeductions.reduce((sum, d) => sum + Number(d.amount), 0);
     const grossSalary = baseSalary + totalAllowances;
     
-    const age = calculateAge(currentEmployee.dateOfBirth);
-    const cpfCalc = calculateCPF(grossSalary, currentEmployee.residencyStatus, age);
+    const age = calculateAge(currentEmployee?.dateOfBirth || '');
+    const cpfCalc = calculateCPF(grossSalary, currentEmployee?.residencyStatus || 'Citizen', age);
     
     const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaimsTotal;
     
-    return {
+    const payslipData = {
       baseSalary,
       totalAllowances,
       totalDeductions,
@@ -158,23 +171,48 @@ const Payslips = () => {
       allowances: employeeAllowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
       deductions: employeeDeductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
     };
+    
+    console.log('Generated payslip data:', payslipData);
+    return payslipData;
   };
 
   const handleDownloadPayslipPDF = (month: string) => {
     try {
+      console.log('Starting PDF download for month:', month);
+      
+      if (!currentEmployee) {
+        console.error('No current employee data available');
+        toast("Error: No employee data available");
+        return;
+      }
+
       const payslipData = generatePayslipData(month);
       
       const pdfData = {
-        employee: currentEmployee,
+        employee: {
+          id: currentEmployee.id,
+          name: currentEmployee.name,
+          nric: currentEmployee.nric,
+          branch: currentEmployee.branch,
+          position: currentEmployee.position,
+          bankName: currentEmployee.bankName,
+          bankAccount: currentEmployee.bankAccount
+        },
         month,
         ...payslipData
       };
       
+      console.log('PDF data being passed to generator:', pdfData);
+      
       generatePayslipPDF(pdfData);
-      toast(`PDF payslip downloaded for ${month}`);
+      toast(`PDF payslip downloaded for ${month}`, {
+        description: `Employee: ${currentEmployee.name} (${currentEmployee.id})`
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast(`Error generating PDF for ${month}`);
+      toast(`Error generating PDF for ${month}`, {
+        description: 'Please check console for details'
+      });
     }
   };
 
