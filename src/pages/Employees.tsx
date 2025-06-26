@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Users, Plus, Search, Trash2, Calendar, Eye } from 'lucide-react';
+import { Users, Plus, Search, Trash2, Calendar, Eye, Settings } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getEmployees, deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
+import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ const Employees = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resignDialogOpen, setResignDialogOpen] = useState(false);
+  const [moduleSettingsOpen, setModuleSettingsOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeProfile | null>(null);
   const [resignDate, setResignDate] = useState('');
 
@@ -160,10 +161,22 @@ const Employees = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
                 <p className="text-gray-600">Manage your workforce efficiently</p>
               </div>
-              <Button onClick={() => navigate('/employees/new')} className="flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>Add Employee</span>
-              </Button>
+              <div className="flex items-center space-x-2">
+                {user?.role === 'superadmin' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setModuleSettingsOpen(true)}
+                    className="flex items-center space-x-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Module Settings</span>
+                  </Button>
+                )}
+                <Button onClick={() => navigate('/employees/new')} className="flex items-center space-x-2">
+                  <Plus className="w-4 h-4" />
+                  <span>Add Employee</span>
+                </Button>
+              </div>
             </div>
 
             <Card>
@@ -266,6 +279,14 @@ const Employees = () => {
           </div>
         </main>
       </div>
+
+      {/* Employee Module Settings Dialog */}
+      <EmployeeModuleSettings
+        open={moduleSettingsOpen}
+        onOpenChange={setModuleSettingsOpen}
+        employees={employees}
+        onEmployeesUpdate={loadEmployees}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

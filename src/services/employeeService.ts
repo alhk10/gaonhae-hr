@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeProfile } from '@/types/employee';
+import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees from Supabase...');
@@ -323,4 +322,56 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
     console.error('EmployeeService: Error updating resign date:', error);
     throw error;
   }
+};
+
+export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess: AdminAccessPermissions) => {
+  console.log('EmployeeService: Updating employee admin access in Supabase:', employeeId, adminAccess);
+  
+  // First, check if admin access record exists
+  const { data: existingAccess, error: fetchError } = await supabase
+    .from('admin_access')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found" error
+    console.error('EmployeeService: Error fetching admin access:', fetchError);
+    throw fetchError;
+  }
+
+  const accessData = {
+    employee_id: employeeId,
+    employees: adminAccess.employees,
+    payroll: adminAccess.payroll,
+    leave_management: adminAccess.leaveManagement,
+    claims: adminAccess.claims,
+    attendance: adminAccess.attendance,
+    slot_booking: adminAccess.slotBooking,
+    reports: adminAccess.reports
+  };
+
+  if (existingAccess) {
+    // Update existing record
+    const { error } = await supabase
+      .from('admin_access')
+      .update(accessData)
+      .eq('employee_id', employeeId);
+
+    if (error) {
+      console.error('EmployeeService: Error updating admin access:', error);
+      throw error;
+    }
+  } else {
+    // Create new record
+    const { error } = await supabase
+      .from('admin_access')
+      .insert([accessData]);
+
+    if (error) {
+      console.error('EmployeeService: Error creating admin access:', error);
+      throw error;
+    }
+  }
+
+  console.log('EmployeeService: Admin access updated successfully');
 };
