@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,19 +9,87 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployeeById } from '@/data/employeeData';
-import { getEmployeeLeaveRecords, getEmployeeLeaveBalance, addLeaveRecord, LeaveRecord } from '@/data/leaveData';
+import { getEmployeeById } from '@/services/employeeService';
+import { getAllLeaveRequests, addLeaveRequest, LeaveRequest } from '@/services/leaveService';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [showApplyForm, setShowApplyForm] = useState(false);
   
-  // Get current employee data (in real app, this would come from auth context)
-  const currentEmployee = getEmployeeById('EMP001'); // Demo - should come from user context
-  const leaveHistory = getEmployeeLeaveRecords('EMP001');
-  const leaveBalance = getEmployeeLeaveBalance('EMP001');
+  // Get current employee data from Supabase
+  const { data: currentEmployee, isLoading: employeeLoading, error: employeeError } = useQuery({
+    queryKey: ['employee', user?.id],
+    queryFn: () => getEmployeeById(user?.id || ''),
+    enabled: !!user?.id,
+  });
 
-  if (!currentEmployee) {
+  // Get all leave requests to filter for current employee
+  const { data: allLeaveRequests = [], isLoading: leavesLoading } = useQuery({
+    queryKey: ['leave-requests'],
+    queryFn: getAllLeaveRequests,
+  });
+
+  // Filter leave history for current employee
+  const leaveHistory = allLeaveRequests.filter(leave => leave.employeeId === user?.id);
+
+  // Calculate leave balance (in a real system, this would be in the database)
+  const calculateLeaveBalance = () => {
+    const currentYear = new Date().getFullYear();
+    const thisYearLeaves = leaveHistory.filter(leave => 
+      new Date(leave.startDate).getFullYear() === currentYear && leave.status === 'Approved'
+    );
+    
+    const annualLeaveUsed = thisYearLeaves
+      .filter(leave => leave.type === 'Annual Leave')
+      .reduce((total, leave) => total + leave.days, 0);
+    
+    const medicalLeaveUsed = thisYearLeaves
+      .filter(leave => leave.type === 'Medical Leave')
+      .reduce((total, leave) => total + leave.days, 0);
+
+    return {
+      annualLeave: { total: 21, used: annualLeaveUsed, remaining: 21 - annualLeaveUsed },
+      medicalLeave: { total: 14, used: medicalLeaveUsed, remaining: 14 - medicalLeaveUsed }
+    };
+  };
+
+  const leaveBalance = calculateLeaveBalance();
+
+  // Mutation for adding leave request
+  const addLeaveMutation = useMutation({
+    mutationFn: addLeaveRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      toast("Leave application submitted successfully");
+      setShowApplyForm(false);
+    },
+    onError: (error) => {
+      console.error('Error submitting leave:', error);
+      toast("Error submitting leave application. Please try again.");
+    }
+  });
+
+  if (employeeLoading || leavesLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading employee data...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (employeeError || !currentEmployee) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -28,7 +97,7 @@ const ApplyLeave = () => {
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
             <div className="text-center">
-              <p>Employee data not found</p>
+              <p>Employee data not found. Please contact HR.</p>
             </div>
           </main>
         </div>
@@ -82,22 +151,6 @@ const ApplyLeave = () => {
     );
   }
 
-  if (!leaveBalance) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center">
-              <p>Leave balance data not found</p>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
   const currentLeaveStatus = [
     { 
       type: 'Annual Leave', 
@@ -133,10 +186,10 @@ const ApplyLeave = () => {
       return;
     }
 
-    const newLeave: Omit<LeaveRecord, 'id'> = {
+    const newLeave: Omit<LeaveRequest, 'id'> = {
       employeeId: currentEmployee.id,
       employeeName: currentEmployee.name,
-      type: leaveType as any,
+      type: leaveType,
       startDate: leaveDate,
       endDate: leaveDate, // Single day leave
       days: 1,
@@ -145,9 +198,7 @@ const ApplyLeave = () => {
       appliedOn: new Date().toISOString().split('T')[0]
     };
 
-    const leaveId = addLeaveRecord(newLeave);
-    toast("Leave application submitted successfully");
-    setShowApplyForm(false);
+    addLeaveMutation.mutate(newLeave);
   };
 
   const getStatusColor = (status: string) => {
@@ -240,8 +291,12 @@ const ApplyLeave = () => {
                         accept=".pdf,.jpg,.jpeg,.png"
                       />
                     </div>
-                    <Button type="submit" className="w-full">
-                      Submit Leave Application
+                    <Button 
+                      type="submit" 
+                      className="w-full"
+                      disabled={addLeaveMutation.isPending}
+                    >
+                      {addLeaveMutation.isPending ? 'Submitting...' : 'Submit Leave Application'}
                     </Button>
                   </form>
                 </CardContent>

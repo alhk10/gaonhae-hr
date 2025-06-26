@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords, updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
+import { getAllLeaveRequests } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
@@ -30,6 +31,32 @@ const EmployeeDashboard = () => {
     retry: 1,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Fetch leave requests for current employee
+  const { data: allLeaveRequests = [] } = useQuery({
+    queryKey: ['leave-requests'],
+    queryFn: getAllLeaveRequests,
+  });
+
+  // Calculate leave balance for current employee
+  const calculateLeaveBalance = () => {
+    if (!user?.id) return { remaining: 0 };
+    
+    const currentYear = new Date().getFullYear();
+    const employeeLeaves = allLeaveRequests.filter(leave => 
+      leave.employeeId === user.id && 
+      new Date(leave.startDate).getFullYear() === currentYear && 
+      leave.status === 'Approved'
+    );
+    
+    const annualLeaveUsed = employeeLeaves
+      .filter(leave => leave.type === 'Annual Leave')
+      .reduce((total, leave) => total + leave.days, 0);
+    
+    return { remaining: 21 - annualLeaveUsed }; // Standard 21 days annual leave
+  };
+
+  const leaveBalance = calculateLeaveBalance();
 
   // Update employee data when query resolves or falls back to local data
   useEffect(() => {
@@ -85,7 +112,7 @@ const EmployeeDashboard = () => {
   const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hours || 0), 0);
   
   const personalStats = [
-    { title: 'Leave Balance', value: '18 days', icon: Calendar, color: 'bg-blue-500' },
+    { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' },
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
     { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
     { title: 'Next Payroll', value: '3 days', icon: DollarSign, color: 'bg-purple-500' },
@@ -159,7 +186,8 @@ const EmployeeDashboard = () => {
     hoursThisMonth,
     isClockedIn,
     clockTime,
-    clockLocation
+    clockLocation,
+    leaveBalance
   });
 
   if (claimsError) {
