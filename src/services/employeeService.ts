@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
@@ -284,6 +283,11 @@ export const createEmployee = async (employeeData: any) => {
   }
 
   return employee;
+};
+
+export const addEmployee = async (employeeData: any) => {
+  console.log('EmployeeService: Adding employee (alias for createEmployee):', employeeData);
+  return await createEmployee(employeeData);
 };
 
 export const updateEmployee = async (id: string, employeeData: any) => {

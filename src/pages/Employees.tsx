@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Edit, Trash2, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, addEmployee } from '@/services/employeeService';
+import { getEmployees, createEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
@@ -29,7 +28,7 @@ const Employees = () => {
   });
 
   const addEmployeeMutation = useMutation({
-    mutationFn: addEmployee,
+    mutationFn: createEmployee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee added successfully");
@@ -46,24 +45,23 @@ const Employees = () => {
     const formData = new FormData(e.target as HTMLFormElement);
     
     const newEmployee = {
-      id: `EMP${Date.now()}`,
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
       nric: formData.get('nric') as string,
-      date_of_birth: formData.get('dateOfBirth') as string,
+      dateOfBirth: formData.get('dateOfBirth') as string,
       address: formData.get('address') as string,
       position: formData.get('position') as string,
-      department: formData.get('department') as string,
+      branch: formData.get('department') as string,
       type: formData.get('type') as string,
-      residency_status: formData.get('residencyStatus') as string,
-      bank_name: formData.get('bankName') as string,
-      bank_account: formData.get('bankAccount') as string,
-      payment_type: formData.get('paymentType') as string,
-      base_salary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
-      hourly_rate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
-      daily_rate: formData.get('dailyRate') ? parseFloat(formData.get('dailyRate') as string) : null,
-      join_date: formData.get('joinDate') as string,
+      residencyStatus: formData.get('residencyStatus') as string,
+      bankName: formData.get('bankName') as string,
+      bankAccount: formData.get('bankAccount') as string,
+      paymentType: formData.get('paymentType') as string,
+      baseSalary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
+      hourlyRate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
+      dailyRate: formData.get('dailyRate') ? parseFloat(formData.get('dailyRate') as string) : null,
+      joinDate: formData.get('joinDate') as string,
     };
 
     addEmployeeMutation.mutate(newEmployee);
@@ -71,7 +69,7 @@ const Employees = () => {
 
   const filteredEmployees = employees.filter(employee =>
     employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -172,8 +170,7 @@ const Employees = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
                         <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
                           <option value="">Select Type</option>
-                          <option value="Full-time">Full-time</option>
-                          <option value="Part-time">Part-time</option>
+                          <option value="Full-Time">Full-Time</option>
                           <option value="Casual">Casual</option>
                         </select>
                       </div>
@@ -307,9 +304,9 @@ const Employees = () => {
                           <td className="p-3 font-medium">{employee.name}</td>
                           <td className="p-3 text-sm text-gray-600">{employee.email}</td>
                           <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
-                          <td className="p-3 text-sm">{employee.department || 'Not specified'}</td>
+                          <td className="p-3 text-sm">{employee.branch || 'Not specified'}</td>
                           <td className="p-3">
-                            <Badge variant={employee.type === 'Full-time' ? 'default' : 'secondary'}>
+                            <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
                               {employee.type}
                             </Badge>
                           </td>
@@ -345,13 +342,20 @@ const Employees = () => {
       {editingEmployee && (
         <EditEmployeeForm
           employee={editingEmployee}
-          onClose={() => setEditingEmployee(null)}
+          onSave={(updatedEmployee) => {
+            setEditingEmployee(null);
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+          }}
+          onCancel={() => setEditingEmployee(null)}
         />
       )}
 
       {showModuleSettings && (
         <EmployeeModuleSettings
-          onClose={() => setShowModuleSettings(false)}
+          open={showModuleSettings}
+          onOpenChange={setShowModuleSettings}
+          employees={employees}
+          onEmployeesUpdate={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
         />
       )}
     </div>
