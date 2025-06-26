@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 
 interface PayslipData {
@@ -35,11 +34,12 @@ export const generatePayslipPDF = (data: PayslipData) => {
   // Generate PayslipID (using employee ID and month)
   const payslipId = `PS-${data.employee.id}-${data.month.replace(' ', '').substring(0, 3).toLowerCase()}${new Date().getFullYear()}`;
   
-  // Company details (top left) - adjusted for A5
-  doc.setFontSize(6.48);
+  // Company details (top left) - adjusted for A5, increased size by 1
+  doc.setFontSize(7.48);
   doc.setFont('helvetica', 'bold');
   doc.text('Gaonhae Taekwondo LLP | T18LL1687K', 10, 14);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.48);
   doc.text('271 Bukit Timah Road #02-08 Singapore 259708', 10, 17);
   
   // Header - PAYSLIP (centered) - adjusted for A5
@@ -47,42 +47,42 @@ export const generatePayslipPDF = (data: PayslipData) => {
   doc.setFont('helvetica', 'bold');
   doc.text('PAYSLIP', 74, 25, { align: 'center' });
   
-  // Pay period (left-aligned under payslip) - reduced spacing
+  // Pay period (left-aligned under payslip) - added extra line space
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 10, 32);
+  doc.text(`PAY PERIOD: ${data.month.toUpperCase()}`, 10, 35);
   
-  // PayslipID moved under pay period - reduced spacing
+  // PayslipID moved under pay period - adjusted spacing
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
-  doc.text(`PayslipID: ${payslipId}`, 10, 36);
+  doc.text(`PayslipID: ${payslipId}`, 10, 39);
   
-  // Employee details section (left side) - reduced spacing
+  // Employee details section (left side) - adjusted spacing
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('EMPLOYEE DETAILS:', 10, 42);
+  doc.text('EMPLOYEE DETAILS:', 10, 45);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.48);
   
-  // Employee info - reduced spacing
-  doc.text(`Name: ${data.employee.name}`, 10, 46);
-  doc.text(`NRIC/FIN: ${data.employee.nric}`, 10, 49);
-  doc.text(`Position: ${data.employee.position || 'N/A'}`, 10, 52);
+  // Employee info - adjusted spacing
+  doc.text(`Name: ${data.employee.name}`, 10, 49);
+  doc.text(`NRIC/FIN: ${data.employee.nric}`, 10, 52);
+  doc.text(`Position: ${data.employee.position || 'N/A'}`, 10, 55);
   
   // Bank Transfer Details (right side of employee details) - adjusted for A5
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
-  doc.text('BANK TRANSFER DETAILS:', 75, 42);
+  doc.text('BANK TRANSFER DETAILS:', 75, 45);
   doc.setFontSize(6.48);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Bank Name: ${data.employee.bankName || 'N/A'}`, 75, 46);
-  doc.text(`Account Number: ${data.employee.bankAccount || 'N/A'}`, 75, 49);
+  doc.text(`Bank Name: ${data.employee.bankName || 'N/A'}`, 75, 49);
+  doc.text(`Account Number: ${data.employee.bankAccount || 'N/A'}`, 75, 52);
   
   // Line separator - adjusted for A5
-  doc.line(10, 56, 138, 56);
+  doc.line(10, 59, 138, 59);
   
-  // Earnings section - reduced spacing
-  let yPos = 60;
+  // Earnings section - adjusted spacing
+  let yPos = 63;
   doc.setFontSize(8.1);
   doc.setFont('helvetica', 'bold');
   doc.text('EARNINGS:', 10, yPos);
