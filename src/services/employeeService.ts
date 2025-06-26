@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
@@ -40,15 +41,16 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     phone: emp.phone || '',
     address: emp.address || '',
     email: emp.email || '',
+    joinDate: emp.join_date || undefined,
     resignDate: emp.resign_date || undefined,
     allowances: emp.allowances?.map(a => ({
-      id: a.id,
+      id: String(a.id),
       name: a.name,
       amount: Number(a.amount),
       type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     deductions: emp.deductions?.map(d => ({
-      id: d.id,
+      id: String(d.id),
       name: d.name,
       amount: Number(d.amount),
       type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
@@ -120,15 +122,16 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     phone: emp.phone || '',
     address: emp.address || '',
     email: emp.email || '',
+    joinDate: emp.join_date || undefined,
     resignDate: emp.resign_date || undefined,
     allowances: emp.allowances?.map(a => ({
-      id: a.id,
+      id: String(a.id),
       name: a.name,
       amount: Number(a.amount),
       type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     deductions: emp.deductions?.map(d => ({
-      id: d.id,
+      id: String(d.id),
       name: d.name,
       amount: Number(d.amount),
       type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
@@ -206,15 +209,16 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     phone: employee.phone || '',
     address: employee.address || '',
     email: employee.email || '',
+    joinDate: employee.join_date || undefined,
     resignDate: employee.resign_date || undefined,
     allowances: employee.allowances?.map(a => ({
-      id: a.id,
+      id: String(a.id),
       name: a.name,
       amount: Number(a.amount),
       type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
     })) || [],
     deductions: employee.deductions?.map(d => ({
-      id: d.id,
+      id: String(d.id),
       name: d.name,
       amount: Number(d.amount),
       type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'

@@ -32,6 +32,13 @@ export interface EmployeeDeduction {
   type: 'Fixed' | 'Percentage' | 'Manual';
 }
 
+export interface AllowanceDeduction {
+  id: number;
+  name: string;
+  amount: number;
+  type: 'Fixed' | 'Percentage' | 'Manual';
+}
+
 export interface EmployeeCertificate {
   id: string;
   name: string;
@@ -39,6 +46,34 @@ export interface EmployeeCertificate {
   uploadDate: string;
   fileSize: number;
   fileType: string;
+}
+
+export interface CertificateUpload {
+  file: File;
+  name: string;
+}
+
+export interface PayrollEmployee {
+  id: string;
+  name: string;
+  type: 'Full-Time' | 'Casual';
+  baseSalary?: number;
+  hourlyRate?: number;
+  dailyRate?: number;
+  paymentType: 'Monthly' | 'Hourly' | 'Daily';
+  allowances: EmployeeAllowance[];
+  deductions: EmployeeDeduction[];
+  hoursWorked?: number;
+  daysWorked?: number;
+  grossPay: number;
+  cpfEmployee: number;
+  cpfEmployer: number;
+  netPay: number;
+}
+
+export interface CasualEmployeePayroll extends PayrollEmployee {
+  hoursWorked: number;
+  daysWorked: number;
 }
 
 export interface EmployeeProfile {
@@ -61,6 +96,7 @@ export interface EmployeeProfile {
   email: string;
   joinDate?: string;
   resignDate?: string;
+  profilePhoto?: string;
   allowances: EmployeeAllowance[];
   deductions: EmployeeDeduction[];
   certificates: EmployeeCertificate[];

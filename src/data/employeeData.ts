@@ -1,3 +1,4 @@
+
 import { EmployeeProfile } from '@/types/employee';
 
 // Keep the local data as fallback, but prioritize Supabase data
@@ -12,11 +13,11 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     baseSalary: 8500,
     paymentType: 'Monthly',
     allowances: [
-      { id: 1, name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: 2, name: 'Meal Allowance', amount: 150, type: 'Fixed' }
+      { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
+      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
     ],
     deductions: [
-      { id: 1, name: 'Insurance', amount: 100, type: 'Fixed' }
+      { id: '1', name: 'Insurance', amount: 100, type: 'Fixed' }
     ],
     bankAccount: '1234-567890',
     bankName: 'DBS Bank',
@@ -28,8 +29,12 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     certificates: [],
     adminAccess: {
       employees: true,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
       attendance: true,
-      reports: true
+      slotBooking: false,
+      reports: false
     }
   },
   'EMP002': {
@@ -42,11 +47,11 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     baseSalary: 7200,
     paymentType: 'Monthly',
     allowances: [
-      { id: 1, name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: 2, name: 'Meal Allowance', amount: 150, type: 'Fixed' }
+      { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
+      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
     ],
     deductions: [
-      { id: 1, name: 'Insurance', amount: 50, type: 'Fixed' }
+      { id: '1', name: 'Insurance', amount: 50, type: 'Fixed' }
     ],
     bankAccount: '2345-678901',
     bankName: 'OCBC Bank',
@@ -57,9 +62,13 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     email: 'mary.ng@company.sg',
     certificates: [],
     adminAccess: {
+      employees: false,
+      payroll: false,
       leaveManagement: true,
       claims: true,
-      reports: true
+      attendance: false,
+      slotBooking: false,
+      reports: false
     }
   },
   'EMP003': {
@@ -72,11 +81,11 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     baseSalary: 3800,
     paymentType: 'Monthly',
     allowances: [
-      { id: 1, name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: 2, name: 'Meal Allowance', amount: 150, type: 'Fixed' }
+      { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
+      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
     ],
     deductions: [
-      { id: 1, name: 'Insurance', amount: 100, type: 'Fixed' }
+      { id: '1', name: 'Insurance', amount: 100, type: 'Fixed' }
     ],
     bankAccount: '3456-789012',
     bankName: 'UOB Bank',
@@ -85,7 +94,16 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9345 6789',
     address: '789 Jurong East, #15-67, Singapore 609729',
     email: 'david.lim@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   },
   // Add Kim Hasung to local data to match the logged-in user
   'EMP1750863118850': {
@@ -98,7 +116,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     baseSalary: 5500,
     paymentType: 'Monthly',
     allowances: [
-      { id: 1, name: 'Preschool Allowance', amount: 200, type: 'Fixed' }
+      { id: '1', name: 'Preschool Allowance', amount: 200, type: 'Fixed' }
     ],
     deductions: [],
     bankAccount: '7890-123456',
@@ -116,7 +134,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
       claims: true,
       attendance: true,
       slotBooking: true,
-      reports: true
+      reports: false
     }
   },
   'CAS001': {
@@ -129,7 +147,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     hourlyRate: 25,
     paymentType: 'Hourly',
     allowances: [
-      { id: 1, name: 'Performance Bonus', amount: 100, type: 'Fixed' }
+      { id: '1', name: 'Performance Bonus', amount: 100, type: 'Fixed' }
     ],
     deductions: [],
     bankAccount: '4567-890123',
@@ -139,7 +157,16 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9456 7890',
     address: '321 Tampines, #22-11, Singapore 529543',
     email: 'alice.wong@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   },
   'CAS002': {
     id: 'CAS002',
@@ -151,7 +178,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     dailyRate: 180,
     paymentType: 'Daily',
     allowances: [
-      { id: 1, name: 'Performance Bonus', amount: 80, type: 'Fixed' }
+      { id: '1', name: 'Performance Bonus', amount: 80, type: 'Fixed' }
     ],
     deductions: [],
     bankAccount: '5678-901234',
@@ -161,7 +188,16 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9567 8901',
     address: '654 Woodlands, #05-43, Singapore 730654',
     email: 'bob.chen@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   },
   'CAS003': {
     id: 'CAS003',
@@ -173,7 +209,7 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     hourlyRate: 28,
     paymentType: 'Hourly',
     allowances: [
-      { id: 1, name: 'Performance Bonus', amount: 60, type: 'Fixed' }
+      { id: '1', name: 'Performance Bonus', amount: 60, type: 'Fixed' }
     ],
     deductions: [],
     bankAccount: '6789-012345',
@@ -183,7 +219,16 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     phone: '+65 9678 9012',
     address: '987 Yishun, #18-29, Singapore 760987',
     email: 'sarah.lee@company.sg',
-    certificates: []
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    }
   }
 };
 
