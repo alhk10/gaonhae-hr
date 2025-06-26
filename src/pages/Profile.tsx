@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -11,9 +10,11 @@ import { toast } from '@/components/ui/sonner';
 import { getEmployeeById, updateEmployee } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Profile = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -105,8 +106,18 @@ const Profile = () => {
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Here you would typically upload to your storage service
-      toast.success("Photo upload feature coming soon!");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (employeeData) {
+          setEmployeeData({
+            ...employeeData,
+            profilePhoto: result
+          });
+          toast.success("Profile photo updated successfully!");
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -115,8 +126,8 @@ const Profile = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
+          {!isMobile && <Sidebar />}
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
@@ -134,8 +145,8 @@ const Profile = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
+          {!isMobile && <Sidebar />}
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
             <div className="text-center">
               <p className="text-red-600">Employee profile not found</p>
               <p className="text-gray-600 mt-2">Please contact your administrator</p>
@@ -150,18 +161,19 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        {!isMobile && <Sidebar />}
+        <main className="flex-1 p-3 md:p-6 overflow-auto">
+          <div className="space-y-4 md:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-                <p className="text-gray-600">View and update your profile information</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">My Profile</h2>
+                <p className="text-sm md:text-base text-gray-600">View and update your profile information</p>
               </div>
               <Button 
                 onClick={handleEdit} 
                 disabled={isSaving}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 w-full sm:w-auto"
+                size={isMobile ? "lg" : "default"}
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -172,10 +184,10 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+              <Card className="order-1">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
                     <User className="w-5 h-5" />
                     <span>Personal Information</span>
                   </CardTitle>
@@ -184,15 +196,15 @@ const Profile = () => {
                   <div className="flex justify-center mb-4">
                     <div className="relative">
                       <img 
-                        src="/placeholder.svg" 
+                        src={employeeData.profilePhoto || "/placeholder.svg"} 
                         alt="Profile"
-                        className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
+                        className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-gray-200"
                       />
                       <label 
                         htmlFor="photo-upload"
-                        className="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 cursor-pointer transition-colors"
+                        className="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1.5 md:p-2 cursor-pointer transition-colors touch-manipulation"
                       >
-                        <Camera className="w-4 h-4" />
+                        <Camera className="w-3 h-3 md:w-4 md:h-4" />
                         <input
                           id="photo-upload"
                           type="file"
@@ -203,124 +215,125 @@ const Profile = () => {
                       </label>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Full Name</label>
-                    <p className="text-lg text-gray-900">{employeeData.name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Date of Birth</label>
-                    <p className="text-lg text-gray-900">{employeeData.dateOfBirth}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">NRIC/FIN</label>
-                    <p className="text-lg text-gray-900">{employeeData.nric}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Email</label>
-                    {isEditing ? (
-                      <Input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="mt-1"
-                        placeholder="Enter email address"
-                      />
-                    ) : (
-                      <p className="text-lg text-gray-900">{employeeData.email || 'Not specified'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Phone</label>
-                    {isEditing ? (
-                      <Input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className="mt-1"
-                        placeholder="Enter phone number"
-                      />
-                    ) : (
-                      <p className="text-lg text-gray-900">{employeeData.phone || 'Not specified'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Address</label>
-                    {isEditing ? (
-                      <Textarea
-                        value={formData.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        className="mt-1"
-                        rows={2}
-                        placeholder="Enter address"
-                      />
-                    ) : (
-                      <p className="text-lg text-gray-900">{employeeData.address || 'Not specified'}</p>
-                    )}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Full Name</label>
+                      <p className="text-base md:text-lg text-gray-900 break-words">{employeeData.name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Date of Birth</label>
+                      <p className="text-base md:text-lg text-gray-900">{employeeData.dateOfBirth}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">NRIC/FIN</label>
+                      <p className="text-base md:text-lg text-gray-900">{employeeData.nric}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="mt-1 text-base"
+                          placeholder="Enter email address"
+                        />
+                      ) : (
+                        <p className="text-base md:text-lg text-gray-900 break-words">{employeeData.email || 'Not specified'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Phone</label>
+                      {isEditing ? (
+                        <Input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          className="mt-1 text-base"
+                          placeholder="Enter phone number"
+                        />
+                      ) : (
+                        <p className="text-base md:text-lg text-gray-900">{employeeData.phone || 'Not specified'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Address</label>
+                      {isEditing ? (
+                        <Textarea
+                          value={formData.address}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="mt-1 text-base min-h-[80px]"
+                          rows={3}
+                          placeholder="Enter address"
+                        />
+                      ) : (
+                        <p className="text-base md:text-lg text-gray-900 break-words">{employeeData.address || 'Not specified'}</p>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Work Information</CardTitle>
+              <Card className="order-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg md:text-xl">Work Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Employee ID</label>
-                    <p className="text-lg text-gray-900">{employeeData.id}</p>
+                    <p className="text-base md:text-lg text-gray-900">{employeeData.id}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Position</label>
-                    <p className="text-lg text-gray-900">{employeeData.position || 'Not specified'}</p>
+                    <p className="text-base md:text-lg text-gray-900">{employeeData.position || 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Employment Type</label>
-                    <p className="text-lg text-gray-900">{employeeData.type}</p>
+                    <p className="text-base md:text-lg text-gray-900">{employeeData.type}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Residency Status</label>
-                    <p className="text-lg text-gray-900">{employeeData.residencyStatus}</p>
+                    <p className="text-base md:text-lg text-gray-900">{employeeData.residencyStatus}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Bank Details</label>
-                    <p className="text-lg text-gray-900">{employeeData.bankName}</p>
-                    <p className="text-sm text-gray-600">{employeeData.bankAccount}</p>
+                    <p className="text-base md:text-lg text-gray-900 break-words">{employeeData.bankName}</p>
+                    <p className="text-sm text-gray-600 break-all">{employeeData.bankAccount}</p>
                   </div>
                   {employeeData.baseSalary && (
                     <div>
                       <label className="text-sm font-medium text-gray-600">Base Salary</label>
-                      <p className="text-lg text-gray-900">S${employeeData.baseSalary.toLocaleString()}</p>
+                      <p className="text-base md:text-lg text-gray-900">S${employeeData.baseSalary.toLocaleString()}</p>
                     </div>
                   )}
                   {employeeData.hourlyRate && (
                     <div>
                       <label className="text-sm font-medium text-gray-600">Hourly Rate</label>
-                      <p className="text-lg text-gray-900">S${employeeData.hourlyRate}/hour</p>
+                      <p className="text-base md:text-lg text-gray-900">S${employeeData.hourlyRate}/hour</p>
                     </div>
                   )}
                   {employeeData.dailyRate && (
                     <div>
                       <label className="text-sm font-medium text-gray-600">Daily Rate</label>
-                      <p className="text-lg text-gray-900">S${employeeData.dailyRate}/day</p>
+                      <p className="text-base md:text-lg text-gray-900">S${employeeData.dailyRate}/day</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Deductions only */}
             {employeeData.deductions?.length > 0 && (
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 gap-4 md:gap-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Deductions</CardTitle>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg md:text-xl">Deductions</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       {employeeData.deductions.map((deduction) => (
-                        <div key={deduction.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <span className="font-medium">{deduction.name}</span>
-                          <span className="text-red-600">-S${deduction.amount}</span>
+                        <div key={deduction.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                          <span className="font-medium text-sm md:text-base break-words flex-1 pr-2">{deduction.name}</span>
+                          <span className="text-red-600 text-sm md:text-base whitespace-nowrap">-S${deduction.amount}</span>
                         </div>
                       ))}
                     </div>
