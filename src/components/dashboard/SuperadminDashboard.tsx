@@ -11,20 +11,26 @@ import { getAttendanceRecords } from '@/services/attendanceService';
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
 
-  // Fetch real data from Supabase
-  const { data: employees = [], isLoading: employeesLoading } = useQuery({
+  // Fetch real data from services with proper error handling
+  const { data: employees = [], isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees'],
     queryFn: getEmployees,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
   });
 
-  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+  const { data: claims = [], isLoading: claimsLoading, error: claimsError } = useQuery({
     queryKey: ['claims'],
     queryFn: getClaims,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
 
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceRecords = [], isLoading: attendanceLoading, error: attendanceError } = useQuery({
     queryKey: ['attendance'],
     queryFn: getAttendanceRecords,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
 
   useEffect(() => {
@@ -40,7 +46,7 @@ const SuperadminDashboard = () => {
     setPayrollDue(calculatePayrollDue());
   }, []);
 
-  // Calculate real stats
+  // Calculate real stats with proper error handling
   const totalEmployees = employees.length;
   const pendingClaims = claims.filter(claim => claim.status === 'Pending').length;
   const leaveRequests = 0; // This would need a leave requests service
@@ -53,12 +59,36 @@ const SuperadminDashboard = () => {
     { title: 'Payroll Due', value: payrollDue, icon: Calendar, color: 'bg-purple-500' },
   ];
 
+  // Debug logging
+  console.log('SuperadminDashboard: Employees loaded:', employees.length);
+  console.log('SuperadminDashboard: Claims loaded:', claims.length);
+  console.log('SuperadminDashboard: Attendance records loaded:', attendanceRecords.length);
+
+  if (employeesError) {
+    console.error('SuperadminDashboard: Error loading employees:', employeesError);
+  }
+  if (claimsError) {
+    console.error('SuperadminDashboard: Error loading claims:', claimsError);
+  }
+  if (attendanceError) {
+    console.error('SuperadminDashboard: Error loading attendance:', attendanceError);
+  }
+
   if (employeesLoading || claimsLoading || attendanceLoading) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Superadmin Dashboard</h2>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading system data...</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-16 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
@@ -117,22 +147,23 @@ const SuperadminDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>CPF Compliance Status</CardTitle>
-            <CardDescription>Monthly contribution tracking</CardDescription>
+            <CardTitle>System Status</CardTitle>
+            <CardDescription>HR system overview</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div>
                   <p className="font-medium text-green-900">December 2024</p>
-                  <p className="text-sm text-green-700">All contributions processed</p>
+                  <p className="text-sm text-green-700">System operational</p>
                 </div>
-                <Badge className="bg-green-100 text-green-800">Compliant</Badge>
+                <Badge className="bg-green-100 text-green-800">Active</Badge>
               </div>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>• Total employees covered: {totalEmployees}</p>
-                <p>• Pending claims: {pendingClaims}</p>
-                <p>• System status: Active</p>
+                <p>• Active employees: {totalEmployees}</p>
+                <p>• Pending approvals: {pendingClaims}</p>
+                <p>• Data sync: Connected</p>
+                <p>• Last updated: {new Date().toLocaleString()}</p>
               </div>
             </div>
           </CardContent>

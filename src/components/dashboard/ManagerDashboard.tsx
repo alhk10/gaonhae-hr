@@ -9,15 +9,19 @@ import { getEmployees } from '@/services/employeeService';
 import { getClaims } from '@/services/claimsService';
 
 const ManagerDashboard = () => {
-  // Fetch real data from Supabase
-  const { data: employees = [], isLoading: employeesLoading } = useQuery({
+  // Fetch real data from services with proper error handling
+  const { data: employees = [], isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees'],
     queryFn: getEmployees,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
 
-  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+  const { data: claims = [], isLoading: claimsLoading, error: claimsError } = useQuery({
     queryKey: ['claims'],
     queryFn: getClaims,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
 
   // Calculate real stats
@@ -33,12 +37,33 @@ const ManagerDashboard = () => {
     { title: 'Completed This Month', value: completedThisMonth.toString(), icon: CheckCircle, color: 'bg-purple-500' },
   ];
 
+  // Debug logging
+  console.log('ManagerDashboard: Team members:', teamMembers);
+  console.log('ManagerDashboard: Pending approvals:', pendingApprovals);
+  console.log('ManagerDashboard: Active claims:', activeClaims);
+
+  if (employeesError) {
+    console.error('ManagerDashboard: Error loading employees:', employeesError);
+  }
+  if (claimsError) {
+    console.error('ManagerDashboard: Error loading claims:', claimsError);
+  }
+
   if (employeesLoading || claimsLoading) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Manager Dashboard</h2>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading team data...</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-16 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
@@ -48,7 +73,7 @@ const ManagerDashboard = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Manager Dashboard</h2>
-        <p className="text-gray-600">Engineering Department Overview</p>
+        <p className="text-gray-600">Team Management Overview</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -122,6 +147,7 @@ const ManagerDashboard = () => {
                   <p>• {completedThisMonth} claims processed this month</p>
                   <p>• {pendingApprovals} items awaiting approval</p>
                   <p>• {teamMembers} active team members</p>
+                  <p>• Data last updated: {new Date().toLocaleTimeString()}</p>
                 </div>
               </div>
             </div>

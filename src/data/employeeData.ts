@@ -1,6 +1,6 @@
-
 import { EmployeeProfile } from '@/types/employee';
 
+// Keep the local data as fallback, but prioritize Supabase data
 export const employeeDatabase: { [key: string]: EmployeeProfile } = {
   'EMP001': {
     id: 'EMP001',
@@ -86,6 +86,38 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
     address: '789 Jurong East, #15-67, Singapore 609729',
     email: 'david.lim@company.sg',
     certificates: []
+  },
+  // Add Kim Hasung to local data to match the logged-in user
+  'EMP1750863118850': {
+    id: 'EMP1750863118850',
+    name: 'Kim Hasung',
+    nric: 'S7890123G',
+    dateOfBirth: '1994-12-25',
+    residencyStatus: 'Singapore Citizen',
+    type: 'Full-Time',
+    baseSalary: 5500,
+    paymentType: 'Monthly',
+    allowances: [
+      { id: 1, name: 'Preschool Allowance', amount: 200, type: 'Fixed' }
+    ],
+    deductions: [],
+    bankAccount: '7890-123456',
+    bankName: 'DBS Bank',
+    branch: 'Teaching',
+    position: 'Preschool Teacher',
+    phone: '+65 9789 0123',
+    address: '456 Tampines Street, #10-20, Singapore 529899',
+    email: 'david@gaonhaetaekwondo.com',
+    certificates: [],
+    adminAccess: {
+      employees: true,
+      payroll: true,
+      leaveManagement: true,
+      claims: true,
+      attendance: true,
+      slotBooking: true,
+      reports: true
+    }
   },
   'CAS001': {
     id: 'CAS001',

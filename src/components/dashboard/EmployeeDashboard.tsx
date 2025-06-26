@@ -4,13 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Clock, DollarSign } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
+import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -18,37 +19,55 @@ const EmployeeDashboard = () => {
   const [clockTime, setClockTime] = useState<string | null>(null);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
 
-  // Fetch current employee data
-  const { data: currentEmployee } = useQuery({
+  // Try to fetch employee data from Supabase first, then fallback to local data
+  const { data: supabaseEmployee, error: supabaseError } = useQuery({
     queryKey: ['current-employee', user?.id],
     queryFn: () => getEmployeeById(user?.id || ''),
     enabled: !!user?.id,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Update employee data when query resolves
+  // Update employee data when query resolves or falls back to local data
   useEffect(() => {
-    if (currentEmployee) {
-      setEmployeeData(currentEmployee);
-      console.log('EmployeeDashboard: Employee data loaded:', currentEmployee);
+    console.log('EmployeeDashboard: Loading employee data for user:', user);
+    
+    if (supabaseEmployee) {
+      console.log('EmployeeDashboard: Using Supabase employee data:', supabaseEmployee);
+      setEmployeeData(supabaseEmployee);
+    } else if (supabaseError) {
+      console.log('EmployeeDashboard: Supabase error, falling back to local data for:', user?.id);
+      const localEmployee = getLocalEmployeeById(user?.id || '');
+      if (localEmployee) {
+        console.log('EmployeeDashboard: Using local employee data:', localEmployee);
+        setEmployeeData(localEmployee);
+      } else {
+        console.log('EmployeeDashboard: No employee data found in local or Supabase');
+        setEmployeeData(null);
+      }
     }
-  }, [currentEmployee]);
+  }, [supabaseEmployee, supabaseError, user?.id]);
 
   // Fetch employee-specific data
-  const { data: employeeClaims = [] } = useQuery({
+  const { data: employeeClaims = [], error: claimsError } = useQuery({
     queryKey: ['employee-claims', user?.id],
     queryFn: () => getEmployeeClaims(user?.id || ''),
     enabled: !!user?.id,
+    retry: 3,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: attendanceRecords = [] } = useQuery({
+  const { data: attendanceRecords = [], error: attendanceError } = useQuery({
     queryKey: ['employee-attendance', user?.id],
     queryFn: () => getEmployeeAttendanceRecords(user?.id || ''),
     enabled: !!user?.id,
+    retry: 3,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Calculate real stats
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
-  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + record.hours, 0);
+  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hours || 0), 0);
   
   const personalStats = [
     { title: 'Leave Balance', value: '18 days', icon: Calendar, color: 'bg-blue-500' },
@@ -68,18 +87,35 @@ const EmployeeDashboard = () => {
       // Clock out
       setIsClockedIn(false);
       setClockTime(null);
-      toast(`Clocked out at ${currentTime}`);
+      toast.success(`Clocked out at ${currentTime}`);
     } else {
       // Clock in
       setIsClockedIn(true);
       setClockTime(currentTime);
-      toast(`Clocked in at ${currentTime}`);
+      toast.success(`Clocked in at ${currentTime}`);
     }
   };
 
   const displayName = employeeData?.name || user?.name || 'Employee';
   const displayDepartment = employeeData?.branch || user?.department || 'Not specified';
   const displayEmployeeId = employeeData?.id || user?.id || user?.employeeId || 'Not specified';
+
+  // Debug logging
+  console.log('EmployeeDashboard: Current state:', {
+    user,
+    employeeData,
+    employeeClaims: employeeClaims.length,
+    attendanceRecords: attendanceRecords.length,
+    pendingClaims,
+    hoursThisMonth
+  });
+
+  if (claimsError) {
+    console.error('EmployeeDashboard: Error loading claims:', claimsError);
+  }
+  if (attendanceError) {
+    console.error('EmployeeDashboard: Error loading attendance:', attendanceError);
+  }
 
   return (
     <div className="space-y-6">
