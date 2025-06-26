@@ -3,7 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Download, Calendar } from 'lucide-react';
+import { DollarSign, Download, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,7 @@ import { getEmployeeClaims } from '@/services/claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
+import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 
 const Payslips = () => {
   const { payrollState } = usePayroll();
@@ -153,8 +154,28 @@ const Payslips = () => {
       employerCPF: cpfCalc.employerCPF,
       totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
       approvedClaims: approvedClaimsTotal,
-      netSalary
+      netSalary,
+      allowances: employeeAllowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
+      deductions: employeeDeductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
     };
+  };
+
+  const handleDownloadPayslipPDF = (month: string) => {
+    try {
+      const payslipData = generatePayslipData(month);
+      
+      const pdfData = {
+        employee: currentEmployee,
+        month,
+        ...payslipData
+      };
+      
+      generatePayslipPDF(pdfData);
+      toast(`PDF payslip downloaded for ${month}`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast(`Error generating PDF for ${month}`);
+    }
   };
 
   const handleDownloadPayslip = (month: string) => {
@@ -277,7 +298,7 @@ For queries, please contact HR Department.
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips with current allowances and deductions</CardDescription>
+                <CardDescription>Download your monthly payslips as PDF or text format</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -292,14 +313,25 @@ For queries, please contact HR Department.
                           {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
                         </p>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDownloadPayslip(payslip.month)}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => handleDownloadPayslipPDF(payslip.month)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Download PDF
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadPayslip(payslip.month)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download TXT
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
