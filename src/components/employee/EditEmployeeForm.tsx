@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,8 +78,16 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     email: employee.email || ''
   });
 
-  const [allowances, setAllowances] = useState<AllowanceDeduction[]>(employee.allowances);
-  const [deductions, setDeductions] = useState<AllowanceDeduction[]>(employee.deductions);
+  // Convert EmployeeAllowance[] to AllowanceDeduction[]
+  const [allowances, setAllowances] = useState<AllowanceDeduction[]>(
+    employee.allowances.map(a => ({ ...a, id: a.id }))
+  );
+  
+  // Convert EmployeeDeduction[] to AllowanceDeduction[]
+  const [deductions, setDeductions] = useState<AllowanceDeduction[]>(
+    employee.deductions.map(d => ({ ...d, id: d.id }))
+  );
+  
   const [isSaving, setIsSaving] = useState(false);
   const [showAddAllowance, setShowAddAllowance] = useState(false);
   const [showAddDeduction, setShowAddDeduction] = useState(false);
@@ -104,12 +113,12 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     toast("New deduction added successfully");
   };
 
-  const handleRemoveAllowance = (id: number) => {
+  const handleRemoveAllowance = (id: string) => {
     setAllowances(prev => prev.filter(item => item.id !== id));
     toast("Allowance removed");
   };
 
-  const handleRemoveDeduction = (id: number) => {
+  const handleRemoveDeduction = (id: string) => {
     setDeductions(prev => prev.filter(item => item.id !== id));
     toast("Deduction removed");
   };
@@ -134,8 +143,9 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
         dailyRate: updateData.dailyRate || undefined,
-        allowances,
-        deductions,
+        // Convert back to EmployeeAllowance[] and EmployeeDeduction[]
+        allowances: allowances.map(a => ({ ...a, id: a.id })),
+        deductions: deductions.map(d => ({ ...d, id: d.id })),
       };
       
       onSave(updatedEmployee);

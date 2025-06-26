@@ -6,7 +6,6 @@ export interface AdminAccessPermissions {
   claims: boolean;
   attendance: boolean;
   slotBooking: boolean;
-  reports: boolean;
 }
 
 export interface ExtendedAdminAccessPermissions extends AdminAccessPermissions {
@@ -33,7 +32,7 @@ export interface EmployeeDeduction {
 }
 
 export interface AllowanceDeduction {
-  id: number;
+  id: string;
   name: string;
   amount: number;
   type: 'Fixed' | 'Percentage' | 'Manual';
@@ -49,8 +48,13 @@ export interface EmployeeCertificate {
 }
 
 export interface CertificateUpload {
+  id: string;
   file: File;
   name: string;
+  fileName: string;
+  uploadDate: string;
+  fileSize: number;
+  fileType: string;
 }
 
 export interface PayrollEmployee {
@@ -74,6 +78,9 @@ export interface PayrollEmployee {
 export interface CasualEmployeePayroll extends PayrollEmployee {
   hoursWorked: number;
   daysWorked: number;
+  totalPay: number;
+  employeeCPF: number;
+  employerCPF: number;
 }
 
 export interface EmployeeProfile {

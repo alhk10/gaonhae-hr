@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { getEmployees } from '@/services/employeeService';
@@ -133,11 +134,16 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
-              baseSalary: emp.baseSalary || 0,
-              allowances: totalAllowances,
-              deductions: totalDeductions,
-              cpf: cpfCalc.employerCPF,
-              total: netSalary
+              baseSalary: emp.baseSalary,
+              hourlyRate: emp.hourlyRate,
+              dailyRate: emp.dailyRate,
+              paymentType: emp.paymentType,
+              allowances: emp.allowances,
+              deductions: emp.deductions,
+              grossPay: grossSalary,
+              cpfEmployee: cpfCalc.employeeCPF,
+              cpfEmployer: cpfCalc.employerCPF,
+              netPay: netSalary
             };
           } catch (error) {
             console.error('Error processing full-time employee:', emp.id, error);
@@ -145,11 +151,16 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
-              baseSalary: emp.baseSalary || 0,
-              allowances: 0,
-              deductions: 0,
-              cpf: 0,
-              total: emp.baseSalary || 0
+              baseSalary: emp.baseSalary,
+              hourlyRate: emp.hourlyRate,
+              dailyRate: emp.dailyRate,
+              paymentType: emp.paymentType,
+              allowances: emp.allowances,
+              deductions: emp.deductions,
+              grossPay: emp.baseSalary || 0,
+              cpfEmployee: 0,
+              cpfEmployer: 0,
+              netPay: emp.baseSalary || 0
             };
           }
         })
@@ -177,9 +188,18 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
+              baseSalary: emp.baseSalary,
               hourlyRate,
+              dailyRate: emp.dailyRate,
+              paymentType: emp.paymentType,
+              allowances: emp.allowances,
+              deductions: emp.deductions,
               hoursWorked,
               daysWorked,
+              grossPay,
+              cpfEmployee: cpfCalc.employeeCPF,
+              cpfEmployer: cpfCalc.employerCPF,
+              netPay: totalPay,
               totalPay,
               employeeCPF: cpfCalc.employeeCPF,
               employerCPF: cpfCalc.employerCPF
@@ -190,9 +210,18 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               id: emp.id,
               name: emp.name,
               type: emp.type,
+              baseSalary: emp.baseSalary,
               hourlyRate: emp.hourlyRate || emp.dailyRate || 0,
+              dailyRate: emp.dailyRate,
+              paymentType: emp.paymentType,
+              allowances: emp.allowances,
+              deductions: emp.deductions,
               hoursWorked: 0,
               daysWorked: 0,
+              grossPay: 0,
+              cpfEmployee: 0,
+              cpfEmployer: 0,
+              netPay: 0,
               totalPay: 0,
               employeeCPF: 0,
               employerCPF: 0
@@ -211,7 +240,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       console.log('Payroll initialized from Supabase:', { 
         fullTimeCount: fullTimePayroll.length, 
         casualCount: casualPayroll.length,
-        fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.total, 0),
+        fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.netPay, 0),
         casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0)
       });
     } catch (error) {
@@ -321,7 +350,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   };
 
   const calculatePayrollTotal = (): number => {
-    const fullTimeTotal = payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.total, 0);
+    const fullTimeTotal = payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0);
     const casualTotal = payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
     const total = fullTimeTotal + casualTotal;
     

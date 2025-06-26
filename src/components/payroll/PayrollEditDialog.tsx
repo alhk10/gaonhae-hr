@@ -40,34 +40,43 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
         const totalAllowances = empData.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
         const totalDeductions = empData.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
         
-        let cpf = 0;
-        let total = 0;
+        let cpfEmployee = 0;
+        let cpfEmployer = 0;
+        let grossPay = 0;
+        let netPay = 0;
 
         if (empData.type === 'Full-Time' && empData.baseSalary) {
           const age = calculateAge(empData.dateOfBirth);
-          const grossSalary = empData.baseSalary + totalAllowances;
-          const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-          cpf = cpfCalc.employerCPF;
-          total = empData.baseSalary + totalAllowances - totalDeductions + cpf;
+          grossPay = empData.baseSalary + totalAllowances;
+          const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+          cpfEmployee = cpfCalc.employeeCPF;
+          cpfEmployer = cpfCalc.employerCPF;
+          netPay = grossPay - cpfEmployee - totalDeductions;
         } else if (empData.type === 'Casual' && empData.hourlyRate) {
           // For casual employees, assume 120 hours worked (this should come from slot bookings)
           const hoursWorked = 120;
-          const grossPay = empData.hourlyRate * hoursWorked;
+          grossPay = empData.hourlyRate * hoursWorked;
           const age = calculateAge(empData.dateOfBirth);
           const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-          cpf = cpfCalc.employerCPF;
-          total = grossPay + totalAllowances - totalDeductions - cpfCalc.employeeCPF;
+          cpfEmployee = cpfCalc.employeeCPF;
+          cpfEmployer = cpfCalc.employerCPF;
+          netPay = grossPay - cpfEmployee - totalDeductions;
         }
 
         return {
           id: empData.id,
           name: empData.name,
           type: empData.type,
-          baseSalary: empData.baseSalary || empData.hourlyRate || 0,
-          allowances: totalAllowances,
-          deductions: totalDeductions,
-          cpf,
-          total
+          baseSalary: empData.baseSalary,
+          hourlyRate: empData.hourlyRate,
+          dailyRate: empData.dailyRate,
+          paymentType: empData.paymentType,
+          allowances: empData.allowances,
+          deductions: empData.deductions,
+          grossPay,
+          cpfEmployee,
+          cpfEmployer,
+          netPay
         };
       }).filter(Boolean) as PayrollEmployee[];
 
@@ -85,53 +94,29 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
           if (!empData) return emp;
 
           const age = calculateAge(empData.dateOfBirth);
-          let cpf = 0;
-          let total = 0;
+          const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+          const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+          
+          let cpfEmployee = 0;
+          let cpfEmployer = 0;
+          let grossPay = 0;
+          let netPay = 0;
 
           if (empData.type === 'Full-Time') {
-            const grossSalary = newSalary + emp.allowances;
-            const cpfCalc = calculateCPF(grossSalary, empData.residencyStatus, age);
-            cpf = cpfCalc.employerCPF;
-            total = newSalary + emp.allowances - emp.deductions + cpf;
+            grossPay = newSalary + totalAllowances;
+            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+            cpfEmployee = cpfCalc.employeeCPF;
+            cpfEmployer = cpfCalc.employerCPF;
+            netPay = grossPay - cpfEmployee - totalDeductions;
           }
 
           return {
             ...emp,
             baseSalary: newSalary,
-            cpf,
-            total
-          };
-        }
-        return emp;
-      })
-    );
-  };
-
-  const handleAllowancesChange = (employeeId: string, newAllowances: number) => {
-    setEmployeeDetails(prev => 
-      prev.map(emp => {
-        if (emp.id === employeeId) {
-          const total = emp.baseSalary + newAllowances - emp.deductions + emp.cpf;
-          return {
-            ...emp,
-            allowances: newAllowances,
-            total
-          };
-        }
-        return emp;
-      })
-    );
-  };
-
-  const handleDeductionsChange = (employeeId: string, newDeductions: number) => {
-    setEmployeeDetails(prev => 
-      prev.map(emp => {
-        if (emp.id === employeeId) {
-          const total = emp.baseSalary + emp.allowances - newDeductions + emp.cpf;
-          return {
-            ...emp,
-            deductions: newDeductions,
-            total
+            grossPay,
+            cpfEmployee,
+            cpfEmployer,
+            netPay
           };
         }
         return emp;
@@ -140,7 +125,7 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
   };
 
   const handleSave = () => {
-    const newTotal = employeeDetails.reduce((sum, emp) => sum + emp.total, 0);
+    const newTotal = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
     const updatedPayroll = {
       ...payroll,
       totalAmount: newTotal
@@ -148,16 +133,6 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     onSave(updatedPayroll);
     toast(`Payroll for ${payroll.period} updated successfully`);
     onClose();
-  };
-
-  const getEmployeeAllowanceBreakdown = (employeeId: string) => {
-    const empData = getEmployeeById(employeeId);
-    return empData?.allowances || [];
-  };
-
-  const getEmployeeDeductionBreakdown = (employeeId: string) => {
-    const empData = getEmployeeById(employeeId);
-    return empData?.deductions || [];
   };
 
   return (
@@ -182,7 +157,7 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                   <TableHead>Allowances</TableHead>
                   <TableHead>Deductions</TableHead>
                   <TableHead>CPF</TableHead>
-                  <TableHead>Total</TableHead>
+                  <TableHead>Net Pay</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,21 +173,18 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                     <TableCell>
                       <Input
                         type="number"
-                        value={employee.baseSalary}
+                        value={employee.baseSalary || 0}
                         onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
                         className="w-24"
                       />
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <Input
-                          type="number"
-                          value={employee.allowances}
-                          onChange={(e) => handleAllowancesChange(employee.id, Number(e.target.value))}
-                          className="w-24"
-                        />
+                        <div className="text-sm font-medium">
+                          S${employee.allowances.reduce((sum, a) => sum + a.amount, 0)}
+                        </div>
                         <div className="text-xs text-gray-500">
-                          {getEmployeeAllowanceBreakdown(employee.id).map((allowance, idx) => (
+                          {employee.allowances.map((allowance, idx) => (
                             <div key={idx}>{allowance.name}: S${allowance.amount}</div>
                           ))}
                         </div>
@@ -220,21 +192,18 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <Input
-                          type="number"
-                          value={employee.deductions}
-                          onChange={(e) => handleDeductionsChange(employee.id, Number(e.target.value))}
-                          className="w-24"
-                        />
+                        <div className="text-sm font-medium">
+                          S${employee.deductions.reduce((sum, d) => sum + d.amount, 0)}
+                        </div>
                         <div className="text-xs text-gray-500">
-                          {getEmployeeDeductionBreakdown(employee.id).map((deduction, idx) => (
+                          {employee.deductions.map((deduction, idx) => (
                             <div key={idx}>{deduction.name}: S${deduction.amount}</div>
                           ))}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>S${employee.cpf.toLocaleString()}</TableCell>
-                    <TableCell className="font-bold">S${employee.total.toLocaleString()}</TableCell>
+                    <TableCell>S${employee.cpfEmployer.toLocaleString()}</TableCell>
+                    <TableCell className="font-bold">S${employee.netPay.toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
