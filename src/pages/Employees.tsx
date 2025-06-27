@@ -6,11 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Edit, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Settings, Eye, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
-import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
@@ -20,7 +19,6 @@ const Employees = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
   const [paymentType, setPaymentType] = useState('Monthly'); // Add payment type state for form
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
@@ -285,13 +283,6 @@ const Employees = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEditingEmployee(employee)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
                                 onClick={() => handleDeleteEmployee(employee.id, employee.name)}
                                 className="text-red-600 hover:text-red-700"
                               >
@@ -309,17 +300,6 @@ const Employees = () => {
           </div>
         </main>
       </div>
-
-      {editingEmployee && (
-        <EditEmployeeForm
-          employee={editingEmployee}
-          onSave={(updatedEmployee) => {
-            setEditingEmployee(null);
-            queryClient.invalidateQueries({ queryKey: ['employees'] });
-          }}
-          onCancel={() => setEditingEmployee(null)}
-        />
-      )}
 
       {showModuleSettings && (
         <EmployeeModuleSettings
