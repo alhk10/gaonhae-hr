@@ -81,6 +81,16 @@ const LeaveManagement = () => {
     }
   };
 
+  const refreshLeaveTypes = async () => {
+    try {
+      const leaveTypesData = await getLeaveTypes();
+      setLeaveTypes(leaveTypesData.map(type => type.name));
+      console.log('Leave types refreshed:', leaveTypesData);
+    } catch (error) {
+      console.error('Error refreshing leave types:', error);
+    }
+  };
+
   const handleApprove = async (id: number) => {
     try {
       await updateLeaveStatus(id, 'Approved', 'Current User');
@@ -384,14 +394,15 @@ const LeaveManagement = () => {
                     <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-auto">
                       <DialogHeader>
                         <DialogTitle>Leave Settings</DialogTitle>
-                        <DialogDescription>Configure leave types and policies</DialogDescription>
+                        <DialogDescription>Configure leave types and policies (Superadmin Only)</DialogDescription>
                       </DialogHeader>
                       <LeaveSettings />
                       <DialogFooter>
-                        <Button onClick={() => {
+                        <Button onClick={async () => {
                           setIsLeaveSettingsOpen(false);
                           // Reload leave types after settings are closed
-                          getLeaveTypes().then(types => setLeaveTypes(types.map(type => type.name)));
+                          await refreshLeaveTypes();
+                          toast("Leave settings updated successfully");
                         }}>Close</Button>
                       </DialogFooter>
                     </DialogContent>

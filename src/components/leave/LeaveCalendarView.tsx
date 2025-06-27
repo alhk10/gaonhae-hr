@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { LeaveRequest } from '@/services/leaveService';
+import { getLeaveTypes, LeaveType } from '@/services/leaveTypesService';
 
 interface LeaveCalendarViewProps {
   leaves: LeaveRequest[];
@@ -11,6 +12,19 @@ interface LeaveCalendarViewProps {
 
 const LeaveCalendarView = ({ leaves }: LeaveCalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+
+  useEffect(() => {
+    const loadLeaveTypes = async () => {
+      try {
+        const types = await getLeaveTypes();
+        setLeaveTypes(types);
+      } catch (error) {
+        console.error('Error loading leave types for calendar:', error);
+      }
+    };
+    loadLeaveTypes();
+  }, []);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -93,14 +107,20 @@ const LeaveCalendarView = ({ leaves }: LeaveCalendarViewProps) => {
   };
 
   const getLeaveTypeColor = (type: string) => {
-    const colors: { [key: string]: string } = {
-      'Annual Leave': '#3b82f6', // blue
-      'Medical Leave': '#ef4444', // red
-      'Emergency Leave': '#f59e0b', // amber
-      'Maternity Leave': '#ec4899', // pink
-      'Paternity Leave': '#06b6d4', // cyan
-    };
-    return colors[type] || '#6b7280'; // gray default
+    // Generate colors based on leave type index to ensure consistency
+    const colors = [
+      '#3b82f6', // blue
+      '#ef4444', // red
+      '#f59e0b', // amber
+      '#ec4899', // pink
+      '#06b6d4', // cyan
+      '#10b981', // emerald
+      '#8b5cf6', // violet
+      '#f97316', // orange
+    ];
+    
+    const typeIndex = leaveTypes.findIndex(lt => lt.name === type);
+    return colors[typeIndex % colors.length] || '#6b7280'; // gray default
   };
 
   const monthNames = [
@@ -131,21 +151,15 @@ const LeaveCalendarView = ({ leaves }: LeaveCalendarViewProps) => {
           </div>
         </div>
         
-        {/* Legend */}
+        {/* Dynamic Legend based on active leave types */}
         <div className="flex flex-wrap gap-3 text-xs">
-          {Object.entries({
-            'Annual Leave': '#3b82f6',
-            'Medical Leave': '#ef4444',
-            'Emergency Leave': '#f59e0b',
-            'Maternity Leave': '#ec4899',
-            'Paternity Leave': '#06b6d4'
-          }).map(([type, color]) => (
-            <div key={type} className="flex items-center space-x-1">
+          {leaveTypes.filter(type => type.isActive).map((type, index) => (
+            <div key={type.id} className="flex items-center space-x-1">
               <div 
                 className="w-3 h-3 rounded"
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: getLeaveTypeColor(type.name) }}
               ></div>
-              <span className="text-gray-600">{type}</span>
+              <span className="text-gray-600">{type.name}</span>
             </div>
           ))}
         </div>
