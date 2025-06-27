@@ -109,7 +109,7 @@ const EmployeeDashboard = () => {
 
   // Calculate real stats
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
-  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hours || 0), 0);
+  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hoursWorked || 0), 0);
   
   const personalStats = [
     { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' },

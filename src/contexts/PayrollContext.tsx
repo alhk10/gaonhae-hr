@@ -82,7 +82,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       });
       
       // Sum up the hours worked for that month
-      const totalHours = monthlyRecords.reduce((sum, record) => sum + record.hours, 0);
+      const totalHours = monthlyRecords.reduce((sum, record) => sum + record.hoursWorked, 0);
       console.log(`Employee ${employeeId} worked ${totalHours} hours in ${period}`);
       
       return totalHours;
