@@ -297,16 +297,17 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
 
             {/* Superadmin can edit join date */}
             {user?.role === 'superadmin' && (
-              <div>
-                <Label htmlFor="joinDate">Join Date</Label>
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                <Label htmlFor="joinDate" className="text-blue-800 font-medium">Join Date</Label>
                 <Input
                   id="joinDate"
                   type="date"
                   value={formData.joinDate}
                   onChange={(e) => handleInputChange('joinDate', e.target.value)}
+                  className="mt-1 border-blue-300 focus:border-blue-500"
                 />
-                <p className="text-xs text-blue-600 mt-1">
-                  Join date affects leave entitlement calculations
+                <p className="text-xs text-blue-600 mt-2 font-medium">
+                  ⚠️ Join date affects leave entitlement calculations and pro-rating
                 </p>
               </div>
             )}
