@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -8,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Receipt, Plus, Trash2, AlertCircle, Check, X } from 'lucide-react';
+import { Settings, Receipt, Plus, Trash2, Check, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getClaims, updateClaimStatus, Claim } from '@/services/claimsService';
+import { getEmployees } from '@/services/employeeService';
 
 interface ClaimType {
   id: string;
@@ -23,6 +25,7 @@ const Claims = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [stats, setStats] = useState({
     totalClaims: 0,
@@ -30,18 +33,80 @@ const Claims = () => {
     totalAmount: 0
   });
 
-  // Load claims and claim types
+  // Load claims, employees, and claim types
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        console.log('Loading claims data...');
+        console.log('Loading claims and employee data...');
         
-        // Load claims from Supabase
+        // Load claims and employees in parallel
+        const [claimsData, employeesData] = await Promise.all([
+          getClaims(),
+          getEmployees()
+        ]);
+        
+        console.log('Loaded claims:', claimsData);
+        console.log('Loaded employees:', employeesData);
+        
+        setClaims(claimsData);
+        setEmployees(employeesData);
+        
+        // Calculate real-time stats from actual data
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const thisMonthClaims = claimsData.filter(claim => {
+          const claimDate = new Date(claim.date);
+          return claimDate.getMonth() === currentMonth && claimDate.getFullYear() === currentYear;
+        });
+        
+        const newStats = {
+          totalClaims: thisMonthClaims.length,
+          pendingClaims: claimsData.filter(claim => claim.status === 'Pending').length,
+          totalAmount: thisMonthClaims.reduce((sum, claim) => sum + claim.amount, 0)
+        };
+        
+        console.log('Calculated stats:', newStats);
+        setStats(newStats);
+        
+        // Load claim types from localStorage
+        const stored = localStorage.getItem('claim_types');
+        if (stored) {
+          const parsedTypes = JSON.parse(stored);
+          console.log('Loaded claim types:', parsedTypes);
+          setClaimTypes(parsedTypes);
+        } else {
+          // Default claim types with medical restriction
+          const defaultTypes: ClaimType[] = [
+            { id: 'medical', name: 'Medical', limit: 1000, coPay: 0 },
+            { id: 'transport', name: 'Transport', limit: 500, coPay: 0 },
+            { id: 'meal', name: 'Meal', limit: 300, coPay: 20 },
+            { id: 'equipment', name: 'Equipment', limit: null, coPay: 10 }
+          ];
+          console.log('Setting default claim types:', defaultTypes);
+          setClaimTypes(defaultTypes);
+          localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast("Error loading claims data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Auto-refresh claims data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        console.log('Auto-refreshing claims data...');
         const claimsData = await getClaims();
         setClaims(claimsData);
         
-        // Calculate stats from actual data
+        // Recalculate stats
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         const thisMonthClaims = claimsData.filter(claim => {
@@ -54,42 +119,47 @@ const Claims = () => {
           pendingClaims: claimsData.filter(claim => claim.status === 'Pending').length,
           totalAmount: thisMonthClaims.reduce((sum, claim) => sum + claim.amount, 0)
         });
-        
-        // Load claim types from localStorage (keeping existing functionality)
-        const stored = localStorage.getItem('claim_types');
-        if (stored) {
-          const parsedTypes = JSON.parse(stored);
-          console.log('Loaded claim types:', parsedTypes);
-          setClaimTypes(parsedTypes);
-        } else {
-          // Default claim types
-          const defaultTypes: ClaimType[] = [
-            { id: 'medical', name: 'Medical', limit: 1000, coPay: 0 },
-            { id: 'transport', name: 'Transport', limit: 500, coPay: 0 },
-            { id: 'meal', name: 'Meal', limit: 300, coPay: 20 },
-            { id: 'equipment', name: 'Equipment', limit: null, coPay: 10 }
-          ];
-          console.log('Setting default claim types:', defaultTypes);
-          setClaimTypes(defaultTypes);
-          localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
-        }
       } catch (error) {
-        console.error('Error loading claims data:', error);
-        toast("Error loading claims data");
-      } finally {
-        setIsLoading(false);
+        console.error('Error refreshing claims:', error);
       }
-    };
+    }, 30000);
 
-    loadData();
+    return () => clearInterval(interval);
   }, []);
 
   const handleApproveClaim = async (claimId: number) => {
     try {
+      const claim = claims.find(c => c.id === claimId);
+      if (!claim) return;
+
+      // Check if medical claim and employee type
+      if (claim.type === 'Medical') {
+        const employee = employees.find(emp => emp.id === claim.employeeId);
+        if (employee && employee.type !== 'Full-Time') {
+          toast("Medical claims are only available for full-time employees");
+          return;
+        }
+      }
+
       await updateClaimStatus(claimId, 'Approved');
       // Refresh claims data
       const updatedClaims = await getClaims();
       setClaims(updatedClaims);
+      
+      // Update stats
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const thisMonthClaims = updatedClaims.filter(claim => {
+        const claimDate = new Date(claim.date);
+        return claimDate.getMonth() === currentMonth && claimDate.getFullYear() === currentYear;
+      });
+      
+      setStats({
+        totalClaims: thisMonthClaims.length,
+        pendingClaims: updatedClaims.filter(claim => claim.status === 'Pending').length,
+        totalAmount: thisMonthClaims.reduce((sum, claim) => sum + claim.amount, 0)
+      });
+      
       toast("Claim approved successfully");
     } catch (error) {
       console.error('Error approving claim:', error);
@@ -103,6 +173,21 @@ const Claims = () => {
       // Refresh claims data
       const updatedClaims = await getClaims();
       setClaims(updatedClaims);
+      
+      // Update stats
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const thisMonthClaims = updatedClaims.filter(claim => {
+        const claimDate = new Date(claim.date);
+        return claimDate.getMonth() === currentMonth && claimDate.getFullYear() === currentYear;
+      });
+      
+      setStats({
+        totalClaims: thisMonthClaims.length,
+        pendingClaims: updatedClaims.filter(claim => claim.status === 'Pending').length,
+        totalAmount: thisMonthClaims.reduce((sum, claim) => sum + claim.amount, 0)
+      });
+      
       toast("Claim rejected successfully");
     } catch (error) {
       console.error('Error rejecting claim:', error);
@@ -199,10 +284,6 @@ const Claims = () => {
     const updatedTypes = claimTypes.filter(type => type.id !== typeId);
     console.log('Removing claim type:', typeId, 'Updated types:', updatedTypes);
     saveClaimTypes(updatedTypes);
-  };
-
-  const formatLimit = (limit: number | null) => {
-    return limit === null ? 'Unlimited' : `S$${limit}/year`;
   };
 
   const formatCurrency = (amount: number) => {
@@ -336,7 +417,7 @@ const Claims = () => {
               </Dialog>
             </div>
 
-            {/* Claims Overview */}
+            {/* Claims Overview - Updated with real-time stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-2">
@@ -367,32 +448,6 @@ const Claims = () => {
               </Card>
             </div>
 
-            {/* Claim Types Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>Claim Types & Limits</span>
-                </CardTitle>
-                <CardDescription>Current claim types and their annual limits</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {claimTypes.map((type) => (
-                    <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <h4 className="font-medium">{type.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          Limit: {formatLimit(type.limit)} | Co-pay: {type.coPay}%
-                        </p>
-                      </div>
-                      <Badge variant="outline">{formatLimit(type.limit)}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Claims List */}
             <Card>
               <CardHeader>
@@ -400,7 +455,7 @@ const Claims = () => {
                   <Receipt className="w-5 h-5" />
                   <span>Claims List</span>
                 </CardTitle>
-                <CardDescription>All employee expense claims (limits are per calendar year)</CardDescription>
+                <CardDescription>All employee expense claims with real-time updates</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -418,7 +473,12 @@ const Claims = () => {
                     {claims.map((claim) => (
                       <TableRow key={claim.id}>
                         <TableCell className="font-medium">{claim.employee}</TableCell>
-                        <TableCell>{claim.type}</TableCell>
+                        <TableCell>
+                          {claim.type}
+                          {claim.type === 'Medical' && (
+                            <span className="ml-2 text-xs text-blue-600">(Full-time only)</span>
+                          )}
+                        </TableCell>
                         <TableCell>{formatCurrency(claim.amount)}</TableCell>
                         <TableCell>{claim.date}</TableCell>
                         <TableCell>

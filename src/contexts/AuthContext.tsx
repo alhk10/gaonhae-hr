@@ -21,27 +21,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check if user is already logged in
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
+    const initializeAuth = () => {
       try {
-        const userData = JSON.parse(storedUser);
-        console.log('AuthContext: Loading stored user:', userData);
-        setUser(userData);
+        const storedUser = localStorage.getItem('currentUser');
+        const storedSession = localStorage.getItem('userSession');
         
-        // Check if password change is required
-        const passwordChangeRequired = localStorage.getItem('requiresPasswordChange');
-        setRequiresPasswordChange(passwordChangeRequired === 'true');
+        if (storedUser && storedSession) {
+          const userData = JSON.parse(storedUser);
+          const sessionData = JSON.parse(storedSession);
+          
+          // Verify session is still valid (within 24 hours)
+          const sessionTime = new Date(sessionData.timestamp);
+          const currentTime = new Date();
+          const timeDiff = currentTime.getTime() - sessionTime.getTime();
+          const hoursDiff = timeDiff / (1000 * 3600);
+          
+          if (hoursDiff < 24) {
+            console.log('AuthContext: Loading stored user session:', userData);
+            setUser(userData);
+            
+            // Check if password change is required
+            const passwordChangeRequired = localStorage.getItem('requiresPasswordChange');
+            setRequiresPasswordChange(passwordChangeRequired === 'true');
+          } else {
+            // Session expired, clear storage
+            console.log('AuthContext: Session expired, clearing storage');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userSession');
+            localStorage.removeItem('requiresPasswordChange');
+          }
+        }
       } catch (error) {
         console.error('AuthContext: Error parsing stored user:', error);
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('requiresPasswordChange');
+        localStorage.clear();
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
+
+  const saveUserSession = (userData: User, password?: string) => {
+    try {
+      // Save user data
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+      
+      // Save session with timestamp
+      const sessionData = {
+        timestamp: new Date().toISOString(),
+        userId: userData.id,
+        email: userData.email
+      };
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+      
+      // Save encrypted password (in real app, this should be handled server-side)
+      if (password && password !== 'password') {
+        const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
+        userPasswords[userData.email] = btoa(password); // Basic encoding (not secure, for demo only)
+        localStorage.setItem('userPasswords', JSON.stringify(userPasswords));
+      }
+      
+      console.log('AuthContext: User session saved successfully');
+    } catch (error) {
+      console.error('AuthContext: Error saving user session:', error);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
+    
+    // Check stored passwords first
+    const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
+    const storedPassword = userPasswords[email];
+    
+    if (storedPassword && atob(storedPassword) === password) {
+      console.log('AuthContext: Using stored password for login');
+    } else if (password !== 'password') {
+      // If not default password and no stored password matches
+      console.log('AuthContext: Invalid password');
+      return false;
+    }
     
     // Define system admin users
     const systemUsers: { [key: string]: User } = {
@@ -60,14 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Check system users first
-    if (systemUsers[email] && password === 'password') {
+    if (systemUsers[email]) {
       console.log('AuthContext: System user login successful:', systemUsers[email]);
       const foundUser = systemUsers[email];
       
-      localStorage.setItem('currentUser', JSON.stringify(foundUser));
       setUser(foundUser);
+      saveUserSession(foundUser, password);
       
-      if (password === 'password') {
+      if (password === 'password' && !storedPassword) {
         localStorage.setItem('requiresPasswordChange', 'true');
         setRequiresPasswordChange(true);
       }
@@ -84,8 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Find employee with matching email
       const employee = employees.find(emp => emp.email === email);
       
-      if (employee && password === 'password') {
-        console.log('AuthContext: Employee login successful:', employee);
+      if (employee) {
+        console.log('AuthContext: Employee found:', employee);
         
         const userRecord: User = {
           id: employee.id,
@@ -96,10 +156,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           employeeId: employee.id
         };
         
-        localStorage.setItem('currentUser', JSON.stringify(userRecord));
         setUser(userRecord);
+        saveUserSession(userRecord, password);
         
-        if (password === 'password') {
+        if (password === 'password' && !storedPassword) {
           localStorage.setItem('requiresPasswordChange', 'true');
           setRequiresPasswordChange(true);
         }
@@ -121,13 +181,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePassword = async (newPassword: string): Promise<boolean> => {
     console.log('AuthContext: Updating password for user:', user?.email);
     
-    // In a real implementation, this would call an API
-    // For now, we'll just clear the password change requirement
-    localStorage.removeItem('requiresPasswordChange');
-    setRequiresPasswordChange(false);
+    if (!user?.email) return false;
     
-    console.log('AuthContext: Password updated successfully');
-    return true;
+    try {
+      // Save new password
+      const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
+      userPasswords[user.email] = btoa(newPassword);
+      localStorage.setItem('userPasswords', JSON.stringify(userPasswords));
+      
+      // Clear password change requirement
+      localStorage.removeItem('requiresPasswordChange');
+      setRequiresPasswordChange(false);
+      
+      console.log('AuthContext: Password updated successfully');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error updating password:', error);
+      return false;
+    }
   };
 
   const logout = () => {
@@ -135,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setRequiresPasswordChange(false);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('userSession');
     localStorage.removeItem('requiresPasswordChange');
   };
 

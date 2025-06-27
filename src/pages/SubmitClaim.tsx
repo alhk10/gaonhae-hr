@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Upload, History, FileText, DollarSign, Calendar, User } from 'lucide-react';
+import { Upload, History, FileText, DollarSign, Calendar, User, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeClaims, createClaim } from '@/services/claimsService';
@@ -132,6 +132,12 @@ const SubmitClaim = () => {
       return;
     }
 
+    // Check if medical claim and employee type
+    if (formData.type === 'Medical' && currentEmployee.type !== 'Full-Time') {
+      toast("Medical claims are only available for full-time employees");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       console.log('Submitting claim:', formData);
@@ -215,6 +221,13 @@ const SubmitClaim = () => {
     return { limitText, coPayText };
   };
 
+  const isClaimTypeAvailable = (typeName: string) => {
+    if (typeName === 'Medical' && currentEmployee?.type !== 'Full-Time') {
+      return false;
+    }
+    return true;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -286,6 +299,19 @@ const SubmitClaim = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-8 space-y-6">
+                    {/* Employee Type Warning */}
+                    {currentEmployee?.type !== 'Full-Time' && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-yellow-800">Employee Type: {currentEmployee?.type}</h4>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            Medical claims are only available for full-time employees.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Basic Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -299,8 +325,13 @@ const SubmitClaim = () => {
                           onChange={(e) => handleInputChange('type', e.target.value)}
                         >
                           {claimTypes.map((claimType) => (
-                            <option key={claimType.id} value={claimType.name}>
+                            <option 
+                              key={claimType.id} 
+                              value={claimType.name}
+                              disabled={!isClaimTypeAvailable(claimType.name)}
+                            >
                               {getClaimTypeIcon(claimType.name)} {claimType.name}
+                              {!isClaimTypeAvailable(claimType.name) ? ' (Not Available)' : ''}
                             </option>
                           ))}
                         </select>
@@ -308,6 +339,9 @@ const SubmitClaim = () => {
                           <div className="text-xs text-gray-500 mt-1">
                             <p>{getClaimTypeInfo(formData.type)?.limitText}</p>
                             <p>{getClaimTypeInfo(formData.type)?.coPayText}</p>
+                            {formData.type === 'Medical' && currentEmployee?.type !== 'Full-Time' && (
+                              <p className="text-red-600 font-medium">⚠️ Only available for full-time employees</p>
+                            )}
                           </div>
                         )}
                       </div>

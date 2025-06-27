@@ -89,53 +89,84 @@ export const weeklySlots: WeeklySlotConfig = {
   'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
 };
 
-// Sample booking data
-const slotBookings: SlotBooking[] = [
-  {
-    id: 'SLOT001',
-    employeeId: 'CAS001',
-    employeeName: 'Alice Wong',
-    branchId: 'headquarters',
-    branchName: 'Headquarters',
-    date: '2024-12-23',
-    status: 'approved',
-    bookedOn: '2024-12-20',
-    approvedBy: 'John Tan',
-    approvedOn: '2024-12-21'
-  },
-  {
-    id: 'SLOT002',
-    employeeId: 'CAS002',
-    employeeName: 'Bob Chen',
-    branchId: 'headquarters',
-    branchName: 'Headquarters',
-    date: '2024-12-23',
-    status: 'pending',
-    bookedOn: '2024-12-22'
-  },
-  {
-    id: 'SLOT003',
-    employeeId: 'CAS003',
-    employeeName: 'Carol Liu',
-    branchId: 'balmoral',
-    branchName: 'Balmoral',
-    date: '2024-12-24',
-    status: 'approved',
-    bookedOn: '2024-12-21',
-    approvedBy: 'Mary Ng',
-    approvedOn: '2024-12-22'
-  },
-  {
-    id: 'SLOT004',
-    employeeId: 'CAS001',
-    employeeName: 'Alice Wong',
-    branchId: 'jurong-west',
-    branchName: 'Jurong West',
-    date: '2024-12-25',
-    status: 'pending',
-    bookedOn: '2024-12-23'
+// Initialize slot bookings from localStorage with fallback
+const getStoredBookings = (): SlotBooking[] => {
+  try {
+    const stored = localStorage.getItem('slot_bookings');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      console.log('Loaded slot bookings from localStorage:', parsed);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (error) {
+    console.error('Error parsing stored slot bookings:', error);
   }
-];
+  
+  // Default sample data
+  const defaultBookings: SlotBooking[] = [
+    {
+      id: 'SLOT001',
+      employeeId: 'CAS001',
+      employeeName: 'Alice Wong',
+      branchId: 'headquarters',
+      branchName: 'Headquarters',
+      date: '2024-12-23',
+      status: 'approved',
+      bookedOn: '2024-12-20',
+      approvedBy: 'John Tan',
+      approvedOn: '2024-12-21'
+    },
+    {
+      id: 'SLOT002',
+      employeeId: 'CAS002',
+      employeeName: 'Bob Chen',
+      branchId: 'headquarters',
+      branchName: 'Headquarters',
+      date: '2024-12-23',
+      status: 'pending',
+      bookedOn: '2024-12-22'
+    },
+    {
+      id: 'SLOT003',
+      employeeId: 'CAS003',
+      employeeName: 'Carol Liu',
+      branchId: 'balmoral',
+      branchName: 'Balmoral',
+      date: '2024-12-24',
+      status: 'approved',
+      bookedOn: '2024-12-21',
+      approvedBy: 'Mary Ng',
+      approvedOn: '2024-12-22'
+    },
+    {
+      id: 'SLOT004',
+      employeeId: 'CAS001',
+      employeeName: 'Alice Wong',
+      branchId: 'jurong-west',
+      branchName: 'Jurong West',
+      date: '2024-12-25',
+      status: 'pending',
+      bookedOn: '2024-12-23'
+    }
+  ];
+  
+  // Save default data to localStorage
+  saveBookingsToStorage(defaultBookings);
+  return defaultBookings;
+};
+
+// Save bookings to localStorage
+const saveBookingsToStorage = (bookings: SlotBooking[]) => {
+  try {
+    localStorage.setItem('slot_bookings', JSON.stringify(bookings));
+    console.log('Saved slot bookings to localStorage:', bookings);
+  } catch (error) {
+    console.error('Error saving slot bookings to localStorage:', error);
+  }
+};
+
+// Initialize with stored bookings
+let slotBookings: SlotBooking[] = getStoredBookings();
 
 export const getAllSlotBookings = (): SlotBooking[] => {
   return [...slotBookings];
@@ -158,7 +189,11 @@ export const addSlotBooking = (booking: Omit<SlotBooking, 'id' | 'bookedOn'>): s
     bookedOn: new Date().toISOString().split('T')[0],
     ...booking
   };
+  
   slotBookings.push(newBooking);
+  saveBookingsToStorage(slotBookings);
+  console.log('Added new slot booking:', newBooking);
+  
   return newId;
 };
 
@@ -167,14 +202,20 @@ export const updateSlotBookingStatus = (
   status: 'approved' | 'rejected', 
   approvedBy?: string
 ): boolean => {
-  const booking = slotBookings.find(b => b.id === bookingId);
-  if (!booking) return false;
-  
-  booking.status = status;
-  if (status === 'approved') {
-    booking.approvedBy = approvedBy;
-    booking.approvedOn = new Date().toISOString().split('T')[0];
+  const bookingIndex = slotBookings.findIndex(b => b.id === bookingId);
+  if (bookingIndex === -1) {
+    console.error('Booking not found:', bookingId);
+    return false;
   }
+  
+  slotBookings[bookingIndex].status = status;
+  if (status === 'approved') {
+    slotBookings[bookingIndex].approvedBy = approvedBy;
+    slotBookings[bookingIndex].approvedOn = new Date().toISOString().split('T')[0];
+  }
+  
+  saveBookingsToStorage(slotBookings);
+  console.log('Updated slot booking status:', slotBookings[bookingIndex]);
   
   return true;
 };
@@ -220,4 +261,10 @@ export const getTotalSlotsStats = () => {
   }
   
   return { totalAvailableSlots, totalBookings };
+};
+
+// Refresh bookings from storage (for external updates)
+export const refreshSlotBookings = () => {
+  slotBookings = getStoredBookings();
+  return slotBookings;
 };
