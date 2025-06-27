@@ -16,13 +16,13 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
   isEditing
 }) => {
   const permissions = [
-    { key: 'employees', label: 'Employee Access', description: 'Access to view and manage employee information' },
-    { key: 'payroll', label: 'Payroll Access', description: 'Access to view and process payroll information' },
-    { key: 'leaveManagement', label: 'Leave Management Access', description: 'Access to review and approve leave requests' },
-    { key: 'claims', label: 'Claims Access', description: 'Access to review and approve expense claims' },
-    { key: 'attendance', label: 'Attendance Access', description: 'Access to view and monitor employee attendance' },
-    { key: 'slotBooking', label: 'Slot Booking Access', description: 'Access to manage booking slots and schedules' },
-    { key: 'reports', label: 'Reports Access', description: 'Access to view system reports and analytics' }
+    { key: 'employees', label: 'Employee Management', description: 'View and manage employee records' },
+    { key: 'payroll', label: 'Payroll Management', description: 'Process payroll and manage salaries' },
+    { key: 'leaveManagement', label: 'Leave Management', description: 'Approve and manage leave requests' },
+    { key: 'claims', label: 'Claims Management', description: 'Review and approve expense claims' },
+    { key: 'attendance', label: 'Attendance Management', description: 'Monitor and manage employee attendance' },
+    { key: 'slotBooking', label: 'Slot Booking Admin', description: 'Manage booking slots and schedules' },
+    { key: 'reports', label: 'Reports', description: 'Access to system reports and analytics' }
   ];
 
   const handlePermissionChange = (permissionKey: string, checked: boolean) => {
@@ -36,7 +36,7 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Employee Permissions</CardTitle>
+        <CardTitle>Admin Access Permissions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {permissions.map((permission) => (
@@ -63,7 +63,7 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
           </div>
         ))}
         {!adminAccess || Object.keys(adminAccess).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No employee permissions assigned.</p>
+          <p className="text-sm text-muted-foreground">No admin access permissions assigned.</p>
         ) : null}
       </CardContent>
     </Card>
