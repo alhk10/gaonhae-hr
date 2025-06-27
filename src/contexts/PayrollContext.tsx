@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { getEmployees } from '@/services/employeeService';
@@ -143,7 +142,10 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               grossPay: grossSalary,
               cpfEmployee: cpfCalc.employeeCPF,
               cpfEmployer: cpfCalc.employerCPF,
-              netPay: netSalary
+              netPay: netSalary,
+              // Legacy properties
+              cpf: cpfCalc.employerCPF,
+              total: netSalary
             };
           } catch (error) {
             console.error('Error processing full-time employee:', emp.id, error);
@@ -160,7 +162,9 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               grossPay: emp.baseSalary || 0,
               cpfEmployee: 0,
               cpfEmployer: 0,
-              netPay: emp.baseSalary || 0
+              netPay: emp.baseSalary || 0,
+              cpf: 0,
+              total: emp.baseSalary || 0
             };
           }
         })
@@ -264,12 +268,16 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       ...prev,
       fullTimeEmployees: prev.fullTimeEmployees.map(emp => {
         if (emp.id === employeeId) {
-          const grossSalary = newSalary + emp.allowances;
-          const netSalary = grossSalary - emp.cpf - emp.deductions;
+          const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+          const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+          const grossSalary = newSalary + totalAllowances;
+          const netSalary = grossSalary - emp.cpfEmployee - totalDeductions;
           
           return {
             ...emp,
             baseSalary: newSalary,
+            grossPay: grossSalary,
+            netPay: netSalary,
             total: netSalary
           };
         }
@@ -286,13 +294,22 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       ...prev,
       fullTimeEmployees: prev.fullTimeEmployees.map(emp => {
         if (emp.id === employeeId) {
+          const newAllowances: EmployeeAllowance[] = allowances.map((a, index) => ({
+            id: `${employeeId}-allowance-${index}`,
+            name: a.name,
+            amount: a.amount,
+            type: 'Fixed' as const
+          }));
           const totalAllowances = allowances.reduce((sum, a) => sum + a.amount, 0);
-          const grossSalary = emp.baseSalary + totalAllowances;
-          const netSalary = grossSalary - emp.cpf - emp.deductions;
+          const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+          const grossSalary = (emp.baseSalary || 0) + totalAllowances;
+          const netSalary = grossSalary - emp.cpfEmployee - totalDeductions;
           
           return {
             ...emp,
-            allowances: totalAllowances,
+            allowances: newAllowances,
+            grossPay: grossSalary,
+            netPay: netSalary,
             total: netSalary
           };
         }
@@ -309,13 +326,22 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       ...prev,
       fullTimeEmployees: prev.fullTimeEmployees.map(emp => {
         if (emp.id === employeeId) {
+          const newDeductions: EmployeeDeduction[] = deductions.map((d, index) => ({
+            id: `${employeeId}-deduction-${index}`,
+            name: d.name,
+            amount: d.amount,
+            type: 'Fixed' as const
+          }));
+          const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
           const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-          const grossSalary = emp.baseSalary + emp.allowances;
-          const netSalary = grossSalary - emp.cpf - totalDeductions;
+          const grossSalary = (emp.baseSalary || 0) + totalAllowances;
+          const netSalary = grossSalary - emp.cpfEmployee - totalDeductions;
           
           return {
             ...emp,
-            deductions: totalDeductions,
+            deductions: newDeductions,
+            grossPay: grossSalary,
+            netPay: netSalary,
             total: netSalary
           };
         }

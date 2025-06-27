@@ -237,6 +237,38 @@ const EmployeeDetails = () => {
     };
   };
 
+  const handleAddAllowance = (allowance: AllowanceDeduction) => {
+    if (employee) {
+      const updatedEmployee = {
+        ...employee,
+        allowances: [...employee.allowances, {
+          id: allowance.id,
+          name: allowance.name,
+          amount: allowance.amount,
+          type: allowance.type
+        }]
+      };
+      setEmployee(updatedEmployee);
+      toast(`Added ${allowance.name} allowance`);
+    }
+  };
+
+  const handleAddDeduction = (deduction: AllowanceDeduction) => {
+    if (employee) {
+      const updatedEmployee = {
+        ...employee,
+        deductions: [...employee.deductions, {
+          id: deduction.id,
+          name: deduction.name,
+          amount: deduction.amount,
+          type: deduction.type
+        }]
+      };
+      setEmployee(updatedEmployee);
+      toast(`Added ${deduction.name} deduction`);
+    }
+  };
+
   if (isLoadingEmployee) {
     return (
       <div className="min-h-screen bg-gray-50">

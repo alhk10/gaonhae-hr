@@ -6,6 +6,7 @@ export interface AdminAccessPermissions {
   claims: boolean;
   attendance: boolean;
   slotBooking: boolean;
+  reports: boolean;
 }
 
 export interface ExtendedAdminAccessPermissions extends AdminAccessPermissions {
@@ -73,6 +74,9 @@ export interface PayrollEmployee {
   cpfEmployee: number;
   cpfEmployer: number;
   netPay: number;
+  // Legacy properties for backward compatibility
+  cpf: number;
+  total: number;
 }
 
 export interface CasualEmployeePayroll extends PayrollEmployee {

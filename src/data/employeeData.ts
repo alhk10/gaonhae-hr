@@ -1,131 +1,30 @@
+import type { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
-import { EmployeeProfile } from '@/types/employee';
-
-// Keep the local data as fallback, but prioritize Supabase data
-export const employeeDatabase: { [key: string]: EmployeeProfile } = {
-  'EMP001': {
+const mockEmployees: EmployeeProfile[] = [
+  {
     id: 'EMP001',
-    name: 'John Tan',
+    name: 'John Doe',
     nric: 'S1234567A',
     dateOfBirth: '1990-05-15',
-    residencyStatus: 'Singapore Citizen',
+    residencyStatus: 'Citizen',
     type: 'Full-Time',
-    baseSalary: 8500,
+    baseSalary: 4500,
     paymentType: 'Monthly',
-    allowances: [
-      { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
-    ],
-    deductions: [
-      { id: '1', name: 'Insurance', amount: 100, type: 'Fixed' }
-    ],
-    bankAccount: '1234-567890',
     bankName: 'DBS Bank',
-    branch: 'Engineering',
+    bankAccount: '123-456789-0',
+    branch: 'Orchard Branch',
     position: 'Senior Developer',
     phone: '+65 9123 4567',
-    address: '123 Orchard Road, #12-34, Singapore 238858',
-    email: 'john.tan@company.sg',
-    certificates: [],
-    adminAccess: {
-      employees: true,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: true,
-      slotBooking: false,
-      reports: false
-    }
-  },
-  'EMP002': {
-    id: 'EMP002',
-    name: 'Mary Ng',
-    nric: 'S2345678B',
-    dateOfBirth: '1988-08-22',
-    residencyStatus: 'Permanent Resident Year 2',
-    type: 'Full-Time',
-    baseSalary: 7200,
-    paymentType: 'Monthly',
+    address: '123 Marina Bay, Singapore 018956',
+    email: 'john.doe@company.com',
+    joinDate: '2022-01-15',
     allowances: [
       { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
+      { id: '2', name: 'Phone Allowance', amount: 100, type: 'Fixed' }
     ],
     deductions: [
-      { id: '1', name: 'Insurance', amount: 50, type: 'Fixed' }
+      { id: '1', name: 'Medical Insurance', amount: 50, type: 'Fixed' }
     ],
-    bankAccount: '2345-678901',
-    bankName: 'OCBC Bank',
-    branch: 'Marketing',
-    position: 'Marketing Manager',
-    phone: '+65 9234 5678',
-    address: '456 Marina Bay, #08-21, Singapore 018956',
-    email: 'mary.ng@company.sg',
-    certificates: [],
-    adminAccess: {
-      employees: false,
-      payroll: false,
-      leaveManagement: true,
-      claims: true,
-      attendance: false,
-      slotBooking: false,
-      reports: false
-    }
-  },
-  'EMP003': {
-    id: 'EMP003',
-    name: 'David Lim',
-    nric: 'S3456789C',
-    dateOfBirth: '1992-03-10',
-    residencyStatus: 'Singapore Citizen',
-    type: 'Full-Time',
-    baseSalary: 3800,
-    paymentType: 'Monthly',
-    allowances: [
-      { id: '1', name: 'Transport Allowance', amount: 200, type: 'Fixed' },
-      { id: '2', name: 'Meal Allowance', amount: 150, type: 'Fixed' }
-    ],
-    deductions: [
-      { id: '1', name: 'Insurance', amount: 100, type: 'Fixed' }
-    ],
-    bankAccount: '3456-789012',
-    bankName: 'UOB Bank',
-    branch: 'Operations',
-    position: 'Operations Assistant',
-    phone: '+65 9345 6789',
-    address: '789 Jurong East, #15-67, Singapore 609729',
-    email: 'david.lim@company.sg',
-    certificates: [],
-    adminAccess: {
-      employees: false,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: false,
-      slotBooking: false,
-      reports: false
-    }
-  },
-  // Add Kim Hasung to local data to match the logged-in user
-  'EMP1750863118850': {
-    id: 'EMP1750863118850',
-    name: 'Kim Hasung',
-    nric: 'S7890123G',
-    dateOfBirth: '1994-12-25',
-    residencyStatus: 'Singapore Citizen',
-    type: 'Full-Time',
-    baseSalary: 5500,
-    paymentType: 'Monthly',
-    allowances: [
-      { id: '1', name: 'Preschool Allowance', amount: 200, type: 'Fixed' }
-    ],
-    deductions: [],
-    bankAccount: '7890-123456',
-    bankName: 'DBS Bank',
-    branch: 'Teaching',
-    position: 'Preschool Teacher',
-    phone: '+65 9789 0123',
-    address: '456 Tampines Street, #10-20, Singapore 529899',
-    email: 'david@gaonhaetaekwondo.com',
     certificates: [],
     adminAccess: {
       employees: true,
@@ -133,61 +32,93 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
       leaveManagement: true,
       claims: true,
       attendance: true,
-      slotBooking: true,
-      reports: false
+      slotBooking: true
     }
   },
-  'CAS001': {
+  {
+    id: 'EMP002',
+    name: 'Jane Smith',
+    nric: 'S2345678B',
+    dateOfBirth: '1985-08-22',
+    residencyStatus: 'PR',
+    type: 'Full-Time',
+    baseSalary: 5500,
+    paymentType: 'Monthly',
+    bankName: 'OCBC Bank',
+    bankAccount: '234-567890-1',
+    branch: 'Raffles Place Branch',
+    position: 'Project Manager',
+    phone: '+65 9234 5678',
+    address: '456 Sentosa Cove, Singapore 098234',
+    email: 'jane.smith@company.com',
+    joinDate: '2021-03-10',
+    allowances: [
+      { id: '3', name: 'Car Allowance', amount: 800, type: 'Fixed' },
+      { id: '4', name: 'Meal Allowance', amount: 300, type: 'Fixed' }
+    ],
+    deductions: [],
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: true,
+      claims: true,
+      attendance: false,
+      slotBooking: false
+    }
+  },
+  {
+    id: 'EMP003',
+    name: 'Michael Chen',
+    nric: 'S3456789C',
+    dateOfBirth: '1992-12-03',
+    residencyStatus: 'Citizen',
+    type: 'Full-Time',
+    baseSalary: 3800,
+    paymentType: 'Monthly',
+    bankName: 'UOB Bank',
+    bankAccount: '345-678901-2',
+    branch: 'Tanjong Pagar Branch',
+    position: 'Junior Developer',
+    phone: '+65 9345 6789',
+    address: '789 Jurong East, Singapore 609734',
+    email: 'michael.chen@company.com',
+    joinDate: '2023-06-01',
+    allowances: [
+      { id: '5', name: 'Transport Allowance', amount: 150, type: 'Fixed' }
+    ],
+    deductions: [
+      { id: '2', name: 'Medical Insurance', amount: 50, type: 'Fixed' }
+    ],
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: true,
+      attendance: false,
+      slotBooking: false
+    }
+  },
+  {
     id: 'CAS001',
-    name: 'Alice Wong',
+    name: 'Sarah Wilson',
     nric: 'S4567890D',
-    dateOfBirth: '1995-03-10',
-    residencyStatus: 'Singapore Citizen',
+    dateOfBirth: '1995-04-18',
+    residencyStatus: 'Citizen',
     type: 'Casual',
     hourlyRate: 25,
     paymentType: 'Hourly',
-    allowances: [
-      { id: '1', name: 'Performance Bonus', amount: 100, type: 'Fixed' }
-    ],
-    deductions: [],
-    bankAccount: '4567-890123',
-    bankName: 'UOB Bank',
-    branch: 'Teaching',
-    position: 'Casual Teacher',
-    phone: '+65 9456 7890',
-    address: '321 Tampines, #22-11, Singapore 529543',
-    email: 'alice.wong@company.sg',
-    certificates: [],
-    adminAccess: {
-      employees: false,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: false,
-      slotBooking: false,
-      reports: false
-    }
-  },
-  'CAS002': {
-    id: 'CAS002',
-    name: 'Bob Chen',
-    nric: 'S5678901E',
-    dateOfBirth: '1992-11-25',
-    residencyStatus: 'Permanent Resident Year 1',
-    type: 'Casual',
-    dailyRate: 180,
-    paymentType: 'Daily',
-    allowances: [
-      { id: '1', name: 'Performance Bonus', amount: 80, type: 'Fixed' }
-    ],
-    deductions: [],
-    bankAccount: '5678-901234',
     bankName: 'DBS Bank',
-    branch: 'Teaching',
-    position: 'Casual Teacher',
-    phone: '+65 9567 8901',
-    address: '654 Woodlands, #05-43, Singapore 730654',
-    email: 'bob.chen@company.sg',
+    bankAccount: '456-789012-3',
+    branch: 'Tampines Branch',
+    position: 'Part-time Designer',
+    phone: '+65 9456 7890',
+    address: '321 Tampines Street 32, Singapore 529323',
+    email: 'sarah.wilson@company.com',
+    joinDate: '2023-09-15',
+    allowances: [],
+    deductions: [],
     certificates: [],
     adminAccess: {
       employees: false,
@@ -195,30 +126,28 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false,
-      reports: false
+      slotBooking: false
     }
   },
-  'CAS003': {
-    id: 'CAS003',
-    name: 'Sarah Lee',
-    nric: 'S6789012F',
-    dateOfBirth: '1993-07-18',
-    residencyStatus: 'Singapore Citizen',
+  {
+    id: 'CAS002',
+    name: 'David Lee',
+    nric: 'S5678901E',
+    dateOfBirth: '1988-11-25',
+    residencyStatus: 'PR',
     type: 'Casual',
-    hourlyRate: 28,
+    hourlyRate: 30,
     paymentType: 'Hourly',
-    allowances: [
-      { id: '1', name: 'Performance Bonus', amount: 60, type: 'Fixed' }
-    ],
-    deductions: [],
-    bankAccount: '6789-012345',
     bankName: 'OCBC Bank',
-    branch: 'Teaching',
-    position: 'Casual Teacher',
-    phone: '+65 9678 9012',
-    address: '987 Yishun, #18-29, Singapore 760987',
-    email: 'sarah.lee@company.sg',
+    bankAccount: '567-890123-4',
+    branch: 'Woodlands Branch',
+    position: 'Freelance Consultant',
+    phone: '+65 9567 8901',
+    address: '654 Woodlands Drive 62, Singapore 730654',
+    email: 'david.lee@company.com',
+    joinDate: '2023-11-01',
+    allowances: [],
+    deductions: [],
     certificates: [],
     adminAccess: {
       employees: false,
@@ -226,40 +155,90 @@ export const employeeDatabase: { [key: string]: EmployeeProfile } = {
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false,
-      reports: false
+      slotBooking: false
+    }
+  },
+  {
+    id: 'CAS003',
+    name: 'Emily Taylor',
+    nric: 'S6789012F',
+    dateOfBirth: '1993-07-09',
+    residencyStatus: 'Citizen',
+    type: 'Casual',
+    hourlyRate: 22,
+    paymentType: 'Hourly',
+    bankName: 'UOB Bank',
+    bankAccount: '678-901234-5',
+    branch: 'Clementi Branch',
+    position: 'Part-time Writer',
+    phone: '+65 9678 9012',
+    address: '987 Clementi West Street 1, Singapore 120987',
+    email: 'emily.taylor@company.com',
+    joinDate: '2024-01-15',
+    allowances: [],
+    deductions: [],
+    certificates: [],
+    adminAccess: {
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false
+    }
+  },
+  {
+    id: 'EMP004',
+    name: 'Kim Ha-sung',
+    nric: 'S7890123G',
+    dateOfBirth: '1987-02-14',
+    residencyStatus: 'Citizen',
+    type: 'Full-Time',
+    baseSalary: 6200,
+    paymentType: 'Monthly',
+    bankName: 'DBS Bank',
+    bankAccount: '789-012345-6',
+    branch: 'Marina Bay Branch',
+    position: 'Team Lead',
+    phone: '+65 9789 0123',
+    address: '159 Marina Boulevard, Singapore 018971',
+    email: 'kim.hasung@company.com',
+    joinDate: '2020-08-01',
+    allowances: [
+      { id: '6', name: 'Leadership Allowance', amount: 500, type: 'Fixed' },
+      { id: '7', name: 'Transport Allowance', amount: 250, type: 'Fixed' }
+    ],
+    deductions: [
+      { id: '3', name: 'Medical Insurance', amount: 75, type: 'Fixed' }
+    ],
+    certificates: [],
+    adminAccess: {
+      employees: true,
+      payroll: true,
+      leaveManagement: true,
+      claims: true,
+      attendance: true,
+      slotBooking: true
     }
   }
-};
+];
 
-export const getAllEmployees = (): EmployeeProfile[] => {
-  return Object.values(employeeDatabase);
+export const getEmployees = (): EmployeeProfile[] => {
+  return mockEmployees;
 };
 
 export const getEmployeeById = (id: string): EmployeeProfile | undefined => {
-  return employeeDatabase[id];
+  return mockEmployees.find(employee => employee.id === id);
 };
 
-export const getFullTimeEmployees = (): EmployeeProfile[] => {
-  return getAllEmployees().filter(emp => emp.type === 'Full-Time');
-};
-
-export const getCasualEmployees = (): EmployeeProfile[] => {
-  return getAllEmployees().filter(emp => emp.type === 'Casual');
-};
-
-// System allowances and deductions for consistency
 export const systemAllowances = [
-  { id: 1, name: 'Transport Allowance', type: 'Monthly', amount: 200 },
-  { id: 2, name: 'Meal Allowance', type: 'Monthly', amount: 150 },
-  { id: 3, name: 'Performance Bonus', type: 'One-time', amount: 100 },
-  { id: 4, name: 'Overtime Allowance', type: 'Variable', amount: 50 },
-  { id: 5, name: 'Phone Allowance', type: 'Monthly', amount: 80 }
+  { id: '101', name: 'Transport Allowance', amount: 100 },
+  { id: '102', name: 'Meal Allowance', amount: 50 },
+  { id: '103', name: 'Overtime Allowance', amount: 200 },
 ];
 
 export const systemDeductions = [
-  { id: 1, name: 'Insurance Premium', type: 'Monthly', amount: 100 },
-  { id: 2, name: 'Union Fees', type: 'Monthly', amount: 25 },
-  { id: 3, name: 'Parking Fee', type: 'Monthly', amount: 60 },
-  { id: 4, name: 'Medical Insurance', type: 'Monthly', amount: 75 }
+  { id: '201', name: 'CPF Contribution', amount: 20 },
+  { id: '202', name: 'Income Tax', amount: 150 },
+  { id: '203', name: 'Medical Insurance', amount: 80 },
 ];
