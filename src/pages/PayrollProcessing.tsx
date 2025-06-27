@@ -3,20 +3,20 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit } from 'lucide-react';
+import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2, Edit, Users, Calculator } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
-import { getEmployeeById } from '@/services/employeeService';
+import { getEmployees, getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims, type Claim } from '@/services/claimsService';
 import AddAllowanceDialog from '@/components/employee/AddAllowanceDialog';
 import AddDeductionDialog from '@/components/employee/AddDeductionDialog';
 import { AllowanceDeduction } from '@/types/employee';
+import { supabase } from '@/integrations/supabase/client';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -31,40 +31,73 @@ const PayrollProcessing = () => {
   } = usePayroll();
   
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
-  const [editingAllowance, setEditingAllowance] = useState<{employeeId: string, allowance: any} | null>(null);
-  const [editingDeduction, setEditingDeduction] = useState<{employeeId: string, deduction: any} | null>(null);
   const [employeeClaims, setEmployeeClaims] = useState<{[key: string]: Claim[]}>({});
   const [showAddAllowanceDialog, setShowAddAllowanceDialog] = useState<{show: boolean, employeeId: string}>({show: false, employeeId: ''});
   const [showAddDeductionDialog, setShowAddDeductionDialog] = useState<{show: boolean, employeeId: string}>({show: false, employeeId: ''});
+  const [allEmployees, setAllEmployees] = useState<any[]>([]);
+  const [employeeAllowances, setEmployeeAllowances] = useState<{[key: string]: any[]}>({});
+  const [employeeDeductions, setEmployeeDeductions] = useState<{[key: string]: any[]}>({});
+  const [loading, setLoading] = useState(true);
 
-  // Load employee claims data
+  // Load all employee data with allowances and deductions
   useEffect(() => {
-    const loadEmployeeClaims = async () => {
-      const claimsData: {[key: string]: Claim[]} = {};
-      
-      for (const emp of [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]) {
-        try {
-          const claims = await getEmployeeClaims(emp.id);
-          claimsData[emp.id] = claims;
-        } catch (error) {
-          console.error(`Error loading claims for employee ${emp.id}:`, error);
-          claimsData[emp.id] = [];
+    const loadAllEmployeeData = async () => {
+      try {
+        setLoading(true);
+        console.log('Loading all employee data...');
+        
+        // Get all employees
+        const employees = await getEmployees();
+        setAllEmployees(employees);
+        console.log('Loaded employees:', employees);
+
+        // Load allowances and deductions for each employee
+        const allowancesData: {[key: string]: any[]} = {};
+        const deductionsData: {[key: string]: any[]} = {};
+        const claimsData: {[key: string]: Claim[]} = {};
+
+        for (const emp of employees) {
+          // Load allowances
+          const { data: empAllowances } = await supabase
+            .from('allowances')
+            .select('*')
+            .eq('employee_id', emp.id);
+          allowancesData[emp.id] = empAllowances || [];
+
+          // Load deductions
+          const { data: empDeductions } = await supabase
+            .from('deductions')
+            .select('*')
+            .eq('employee_id', emp.id);
+          deductionsData[emp.id] = empDeductions || [];
+
+          // Load claims
+          try {
+            const claims = await getEmployeeClaims(emp.id);
+            claimsData[emp.id] = claims;
+          } catch (error) {
+            console.error(`Error loading claims for employee ${emp.id}:`, error);
+            claimsData[emp.id] = [];
+          }
         }
+
+        setEmployeeAllowances(allowancesData);
+        setEmployeeDeductions(deductionsData);
+        setEmployeeClaims(claimsData);
+        
+        console.log('Loaded allowances:', allowancesData);
+        console.log('Loaded deductions:', deductionsData);
+        console.log('Loaded claims:', claimsData);
+      } catch (error) {
+        console.error('Error loading employee data:', error);
+        toast('Error loading employee data');
+      } finally {
+        setLoading(false);
       }
-      
-      setEmployeeClaims(claimsData);
-      console.log('Loaded employee claims:', claimsData);
     };
 
-    if (payrollState.fullTimeEmployees.length > 0 || payrollState.casualEmployees.length > 0) {
-      loadEmployeeClaims();
-    }
-  }, [payrollState.fullTimeEmployees, payrollState.casualEmployees]);
-
-  // Log current state for debugging
-  useEffect(() => {
-    console.log('PayrollProcessing - Current state:', payrollState);
-  }, [payrollState]);
+    loadAllEmployeeData();
+  }, []);
 
   const handleSalaryChange = (employeeId: string, newSalary: number) => {
     console.log(`Updating salary for ${employeeId}: ${newSalary}`);
@@ -78,9 +111,9 @@ const PayrollProcessing = () => {
 
   const handleRateChange = (employeeId: string, newRate: number) => {
     console.log(`Updating rate for ${employeeId}: ${newRate}`);
-    const employee = payrollState.casualEmployees.find(emp => emp.id === employeeId);
+    const employee = allEmployees.find(emp => emp.id === employeeId);
     if (employee) {
-      updateCasualEmployeeHours(employeeId, employee.hoursWorked, newRate);
+      updateCasualEmployeeHours(employeeId, employee.hoursWorked || 0, newRate);
     }
   };
 
@@ -131,7 +164,7 @@ const PayrollProcessing = () => {
     );
     
     updateEmployeeAllowances(employeeId, newAllowances);
-    setEditingAllowance(null);
+    setShowAddAllowanceDialog({show: false, employeeId: ''});
     toast(`Updated ${allowanceName} allowance`);
   };
 
@@ -156,7 +189,7 @@ const PayrollProcessing = () => {
     );
     
     updateEmployeeDeductions(employeeId, newDeductions);
-    setEditingDeduction(null);
+    setShowAddDeductionDialog({show: false, employeeId: ''});
     toast(`Updated ${deductionName} deduction`);
   };
 
@@ -200,329 +233,374 @@ const PayrollProcessing = () => {
     }
   };
 
-  const renderProcessingStep = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <DollarSign className="w-5 h-5" />
-            <span>Full-Time Employees ({payrollState.fullTimeEmployees.length})</span>
-          </CardTitle>
-          <CardDescription>Review full-time employee salaries, allowances, deductions, and claims</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {payrollState.fullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
-              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
-              const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
-              
-              return (
-                <div key={employee.id} className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Basic Salary</h4>
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          type="number"
-                          value={employee.baseSalary}
-                          onChange={(e) => handleSalaryChange(employee.id, parseFloat(e.target.value) || 0)}
-                          className="w-full"
-                        />
-                        <Edit className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Allowances</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowAddAllowanceDialog({show: true, employeeId: employee.id})}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {employee.allowances.map((allowance, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <span 
-                              className="cursor-pointer hover:text-blue-600"
-                              onClick={() => setEditingAllowance({employeeId: employee.id, allowance})}
-                            >
-                              {allowance.name}: S${allowance.amount}
-                            </span>
-                            <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, allowance.name)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Deductions</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowAddDeductionDialog({show: true, employeeId: employee.id})}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {employee.deductions.map((deduction, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <span 
-                              className="cursor-pointer hover:text-blue-600"
-                              onClick={() => setEditingDeduction({employeeId: employee.id, deduction})}
-                            >
-                              {deduction.name}: S${deduction.amount}
-                            </span>
-                            <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, deduction.name)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Claims</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-medium text-green-600">
-                          Approved: S${approvedClaims.toFixed(2)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {(employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length} claims
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          (Not subject to CPF)
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Summary</h4>
-                      <div className="space-y-1 text-sm">
-                        <div>Allowances: S${totalAllowances.toFixed(2)}</div>
-                        <div>Deductions: S${totalDeductions.toFixed(2)}</div>
-                        <div>Claims: S${approvedClaims.toFixed(2)}</div>
-                        <div>CPF: S${employee.cpfEmployer.toFixed(2)}</div>
-                        <div className="font-medium">Net: S${(employee.netPay + approvedClaims).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <DollarSign className="w-5 h-5" />
-            <span>Casual Employees ({payrollState.casualEmployees.length})</span>
-          </CardTitle>
-          <CardDescription>Review casual employee payment rates, work periods, and claims</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {payrollState.casualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
-              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
-              const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
-              
-              return (
-                <div key={employee.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-lg">{employee.name}</h3>
-                    <Badge variant="outline">{employee.paymentType} Payment</Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Payment Rate</h4>
-                      {employee.paymentType === 'Hourly' && (
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            type="number"
-                            value={employee.hourlyRate}
-                            onChange={(e) => handleRateChange(employee.id, parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                          />
-                          <span className="text-sm text-gray-500">/hr</span>
-                        </div>
-                      )}
-                      {employee.paymentType === 'Daily' && (
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              value={employee.dailyWeekdayRate || employee.dailyRate}
-                              onChange={(e) => {
-                                // Handle weekday rate change
-                              }}
-                              className="w-full"
-                              placeholder="Weekday"
-                            />
-                            <span className="text-xs text-gray-500">Weekday</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              value={employee.dailyWeekendRate || employee.dailyRate}
-                              onChange={(e) => {
-                                // Handle weekend rate change
-                              }}
-                              className="w-full"
-                              placeholder="Weekend"
-                            />
-                            <span className="text-xs text-gray-500">Weekend</span>
-                          </div>
-                        </div>
-                      )}
-                      {employee.paymentType === 'Monthly' && (
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            type="number"
-                            value={employee.baseSalary || 0}
-                            onChange={(e) => handleSalaryChange(employee.id, parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                          />
-                          <span className="text-sm text-gray-500">/month</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium mb-2">Work Period</h4>
-                      <div className="space-y-1 text-sm">
-                        {employee.paymentType === 'Hourly' && (
-                          <div>
-                            <Input
-                              type="number"
-                              value={employee.hoursWorked}
-                              onChange={(e) => handleHoursChange(employee.id, parseFloat(e.target.value) || 0)}
-                              className="w-full"
-                            />
-                            <span className="text-xs text-gray-500">Hours worked</span>
-                          </div>
-                        )}
-                        {employee.paymentType === 'Daily' && (
-                          <div>
-                            <div>{employee.daysWorked} days</div>
-                            <div className="text-xs text-gray-500">From attendance</div>
-                          </div>
-                        )}
-                        {employee.paymentType === 'Monthly' && (
-                          <div>
-                            <div>Monthly</div>
-                            <div className="text-xs text-gray-500">Fixed monthly salary</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Allowances</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowAddAllowanceDialog({show: true, employeeId: employee.id})}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {employee.allowances.map((allowance, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <span>{allowance.name}: S${allowance.amount}</span>
-                            <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, allowance.name)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Deductions</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowAddDeductionDialog({show: true, employeeId: employee.id})}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {employee.deductions.map((deduction, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <span>{deduction.name}: S${deduction.amount}</span>
-                            <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, deduction.name)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Claims</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-medium text-green-600">
-                          Approved: S${approvedClaims.toFixed(2)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {(employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length} claims
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          (Not subject to CPF)
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Summary</h4>
-                      <div className="space-y-1 text-sm">
-                        <div>Gross: S${employee.grossPay.toFixed(2)}</div>
-                        <div>Allowances: S${totalAllowances.toFixed(2)}</div>
-                        <div>Deductions: S${totalDeductions.toFixed(2)}</div>
-                        <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
-                        <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
-                        <div>Claims: S${approvedClaims.toFixed(2)}</div>
-                        <div className="font-medium">Total Pay: S${(employee.totalPay + approvedClaims).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-      
-      <div className="flex justify-end space-x-2">
-        <Button variant="outline" onClick={handleSaveDraft}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Draft
-        </Button>
-        <Button onClick={handleApprovePayroll}>
-          <Check className="w-4 h-4 mr-2" />
-          Approve Payroll
-        </Button>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-lg text-gray-600">Loading payroll data...</p>
+                <p className="text-sm text-gray-500">Please wait while we fetch employee information</p>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  const renderProcessingStep = () => {
+    const fullTimeEmployees = allEmployees.filter(emp => emp.type === 'Full-Time');
+    const casualEmployees = allEmployees.filter(emp => emp.type === 'Casual');
+    
+    return (
+      <div className="space-y-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="w-8 h-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-blue-600">Total Employees</p>
+                  <p className="text-2xl font-bold text-blue-900">{allEmployees.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <DollarSign className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-green-600">Total Payroll</p>
+                  <p className="text-2xl font-bold text-green-900">
+                    S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0) + 
+                        payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Calculator className="w-8 h-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-purple-600">Total CPF</p>
+                  <p className="text-2xl font-bold text-purple-900">
+                    S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.cpfEmployer, 0) + 
+                        payrollState.casualEmployees.reduce((sum, emp) => sum + emp.employerCPF, 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Full-Time Employees */}
+        <Card className="shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+            <CardTitle className="flex items-center space-x-3 text-blue-900">
+              <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                {fullTimeEmployees.length}
+              </div>
+              <span>Full-Time Employees</span>
+            </CardTitle>
+            <CardDescription className="text-blue-700">Review salaries, allowances, deductions, and claims for full-time staff</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {fullTimeEmployees.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-semibold">Employee</TableHead>
+                      <TableHead className="font-semibold">Basic Salary</TableHead>
+                      <TableHead className="font-semibold">Allowances</TableHead>
+                      <TableHead className="font-semibold">Deductions</TableHead>
+                      <TableHead className="font-semibold">Claims</TableHead>
+                      <TableHead className="font-semibold">CPF</TableHead>
+                      <TableHead className="font-semibold">Net Pay</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fullTimeEmployees.map((employee) => {
+                      const allowances = employeeAllowances[employee.id] || [];
+                      const deductions = employeeDeductions[employee.id] || [];
+                      const approvedClaims = getApprovedClaimsTotal(employee.id);
+                      const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
+                      const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
+                      
+                      return (
+                        <TableRow key={employee.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-blue-600 font-medium text-sm">
+                                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium">{employee.name}</p>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-lg">
+                              S${(employee.baseSalary || 0).toLocaleString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              {allowances.length > 0 ? (
+                                <div>
+                                  {allowances.map((allowance, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-green-50 px-2 py-1 rounded text-sm">
+                                      <span className="text-green-700">{allowance.name}</span>
+                                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        S${Number(allowance.amount).toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                  <div className="border-t pt-2 font-medium">
+                                    Total: S${totalAllowances.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 text-sm">No allowances</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              {deductions.length > 0 ? (
+                                <div>
+                                  {deductions.map((deduction, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-red-50 px-2 py-1 rounded text-sm">
+                                      <span className="text-red-700">{deduction.name}</span>
+                                      <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                        S${Number(deduction.amount).toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                  <div className="border-t pt-2 font-medium">
+                                    Total: S${totalDeductions.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 text-sm">No deductions</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              <div className="bg-blue-50 px-3 py-2 rounded">
+                                <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
+                                <p className="text-xs text-blue-600 mt-1">
+                                  {(employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length} claims
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Employer: S${((employee.baseSalary || 0) * 0.17).toFixed(2)}</div>
+                              <div className="text-sm text-gray-600">Employee: S${((employee.baseSalary || 0) * 0.20).toFixed(2)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-green-600">
+                                S${((employee.baseSalary || 0) + totalAllowances - totalDeductions - ((employee.baseSalary || 0) * 0.20) + approvedClaims).toLocaleString()}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg">No full-time employees found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Casual Employees */}
+        <Card className="shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
+            <CardTitle className="flex items-center space-x-3 text-purple-900">
+              <div className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                {casualEmployees.length}
+              </div>
+              <span>Casual Employees</span>
+            </CardTitle>
+            <CardDescription className="text-purple-700">Review rates, work periods, allowances, and claims for casual staff</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {casualEmployees.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-semibold">Employee</TableHead>
+                      <TableHead className="font-semibold">Payment Type</TableHead>
+                      <TableHead className="font-semibold">Rate</TableHead>
+                      <TableHead className="font-semibold">Allowances</TableHead>
+                      <TableHead className="font-semibold">Deductions</TableHead>
+                      <TableHead className="font-semibold">Claims</TableHead>
+                      <TableHead className="font-semibold">CPF</TableHead>
+                      <TableHead className="font-semibold">Net Pay</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {casualEmployees.map((employee) => {
+                      const allowances = employeeAllowances[employee.id] || [];
+                      const deductions = employeeDeductions[employee.id] || [];
+                      const approvedClaims = getApprovedClaimsTotal(employee.id);
+                      const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
+                      const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
+                      
+                      return (
+                        <TableRow key={employee.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                <span className="text-purple-600 font-medium text-sm">
+                                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium">{employee.name}</p>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-purple-200 text-purple-700">
+                              {employee.paymentType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {employee.paymentType === 'Hourly' && (
+                                <div className="font-medium">S${employee.hourlyRate}/hr</div>
+                              )}
+                              {employee.paymentType === 'Daily' && (
+                                <div className="space-y-1">
+                                  <div className="text-sm">WD: S${employee.dailyWeekdayRate || employee.dailyRate}</div>
+                                  <div className="text-sm">WE: S${employee.dailyWeekendRate || employee.dailyRate}</div>
+                                </div>
+                              )}
+                              {employee.paymentType === 'Monthly' && (
+                                <div className="font-medium">S${employee.baseSalary}/month</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              {allowances.length > 0 ? (
+                                <div>
+                                  {allowances.map((allowance, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-green-50 px-2 py-1 rounded text-sm">
+                                      <span className="text-green-700">{allowance.name}</span>
+                                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        S${Number(allowance.amount).toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                  <div className="border-t pt-2 font-medium">
+                                    Total: S${totalAllowances.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 text-sm">No allowances</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              {deductions.length > 0 ? (
+                                <div>
+                                  {deductions.map((deduction, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-red-50 px-2 py-1 rounded text-sm">
+                                      <span className="text-red-700">{deduction.name}</span>
+                                      <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                        S${Number(deduction.amount).toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                  <div className="border-t pt-2 font-medium">
+                                    Total: S${totalDeductions.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 text-sm">No deductions</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              <div className="bg-blue-50 px-3 py-2 rounded">
+                                <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
+                                <p className="text-xs text-blue-600 mt-1">
+                                  {(employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length} claims
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center text-sm">
+                              <div className="text-gray-600">Calculated based on gross pay</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-green-600">
+                                S${(2000 + totalAllowances - totalDeductions + approvedClaims).toLocaleString()}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg">No casual employees found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <div className="flex justify-end space-x-4 bg-white p-6 rounded-lg shadow-lg border">
+          <Button variant="outline" onClick={handleSaveDraft} size="lg">
+            <Save className="w-5 h-5 mr-2" />
+            Save Draft
+          </Button>
+          <Button onClick={handleApprovePayroll} size="lg" className="bg-green-600 hover:bg-green-700">
+            <Check className="w-5 h-5 mr-2" />
+            Approve Payroll
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const renderPaymentStep = () => (
     <Card>
@@ -704,125 +782,43 @@ const PayrollProcessing = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Payroll Processing</h1>
-                <p className="text-gray-600">Process payroll for {payrollState.currentPeriod}</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant={
-                  currentStep === 'processing' ? 'default' : 
-                  currentStep === 'payment' ? 'secondary' : 'outline'
-                }>
-                  Processing
-                </Badge>
-                <Badge variant={
-                  currentStep === 'payment' ? 'default' : 
-                  currentStep === 'cpf' ? 'secondary' : 'outline'
-                }>
-                  Payment
-                </Badge>
-                <Badge variant={currentStep === 'cpf' ? 'default' : 'outline'}>
-                  CPF
-                </Badge>
+            <div className="bg-white p-6 rounded-lg shadow-lg border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
+                  <p className="text-gray-600 mt-2">Process payroll for {payrollState.currentPeriod}</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
+                    1. Processing
+                  </Badge>
+                  <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-4 py-2">
+                    2. Payment
+                  </Badge>
+                  <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-4 py-2">
+                    3. CPF
+                  </Badge>
+                </div>
               </div>
             </div>
 
             {currentStep === 'processing' && renderProcessingStep()}
             {currentStep === 'payment' && renderPaymentStep()}
             {currentStep === 'cpf' && renderCPFStep()}
+
+            {/* Dialogs */}
+            <AddAllowanceDialog
+              open={showAddAllowanceDialog.show}
+              onOpenChange={(open) => setShowAddAllowanceDialog({show: open, employeeId: ''})}
+              onAdd={(allowance) => handleAddAllowance(showAddAllowanceDialog.employeeId, allowance)}
+            />
+
+            <AddDeductionDialog
+              open={showAddDeductionDialog.show}
+              onOpenChange={(open) => setShowAddDeductionDialog({show: open, employeeId: ''})}
+              onAdd={(deduction) => handleAddDeduction(showAddDeductionDialog.employeeId, deduction)}
+            />
           </div>
-
-          {/* Dialogs */}
-          <AddAllowanceDialog
-            open={showAddAllowanceDialog.show}
-            onOpenChange={(open) => setShowAddAllowanceDialog({show: open, employeeId: ''})}
-            onAdd={(allowance) => handleAddAllowance(showAddAllowanceDialog.employeeId, allowance)}
-          />
-
-          <AddDeductionDialog
-            open={showAddDeductionDialog.show}
-            onOpenChange={(open) => setShowAddDeductionDialog({show: open, employeeId: ''})}
-            onAdd={(deduction) => handleAddDeduction(showAddDeductionDialog.employeeId, deduction)}
-          />
-
-          {/* Edit Allowance Dialog */}
-          <Dialog open={!!editingAllowance} onOpenChange={() => setEditingAllowance(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Allowance</DialogTitle>
-                <DialogDescription>
-                  Update the amount for {editingAllowance?.allowance.name}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <Input
-                  type="number"
-                  defaultValue={editingAllowance?.allowance.amount}
-                  onChange={(e) => {
-                    if (editingAllowance) {
-                      editingAllowance.allowance.amount = parseFloat(e.target.value) || 0;
-                    }
-                  }}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditingAllowance(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => {
-                  if (editingAllowance) {
-                    editAllowance(
-                      editingAllowance.employeeId,
-                      editingAllowance.allowance.name,
-                      editingAllowance.allowance.amount
-                    );
-                  }
-                }}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Deduction Dialog */}
-          <Dialog open={!!editingDeduction} onOpenChange={() => setEditingDeduction(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Deduction</DialogTitle>
-                <DialogDescription>
-                  Update the amount for {editingDeduction?.deduction.name}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <Input
-                  type="number"
-                  defaultValue={editingDeduction?.deduction.amount}
-                  onChange={(e) => {
-                    if (editingDeduction) {
-                      editingDeduction.deduction.amount = parseFloat(e.target.value) || 0;
-                    }
-                  }}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditingDeduction(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => {
-                  if (editingDeduction) {
-                    editDeduction(
-                      editingDeduction.employeeId,
-                      editingDeduction.deduction.name,
-                      editingDeduction.deduction.amount
-                    );
-                  }
-                }}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </main>
       </div>
     </div>
