@@ -321,6 +321,7 @@ export type Database = {
           email: string | null
           hourly_rate: number | null
           id: string
+          join_date: string | null
           name: string
           nric: string
           payment_type: string | null
@@ -345,6 +346,7 @@ export type Database = {
           email?: string | null
           hourly_rate?: number | null
           id: string
+          join_date?: string | null
           name: string
           nric: string
           payment_type?: string | null
@@ -369,6 +371,7 @@ export type Database = {
           email?: string | null
           hourly_rate?: number | null
           id?: string
+          join_date?: string | null
           name?: string
           nric?: string
           payment_type?: string | null

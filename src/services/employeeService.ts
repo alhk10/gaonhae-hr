@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
@@ -55,7 +56,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       phone: emp.phone || '',
       address: emp.address || '',
       email: emp.email || '',
-      joinDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined,
+      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
       resignDate: emp.resign_date || undefined,
       allowances: emp.allowances?.map(a => ({
         id: String(a.id),
@@ -169,7 +170,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       phone: emp.phone || '',
       address: emp.address || '',
       email: emp.email || '',
-      joinDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined,
+      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
       resignDate: emp.resign_date || undefined,
       allowances: emp.allowances?.map(a => ({
         id: String(a.id),
@@ -285,7 +286,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     phone: employee.phone || '',
     address: employee.address || '',
     email: employee.email || '',
-    joinDate: employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined,
+    joinDate: employee.join_date || (employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined),
     resignDate: employee.resign_date || undefined,
     allowances: employee.allowances?.map(a => ({
       id: String(a.id),
@@ -380,7 +381,8 @@ export const createEmployee = async (employeeData: any) => {
         position: employeeData.position || '',
         phone: employeeData.phone || '',
         address: employeeData.address || '',
-        email: employeeData.email
+        email: employeeData.email,
+        join_date: employeeData.joinDate || null
       }])
       .select()
       .single();
@@ -426,7 +428,8 @@ export const updateEmployee = async (id: string, employeeData: any) => {
       position: employeeData.position,
       phone: employeeData.phone,
       address: employeeData.address,
-      email: employeeData.email
+      email: employeeData.email,
+      join_date: employeeData.joinDate || null
     })
     .eq('id', id)
     .select()
