@@ -43,6 +43,7 @@ import { systemAllowances, systemDeductions } from '@/data/employeeData';
 import type { EmployeeProfile, AllowanceDeduction, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AllowanceDeductionManagerProps {
   title: string;
@@ -160,6 +161,7 @@ const BANK_OPTIONS = [
 const EmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isResigned, setIsResigned] = useState(false);
   const [resignDate, setResignDate] = useState('');
@@ -302,8 +304,8 @@ const EmployeeDetails = () => {
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
+            <div className="text-center flex items-center justify-center h-full">
+              <div>
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading employee details...</p>
               </div>
@@ -644,15 +646,34 @@ const EmployeeDetails = () => {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="joinDate" className="text-sm font-medium text-gray-700">Join Date</Label>
-                          <Input 
-                            type="date" 
-                            id="joinDate" 
-                            value={employee.joinDate || ''} 
-                            onChange={(e) => handleInputChange(e, 'joinDate')} 
-                            disabled
-                            className="mt-1 bg-gray-50"
-                          />
+                          {/* Superadmin can edit join date */}
+                          {user?.role === 'superadmin' && isEditing ? (
+                            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                              <Label htmlFor="joinDate" className="text-blue-800 font-medium">Join Date</Label>
+                              <Input 
+                                type="date" 
+                                id="joinDate" 
+                                value={employee.joinDate || ''} 
+                                onChange={(e) => handleInputChange(e, 'joinDate')} 
+                                className="mt-1 border-blue-300 focus:border-blue-500"
+                              />
+                              <p className="text-xs text-blue-600 mt-2 font-medium">
+                                ⚠️ Join date affects leave entitlement calculations and pro-rating
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <Label htmlFor="joinDate" className="text-sm font-medium text-gray-700">Join Date</Label>
+                              <Input 
+                                type="date" 
+                                id="joinDate" 
+                                value={employee.joinDate || ''} 
+                                onChange={(e) => handleInputChange(e, 'joinDate')} 
+                                disabled
+                                className="mt-1 bg-gray-50"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
 
