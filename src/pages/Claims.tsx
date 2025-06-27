@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -9,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Receipt, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Settings, Receipt, Plus, Trash2, AlertCircle, Check, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getClaims, updateClaimStatus, Claim } from '@/services/claimsService';
 
 interface ClaimType {
   id: string;
@@ -22,12 +22,40 @@ interface ClaimType {
 const Claims = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [claims, setClaims] = useState<Claim[]>([]);
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
+  const [stats, setStats] = useState({
+    totalClaims: 0,
+    pendingClaims: 0,
+    totalAmount: 0
+  });
 
-  // Load claim types from localStorage
+  // Load claims and claim types
   useEffect(() => {
-    const loadClaimTypes = () => {
+    const loadData = async () => {
       try {
+        setIsLoading(true);
+        console.log('Loading claims data...');
+        
+        // Load claims from Supabase
+        const claimsData = await getClaims();
+        setClaims(claimsData);
+        
+        // Calculate stats from actual data
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const thisMonthClaims = claimsData.filter(claim => {
+          const claimDate = new Date(claim.date);
+          return claimDate.getMonth() === currentMonth && claimDate.getFullYear() === currentYear;
+        });
+        
+        setStats({
+          totalClaims: thisMonthClaims.length,
+          pendingClaims: claimsData.filter(claim => claim.status === 'Pending').length,
+          totalAmount: thisMonthClaims.reduce((sum, claim) => sum + claim.amount, 0)
+        });
+        
+        // Load claim types from localStorage (keeping existing functionality)
         const stored = localStorage.getItem('claim_types');
         if (stored) {
           const parsedTypes = JSON.parse(stored);
@@ -46,15 +74,41 @@ const Claims = () => {
           localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
         }
       } catch (error) {
-        console.error('Error loading claim types:', error);
-        toast("Error loading claim types");
+        console.error('Error loading claims data:', error);
+        toast("Error loading claims data");
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadClaimTypes();
+    loadData();
   }, []);
+
+  const handleApproveClaim = async (claimId: number) => {
+    try {
+      await updateClaimStatus(claimId, 'Approved');
+      // Refresh claims data
+      const updatedClaims = await getClaims();
+      setClaims(updatedClaims);
+      toast("Claim approved successfully");
+    } catch (error) {
+      console.error('Error approving claim:', error);
+      toast("Error approving claim");
+    }
+  };
+
+  const handleRejectClaim = async (claimId: number) => {
+    try {
+      await updateClaimStatus(claimId, 'Rejected');
+      // Refresh claims data
+      const updatedClaims = await getClaims();
+      setClaims(updatedClaims);
+      toast("Claim rejected successfully");
+    } catch (error) {
+      console.error('Error rejecting claim:', error);
+      toast("Error rejecting claim");
+    }
+  };
 
   const saveClaimTypes = (types: ClaimType[]) => {
     try {
@@ -95,7 +149,7 @@ const Claims = () => {
           updatedTypes[existingIndex] = {
             ...updatedTypes[existingIndex],
             limit: newLimit,
-            coPay: Math.max(0, Math.min(100, newCoPay)) // Ensure co-pay is between 0-100%
+            coPay: Math.max(0, Math.min(100, newCoPay))
           };
         } else {
           // Add new type
@@ -149,6 +203,10 @@ const Claims = () => {
 
   const formatLimit = (limit: number | null) => {
     return limit === null ? 'Unlimited' : `S$${limit}/year`;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `S$${amount.toFixed(2)}`;
   };
 
   if (isLoading) {
@@ -285,7 +343,7 @@ const Claims = () => {
                   <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">24</div>
+                  <div className="text-2xl font-bold">{stats.totalClaims}</div>
                   <p className="text-xs text-gray-500">This month</p>
                 </CardContent>
               </Card>
@@ -294,7 +352,7 @@ const Claims = () => {
                   <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">8</div>
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pendingClaims}</div>
                   <p className="text-xs text-gray-500">Awaiting review</p>
                 </CardContent>
               </Card>
@@ -303,7 +361,7 @@ const Claims = () => {
                   <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">S$ 2,450</div>
+                  <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalAmount)}</div>
                   <p className="text-xs text-gray-500">This month</p>
                 </CardContent>
               </Card>
@@ -353,23 +411,60 @@ const Claims = () => {
                       <TableHead>Amount</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell>John Doe</TableCell>
-                      <TableCell>Medical</TableCell>
-                      <TableCell>S$ 250.00</TableCell>
-                      <TableCell>2024-12-20</TableCell>
-                      <TableCell><Badge>Approved</Badge></TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Jane Smith</TableCell>
-                      <TableCell>Transport</TableCell>
-                      <TableCell>S$ 45.00</TableCell>
-                      <TableCell>2024-12-19</TableCell>
-                      <TableCell><Badge variant="secondary">Pending</Badge></TableCell>
-                    </TableRow>
+                    {claims.map((claim) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="font-medium">{claim.employee}</TableCell>
+                        <TableCell>{claim.type}</TableCell>
+                        <TableCell>{formatCurrency(claim.amount)}</TableCell>
+                        <TableCell>{claim.date}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              claim.status === 'Approved' ? 'default' : 
+                              claim.status === 'Pending' ? 'secondary' : 
+                              'destructive'
+                            }
+                          >
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            {claim.status === 'Pending' && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleApproveClaim(claim.id)}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleRejectClaim(claim.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {claims.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                          No claims found.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

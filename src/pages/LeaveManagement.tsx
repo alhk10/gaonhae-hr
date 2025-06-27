@@ -35,38 +35,38 @@ const LeaveManagement = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        console.log('Loading leave and employee data...');
-        
-        const [leaveData, employeeData, leaveTypesData] = await Promise.all([
-          getAllLeaveRequests(),
-          getEmployees(),
-          getLeaveTypes()
-        ]);
-        
-        console.log('Loaded employees:', employeeData);
-        console.log('Loaded leaves:', leaveData);
-        console.log('Loaded leave types:', leaveTypesData);
-        
-        setLeaves(leaveData);
-        // Filter out casual employees and Senior Partners as they are not entitled to leaves
-        const eligibleEmployees = employeeData.filter(emp => 
-          emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
-        );
-        setEmployees(eligibleEmployees);
-        setLeaveTypes(leaveTypesData.map(type => type.name));
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast("Error loading data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading leave and employee data...');
+      
+      const [leaveData, employeeData, leaveTypesData] = await Promise.all([
+        getAllLeaveRequests(),
+        getEmployees(),
+        getLeaveTypes()
+      ]);
+      
+      console.log('Loaded employees:', employeeData);
+      console.log('Loaded leaves:', leaveData);
+      console.log('Loaded leave types:', leaveTypesData);
+      
+      setLeaves(leaveData);
+      // Filter out casual employees and Senior Partners as they are not entitled to leaves
+      const eligibleEmployees = employeeData.filter(emp => 
+        emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
+      );
+      setEmployees(eligibleEmployees);
+      setLeaveTypes(leaveTypesData.map(type => type.name));
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast("Error loading data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchLeaveRequests = async () => {
     try {
@@ -423,6 +423,7 @@ const LeaveManagement = () => {
                     <p>• Annual leave is pro-rated for employees joining mid-year</p>
                     <p>• Medical leave is fixed at 14 days per year for all eligible employees</p>
                     <p>• Casual employees and Senior Partners are not included in leave management</p>
+                    <p>• Click on calendar entries to view details and approve/reject pending requests</p>
                   </div>
                 </div>
               </div>
@@ -445,7 +446,7 @@ const LeaveManagement = () => {
                   </TabsList>
                   
                   <TabsContent value="calendar" className="space-y-4">
-                    <LeaveCalendarView leaves={leaves} />
+                    <LeaveCalendarView leaves={leaves} onLeaveUpdate={fetchLeaveRequests} />
                   </TabsContent>
                   
                   <TabsContent value="balances" className="space-y-4">
