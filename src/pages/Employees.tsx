@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Edit, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, createEmployee, updateEmployeeAdminAccess } from '@/services/employeeService';
+import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
-import { AdminAccessPermissions } from '@/types/employee';
+import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -31,6 +31,14 @@ const Employees = () => {
     slotBooking: false,
     reports: false
   });
+  const [newEmployeePageAccess, setNewEmployeePageAccess] = useState<EmployeePageAccessPermissions>({
+    profile: true,
+    applyLeave: true,
+    submitClaim: true,
+    payslips: true,
+    myAttendance: true,
+    slotBookingEmployee: true
+  });
 
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
@@ -42,15 +50,16 @@ const Employees = () => {
     mutationFn: async (employeeData: any) => {
       const newEmployee = await createEmployee(employeeData);
       
-      // Update admin access permissions after employee creation
+      // Update both admin access and page access permissions after employee creation
       if (newEmployee && newEmployee.id) {
         await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
+        await updateEmployeePageAccess(newEmployee.id, newEmployeePageAccess);
       }
       
       return newEmployee;
     },
     onSuccess: () => {
-      console.log('Employee added successfully with admin access');
+      console.log('Employee added successfully with access permissions');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee added successfully");
       setShowAddForm(false);
@@ -62,6 +71,14 @@ const Employees = () => {
         attendance: false,
         slotBooking: false,
         reports: false
+      });
+      setNewEmployeePageAccess({
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
       });
     },
     onError: (error) => {
@@ -108,6 +125,7 @@ const Employees = () => {
 
       console.log('Creating employee with data:', newEmployee);
       console.log('Admin access permissions:', newEmployeeAdminAccess);
+      console.log('Page access permissions:', newEmployeePageAccess);
       await addEmployeeMutation.mutateAsync(newEmployee);
     } catch (error) {
       console.error('Failed to add employee:', error);
@@ -117,6 +135,11 @@ const Employees = () => {
   const handleAdminAccessChange = (permissions: AdminAccessPermissions) => {
     console.log('Admin access permissions changed:', permissions);
     setNewEmployeeAdminAccess(permissions);
+  };
+
+  const handlePageAccessChange = (permissions: EmployeePageAccessPermissions) => {
+    console.log('Page access permissions changed:', permissions);
+    setNewEmployeePageAccess(permissions);
   };
 
   const filteredEmployees = employees.filter(employee =>
@@ -299,6 +322,14 @@ const Employees = () => {
                     slotBooking: false,
                     reports: false
                   });
+                  setNewEmployeePageAccess({
+                    profile: true,
+                    applyLeave: true,
+                    submitClaim: true,
+                    payslips: true,
+                    myAttendance: true,
+                    slotBookingEmployee: true
+                  });
                 }}
               >
                 Cancel
@@ -401,7 +432,9 @@ const Employees = () => {
               <div className="border-t pt-6">
                 <AdminAccessManager
                   adminAccess={newEmployeeAdminAccess}
+                  pageAccess={newEmployeePageAccess}
                   onAdminAccessChange={handleAdminAccessChange}
+                  onPageAccessChange={handlePageAccessChange}
                   isEditing={true}
                 />
               </div>
@@ -428,6 +461,14 @@ const Employees = () => {
                       attendance: false,
                       slotBooking: false,
                       reports: false
+                    });
+                    setNewEmployeePageAccess({
+                      profile: true,
+                      applyLeave: true,
+                      submitClaim: true,
+                      payslips: true,
+                      myAttendance: true,
+                      slotBookingEmployee: true
                     });
                   }}
                 >

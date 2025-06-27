@@ -2,21 +2,25 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AdminAccessPermissions } from '@/types/employee';
+import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
 interface AdminAccessManagerProps {
   adminAccess: AdminAccessPermissions | undefined;
+  pageAccess: EmployeePageAccessPermissions | undefined;
   onAdminAccessChange: (permissions: AdminAccessPermissions) => void;
+  onPageAccessChange: (permissions: EmployeePageAccessPermissions) => void;
   isEditing: boolean;
 }
 
 const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
   adminAccess,
+  pageAccess,
   onAdminAccessChange,
+  onPageAccessChange,
   isEditing
 }) => {
-  const permissions = [
-    { key: 'employees', label: 'Employee Management', description: 'View and manage employee records' },
+  const adminPermissions = [
+    { key: 'employees', label: 'Employee Management', description: 'Manage employee records and data' },
     { key: 'payroll', label: 'Payroll Management', description: 'Process payroll and manage salaries' },
     { key: 'leaveManagement', label: 'Leave Management', description: 'Approve and manage leave requests' },
     { key: 'claims', label: 'Claims Management', description: 'Review and approve expense claims' },
@@ -25,7 +29,16 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
     { key: 'reports', label: 'Reports', description: 'Access to system reports and analytics' }
   ];
 
-  const handlePermissionChange = (permissionKey: string, checked: boolean) => {
+  const pagePermissions = [
+    { key: 'profile', label: 'Profile Access', description: 'View and edit personal profile information' },
+    { key: 'applyLeave', label: 'Apply Leave', description: 'Submit leave applications and requests' },
+    { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims and reimbursements' },
+    { key: 'payslips', label: 'Payslips', description: 'View and download payslips and salary details' },
+    { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records and history' },
+    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book and manage personal appointment slots' }
+  ];
+
+  const handleAdminPermissionChange = (permissionKey: string, checked: boolean) => {
     const updatedPermissions = {
       ...adminAccess,
       [permissionKey]: checked
@@ -33,40 +46,84 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
     onAdminAccessChange(updatedPermissions);
   };
 
+  const handlePagePermissionChange = (permissionKey: string, checked: boolean) => {
+    const updatedPermissions = {
+      ...pageAccess,
+      [permissionKey]: checked
+    };
+    onPageAccessChange(updatedPermissions);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Admin Access Permissions</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {permissions.map((permission) => (
-          <div key={permission.key} className="flex items-start space-x-3">
-            <Checkbox
-              id={permission.key}
-              checked={adminAccess?.[permission.key as keyof AdminAccessPermissions] || false}
-              onCheckedChange={(checked) => 
-                handlePermissionChange(permission.key, checked as boolean)
-              }
-              disabled={!isEditing}
-            />
-            <div className="flex-1">
-              <label
-                htmlFor={permission.key}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                {permission.label}
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                {permission.description}
-              </p>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Employee Page Access Permissions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {pagePermissions.map((permission) => (
+            <div key={permission.key} className="flex items-start space-x-3">
+              <Checkbox
+                id={`page-${permission.key}`}
+                checked={pageAccess?.[permission.key as keyof EmployeePageAccessPermissions] || false}
+                onCheckedChange={(checked) => 
+                  handlePagePermissionChange(permission.key, checked as boolean)
+                }
+                disabled={!isEditing}
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor={`page-${permission.key}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {permission.label}
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {permission.description}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-        {!adminAccess || Object.keys(adminAccess).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No admin access permissions assigned.</p>
-        ) : null}
-      </CardContent>
-    </Card>
+          ))}
+          {!pageAccess || Object.keys(pageAccess).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No page access permissions assigned.</p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Admin Access Permissions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {adminPermissions.map((permission) => (
+            <div key={permission.key} className="flex items-start space-x-3">
+              <Checkbox
+                id={`admin-${permission.key}`}
+                checked={adminAccess?.[permission.key as keyof AdminAccessPermissions] || false}
+                onCheckedChange={(checked) => 
+                  handleAdminPermissionChange(permission.key, checked as boolean)
+                }
+                disabled={!isEditing}
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor={`admin-${permission.key}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {permission.label}
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {permission.description}
+                </p>
+              </div>
+            </div>
+          ))}
+          {!adminAccess || Object.keys(adminAccess).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No admin access permissions assigned.</p>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

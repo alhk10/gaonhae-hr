@@ -9,6 +9,15 @@ export interface AdminAccessPermissions {
   reports: boolean;
 }
 
+export interface EmployeePageAccessPermissions {
+  profile: boolean;
+  applyLeave: boolean;
+  submitClaim: boolean;
+  payslips: boolean;
+  myAttendance: boolean;
+  slotBookingEmployee: boolean;
+}
+
 export interface ExtendedAdminAccessPermissions extends AdminAccessPermissions {
   profile: boolean;
   applyLeave: boolean;
@@ -112,4 +121,5 @@ export interface EmployeeProfile {
   deductions: EmployeeDeduction[];
   certificates: EmployeeCertificate[];
   adminAccess: AdminAccessPermissions;
+  pageAccess: EmployeePageAccessPermissions;
 }

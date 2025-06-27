@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
+import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees from Supabase...');
@@ -422,4 +422,55 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
   }
 
   console.log('EmployeeService: Admin access updated successfully');
+};
+
+export const updateEmployeePageAccess = async (employeeId: string, pageAccess: EmployeePageAccessPermissions) => {
+  console.log('EmployeeService: Updating employee page access in Supabase:', employeeId, pageAccess);
+  
+  // First, check if page access record exists
+  const { data: existingAccess, error: fetchError } = await supabase
+    .from('employee_page_access')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found" error
+    console.error('EmployeeService: Error fetching page access:', fetchError);
+    throw fetchError;
+  }
+
+  const accessData = {
+    employee_id: employeeId,
+    profile: pageAccess.profile,
+    apply_leave: pageAccess.applyLeave,
+    submit_claim: pageAccess.submitClaim,
+    payslips: pageAccess.payslips,
+    my_attendance: pageAccess.myAttendance,
+    slot_booking_employee: pageAccess.slotBookingEmployee
+  };
+
+  if (existingAccess) {
+    // Update existing record
+    const { error } = await supabase
+      .from('employee_page_access')
+      .update(accessData)
+      .eq('employee_id', employeeId);
+
+    if (error) {
+      console.error('EmployeeService: Error updating page access:', error);
+      throw error;
+    }
+  } else {
+    // Create new record
+    const { error } = await supabase
+      .from('employee_page_access')
+      .insert([accessData]);
+
+    if (error) {
+      console.error('EmployeeService: Error creating page access:', error);
+      throw error;
+    }
+  }
+
+  console.log('EmployeeService: Page access updated successfully');
 };
