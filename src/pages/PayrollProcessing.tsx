@@ -84,8 +84,8 @@ const PayrollProcessing = () => {
     }
   };
 
-  const handleAddAllowance = (employeeId: string, allowance: AllowanceDeduction) => {
-    const empData = getEmployeeById(employeeId);
+  const handleAddAllowance = async (employeeId: string, allowance: AllowanceDeduction) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newAllowances = [
@@ -97,8 +97,8 @@ const PayrollProcessing = () => {
     toast(`Added ${allowance.name} allowance`);
   };
 
-  const handleAddDeduction = (employeeId: string, deduction: AllowanceDeduction) => {
-    const empData = getEmployeeById(employeeId);
+  const handleAddDeduction = async (employeeId: string, deduction: AllowanceDeduction) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newDeductions = [
@@ -110,8 +110,8 @@ const PayrollProcessing = () => {
     toast(`Added ${deduction.name} deduction`);
   };
 
-  const removeAllowance = (employeeId: string, allowanceName: string) => {
-    const empData = getEmployeeById(employeeId);
+  const removeAllowance = async (employeeId: string, allowanceName: string) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newAllowances = empData.allowances
@@ -122,8 +122,8 @@ const PayrollProcessing = () => {
     toast(`Removed ${allowanceName} allowance`);
   };
 
-  const editAllowance = (employeeId: string, allowanceName: string, newAmount: number) => {
-    const empData = getEmployeeById(employeeId);
+  const editAllowance = async (employeeId: string, allowanceName: string, newAmount: number) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newAllowances = empData.allowances.map(a => 
@@ -135,8 +135,8 @@ const PayrollProcessing = () => {
     toast(`Updated ${allowanceName} allowance`);
   };
 
-  const removeDeduction = (employeeId: string, deductionName: string) => {
-    const empData = getEmployeeById(employeeId);
+  const removeDeduction = async (employeeId: string, deductionName: string) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newDeductions = empData.deductions
@@ -147,8 +147,8 @@ const PayrollProcessing = () => {
     toast(`Removed ${deductionName} deduction`);
   };
 
-  const editDeduction = (employeeId: string, deductionName: string, newAmount: number) => {
-    const empData = getEmployeeById(employeeId);
+  const editDeduction = async (employeeId: string, deductionName: string, newAmount: number) => {
+    const empData = await getEmployeeById(employeeId);
     if (!empData) return;
     
     const newDeductions = empData.deductions.map(d => 
@@ -213,7 +213,6 @@ const PayrollProcessing = () => {
         <CardContent>
           <div className="space-y-6">
             {payrollState.fullTimeEmployees.map((employee) => {
-              const empData = getEmployeeById(employee.id);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
               const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
@@ -337,7 +336,6 @@ const PayrollProcessing = () => {
           <div className="space-y-6">
             {payrollState.casualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
-              const empData = getEmployeeById(employee.id);
               const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
               const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
               
@@ -551,7 +549,6 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const empData = getEmployeeById(employee.id);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
@@ -560,8 +557,8 @@ const PayrollProcessing = () => {
                   <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
-                  <TableCell>{empData?.bankName}</TableCell>
-                  <TableCell>{empData?.bankAccount}</TableCell>
+                  <TableCell>Loading...</TableCell>
+                  <TableCell>Loading...</TableCell>
                   <TableCell>
                     <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
                       {payrollState.status}
@@ -571,7 +568,6 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const empData = getEmployeeById(employee.id);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
@@ -580,8 +576,8 @@ const PayrollProcessing = () => {
                   <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
-                  <TableCell>{empData?.bankName}</TableCell>
-                  <TableCell>{empData?.bankAccount}</TableCell>
+                  <TableCell>Loading...</TableCell>
+                  <TableCell>Loading...</TableCell>
                   <TableCell>
                     <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
                       {payrollState.status}
@@ -633,14 +629,13 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const empData = getEmployeeById(employee.id);
               const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
               const grossSalary = (employee.baseSalary || 0) + totalAllowances;
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{empData?.nric}</TableCell>
+                  <TableCell>Loading...</TableCell>
                   <TableCell>Full-Time</TableCell>
                   <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
@@ -657,7 +652,6 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const empData = getEmployeeById(employee.id);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               let rateDisplay = '';
               if (employee.paymentType === 'Hourly') {
@@ -671,7 +665,7 @@ const PayrollProcessing = () => {
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{empData?.nric}</TableCell>
+                  <TableCell>Loading...</TableCell>
                   <TableCell>Casual</TableCell>
                   <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>{rateDisplay}</TableCell>

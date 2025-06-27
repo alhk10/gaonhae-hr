@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,86 +29,90 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
   const [employeeDetails, setEmployeeDetails] = useState<PayrollEmployee[]>([]);
 
   useEffect(() => {
-    if (payroll) {
-      // Get all employee IDs that should be in this payroll
-      const employeeIds = ['EMP001', 'EMP002', 'EMP003', 'CAS001', 'CAS002', 'CAS003'];
-      
-      const employees = employeeIds.map(id => {
-        const empData = getEmployeeById(id);
-        if (!empData) return null;
-
-        const totalAllowances = empData.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
-        const totalDeductions = empData.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+    const loadEmployeeDetails = async () => {
+      if (payroll) {
+        // Get all employee IDs that should be in this payroll
+        const employeeIds = ['EMP001', 'EMP002', 'EMP003', 'CAS001', 'CAS002', 'CAS003'];
         
-        let cpfEmployee = 0;
-        let cpfEmployer = 0;
-        let grossPay = 0;
-        let netPay = 0;
+        const employees = await Promise.all(
+          employeeIds.map(async (id) => {
+            const empData = await getEmployeeById(id);
+            if (!empData) return null;
 
-        if (empData.type === 'Full-Time' && empData.baseSalary) {
-          const age = calculateAge(empData.dateOfBirth);
-          grossPay = empData.baseSalary + totalAllowances;
-          const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-          cpfEmployee = cpfCalc.employeeCPF;
-          cpfEmployer = cpfCalc.employerCPF;
-          netPay = grossPay - cpfEmployee - totalDeductions;
-        } else if (empData.type === 'Casual') {
-          const age = calculateAge(empData.dateOfBirth);
-          
-          // Handle different payment types for casual employees
-          if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
-            // For hourly employees, assume 120 hours worked (should come from attendance)
-            const hoursWorked = 120;
-            grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
-          } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
-            // For daily employees, assume 22 working days (should come from attendance)
-            const weekdays = 18; // Estimated weekdays
-            const weekends = 4; // Estimated weekends
-            const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
-            const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
-            grossPay = weekdayPay + weekendPay + totalAllowances;
-          } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
-            grossPay = empData.baseSalary + totalAllowances;
-          }
-          
-          const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-          cpfEmployee = cpfCalc.employeeCPF;
-          cpfEmployer = cpfCalc.employerCPF;
-          netPay = grossPay - cpfEmployee - totalDeductions;
-        }
+            const totalAllowances = empData.allowances.reduce((sum, allowance) => sum + allowance.amount, 0);
+            const totalDeductions = empData.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+            
+            let cpfEmployee = 0;
+            let cpfEmployer = 0;
+            let grossPay = 0;
+            let netPay = 0;
 
-        return {
-          id: empData.id,
-          name: empData.name,
-          type: empData.type,
-          baseSalary: empData.baseSalary,
-          hourlyRate: empData.hourlyRate,
-          dailyRate: empData.dailyRate,
-          dailyWeekdayRate: empData.dailyWeekdayRate,
-          dailyWeekendRate: empData.dailyWeekendRate,
-          paymentType: empData.paymentType,
-          allowances: empData.allowances,
-          deductions: empData.deductions,
-          grossPay,
-          cpfEmployee,
-          cpfEmployer,
-          netPay
-        };
-      }).filter(Boolean) as PayrollEmployee[];
+            if (empData.type === 'Full-Time' && empData.baseSalary) {
+              const age = calculateAge(empData.dateOfBirth);
+              grossPay = empData.baseSalary + totalAllowances;
+              const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+              cpfEmployee = cpfCalc.employeeCPF;
+              cpfEmployer = cpfCalc.employerCPF;
+              netPay = grossPay - cpfEmployee - totalDeductions;
+            } else if (empData.type === 'Casual') {
+              const age = calculateAge(empData.dateOfBirth);
+              
+              // Handle different payment types for casual employees
+              if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
+                // For hourly employees, assume 120 hours worked (should come from attendance)
+                const hoursWorked = 120;
+                grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
+              } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
+                // For daily employees, assume 22 working days (should come from attendance)
+                const weekdays = 18; // Estimated weekdays
+                const weekends = 4; // Estimated weekends
+                const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
+                const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
+                grossPay = weekdayPay + weekendPay + totalAllowances;
+              } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
+                grossPay = empData.baseSalary + totalAllowances;
+              }
+              
+              const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+              cpfEmployee = cpfCalc.employeeCPF;
+              cpfEmployer = cpfCalc.employerCPF;
+              netPay = grossPay - cpfEmployee - totalDeductions;
+            }
 
-      setEmployeeDetails(employees);
-    }
+            return {
+              id: empData.id,
+              name: empData.name,
+              type: empData.type,
+              baseSalary: empData.baseSalary,
+              hourlyRate: empData.hourlyRate,
+              dailyRate: empData.dailyRate,
+              dailyWeekdayRate: empData.dailyWeekdayRate,
+              dailyWeekendRate: empData.dailyWeekendRate,
+              paymentType: empData.paymentType,
+              allowances: empData.allowances,
+              deductions: empData.deductions,
+              grossPay,
+              cpfEmployee,
+              cpfEmployer,
+              netPay
+            };
+          })
+        );
+
+        setEmployeeDetails(employees.filter(Boolean) as PayrollEmployee[]);
+      }
+    };
+
+    loadEmployeeDetails();
   }, [payroll]);
 
-  if (!payroll) return null;
+  const handleSalaryChange = async (employeeId: string, newSalary: number) => {
+    const empData = await getEmployeeById(employeeId);
+    if (!empData) return;
 
-  const handleSalaryChange = (employeeId: string, newSalary: number) => {
     setEmployeeDetails(prev => 
       prev.map(emp => {
         if (emp.id === employeeId) {
-          const empData = getEmployeeById(employeeId);
-          if (!empData) return emp;
-
           const age = calculateAge(empData.dateOfBirth);
           const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
           const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
@@ -169,6 +172,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     toast(`Payroll for ${payroll.period} updated successfully`);
     onClose();
   };
+
+  if (!payroll) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
