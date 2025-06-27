@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Users, Plus, Info, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees } from '@/services/employeeService';
@@ -29,7 +31,6 @@ const LeaveManagement = () => {
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
   const [isLeaveSettingsOpen, setIsLeaveSettingsOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
-  const [selectedEmployeeForBalance, setSelectedEmployeeForBalance] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
@@ -49,9 +50,11 @@ const LeaveManagement = () => {
         console.log('Loaded leaves:', leaveData);
         
         setLeaves(leaveData);
-        // Filter out casual employees as they are not entitled to leaves
-        const fullTimeEmployees = employeeData.filter(emp => emp.type === 'Full-Time');
-        setEmployees(fullTimeEmployees);
+        // Filter out casual employees and Senior Partners as they are not entitled to leaves
+        const eligibleEmployees = employeeData.filter(emp => 
+          emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
+        );
+        setEmployees(eligibleEmployees);
       } catch (error) {
         console.error('Error loading data:', error);
         toast("Error loading data. Please try again.");
@@ -78,8 +81,8 @@ const LeaveManagement = () => {
 
   const handleApprove = async (id: number) => {
     try {
-      await updateLeaveStatus(id, 'Approved', 'Current User'); // In real app, get from auth context
-      await fetchLeaveRequests(); // Refresh data
+      await updateLeaveStatus(id, 'Approved', 'Current User');
+      await fetchLeaveRequests();
       toast("Leave application approved");
     } catch (error) {
       console.error('Error approving leave:', error);
@@ -90,7 +93,7 @@ const LeaveManagement = () => {
   const handleReject = async (id: number) => {
     try {
       await updateLeaveStatus(id, 'Rejected');
-      await fetchLeaveRequests(); // Refresh data
+      await fetchLeaveRequests();
       toast("Leave application rejected");
     } catch (error) {
       console.error('Error rejecting leave:', error);
@@ -110,17 +113,17 @@ const LeaveManagement = () => {
       return;
     }
 
-    // Double check that the employee is not casual
-    if (employee.type === 'Casual') {
-      toast("Casual employees are not entitled to leaves");
+    // Check that the employee is eligible (full-time and not Senior Partner)
+    if (employee.type === 'Casual' || employee.position === 'Senior Partner') {
+      toast("This employee is not entitled to leave benefits");
       return;
     }
 
     const leaveType = formData.get('type') as string;
     
     // Check if employee has remaining leave days
-    if (employee.join_date && leaveType === 'Annual Leave') {
-      const leaveBalance = calculateLeaveBalance(employee.id, employee.join_date, leaves);
+    if (employee.joinDate && leaveType === 'Annual Leave') {
+      const leaveBalance = calculateLeaveBalance(employee.id, employee.joinDate, leaves);
       if (leaveBalance.annualLeave.remaining <= 0) {
         toast(`${employee.name} has no remaining annual leave days`);
         return;
@@ -168,7 +171,7 @@ const LeaveManagement = () => {
     try {
       const promises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
-        if (!employee || employee.type === 'Casual') return Promise.resolve();
+        if (!employee || employee.type === 'Casual' || employee.position === 'Senior Partner') return Promise.resolve();
 
         const newLeave: Omit<LeaveRequest, 'id'> = {
           employeeId: employee.id,
@@ -200,10 +203,6 @@ const LeaveManagement = () => {
   const showLeaveDetails = (leave: LeaveRequest) => {
     setSelectedLeave(leave);
     setIsLeaveDetailsOpen(true);
-  };
-
-  const showEmployeeLeaveBalance = (employee: any) => {
-    setSelectedEmployeeForBalance(employee);
   };
 
   if (loading) {
@@ -248,15 +247,15 @@ const LeaveManagement = () => {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Add Leave</DialogTitle>
-                      <DialogDescription>Add a new leave application for a full-time employee.</DialogDescription>
+                      <DialogDescription>Add a new leave application for an eligible employee.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddLeave}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="employee">Employee (Full-Time Only)</Label>
+                          <Label htmlFor="employee">Employee (Eligible Only)</Label>
                           <Select name="employee" required>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select full-time employee" />
+                              <SelectValue placeholder="Select eligible employee" />
                             </SelectTrigger>
                             <SelectContent>
                               {employees.map((employee) => (
@@ -317,12 +316,12 @@ const LeaveManagement = () => {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Bulk Leave</DialogTitle>
-                      <DialogDescription>Add leave for multiple full-time employees at once.</DialogDescription>
+                      <DialogDescription>Add leave for multiple eligible employees at once.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleBulkLeave}>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label>Select Employees (Full-Time Only)</Label>
+                          <Label>Select Employees (Eligible Only)</Label>
                           <div className="space-y-2 max-h-32 overflow-y-auto">
                             {employees.map((employee) => (
                               <label key={employee.id} className="flex items-center space-x-2">
@@ -402,11 +401,11 @@ const LeaveManagement = () => {
                 <div>
                   <h3 className="font-medium text-blue-900">Leave Policy Information</h3>
                   <div className="text-sm text-blue-700 mt-1 space-y-1">
-                    <p>• Only full-time employees are entitled to annual leave and medical leave benefits</p>
+                    <p>• Only full-time employees (excluding Senior Partners) are entitled to annual leave and medical leave benefits</p>
                     <p>• Annual leave starts at 14 days + 1 additional day per year of service (max 18 days)</p>
                     <p>• Annual leave is pro-rated for employees joining mid-year</p>
-                    <p>• Medical leave is fixed at 14 days per year for all full-time employees</p>
-                    <p>• Casual employees are not included in leave management as they are paid based on actual hours/days worked</p>
+                    <p>• Medical leave is fixed at 14 days per year for all eligible employees</p>
+                    <p>• Casual employees and Senior Partners are not included in leave management</p>
                   </div>
                 </div>
               </div>
@@ -415,53 +414,63 @@ const LeaveManagement = () => {
             {/* Leave Summary Panel */}
             <LeaveSummaryPanel />
 
-            {/* Employee Leave Balance Summary */}
+            {/* Tabs for Leave Calendar and Employee Balance */}
             <Card>
               <CardHeader>
-                <CardTitle>Employee Leave Balances</CardTitle>
-                <CardDescription>Current leave balances for all full-time employees</CardDescription>
+                <CardTitle>Leave Overview</CardTitle>
+                <CardDescription>Calendar view and employee leave balances</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {employees.map((employee) => {
-                    const leaveBalance = employee.join_date 
-                      ? calculateLeaveBalance(employee.id, employee.join_date, leaves)
-                      : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
-                    
-                    return (
-                      <Card key={employee.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-gray-900">{employee.name}</h4>
-                            <p className="text-xs text-gray-500">{employee.id}</p>
-                            {employee.join_date && (
-                              <p className="text-xs text-blue-600">
-                                {getLeaveEntitlementSummary(employee.join_date)}
-                              </p>
-                            )}
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="text-center p-2 bg-blue-50 rounded">
-                                <p className="text-xs text-gray-600">Annual</p>
-                                <p className="font-bold text-blue-600">{leaveBalance.annualLeave.remaining}</p>
-                                <p className="text-xs text-gray-500">remaining</p>
+                <Tabs defaultValue="calendar" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="calendar">Leave Calendar</TabsTrigger>
+                    <TabsTrigger value="balances">Employee Balances</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="calendar" className="space-y-4">
+                    <LeaveCalendarView leaves={leaves} />
+                  </TabsContent>
+                  
+                  <TabsContent value="balances" className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {employees.map((employee) => {
+                        const leaveBalance = employee.joinDate 
+                          ? calculateLeaveBalance(employee.id, employee.joinDate, leaves)
+                          : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
+                        
+                        return (
+                          <Card key={employee.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-gray-900">{employee.name}</h4>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
+                                {employee.joinDate && (
+                                  <p className="text-xs text-blue-600">
+                                    {getLeaveEntitlementSummary(employee.joinDate)}
+                                  </p>
+                                )}
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-center p-2 bg-blue-50 rounded">
+                                    <p className="text-xs text-gray-600">Annual</p>
+                                    <p className="font-bold text-blue-600">{leaveBalance.annualLeave.remaining}</p>
+                                    <p className="text-xs text-gray-500">remaining</p>
+                                  </div>
+                                  <div className="text-center p-2 bg-green-50 rounded">
+                                    <p className="text-xs text-gray-600">Medical</p>
+                                    <p className="font-bold text-green-600">{leaveBalance.medicalLeave.remaining}</p>
+                                    <p className="text-xs text-gray-500">remaining</p>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-center p-2 bg-green-50 rounded">
-                                <p className="text-xs text-gray-600">Medical</p>
-                                <p className="font-bold text-green-600">{leaveBalance.medicalLeave.remaining}</p>
-                                <p className="text-xs text-gray-500">remaining</p>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
-
-            {/* Leave Calendar View */}
-            <LeaveCalendarView leaves={leaves} />
 
             <Card>
               <CardHeader>
@@ -469,7 +478,7 @@ const LeaveManagement = () => {
                   <Calendar className="w-5 h-5" />
                   <span>Leave Applications</span>
                 </CardTitle>
-                <CardDescription>Review and manage leave requests from full-time employees</CardDescription>
+                <CardDescription>Review and manage leave requests from eligible employees</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>

@@ -28,8 +28,10 @@ const LeaveSummaryPanel = () => {
   
   const currentYear = new Date().getFullYear();
 
-  // Filter full-time employees only
-  const fullTimeEmployees = employees.filter(emp => emp.type === 'Full-Time');
+  // Filter full-time employees excluding Senior Partners
+  const eligibleEmployees = employees.filter(emp => 
+    emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
+  );
 
   // Upcoming leave (next 30 days)
   const upcomingLeave = allLeaveRequests.filter(leave => {
@@ -38,8 +40,8 @@ const LeaveSummaryPanel = () => {
     return startDate >= today && startDate <= next30Days;
   }).length;
 
-  // Calculate total annual leave remaining using new calculation method
-  const totalAnnualLeaveRemaining = fullTimeEmployees.reduce((total, employee) => {
+  // Calculate total annual leave remaining using new calculation method for eligible employees only
+  const totalAnnualLeaveRemaining = eligibleEmployees.reduce((total, employee) => {
     if (!employee.joinDate) return total; // Skip if no join date
     
     const leaveBalance = calculateLeaveBalance(
@@ -81,7 +83,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Annual Leave Remaining</p>
               <p className="text-2xl font-bold text-gray-900">{Math.max(0, totalAnnualLeaveRemaining)}</p>
-              <p className="text-xs text-gray-500">Company-wide (Full-time only)</p>
+              <p className="text-xs text-gray-500">Eligible employees only</p>
             </div>
             <Clock className="w-8 h-8 text-green-500" />
           </div>

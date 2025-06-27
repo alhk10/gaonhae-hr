@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -92,8 +93,10 @@ const ApplyLeave = () => {
     );
   }
 
-  // Check if employee is casual - casual employees are not entitled to leaves
-  if (currentEmployee.type === 'Casual') {
+  // Check if employee is casual or Senior Partner - they are not entitled to leaves
+  if (currentEmployee.type === 'Casual' || currentEmployee.position === 'Senior Partner') {
+    const isPartner = currentEmployee.position === 'Senior Partner';
+    
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -114,18 +117,34 @@ const ApplyLeave = () => {
                   <div className="text-center">
                     <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      Leave Not Applicable
+                      {isPartner ? 'Leave Not Required' : 'Leave Not Applicable'}
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      As a casual employee, you are not entitled to annual leave or medical leave benefits.
+                      {isPartner 
+                        ? 'As a Senior Partner, you do not need to apply for leave through the system.'
+                        : 'As a casual employee, you are not entitled to annual leave or medical leave benefits.'
+                      }
                     </p>
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-left">
-                      <h4 className="font-medium text-orange-800 mb-2">Casual Employee Policy:</h4>
+                      <h4 className="font-medium text-orange-800 mb-2">
+                        {isPartner ? 'Senior Partner Policy:' : 'Casual Employee Policy:'}
+                      </h4>
                       <ul className="text-sm text-orange-700 space-y-1">
-                        <li>• No annual leave entitlement</li>
-                        <li>• No medical leave entitlement</li>
-                        <li>• Pay is based on actual hours/days worked</li>
-                        <li>• Contact HR for any work-related inquiries</li>
+                        {isPartner ? (
+                          <>
+                            <li>• Senior Partners have flexible leave arrangements</li>
+                            <li>• No formal leave application required</li>
+                            <li>• Coordinate directly with management as needed</li>
+                            <li>• Contact HR for any policy clarifications</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>• No annual leave entitlement</li>
+                            <li>• No medical leave entitlement</li>
+                            <li>• Pay is based on actual hours/days worked</li>
+                            <li>• Contact HR for any work-related inquiries</li>
+                          </>
+                        )}
                       </ul>
                     </div>
                   </div>

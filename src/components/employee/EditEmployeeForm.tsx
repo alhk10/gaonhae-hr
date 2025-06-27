@@ -11,6 +11,7 @@ import { EmployeeProfile, AllowanceDeduction } from '@/types/employee';
 import { Plus, Trash2 } from 'lucide-react';
 import AddAllowanceDialog from './AddAllowanceDialog';
 import AddDeductionDialog from './AddDeductionDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EditEmployeeFormProps {
   employee: EmployeeProfile;
@@ -54,10 +55,12 @@ const POSITION_OPTIONS = [
   'Director',
   'Senior Director',
   'General Manager',
+  'Senior Partner',
   'Other'
 ];
 
 const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, onCancel }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: employee.name,
     nric: employee.nric,
@@ -75,7 +78,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     position: employee.position || '',
     phone: employee.phone || '',
     address: employee.address || '',
-    email: employee.email || ''
+    email: employee.email || '',
+    joinDate: employee.joinDate || ''
   });
 
   // Convert EmployeeAllowance[] to AllowanceDeduction[]
@@ -290,6 +294,22 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Superadmin can edit join date */}
+            {user?.role === 'superadmin' && (
+              <div>
+                <Label htmlFor="joinDate">Join Date</Label>
+                <Input
+                  id="joinDate"
+                  type="date"
+                  value={formData.joinDate}
+                  onChange={(e) => handleInputChange('joinDate', e.target.value)}
+                />
+                <p className="text-xs text-blue-600 mt-1">
+                  Join date affects leave entitlement calculations
+                </p>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="paymentType">Payment Type</Label>
