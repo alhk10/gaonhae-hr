@@ -94,7 +94,6 @@ const Sidebar = () => {
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: UserCheck, label: 'Attendance', path: '/attendance' },
         { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
-        { icon: BarChart3, label: 'Reports', path: '/reports' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
       console.log('Sidebar: Admin menu items:', adminItems);
@@ -117,7 +116,6 @@ const Sidebar = () => {
         { icon: FileText, label: 'Claims', path: '/claims' },
         { icon: Clock, label: 'Attendance', path: '/attendance' },
         { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
-        { icon: BarChart3, label: 'Reports', path: '/reports' },
       ];
       console.log('Sidebar: Manager menu items:', managerItems);
       return managerItems;
