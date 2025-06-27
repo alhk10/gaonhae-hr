@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -153,7 +154,7 @@ const PayrollProcessing = () => {
     if (!empData) return;
     
     const newDeductions = empData.deductions.map(d => 
-      d.name === deductionName ? { name: d.name, amount: newAmount } : { name: d.name, amount: a.amount }
+      d.name === deductionName ? { name: d.name, amount: newAmount } : { name: d.name, amount: d.amount }
     );
     
     updateEmployeeDeductions(employeeId, newDeductions);
@@ -216,6 +217,9 @@ const PayrollProcessing = () => {
             {payrollState.fullTimeEmployees.map((employee) => {
               const empData = getEmployeeById(employee.id);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
+              
               return (
                 <div key={employee.id} className="border rounded-lg p-4">
                   <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
@@ -318,8 +322,8 @@ const PayrollProcessing = () => {
                     <div>
                       <h4 className="font-medium mb-2">Summary</h4>
                       <div className="space-y-1 text-sm">
-                        <div>Allowances: S${employee.allowances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}</div>
-                        <div>Deductions: S${employee.deductions.reduce((sum, d) => sum + d.amount, 0).toFixed(2)}</div>
+                        <div>Allowances: S${totalAllowances.toFixed(2)}</div>
+                        <div>Deductions: S${totalDeductions.toFixed(2)}</div>
                         <div>Claims: S${approvedClaims.toFixed(2)}</div>
                         <div>CPF: S${employee.cpfEmployer.toFixed(2)}</div>
                         <div className="font-medium">Net: S${(employee.netPay + approvedClaims).toFixed(2)}</div>
@@ -533,14 +537,15 @@ const PayrollProcessing = () => {
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
               const empData = getEmployeeById(employee.id);
-              const grossSalary = employee.baseSalary + employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const grossSalary = (employee.baseSalary || 0) + totalAllowances;
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Full-Time</TableCell>
-                  <TableCell>S${employee.baseSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
                   <TableCell>S${grossSalary.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${(grossSalary * 0.20).toFixed(2)}</TableCell>
@@ -555,14 +560,14 @@ const PayrollProcessing = () => {
             })}
             {payrollState.casualEmployees.map((employee) => {
               const empData = getEmployeeById(employee.id);
-              const grossPay = employee.hourlyRate * employee.hoursWorked;
+              const grossPay = (employee.hourlyRate || 0) * (employee.hoursWorked || 0);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Casual</TableCell>
-                  <TableCell>S${employee.hourlyRate.toFixed(2)}/hr</TableCell>
+                  <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}/hr</TableCell>
                   <TableCell>S${grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
