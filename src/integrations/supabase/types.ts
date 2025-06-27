@@ -440,6 +440,36 @@ export type Database = {
           },
         ]
       }
+      leave_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_days: number
+          name: string
+          requires_documents: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_days?: number
+          name: string
+          requires_documents?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_days?: number
+          name?: string
+          requires_documents?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       slot_bookings: {
         Row: {
           created_at: string | null

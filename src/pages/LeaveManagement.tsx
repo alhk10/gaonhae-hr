@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -21,11 +20,13 @@ import LeaveSettings from '@/components/leave/LeaveSettings';
 import LeaveSummaryPanel from '@/components/leave/LeaveSummaryPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
+import { getLeaveTypes } from '@/services/leaveTypesService';
 
 const LeaveManagement = () => {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
   const [isAddLeaveOpen, setIsAddLeaveOpen] = useState(false);
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
@@ -33,21 +34,21 @@ const LeaveManagement = () => {
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
-
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         console.log('Loading leave and employee data...');
         
-        const [leaveData, employeeData] = await Promise.all([
+        const [leaveData, employeeData, leaveTypesData] = await Promise.all([
           getAllLeaveRequests(),
-          getEmployees()
+          getEmployees(),
+          getLeaveTypes()
         ]);
         
         console.log('Loaded employees:', employeeData);
         console.log('Loaded leaves:', leaveData);
+        console.log('Loaded leave types:', leaveTypesData);
         
         setLeaves(leaveData);
         // Filter out casual employees and Senior Partners as they are not entitled to leaves
@@ -55,6 +56,7 @@ const LeaveManagement = () => {
           emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
         );
         setEmployees(eligibleEmployees);
+        setLeaveTypes(leaveTypesData.map(type => type.name));
       } catch (error) {
         console.error('Error loading data:', error);
         toast("Error loading data. Please try again.");
@@ -386,7 +388,11 @@ const LeaveManagement = () => {
                       </DialogHeader>
                       <LeaveSettings />
                       <DialogFooter>
-                        <Button onClick={() => setIsLeaveSettingsOpen(false)}>Close</Button>
+                        <Button onClick={() => {
+                          setIsLeaveSettingsOpen(false);
+                          // Reload leave types after settings are closed
+                          getLeaveTypes().then(types => setLeaveTypes(types.map(type => type.name)));
+                        }}>Close</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
