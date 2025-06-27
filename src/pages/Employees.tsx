@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -9,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Edit, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, createEmployee } from '@/services/employeeService';
+import { getEmployees, createEmployee, updateEmployeeAdminAccess } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
+import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import { AdminAccessPermissions } from '@/types/employee';
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -21,6 +22,15 @@ const Employees = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
+  const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
+    employees: false,
+    payroll: false,
+    leaveManagement: false,
+    claims: false,
+    attendance: false,
+    slotBooking: false,
+    reports: false
+  });
 
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
@@ -29,14 +39,30 @@ const Employees = () => {
   });
 
   const addEmployeeMutation = useMutation({
-    mutationFn: createEmployee,
+    mutationFn: async (employeeData: any) => {
+      const newEmployee = await createEmployee(employeeData);
+      
+      // Update admin access permissions after employee creation
+      if (newEmployee && newEmployee.id) {
+        await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
+      }
+      
+      return newEmployee;
+    },
     onSuccess: () => {
-      console.log('Employee added successfully');
+      console.log('Employee added successfully with admin access');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee added successfully");
       setShowAddForm(false);
-      // Reset form by forcing a re-render
-      window.location.reload();
+      setNewEmployeeAdminAccess({
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      });
     },
     onError: (error) => {
       console.error('Error adding employee:', error);
@@ -81,10 +107,16 @@ const Employees = () => {
       };
 
       console.log('Creating employee with data:', newEmployee);
+      console.log('Admin access permissions:', newEmployeeAdminAccess);
       await addEmployeeMutation.mutateAsync(newEmployee);
     } catch (error) {
       console.error('Failed to add employee:', error);
     }
+  };
+
+  const handleAdminAccessChange = (permissions: AdminAccessPermissions) => {
+    console.log('Admin access permissions changed:', permissions);
+    setNewEmployeeAdminAccess(permissions);
   };
 
   const filteredEmployees = employees.filter(employee =>
@@ -247,7 +279,7 @@ const Employees = () => {
 
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Add New Employee</h2>
@@ -258,6 +290,15 @@ const Employees = () => {
                 onClick={() => {
                   console.log('Closing add employee form');
                   setShowAddForm(false);
+                  setNewEmployeeAdminAccess({
+                    employees: false,
+                    payroll: false,
+                    leaveManagement: false,
+                    claims: false,
+                    attendance: false,
+                    slotBooking: false,
+                    reports: false
+                  });
                 }}
               >
                 Cancel
@@ -355,6 +396,16 @@ const Employees = () => {
                   placeholder="Enter full address..."
                 ></textarea>
               </div>
+
+              {/* Module Access Permissions */}
+              <div className="border-t pt-6">
+                <AdminAccessManager
+                  adminAccess={newEmployeeAdminAccess}
+                  onAdminAccessChange={handleAdminAccessChange}
+                  isEditing={true}
+                />
+              </div>
+
               <div className="flex space-x-4">
                 <Button 
                   type="submit" 
@@ -367,7 +418,18 @@ const Employees = () => {
                   type="button"
                   variant="outline" 
                   className="flex-1"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewEmployeeAdminAccess({
+                      employees: false,
+                      payroll: false,
+                      leaveManagement: false,
+                      claims: false,
+                      attendance: false,
+                      slotBooking: false,
+                      reports: false
+                    });
+                  }}
                 >
                   Cancel
                 </Button>
