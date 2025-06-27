@@ -22,6 +22,7 @@ const Employees = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
+  const [paymentType, setPaymentType] = useState('Monthly'); // Add payment type state for form
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -63,6 +64,7 @@ const Employees = () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee added successfully");
       setShowAddForm(false);
+      setPaymentType('Monthly');
       setNewEmployeeAdminAccess({
         employees: false,
         payroll: false,
@@ -138,7 +140,8 @@ const Employees = () => {
         paymentType: formData.get('paymentType') as string || 'Monthly',
         baseSalary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
         hourlyRate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
-        dailyRate: formData.get('dailyRate') ? parseFloat(formData.get('dailyRate') as string) : null,
+        dailyWeekdayRate: formData.get('dailyWeekdayRate') ? parseFloat(formData.get('dailyWeekdayRate') as string) : null,
+        dailyWeekendRate: formData.get('dailyWeekendRate') ? parseFloat(formData.get('dailyWeekendRate') as string) : null,
         joinDate: formData.get('joinDate') as string,
       };
 
@@ -340,6 +343,7 @@ const Employees = () => {
                 onClick={() => {
                   console.log('Closing add employee form');
                   setShowAddForm(false);
+                  setPaymentType('Monthly');
                   setNewEmployeeAdminAccess({
                     employees: false,
                     payroll: false,
@@ -426,24 +430,45 @@ const Employees = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
-                  <select name="paymentType" className="w-full p-2 border border-gray-300 rounded-lg">
+                  <select 
+                    name="paymentType" 
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                  >
                     <option value="Monthly">Monthly</option>
                     <option value="Hourly">Hourly</option>
                     <option value="Daily">Daily</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary</label>
-                  <Input name="baseSalary" type="number" step="0.01" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate</label>
-                  <Input name="hourlyRate" type="number" step="0.01" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Daily Rate</label>
-                  <Input name="dailyRate" type="number" step="0.01" />
-                </div>
+
+                {/* Conditional Rate Fields */}
+                {paymentType === 'Monthly' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
+                    <Input name="baseSalary" type="number" step="0.01" />
+                  </div>
+                )}
+
+                {paymentType === 'Hourly' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
+                    <Input name="hourlyRate" type="number" step="0.01" />
+                  </div>
+                )}
+
+                {paymentType === 'Daily' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
+                      <Input name="dailyWeekdayRate" type="number" step="0.01" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
+                      <Input name="dailyWeekendRate" type="number" step="0.01" />
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
@@ -480,6 +505,7 @@ const Employees = () => {
                   className="flex-1"
                   onClick={() => {
                     setShowAddForm(false);
+                    setPaymentType('Monthly');
                     setNewEmployeeAdminAccess({
                       employees: false,
                       payroll: false,

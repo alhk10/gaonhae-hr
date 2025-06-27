@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +66,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     type: employee.type,
     baseSalary: employee.baseSalary || '',
     hourlyRate: employee.hourlyRate || '',
-    dailyRate: employee.dailyRate || '',
+    dailyWeekdayRate: employee.dailyWeekdayRate || '',
+    dailyWeekendRate: employee.dailyWeekendRate || '',
     paymentType: employee.paymentType || 'Monthly',
     bankName: employee.bankName,
     bankAccount: employee.bankAccount,
@@ -132,7 +132,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         ...formData,
         baseSalary: formData.baseSalary ? Number(formData.baseSalary) : null,
         hourlyRate: formData.hourlyRate ? Number(formData.hourlyRate) : null,
-        dailyRate: formData.dailyRate ? Number(formData.dailyRate) : null,
+        dailyWeekdayRate: formData.dailyWeekdayRate ? Number(formData.dailyWeekdayRate) : null,
+        dailyWeekendRate: formData.dailyWeekendRate ? Number(formData.dailyWeekendRate) : null,
       };
 
       await updateEmployee(employee.id, updateData);
@@ -142,7 +143,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         ...updateData,
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
-        dailyRate: updateData.dailyRate || undefined,
+        dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
+        dailyWeekendRate: updateData.dailyWeekendRate || undefined,
         // Convert back to EmployeeAllowance[] and EmployeeDeduction[]
         allowances: allowances.map(a => ({ ...a, id: a.id })),
         deductions: deductions.map(d => ({ ...d, id: d.id })),
@@ -303,6 +305,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               </Select>
             </div>
 
+            {/* Conditional Rate Fields */}
             {formData.paymentType === 'Monthly' && (
               <div>
                 <Label htmlFor="baseSalary">Base Salary (S$)</Label>
@@ -321,6 +324,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                 <Input
                   id="hourlyRate"
                   type="number"
+                  step="0.01"
                   value={formData.hourlyRate}
                   onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
                 />
@@ -328,15 +332,28 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
             )}
 
             {formData.paymentType === 'Daily' && (
-              <div>
-                <Label htmlFor="dailyRate">Daily Rate (S$)</Label>
-                <Input
-                  id="dailyRate"
-                  type="number"
-                  value={formData.dailyRate}
-                  onChange={(e) => handleInputChange('dailyRate', e.target.value)}
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
+                  <Input
+                    id="dailyWeekdayRate"
+                    type="number"
+                    step="0.01"
+                    value={formData.dailyWeekdayRate}
+                    onChange={(e) => handleInputChange('dailyWeekdayRate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
+                  <Input
+                    id="dailyWeekendRate"
+                    type="number"
+                    step="0.01"
+                    value={formData.dailyWeekendRate}
+                    onChange={(e) => handleInputChange('dailyWeekendRate', e.target.value)}
+                  />
+                </div>
+              </>
             )}
 
             <div>

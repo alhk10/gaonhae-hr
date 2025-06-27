@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -465,9 +464,9 @@ const EmployeeDetails = () => {
                   </div>
                 </div>
 
-                {/* Salary/Rate Fields */}
+                {/* Conditional Salary/Rate Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {employee.type === 'Full-Time' && (
+                  {employee.paymentType === 'Monthly' && (
                     <div>
                       <Label htmlFor="baseSalary">Base Salary (S$)</Label>
                       <Input
@@ -480,11 +479,12 @@ const EmployeeDetails = () => {
                     </div>
                   )}
                   
-                  {employee.type === 'Casual' && employee.paymentType === 'Hourly' && (
+                  {employee.paymentType === 'Hourly' && (
                     <div>
                       <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
                       <Input
                         type="number"
+                        step="0.01"
                         id="hourlyRate"
                         value={employee.hourlyRate || ''}
                         onChange={(e) => handleInputChange(e, 'hourlyRate')}
@@ -493,12 +493,13 @@ const EmployeeDetails = () => {
                     </div>
                   )}
                   
-                  {employee.type === 'Casual' && employee.paymentType === 'Daily' && (
+                  {employee.paymentType === 'Daily' && (
                     <>
                       <div>
                         <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
                         <Input
                           type="number"
+                          step="0.01"
                           id="dailyWeekdayRate"
                           value={employee.dailyWeekdayRate || ''}
                           onChange={(e) => handleInputChange(e, 'dailyWeekdayRate')}
@@ -509,6 +510,7 @@ const EmployeeDetails = () => {
                         <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
                         <Input
                           type="number"
+                          step="0.01"
                           id="dailyWeekendRate"
                           value={employee.dailyWeekendRate || ''}
                           onChange={(e) => handleInputChange(e, 'dailyWeekendRate')}
