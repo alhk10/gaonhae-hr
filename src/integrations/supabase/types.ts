@@ -270,6 +270,42 @@ export type Database = {
           },
         ]
       }
+      employee_page_access: {
+        Row: {
+          apply_leave: boolean | null
+          created_at: string | null
+          employee_id: string | null
+          id: number
+          my_attendance: boolean | null
+          payslips: boolean | null
+          profile: boolean | null
+          slot_booking_employee: boolean | null
+          submit_claim: boolean | null
+        }
+        Insert: {
+          apply_leave?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: number
+          my_attendance?: boolean | null
+          payslips?: boolean | null
+          profile?: boolean | null
+          slot_booking_employee?: boolean | null
+          submit_claim?: boolean | null
+        }
+        Update: {
+          apply_leave?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: number
+          my_attendance?: boolean | null
+          payslips?: boolean | null
+          profile?: boolean | null
+          slot_booking_employee?: boolean | null
+          submit_claim?: boolean | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           address: string | null

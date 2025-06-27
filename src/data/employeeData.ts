@@ -35,6 +35,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: true,
       slotBooking: true,
       reports: true
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
     }
   },
   {
@@ -68,6 +76,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: false,
       slotBooking: false,
       reports: false
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: false
     }
   },
   {
@@ -102,6 +118,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: false,
       slotBooking: false,
       reports: false
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: false
     }
   },
   {
@@ -132,6 +156,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: false,
       slotBooking: false,
       reports: false
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
     }
   },
   {
@@ -162,6 +194,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: false,
       slotBooking: false,
       reports: false
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
     }
   },
   {
@@ -192,6 +232,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: false,
       slotBooking: false,
       reports: false
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
     }
   },
   {
@@ -227,6 +275,14 @@ const mockEmployees: EmployeeProfile[] = [
       attendance: true,
       slotBooking: true,
       reports: true
+    },
+    pageAccess: {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
     }
   }
 ];
