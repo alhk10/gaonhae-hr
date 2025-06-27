@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
+import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { getEmployees } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -206,7 +207,10 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               netPay: totalPay,
               totalPay,
               employeeCPF: cpfCalc.employeeCPF,
-              employerCPF: cpfCalc.employerCPF
+              employerCPF: cpfCalc.employerCPF,
+              // Legacy properties for CasualEmployeePayroll
+              cpf: cpfCalc.employerCPF,
+              total: totalPay
             };
           } catch (error) {
             console.error('Error processing casual employee:', emp.id, error);
@@ -228,7 +232,9 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               netPay: 0,
               totalPay: 0,
               employeeCPF: 0,
-              employerCPF: 0
+              employerCPF: 0,
+              cpf: 0,
+              total: 0
             };
           }
         })

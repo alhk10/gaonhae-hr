@@ -1,334 +1,204 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { toast } from "@/components/ui/sonner"
+import { ArrowLeft, Save, Plus, Trash2, Edit } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+import { getEmployeeById, updateEmployee, updateEmployeeResignDate, updateEmployeeAdminAccess } from '@/services/employeeService';
+import { getEmployees, systemAllowances, systemDeductions } from '@/data/employeeData';
+import type { EmployeeProfile, AllowanceDeduction } from '@/types/employee';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Edit, FileText, Calendar, DollarSign, Clock, BookOpen, Award, Settings } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
-import { getEmployeeById } from '@/services/employeeService';
-import { getEmployeeClaims } from '@/services/claimsService';
-import { getAllLeaveRequests } from '@/services/leaveService';
-import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
-import { getEmployeeSlotBookings } from '@/data/slotBookingData';
-import { AllowanceDeduction, EmployeeProfile } from '@/types/employee';
-import { supabase } from '@/integrations/supabase/client';
-import AdminAccessManager from '@/components/employee/AdminAccessManager';
-import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
-import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
-import type { Claim } from '@/services/claimsService';
-import type { LeaveRequest } from '@/services/leaveService';
-import type { AttendanceRecord } from '@/services/attendanceService';
-import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Approved': return 'default';
-    case 'Rejected': return 'destructive';
-    default: return 'secondary';
-  }
+interface AllowanceDeductionManagerProps {
+  title: string;
+  items: AllowanceDeduction[];
+  systemItems: { id: string; name: string; amount: number; type: 'Fixed' | 'Percentage' | 'Manual' }[];
+  onAdd: (item: any) => void;
+  onEdit: (item: any) => void;
+  onRemove: (item: any) => void;
+}
+
+const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ title, items, systemItems, onAdd, onEdit, onRemove }) => {
+  const [newItemName, setNewItemName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-medium">{title}</h4>
+        <Button variant="outline" size="sm" onClick={() => setIsAdding(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add {title === 'Allowances' ? 'Allowance' : 'Deduction'}
+        </Button>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.amount}</TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onRemove(item)}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Remove
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add {title === 'Allowances' ? 'Allowance' : 'Deduction'}</DialogTitle>
+            <DialogDescription>
+              Select a system {title === 'Allowances' ? 'allowance' : 'deduction'} to add.
+            </DialogDescription>
+          </DialogHeader>
+          <Select onValueChange={(value) => setNewItemName(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={`Select ${title === 'Allowances' ? 'Allowance' : 'Deduction'}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {systemItems.map((item) => (
+                <SelectItem key={item.id} value={item.name}>
+                  {item.name} (S${item.amount})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setIsAdding(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => {
+              const selectedItem = systemItems.find(item => item.name === newItemName);
+              if (selectedItem) {
+                onAdd(selectedItem);
+                setIsAdding(false);
+                setNewItemName('');
+              }
+            }}>
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
 
 const EmployeeDetails = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isEditingAccess, setIsEditingAccess] = useState(false);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
-  const [employeeClaims, setEmployeeClaims] = useState<Claim[]>([]);
-  const [employeeLeaveRecords, setEmployeeLeaveRecords] = useState<LeaveRequest[]>([]);
-  const [employeeAttendanceRecords, setEmployeeAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [payslipRecords, setPayslipRecords] = useState<any[]>([]);
-  const [employeeAllowances, setEmployeeAllowances] = useState<AllowanceDeduction[]>([]);
-  const [employeeDeductions, setEmployeeDeductions] = useState<AllowanceDeduction[]>([]);
-  const [isLoadingClaims, setIsLoadingClaims] = useState(true);
-  const [isLoadingLeave, setIsLoadingLeave] = useState(true);
-  const [isLoadingAttendance, setIsLoadingAttendance] = useState(true);
-  const [isLoadingPayslips, setIsLoadingPayslips] = useState(true);
-  const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
-  
-  const employeeSlotBookings = getEmployeeSlotBookings(id || '');
+  const [isResigned, setIsResigned] = useState(false);
+  const [resignDate, setResignDate] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [adminAccess, setAdminAccess] = useState({
+    employees: false,
+    payroll: false,
+    leaveManagement: false,
+    claims: false,
+    attendance: false,
+    slotBooking: false,
+    reports: false
+  });
 
   useEffect(() => {
-    const loadEmployee = async () => {
-      if (!id) return;
-      
-      try {
-        setIsLoadingEmployee(true);
+    const fetchEmployee = async () => {
+      if (id) {
         const employeeData = await getEmployeeById(id);
         setEmployee(employeeData);
-        
-        // Load allowances and deductions from Supabase
-        await loadAllowancesAndDeductions(id);
-      } catch (error) {
-        console.error('Error loading employee:', error);
-        toast("Error loading employee details");
-      } finally {
-        setIsLoadingEmployee(false);
+        setIsResigned(!!employeeData?.resignDate);
+        setResignDate(employeeData?.resignDate || '');
+        setAdminAccess(employeeData?.adminAccess || {
+          employees: false,
+          payroll: false,
+          leaveManagement: false,
+          claims: false,
+          attendance: false,
+          slotBooking: false,
+          reports: false
+        });
       }
     };
 
-    loadEmployee();
+    fetchEmployee();
   }, [id]);
 
-  const loadAllowancesAndDeductions = async (employeeId: string) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, field: string) => {
+    setEmployee((prev) => {
+      if (prev) {
+        return { ...prev, [field]: e.target.value };
+      }
+      return prev;
+    });
+  };
+
+  const handleAdminAccessChange = (field: string, value: boolean) => {
+    setAdminAccess(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!employee) return;
+
+    setIsSaving(true);
     try {
-      // Load allowances
-      const { data: allowances, error: allowancesError } = await supabase
-        .from('allowances')
-        .select('*')
-        .eq('employee_id', employeeId);
+      // Update employee details
+      await updateEmployee(employee.id, employee);
 
-      if (allowancesError) {
-        console.error('Error loading allowances:', allowancesError);
+      // Update resign date
+      if (isResigned) {
+        await updateEmployeeResignDate(employee.id, resignDate);
       } else {
-        // Transform Supabase data to match our interface
-        const transformedAllowances: AllowanceDeduction[] = (allowances || []).map(item => ({
-          id: item.id,
-          name: item.name,
-          amount: item.amount,
-          type: item.type || undefined
-        }));
-        setEmployeeAllowances(transformedAllowances);
+        await updateEmployeeResignDate(employee.id, '');
       }
 
-      // Load deductions
-      const { data: deductions, error: deductionsError } = await supabase
-        .from('deductions')
-        .select('*')
-        .eq('employee_id', employeeId);
+      // Update admin access
+      await updateEmployeeAdminAccess(employee.id, adminAccess);
 
-      if (deductionsError) {
-        console.error('Error loading deductions:', deductionsError);
-      } else {
-        // Transform Supabase data to match our interface
-        const transformedDeductions: AllowanceDeduction[] = (deductions || []).map(item => ({
-          id: item.id,
-          name: item.name,
-          amount: item.amount,
-          type: item.type || undefined
-        }));
-        setEmployeeDeductions(transformedDeductions);
-      }
+      toast.success("Employee details saved successfully");
+      navigate('/employees');
     } catch (error) {
-      console.error('Error loading allowances/deductions:', error);
+      console.error("Error updating employee:", error);
+      toast.error("Failed to save employee details");
+    } finally {
+      setIsSaving(false);
     }
   };
-
-  // Load claims data asynchronously
-  useEffect(() => {
-    const loadClaims = async () => {
-      if (!id) return;
-      
-      try {
-        setIsLoadingClaims(true);
-        const claims = await getEmployeeClaims(id);
-        setEmployeeClaims(claims);
-      } catch (error) {
-        console.error('Error loading employee claims:', error);
-      } finally {
-        setIsLoadingClaims(false);
-      }
-    };
-
-    loadClaims();
-  }, [id]);
-
-  // Load leave records from Supabase
-  useEffect(() => {
-    const loadLeaveRecords = async () => {
-      if (!id) return;
-      
-      try {
-        setIsLoadingLeave(true);
-        const allLeaveRequests = await getAllLeaveRequests();
-        const employeeLeaves = allLeaveRequests.filter(leave => leave.employeeId === id);
-        setEmployeeLeaveRecords(employeeLeaves);
-      } catch (error) {
-        console.error('Error loading employee leave records:', error);
-      } finally {
-        setIsLoadingLeave(false);
-      }
-    };
-
-    loadLeaveRecords();
-  }, [id]);
-
-  // Load attendance records from Supabase
-  useEffect(() => {
-    const loadAttendanceRecords = async () => {
-      if (!id) return;
-      
-      try {
-        setIsLoadingAttendance(true);
-        const attendanceRecords = await getEmployeeAttendanceRecords(id);
-        setEmployeeAttendanceRecords(attendanceRecords);
-      } catch (error) {
-        console.error('Error loading employee attendance records:', error);
-      } finally {
-        setIsLoadingAttendance(false);
-      }
-    };
-
-    loadAttendanceRecords();
-  }, [id]);
-
-  // Load payslip records - generate from current employee data
-  useEffect(() => {
-    const loadPayslipRecords = async () => {
-      if (!employee) return;
-      
-      try {
-        setIsLoadingPayslips(true);
-        
-        // Load approved claims for this employee
-        const approvedClaims = employeeClaims
-          .filter(claim => claim.status === 'Approved')
-          .reduce((sum, claim) => sum + claim.amount, 0);
-
-        // Generate payslip records for recent months
-        const payslips = [
-          { month: 'December 2024', ...generatePayslipData(employee, approvedClaims, 'December 2024') },
-          { month: 'November 2024', ...generatePayslipData(employee, approvedClaims, 'November 2024') },
-          { month: 'October 2024', ...generatePayslipData(employee, approvedClaims, 'October 2024') },
-          { month: 'September 2024', ...generatePayslipData(employee, approvedClaims, 'September 2024') },
-        ];
-        
-        setPayslipRecords(payslips);
-      } catch (error) {
-        console.error('Error loading payslip records:', error);
-      } finally {
-        setIsLoadingPayslips(false);
-      }
-    };
-
-    if (employee && employeeClaims.length >= 0) {
-      loadPayslipRecords();
-    }
-  }, [employee, employeeClaims]);
-
-  const generatePayslipData = (employee: EmployeeProfile, approvedClaims: number, month: string) => {
-    const baseSalary = employee.baseSalary || 0;
-    const totalAllowances = employeeAllowances.reduce((sum, a) => sum + a.amount, 0);
-    const totalDeductions = employeeDeductions.reduce((sum, d) => sum + d.amount, 0);
-    const grossSalary = baseSalary + totalAllowances;
-    
-    const age = calculateAge(employee.dateOfBirth);
-    const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus, age);
-    
-    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
-    
-    return {
-      baseSalary,
-      totalAllowances,
-      totalDeductions,
-      grossSalary,
-      employeeCPF: cpfCalc.employeeCPF,
-      employerCPF: cpfCalc.employerCPF,
-      totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
-      approvedClaims,
-      netSalary,
-      status: 'Processed'
-    };
-  };
-
-  const handleAddAllowance = (allowance: AllowanceDeduction) => {
-    if (employee) {
-      const updatedEmployee = {
-        ...employee,
-        allowances: [...employee.allowances, {
-          id: allowance.id,
-          name: allowance.name,
-          amount: allowance.amount,
-          type: allowance.type
-        }]
-      };
-      setEmployee(updatedEmployee);
-      toast(`Added ${allowance.name} allowance`);
-    }
-  };
-
-  const handleAddDeduction = (deduction: AllowanceDeduction) => {
-    if (employee) {
-      const updatedEmployee = {
-        ...employee,
-        deductions: [...employee.deductions, {
-          id: deduction.id,
-          name: deduction.name,
-          amount: deduction.amount,
-          type: deduction.type
-        }]
-      };
-      setEmployee(updatedEmployee);
-      toast(`Added ${deduction.name} deduction`);
-    }
-  };
-
-  if (isLoadingEmployee) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading employee details...</p>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
 
   if (!employee) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center">
-              <p>Employee not found</p>
-              <Button onClick={() => navigate('/employees')} className="mt-4">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Employees
-              </Button>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
+    return <div>Loading employee details...</div>;
   }
-
-  const handleEditSave = (updatedEmployee: EmployeeProfile) => {
-    setEmployee(updatedEmployee);
-    setIsEditing(false);
-  };
-
-  const handleEditCancel = () => {
-    setIsEditing(false);
-  };
-
-  const handleEditAccess = () => {
-    if (isEditingAccess) {
-      toast("Admin access permissions updated successfully");
-    }
-    setIsEditingAccess(!isEditingAccess);
-  };
-
-  const handleAllowanceDeductionUpdate = () => {
-    if (id) {
-      loadAllowancesAndDeductions(id);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -337,486 +207,315 @@ const EmployeeDetails = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => navigate('/employees')}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
-                </Button>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{employee?.name}</h1>
-                  <p className="text-gray-600">{employee?.id} • {employee?.branch} • {employee?.position}</p>
-                </div>
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" onClick={() => navigate('/employees')}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Employees
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Employee Details</h2>
+                <p className="text-gray-600">View and edit employee information</p>
               </div>
-              <Button onClick={() => setIsEditing(!isEditing)} className="flex items-center space-x-2">
-                <Edit className="w-4 h-4" />
-                <span>{isEditing ? 'Cancel Edit' : 'Edit Employee'}</span>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>Edit basic employee details</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Name</Label>
+                    <Input id="name" value={employee.name} onChange={(e) => handleInputChange(e, 'name')} />
+                  </div>
+                  <div>
+                    <Label htmlFor="nric">NRIC</Label>
+                    <Input id="nric" value={employee.nric || ''} onChange={(e) => handleInputChange(e, 'nric')} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      type="date"
+                      id="dateOfBirth"
+                      value={employee.dateOfBirth}
+                      onChange={(e) => handleInputChange(e, 'dateOfBirth')}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="residencyStatus">Residency Status</Label>
+                    <Select value={employee.residencyStatus} onValueChange={(value) => setEmployee(prev => ({ ...prev!, residencyStatus: value }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Citizen">Citizen</SelectItem>
+                        <SelectItem value="PR">Permanent Resident</SelectItem>
+                        <SelectItem value="Foreigner">Foreigner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="type">Employee Type</Label>
+                    <Select value={employee.type} onValueChange={(value) => setEmployee(prev => ({ ...prev!, type: value as 'Full-Time' | 'Casual' }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Full-Time">Full-Time</SelectItem>
+                        <SelectItem value="Casual">Casual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="paymentType">Payment Type</Label>
+                    <Select value={employee.paymentType} onValueChange={(value) => setEmployee(prev => ({ ...prev!, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select payment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Hourly">Hourly</SelectItem>
+                        <SelectItem value="Daily">Daily</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="baseSalary">Base Salary</Label>
+                    <Input
+                      type="number"
+                      id="baseSalary"
+                      value={employee.baseSalary || ''}
+                      onChange={(e) => handleInputChange(e, 'baseSalary')}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="hourlyRate">Hourly Rate</Label>
+                    <Input
+                      type="number"
+                      id="hourlyRate"
+                      value={employee.hourlyRate || ''}
+                      onChange={(e) => handleInputChange(e, 'hourlyRate')}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+                <CardDescription>Edit contact details</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" value={employee.phone || ''} onChange={(e) => handleInputChange(e, 'phone')} />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={employee.email || ''} onChange={(e) => handleInputChange(e, 'email')} />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" value={employee.address || ''} onChange={(e) => handleInputChange(e, 'address')} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bank Details</CardTitle>
+                <CardDescription>Edit bank account information</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Input id="bankName" value={employee.bankName || ''} onChange={(e) => handleInputChange(e, 'bankName')} />
+                  </div>
+                  <div>
+                    <Label htmlFor="bankAccount">Bank Account</Label>
+                    <Input id="bankAccount" value={employee.bankAccount || ''} onChange={(e) => handleInputChange(e, 'bankAccount')} />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="branch">Branch</Label>
+                  <Input id="branch" value={employee.branch || ''} onChange={(e) => handleInputChange(e, 'branch')} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Employment Details</CardTitle>
+                <CardDescription>Edit employment details</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="position">Position</Label>
+                    <Input id="position" value={employee.position || ''} onChange={(e) => handleInputChange(e, 'position')} />
+                  </div>
+                  <div>
+                    <Label htmlFor="joinDate">Join Date</Label>
+                    <Input type="date" id="joinDate" value={employee.joinDate || ''} onChange={(e) => handleInputChange(e, 'joinDate')} disabled />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="isResigned">Resigned</Label>
+                  <Switch id="isResigned" checked={isResigned} onCheckedChange={setIsResigned} />
+                </div>
+                {isResigned && (
+                  <div>
+                    <Label htmlFor="resignDate">Resign Date</Label>
+                    <Input type="date" id="resignDate" value={resignDate} onChange={(e) => setResignDate(e.target.value)} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Payroll Details</CardTitle>
+                <CardDescription>Manage allowances and deductions</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <AllowanceDeductionManager
+                  title="Allowances"
+                  items={employee.allowances.map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    amount: a.amount,
+                    type: a.type
+                  }))}
+                  systemItems={systemAllowances.map(a => ({
+                    id: a.id.toString(),
+                    name: a.name,
+                    amount: a.amount,
+                    type: 'Fixed' as const
+                  }))}
+                  onAdd={(item) => {
+                    if (!employee) return;
+                    const newAllowances = [...employee.allowances, {
+                      id: Date.now().toString(),
+                      name: item.name,
+                      amount: item.amount,
+                      type: 'Fixed' as const
+                    }];
+                    setEmployee({ ...employee, allowances: newAllowances });
+                  }}
+                  onEdit={(item) => {
+                    // Implement edit logic here
+                  }}
+                  onRemove={(item) => {
+                    if (!employee) return;
+                    const newAllowances = employee.allowances.filter(a => a.id !== item.id);
+                    setEmployee({ ...employee, allowances: newAllowances });
+                  }}
+                />
+
+                <AllowanceDeductionManager
+                  title="Deductions"
+                  items={employee.deductions.map(d => ({
+                    id: d.id,
+                    name: d.name,
+                    amount: d.amount,
+                    type: d.type
+                  }))}
+                  systemItems={systemDeductions.map(d => ({
+                    id: d.id.toString(),
+                    name: d.name,
+                    amount: d.amount,
+                    type: 'Fixed' as const
+                  }))}
+                  onAdd={(item) => {
+                    if (!employee) return;
+                    const newDeductions = [...employee.deductions, {
+                      id: Date.now().toString(),
+                      name: item.name,
+                      amount: item.amount,
+                      type: 'Fixed' as const
+                    }];
+                    setEmployee({ ...employee, deductions: newDeductions });
+                  }}
+                  onEdit={(item) => {
+                    // Implement edit logic here
+                  }}
+                  onRemove={(item) => {
+                    if (!employee) return;
+                    const newDeductions = employee.deductions.filter(d => d.id !== item.id);
+                    setEmployee({ ...employee, deductions: newDeductions });
+                  }}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Access</CardTitle>
+                <CardDescription>Manage employee access permissions</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="employees">Employees</Label>
+                  <Switch id="employees" checked={adminAccess.employees} onCheckedChange={(value) => handleAdminAccessChange('employees', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="payroll">Payroll</Label>
+                  <Switch id="payroll" checked={adminAccess.payroll} onCheckedChange={(value) => handleAdminAccessChange('payroll', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="leaveManagement">Leave Management</Label>
+                  <Switch id="leaveManagement" checked={adminAccess.leaveManagement} onCheckedChange={(value) => handleAdminAccessChange('leaveManagement', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="claims">Claims</Label>
+                  <Switch id="claims" checked={adminAccess.claims} onCheckedChange={(value) => handleAdminAccessChange('claims', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="attendance">Attendance</Label>
+                  <Switch id="attendance" checked={adminAccess.attendance} onCheckedChange={(value) => handleAdminAccessChange('attendance', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="slotBooking">Slot Booking</Label>
+                  <Switch id="slotBooking" checked={adminAccess.slotBooking} onCheckedChange={(value) => handleAdminAccessChange('slotBooking', value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="reports">Reports</Label>
+                  <Switch id="reports" checked={adminAccess.reports} onCheckedChange={(value) => handleAdminAccessChange('reports', value)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => navigate('/employees')}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save
+                  </>
+                )}
               </Button>
             </div>
-
-            {isEditing ? (
-              <EditEmployeeForm
-                employee={employee!}
-                onSave={handleEditSave}
-                onCancel={handleEditCancel}
-              />
-            ) : (
-              <Tabs defaultValue="profile" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-7">
-                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                  <TabsTrigger value="leave">Leave Records</TabsTrigger>
-                  <TabsTrigger value="claims">Claims</TabsTrigger>
-                  <TabsTrigger value="payslips">Payslips</TabsTrigger>
-                  <TabsTrigger value="attendance">Attendance</TabsTrigger>
-                  <TabsTrigger value="booking">Slot Booking</TabsTrigger>
-                  <TabsTrigger value="certificates">Certificates</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="profile">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Personal Information</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">Full Name</TableCell>
-                              <TableCell>{employee.name}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Employee ID</TableCell>
-                              <TableCell>{employee.id}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">NRIC/FIN</TableCell>
-                              <TableCell>{employee.nric}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Date of Birth</TableCell>
-                              <TableCell>{employee.dateOfBirth}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Residency Status</TableCell>
-                              <TableCell>{employee.residencyStatus}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Email</TableCell>
-                              <TableCell>{employee.email || 'Not specified'}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Phone</TableCell>
-                              <TableCell>{employee.phone || 'Not specified'}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Address</TableCell>
-                              <TableCell>{employee.address || 'Not specified'}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Work Information</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">Branch</TableCell>
-                              <TableCell>{employee.branch || 'Not specified'}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Position</TableCell>
-                              <TableCell>{employee.position || 'Not specified'}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Employment Type</TableCell>
-                              <TableCell>{employee.type}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Payment Type</TableCell>
-                              <TableCell>{employee.paymentType || 'Not specified'}</TableCell>
-                            </TableRow>
-                            {employee.baseSalary && (
-                              <TableRow>
-                                <TableCell className="font-medium">Base Salary</TableCell>
-                                <TableCell>S${employee.baseSalary.toLocaleString()}</TableCell>
-                              </TableRow>
-                            )}
-                            {employee.hourlyRate && (
-                              <TableRow>
-                                <TableCell className="font-medium">Hourly Rate</TableCell>
-                                <TableCell>S${employee.hourlyRate}/hour</TableCell>
-                              </TableRow>
-                            )}
-                            {employee.dailyRate && (
-                              <TableRow>
-                                <TableCell className="font-medium">Daily Rate</TableCell>
-                                <TableCell>S${employee.dailyRate}/day</TableCell>
-                              </TableRow>
-                            )}
-                            <TableRow>
-                              <TableCell className="font-medium">Bank Name</TableCell>
-                              <TableCell>{employee.bankName}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Bank Account</TableCell>
-                              <TableCell>{employee.bankAccount}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <AllowanceDeductionManager
-                    employeeId={employee.id}
-                    onUpdate={handleAllowanceDeductionUpdate}
-                  />
-
-                  {employee.adminAccess && (
-                    <div className="mt-6">
-                      <Card>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <CardTitle>Admin Access Permissions</CardTitle>
-                            <Button onClick={handleEditAccess} size="sm" className="flex items-center space-x-2">
-                              <Settings className="w-4 h-4" />
-                              <span>{isEditingAccess ? 'Save Access' : 'Edit Access'}</span>
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <AdminAccessManager
-                            adminAccess={employee.adminAccess}
-                            onAdminAccessChange={(permissions) => {
-                              setEmployee(prev => prev ? { ...prev, adminAccess: permissions } : null);
-                            }}
-                            isEditing={isEditingAccess}
-                          />
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="leave">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <Calendar className="w-5 h-5" />
-                        <span>Leave Records</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoadingLeave ? (
-                        <div className="text-center py-4">
-                          <p>Loading leave records...</p>
-                        </div>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Date Applied</TableHead>
-                              <TableHead>Leave Type</TableHead>
-                              <TableHead>Start Date</TableHead>
-                              <TableHead>End Date</TableHead>
-                              <TableHead>Days</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Reason</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {employeeLeaveRecords.length > 0 ? (
-                              employeeLeaveRecords.map((leave) => (
-                                <TableRow key={leave.id}>
-                                  <TableCell>{leave.appliedOn}</TableCell>
-                                  <TableCell>{leave.type}</TableCell>
-                                  <TableCell>{leave.startDate}</TableCell>
-                                  <TableCell>{leave.endDate}</TableCell>
-                                  <TableCell>{leave.days}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={getStatusColor(leave.status)}>
-                                      {leave.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-gray-500">
-                                  No leave records found
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="claims">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <FileText className="w-5 h-5" />
-                        <span>Claims Records</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoadingClaims ? (
-                        <div className="text-center py-4">
-                          <p>Loading claims...</p>
-                        </div>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Date Submitted</TableHead>
-                              <TableHead>Claim Type</TableHead>
-                              <TableHead>Amount</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Description</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {employeeClaims.length > 0 ? (
-                              employeeClaims.map((claim) => (
-                                <TableRow key={claim.id}>
-                                  <TableCell>{claim.date}</TableCell>
-                                  <TableCell>{claim.type}</TableCell>
-                                  <TableCell>S${claim.amount.toFixed(2)}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={getStatusColor(claim.status)}>
-                                      {claim.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center text-gray-500">
-                                  No claims records found
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="payslips">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <DollarSign className="w-5 h-5" />
-                        <span>Payslip Records</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoadingPayslips ? (
-                        <div className="text-center py-4">
-                          <p>Loading payslip records...</p>
-                        </div>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Pay Period</TableHead>
-                              <TableHead>Basic Salary</TableHead>
-                              <TableHead>Allowances</TableHead>
-                              <TableHead>Deductions</TableHead>
-                              <TableHead>CPF Employee</TableHead>
-                              <TableHead>Net Pay</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {payslipRecords.length > 0 ? (
-                              payslipRecords.map((payslip, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>{payslip.month}</TableCell>
-                                  <TableCell>S${payslip.baseSalary.toLocaleString()}</TableCell>
-                                  <TableCell>S${payslip.totalAllowances.toLocaleString()}</TableCell>
-                                  <TableCell>S${payslip.totalDeductions.toLocaleString()}</TableCell>
-                                  <TableCell>S${payslip.employeeCPF.toLocaleString()}</TableCell>
-                                  <TableCell>S${payslip.netSalary.toLocaleString()}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="default">{payslip.status}</Badge>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-gray-500">
-                                  No payslip records found
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="attendance">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <Clock className="w-5 h-5" />
-                        <span>Attendance Records</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoadingAttendance ? (
-                        <div className="text-center py-4">
-                          <p>Loading attendance records...</p>
-                        </div>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Check In</TableHead>
-                              <TableHead>Check Out</TableHead>
-                              <TableHead>Hours Worked</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Location</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {employeeAttendanceRecords.length > 0 ? (
-                              employeeAttendanceRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                  <TableCell>{record.date}</TableCell>
-                                  <TableCell>{record.clockIn || '-'}</TableCell>
-                                  <TableCell>{record.clockOut || '-'}</TableCell>
-                                  <TableCell>{record.hours}h</TableCell>
-                                  <TableCell>
-                                    <Badge variant={record.status === 'Present' ? 'default' : 'secondary'}>
-                                      {record.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{record.location || '-'}</TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-500">
-                                  No attendance records found
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="booking">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <BookOpen className="w-5 h-5" />
-                        <span>Slot Booking Records</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Branch</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Booked On</TableHead>
-                            <TableHead>Approved By</TableHead>
-                            <TableHead>Approved On</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employeeSlotBookings.length > 0 ? (
-                            employeeSlotBookings.map((booking) => (
-                              <TableRow key={booking.id}>
-                                <TableCell>{booking.date}</TableCell>
-                                <TableCell>{booking.branchName}</TableCell>
-                                <TableCell>
-                                  <Badge variant={getStatusColor(booking.status)}>
-                                    {booking.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{booking.bookedOn}</TableCell>
-                                <TableCell>{booking.approvedBy || '-'}</TableCell>
-                                <TableCell>{booking.approvedOn || '-'}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center text-gray-500">
-                                No slot booking records found
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="certificates">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <Award className="w-5 h-5" />
-                        <span>Certificate Uploads</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Certificate Name</TableHead>
-                            <TableHead>File Name</TableHead>
-                            <TableHead>Upload Date</TableHead>
-                            <TableHead>File Size</TableHead>
-                            <TableHead>File Type</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employee.certificates && employee.certificates.length > 0 ? (
-                            employee.certificates.map((cert) => (
-                              <TableRow key={cert.id}>
-                                <TableCell>{cert.name}</TableCell>
-                                <TableCell>{cert.fileName}</TableCell>
-                                <TableCell>{new Date(cert.uploadDate).toLocaleDateString()}</TableCell>
-                                <TableCell>{(cert.fileSize / 1024).toFixed(2)} KB</TableCell>
-                                <TableCell>{cert.fileType}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center text-gray-500">
-                                No certificates uploaded
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            )}
           </div>
         </main>
       </div>

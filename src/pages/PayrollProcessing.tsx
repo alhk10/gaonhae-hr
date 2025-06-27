@@ -153,7 +153,7 @@ const PayrollProcessing = () => {
     if (!empData) return;
     
     const newDeductions = empData.deductions.map(d => 
-      d.name === deductionName ? { name: d.name, amount: newAmount } : { name: d.name, amount: d.amount }
+      d.name === deductionName ? { name: d.name, amount: newAmount } : { name: d.name, amount: a.amount }
     );
     
     updateEmployeeDeductions(employeeId, newDeductions);
@@ -318,11 +318,11 @@ const PayrollProcessing = () => {
                     <div>
                       <h4 className="font-medium mb-2">Summary</h4>
                       <div className="space-y-1 text-sm">
-                        <div>Allowances: S${employee.allowances.toFixed(2)}</div>
-                        <div>Deductions: S${employee.deductions.toFixed(2)}</div>
+                        <div>Allowances: S${employee.allowances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}</div>
+                        <div>Deductions: S${employee.deductions.reduce((sum, d) => sum + d.amount, 0).toFixed(2)}</div>
                         <div>Claims: S${approvedClaims.toFixed(2)}</div>
-                        <div>CPF: S${employee.cpf.toFixed(2)}</div>
-                        <div className="font-medium">Net: S${(employee.total + approvedClaims).toFixed(2)}</div>
+                        <div>CPF: S${employee.cpfEmployer.toFixed(2)}</div>
+                        <div className="font-medium">Net: S${(employee.netPay + approvedClaims).toFixed(2)}</div>
                       </div>
                     </div>
                   </div>
@@ -459,7 +459,7 @@ const PayrollProcessing = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Full-Time</TableCell>
-                  <TableCell>S${(employee.total + approvedClaims).toFixed(2)}</TableCell>
+                  <TableCell>S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>{empData?.bankName}</TableCell>
                   <TableCell>{empData?.bankAccount}</TableCell>
@@ -533,7 +533,7 @@ const PayrollProcessing = () => {
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
               const empData = getEmployeeById(employee.id);
-              const grossSalary = employee.baseSalary + employee.allowances;
+              const grossSalary = employee.baseSalary + employee.allowances.reduce((sum, a) => sum + a.amount, 0);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
@@ -544,7 +544,7 @@ const PayrollProcessing = () => {
                   <TableCell>S${grossSalary.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${(grossSalary * 0.20).toFixed(2)}</TableCell>
-                  <TableCell>S${employee.cpf.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
                       {payrollState.status}

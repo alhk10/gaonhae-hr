@@ -1,3 +1,4 @@
+
 import type { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
 const mockEmployees: EmployeeProfile[] = [
@@ -32,7 +33,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: true,
       claims: true,
       attendance: true,
-      slotBooking: true
+      slotBooking: true,
+      reports: true
     }
   },
   {
@@ -64,7 +66,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: true,
       claims: true,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   },
   {
@@ -97,7 +100,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: false,
       claims: true,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   },
   {
@@ -126,7 +130,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   },
   {
@@ -155,7 +160,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   },
   {
@@ -184,7 +190,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   },
   {
@@ -218,7 +225,8 @@ const mockEmployees: EmployeeProfile[] = [
       leaveManagement: true,
       claims: true,
       attendance: true,
-      slotBooking: true
+      slotBooking: true,
+      reports: true
     }
   }
 ];

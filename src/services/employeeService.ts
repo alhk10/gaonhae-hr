@@ -68,14 +68,16 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       leaveManagement: emp.admin_access[0]?.leave_management || false,
       claims: emp.admin_access[0]?.claims || false,
       attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   })) || [];
 };
@@ -147,14 +149,16 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       leaveManagement: emp.admin_access[0]?.leave_management || false,
       claims: emp.admin_access[0]?.claims || false,
       attendance: emp.admin_access[0]?.attendance || false,
-      slotBooking: emp.admin_access[0]?.slot_booking || false
+      slotBooking: emp.admin_access[0]?.slot_booking || false,
+      reports: emp.admin_access[0]?.reports || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   })) || [];
 };
@@ -232,14 +236,16 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
       attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false
+      slotBooking: employee.admin_access[0]?.slot_booking || false,
+      reports: employee.admin_access[0]?.reports || false
     } : {
       employees: false,
       payroll: false,
       leaveManagement: false,
       claims: false,
       attendance: false,
-      slotBooking: false
+      slotBooking: false,
+      reports: false
     }
   };
 };
@@ -372,7 +378,8 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     leave_management: adminAccess.leaveManagement,
     claims: adminAccess.claims,
     attendance: adminAccess.attendance,
-    slot_booking: adminAccess.slotBooking
+    slot_booking: adminAccess.slotBooking,
+    reports: adminAccess.reports
   };
 
   if (existingAccess) {
