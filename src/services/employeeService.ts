@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
@@ -32,7 +33,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     dailyRate: emp.daily_rate || undefined,
     dailyWeekdayRate: emp.daily_weekday_rate || undefined,
     dailyWeekendRate: emp.daily_weekend_rate || undefined,
-    paymentType: emp.payment_type || 'Monthly',
+    paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
     bankName: emp.bank_name,
     bankAccount: emp.bank_account,
     branch: emp.department || 'Main Office', // Map department to branch for display
