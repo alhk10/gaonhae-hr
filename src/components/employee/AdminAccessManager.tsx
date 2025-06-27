@@ -36,7 +36,7 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Admin Access Permissions</CardTitle>
+        <CardTitle>Employee Permissions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {permissions.map((permission) => (
@@ -63,7 +63,7 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
           </div>
         ))}
         {!adminAccess || Object.keys(adminAccess).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No admin access permissions assigned.</p>
+          <p className="text-sm text-muted-foreground">No employee permissions assigned.</p>
         ) : null}
       </CardContent>
     </Card>
