@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,21 +8,38 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/sonner"
-import { ArrowLeft, Save, Plus, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Edit, X } from 'lucide-react';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
-import { getEmployeeById, updateEmployee, updateEmployeeResignDate, updateEmployeeAdminAccess } from '@/services/employeeService';
-import { getEmployees, systemAllowances, systemDeductions } from '@/data/employeeData';
-import type { EmployeeProfile, AllowanceDeduction } from '@/types/employee';
+import { 
+  getEmployeeById, 
+  updateEmployee, 
+  updateEmployeeResignDate, 
+  updateEmployeeAdminAccess,
+  updateEmployeePageAccess,
+  deleteEmployee
+} from '@/services/employeeService';
+import { systemAllowances, systemDeductions } from '@/data/employeeData';
+import type { EmployeeProfile, AllowanceDeduction, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 
@@ -59,7 +77,7 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ t
           {items.map((item) => (
             <TableRow key={item.id}>
               <TableCell>{item.name}</TableCell>
-              <TableCell>{item.amount}</TableCell>
+              <TableCell>S${item.amount}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
                   <Edit className="w-4 h-4 mr-2" />
@@ -116,14 +134,36 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ t
   );
 };
 
+const RESIDENCY_STATUS_OPTIONS = [
+  'Singapore Citizen',
+  'Permanent Resident Year 1',
+  'Permanent Resident Year 2', 
+  'Permanent Resident Year 3+',
+  'Work Permit',
+  'S Pass',
+  'Employment Pass'
+];
+
+const BANK_OPTIONS = [
+  'POSB/DBS',
+  'OCBC',
+  'UOB', 
+  'SCB',
+  'Trustbank',
+  'Maybank',
+  'Citibank'
+];
+
 const EmployeeDetails = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isResigned, setIsResigned] = useState(false);
   const [resignDate, setResignDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [adminAccess, setAdminAccess] = useState({
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [adminAccess, setAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
     leaveManagement: false,
@@ -132,62 +172,102 @@ const EmployeeDetails = () => {
     slotBooking: false,
     reports: false
   });
+  const [pageAccess, setPageAccess] = useState<EmployeePageAccessPermissions>({
+    profile: true,
+    applyLeave: true,
+    submitClaim: true,
+    payslips: true,
+    myAttendance: true,
+    slotBookingEmployee: true
+  });
 
   useEffect(() => {
     const fetchEmployee = async () => {
-      if (id) {
-        const employeeData = await getEmployeeById(id);
-        setEmployee(employeeData);
-        setIsResigned(!!employeeData?.resignDate);
-        setResignDate(employeeData?.resignDate || '');
-        setAdminAccess(employeeData?.adminAccess || {
-          employees: false,
-          payroll: false,
-          leaveManagement: false,
-          claims: false,
-          attendance: false,
-          slotBooking: false,
-          reports: false
-        });
+      console.log('Fetching employee with ID:', id);
+      if (id && id !== ':id') {
+        try {
+          const employeeData = await getEmployeeById(id);
+          console.log('Fetched employee data:', employeeData);
+          
+          if (employeeData) {
+            setEmployee(employeeData);
+            setIsResigned(!!employeeData.resignDate);
+            setResignDate(employeeData.resignDate || '');
+            setAdminAccess(employeeData.adminAccess);
+            setPageAccess(employeeData.pageAccess);
+          } else {
+            console.error('No employee found with ID:', id);
+            toast.error('Employee not found');
+            navigate('/employees');
+          }
+        } catch (error) {
+          console.error('Error fetching employee:', error);
+          toast.error('Failed to load employee details');
+          navigate('/employees');
+        }
+      } else {
+        console.error('Invalid employee ID:', id);
+        toast.error('Invalid employee ID');
+        navigate('/employees');
       }
     };
 
     fetchEmployee();
-  }, [id]);
+  }, [id, navigate]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, field: string) => {
-    setEmployee((prev) => {
-      if (prev) {
-        return { ...prev, [field]: e.target.value };
-      }
-      return prev;
-    });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    if (!employee) return;
+    
+    const value = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+    setEmployee(prev => prev ? { ...prev, [field]: value } : null);
   };
 
-  const handleAdminAccessChange = (field: string, value: boolean) => {
+  const handleSelectChange = (value: string, field: string) => {
+    if (!employee) return;
+    setEmployee(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleAdminAccessChange = (field: keyof AdminAccessPermissions, value: boolean) => {
     setAdminAccess(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePageAccessChange = (field: keyof EmployeePageAccessPermissions, value: boolean) => {
+    setPageAccess(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSave = async () => {
-    if (!employee) return;
+    if (!employee || !id) return;
 
     setIsSaving(true);
     try {
+      console.log('Saving employee data:', employee);
+      
       // Update employee details
-      await updateEmployee(employee.id, employee);
+      const updatedEmployeeData = {
+        ...employee,
+        baseSalary: employee.type === 'Full-Time' ? employee.baseSalary : undefined,
+        hourlyRate: employee.type === 'Casual' && employee.paymentType === 'Hourly' ? employee.hourlyRate : undefined,
+        dailyWeekdayRate: employee.type === 'Casual' && employee.paymentType === 'Daily' ? employee.dailyWeekdayRate : undefined,
+        dailyWeekendRate: employee.type === 'Casual' && employee.paymentType === 'Daily' ? employee.dailyWeekendRate : undefined,
+      };
+
+      await updateEmployee(id, updatedEmployeeData);
 
       // Update resign date
-      if (isResigned) {
-        await updateEmployeeResignDate(employee.id, resignDate);
-      } else {
-        await updateEmployeeResignDate(employee.id, '');
+      if (isResigned && resignDate) {
+        await updateEmployeeResignDate(id, resignDate);
+      } else if (!isResigned) {
+        await updateEmployeeResignDate(id, '');
       }
 
       // Update admin access
-      await updateEmployeeAdminAccess(employee.id, adminAccess);
+      await updateEmployeeAdminAccess(id, adminAccess);
+
+      // Update page access
+      await updateEmployeePageAccess(id, pageAccess);
 
       toast.success("Employee details saved successfully");
-      navigate('/employees');
+      setIsEditing(false);
     } catch (error) {
       console.error("Error updating employee:", error);
       toast.error("Failed to save employee details");
@@ -196,8 +276,39 @@ const EmployeeDetails = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteEmployee(id);
+      toast.success("Employee deleted successfully");
+      navigate('/employees');
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast.error("Failed to delete employee");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!employee) {
-    return <div>Loading employee details...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading employee details...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -207,30 +318,84 @@ const EmployeeDetails = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={() => navigate('/employees')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Employees
-              </Button>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Employee Details</h2>
-                <p className="text-gray-600">View and edit employee information</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button variant="outline" onClick={() => navigate('/employees')}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Employees
+                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Employee Details</h2>
+                  <p className="text-gray-600">View and edit employee information</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="flex items-center"
+                >
+                  {isEditing ? (
+                    <>
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel Edit
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </>
+                  )}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Employee
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete {employee.name}? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Edit basic employee details</CardDescription>
+                <CardDescription>Employee basic details</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name">Name</Label>
-                    <Input id="name" value={employee.name} onChange={(e) => handleInputChange(e, 'name')} />
+                    <Input 
+                      id="name" 
+                      value={employee.name} 
+                      onChange={(e) => handleInputChange(e, 'name')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="nric">NRIC</Label>
-                    <Input id="nric" value={employee.nric || ''} onChange={(e) => handleInputChange(e, 'nric')} />
+                    <Input 
+                      id="nric" 
+                      value={employee.nric || ''} 
+                      onChange={(e) => handleInputChange(e, 'nric')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -241,18 +406,25 @@ const EmployeeDetails = () => {
                       id="dateOfBirth"
                       value={employee.dateOfBirth}
                       onChange={(e) => handleInputChange(e, 'dateOfBirth')}
+                      disabled={!isEditing}
                     />
                   </div>
                   <div>
                     <Label htmlFor="residencyStatus">Residency Status</Label>
-                    <Select value={employee.residencyStatus} onValueChange={(value) => setEmployee(prev => ({ ...prev!, residencyStatus: value }))}>
+                    <Select 
+                      value={employee.residencyStatus} 
+                      onValueChange={(value) => handleSelectChange(value, 'residencyStatus')}
+                      disabled={!isEditing}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Citizen">Citizen</SelectItem>
-                        <SelectItem value="PR">Permanent Resident</SelectItem>
-                        <SelectItem value="Foreigner">Foreigner</SelectItem>
+                        {RESIDENCY_STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -260,7 +432,11 @@ const EmployeeDetails = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="type">Employee Type</Label>
-                    <Select value={employee.type} onValueChange={(value) => setEmployee(prev => ({ ...prev!, type: value as 'Full-Time' | 'Casual' }))}>
+                    <Select 
+                      value={employee.type} 
+                      onValueChange={(value) => handleSelectChange(value, 'type')}
+                      disabled={!isEditing}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -272,7 +448,11 @@ const EmployeeDetails = () => {
                   </div>
                   <div>
                     <Label htmlFor="paymentType">Payment Type</Label>
-                    <Select value={employee.paymentType} onValueChange={(value) => setEmployee(prev => ({ ...prev!, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}>
+                    <Select 
+                      value={employee.paymentType} 
+                      onValueChange={(value) => handleSelectChange(value, 'paymentType')}
+                      disabled={!isEditing}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select payment type" />
                       </SelectTrigger>
@@ -284,25 +464,59 @@ const EmployeeDetails = () => {
                     </Select>
                   </div>
                 </div>
+
+                {/* Salary/Rate Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="baseSalary">Base Salary</Label>
-                    <Input
-                      type="number"
-                      id="baseSalary"
-                      value={employee.baseSalary || ''}
-                      onChange={(e) => handleInputChange(e, 'baseSalary')}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="hourlyRate">Hourly Rate</Label>
-                    <Input
-                      type="number"
-                      id="hourlyRate"
-                      value={employee.hourlyRate || ''}
-                      onChange={(e) => handleInputChange(e, 'hourlyRate')}
-                    />
-                  </div>
+                  {employee.type === 'Full-Time' && (
+                    <div>
+                      <Label htmlFor="baseSalary">Base Salary (S$)</Label>
+                      <Input
+                        type="number"
+                        id="baseSalary"
+                        value={employee.baseSalary || ''}
+                        onChange={(e) => handleInputChange(e, 'baseSalary')}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                  )}
+                  
+                  {employee.type === 'Casual' && employee.paymentType === 'Hourly' && (
+                    <div>
+                      <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
+                      <Input
+                        type="number"
+                        id="hourlyRate"
+                        value={employee.hourlyRate || ''}
+                        onChange={(e) => handleInputChange(e, 'hourlyRate')}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                  )}
+                  
+                  {employee.type === 'Casual' && employee.paymentType === 'Daily' && (
+                    <>
+                      <div>
+                        <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
+                        <Input
+                          type="number"
+                          id="dailyWeekdayRate"
+                          value={employee.dailyWeekdayRate || ''}
+                          onChange={(e) => handleInputChange(e, 'dailyWeekdayRate')}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
+                        <Input
+                          type="number"
+                          id="dailyWeekendRate"
+                          value={employee.dailyWeekendRate || ''}
+                          onChange={(e) => handleInputChange(e, 'dailyWeekendRate')}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -310,22 +524,38 @@ const EmployeeDetails = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
-                <CardDescription>Edit contact details</CardDescription>
+                <CardDescription>Contact details</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" value={employee.phone || ''} onChange={(e) => handleInputChange(e, 'phone')} />
+                    <Input 
+                      id="phone" 
+                      value={employee.phone || ''} 
+                      onChange={(e) => handleInputChange(e, 'phone')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={employee.email || ''} onChange={(e) => handleInputChange(e, 'email')} />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={employee.email || ''} 
+                      onChange={(e) => handleInputChange(e, 'email')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="address">Address</Label>
-                  <Input id="address" value={employee.address || ''} onChange={(e) => handleInputChange(e, 'address')} />
+                  <Input 
+                    id="address" 
+                    value={employee.address || ''} 
+                    onChange={(e) => handleInputChange(e, 'address')} 
+                    disabled={!isEditing}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -333,22 +563,47 @@ const EmployeeDetails = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Bank Details</CardTitle>
-                <CardDescription>Edit bank account information</CardDescription>
+                <CardDescription>Bank account information</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="bankName">Bank Name</Label>
-                    <Input id="bankName" value={employee.bankName || ''} onChange={(e) => handleInputChange(e, 'bankName')} />
+                    <Select 
+                      value={employee.bankName || ''} 
+                      onValueChange={(value) => handleSelectChange(value, 'bankName')}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BANK_OPTIONS.map((bank) => (
+                          <SelectItem key={bank} value={bank}>
+                            {bank}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="bankAccount">Bank Account</Label>
-                    <Input id="bankAccount" value={employee.bankAccount || ''} onChange={(e) => handleInputChange(e, 'bankAccount')} />
+                    <Input 
+                      id="bankAccount" 
+                      value={employee.bankAccount || ''} 
+                      onChange={(e) => handleInputChange(e, 'bankAccount')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="branch">Branch</Label>
-                  <Input id="branch" value={employee.branch || ''} onChange={(e) => handleInputChange(e, 'branch')} />
+                  <Input 
+                    id="branch" 
+                    value={employee.branch || ''} 
+                    onChange={(e) => handleInputChange(e, 'branch')} 
+                    disabled={!isEditing}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -356,166 +611,195 @@ const EmployeeDetails = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Employment Details</CardTitle>
-                <CardDescription>Edit employment details</CardDescription>
+                <CardDescription>Employment information</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="position">Position</Label>
-                    <Input id="position" value={employee.position || ''} onChange={(e) => handleInputChange(e, 'position')} />
+                    <Input 
+                      id="position" 
+                      value={employee.position || ''} 
+                      onChange={(e) => handleInputChange(e, 'position')} 
+                      disabled={!isEditing}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="joinDate">Join Date</Label>
-                    <Input type="date" id="joinDate" value={employee.joinDate || ''} onChange={(e) => handleInputChange(e, 'joinDate')} disabled />
+                    <Input 
+                      type="date" 
+                      id="joinDate" 
+                      value={employee.joinDate || ''} 
+                      onChange={(e) => handleInputChange(e, 'joinDate')} 
+                      disabled
+                    />
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Label htmlFor="isResigned">Resigned</Label>
-                  <Switch id="isResigned" checked={isResigned} onCheckedChange={setIsResigned} />
+                  <Switch 
+                    id="isResigned" 
+                    checked={isResigned} 
+                    onCheckedChange={setIsResigned} 
+                    disabled={!isEditing}
+                  />
                 </div>
                 {isResigned && (
                   <div>
                     <Label htmlFor="resignDate">Resign Date</Label>
-                    <Input type="date" id="resignDate" value={resignDate} onChange={(e) => setResignDate(e.target.value)} />
+                    <Input 
+                      type="date" 
+                      id="resignDate" 
+                      value={resignDate} 
+                      onChange={(e) => setResignDate(e.target.value)} 
+                      disabled={!isEditing}
+                    />
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Payroll Details</CardTitle>
-                <CardDescription>Manage allowances and deductions</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <AllowanceDeductionManager
-                  title="Allowances"
-                  items={employee.allowances.map(a => ({
-                    id: a.id,
-                    name: a.name,
-                    amount: a.amount,
-                    type: a.type
-                  }))}
-                  systemItems={systemAllowances.map(a => ({
-                    id: a.id.toString(),
-                    name: a.name,
-                    amount: a.amount,
-                    type: 'Fixed' as const
-                  }))}
-                  onAdd={(item) => {
-                    if (!employee) return;
-                    const newAllowances = [...employee.allowances, {
-                      id: Date.now().toString(),
-                      name: item.name,
-                      amount: item.amount,
-                      type: 'Fixed' as const
-                    }];
-                    setEmployee({ ...employee, allowances: newAllowances });
-                  }}
-                  onEdit={(item) => {
-                    // Implement edit logic here
-                  }}
-                  onRemove={(item) => {
-                    if (!employee) return;
-                    const newAllowances = employee.allowances.filter(a => a.id !== item.id);
-                    setEmployee({ ...employee, allowances: newAllowances });
-                  }}
-                />
+            {isEditing && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Payroll Details</CardTitle>
+                    <CardDescription>Manage allowances and deductions</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <AllowanceDeductionManager
+                      title="Allowances"
+                      items={employee.allowances.map(a => ({
+                        id: a.id,
+                        name: a.name,
+                        amount: a.amount,
+                        type: a.type
+                      }))}
+                      systemItems={systemAllowances.map(a => ({
+                        id: a.id.toString(),
+                        name: a.name,
+                        amount: a.amount,
+                        type: 'Fixed' as const
+                      }))}
+                      onAdd={(item) => {
+                        const newAllowances = [...employee.allowances, {
+                          id: Date.now().toString(),
+                          name: item.name,
+                          amount: item.amount,
+                          type: 'Fixed' as const
+                        }];
+                        setEmployee({ ...employee, allowances: newAllowances });
+                      }}
+                      onEdit={(item) => {
+                        // Implement edit logic here
+                      }}
+                      onRemove={(item) => {
+                        const newAllowances = employee.allowances.filter(a => a.id !== item.id);
+                        setEmployee({ ...employee, allowances: newAllowances });
+                      }}
+                    />
 
-                <AllowanceDeductionManager
-                  title="Deductions"
-                  items={employee.deductions.map(d => ({
-                    id: d.id,
-                    name: d.name,
-                    amount: d.amount,
-                    type: d.type
-                  }))}
-                  systemItems={systemDeductions.map(d => ({
-                    id: d.id.toString(),
-                    name: d.name,
-                    amount: d.amount,
-                    type: 'Fixed' as const
-                  }))}
-                  onAdd={(item) => {
-                    if (!employee) return;
-                    const newDeductions = [...employee.deductions, {
-                      id: Date.now().toString(),
-                      name: item.name,
-                      amount: item.amount,
-                      type: 'Fixed' as const
-                    }];
-                    setEmployee({ ...employee, deductions: newDeductions });
-                  }}
-                  onEdit={(item) => {
-                    // Implement edit logic here
-                  }}
-                  onRemove={(item) => {
-                    if (!employee) return;
-                    const newDeductions = employee.deductions.filter(d => d.id !== item.id);
-                    setEmployee({ ...employee, deductions: newDeductions });
-                  }}
-                />
-              </CardContent>
-            </Card>
+                    <AllowanceDeductionManager
+                      title="Deductions"
+                      items={employee.deductions.map(d => ({
+                        id: d.id,
+                        name: d.name,
+                        amount: d.amount,
+                        type: d.type
+                      }))}
+                      systemItems={systemDeductions.map(d => ({
+                        id: d.id.toString(),
+                        name: d.name,
+                        amount: d.amount,
+                        type: 'Fixed' as const
+                      }))}
+                      onAdd={(item) => {
+                        const newDeductions = [...employee.deductions, {
+                          id: Date.now().toString(),
+                          name: item.name,
+                          amount: item.amount,
+                          type: 'Fixed' as const
+                        }];
+                        setEmployee({ ...employee, deductions: newDeductions });
+                      }}
+                      onEdit={(item) => {
+                        // Implement edit logic here
+                      }}
+                      onRemove={(item) => {
+                        const newDeductions = employee.deductions.filter(d => d.id !== item.id);
+                        setEmployee({ ...employee, deductions: newDeductions });
+                      }}
+                    />
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Admin Access</CardTitle>
-                <CardDescription>Manage employee access permissions</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="employees">Employees</Label>
-                  <Switch id="employees" checked={adminAccess.employees} onCheckedChange={(value) => handleAdminAccessChange('employees', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="payroll">Payroll</Label>
-                  <Switch id="payroll" checked={adminAccess.payroll} onCheckedChange={(value) => handleAdminAccessChange('payroll', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="leaveManagement">Leave Management</Label>
-                  <Switch id="leaveManagement" checked={adminAccess.leaveManagement} onCheckedChange={(value) => handleAdminAccessChange('leaveManagement', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="claims">Claims</Label>
-                  <Switch id="claims" checked={adminAccess.claims} onCheckedChange={(value) => handleAdminAccessChange('claims', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="attendance">Attendance</Label>
-                  <Switch id="attendance" checked={adminAccess.attendance} onCheckedChange={(value) => handleAdminAccessChange('attendance', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="slotBooking">Slot Booking</Label>
-                  <Switch id="slotBooking" checked={adminAccess.slotBooking} onCheckedChange={(value) => handleAdminAccessChange('slotBooking', value)} />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="reports">Reports</Label>
-                  <Switch id="reports" checked={adminAccess.reports} onCheckedChange={(value) => handleAdminAccessChange('reports', value)} />
-                </div>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Admin Access</CardTitle>
+                    <CardDescription>Manage admin permissions</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    {Object.entries(adminAccess).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Label htmlFor={key} className="capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </Label>
+                        <Switch 
+                          id={key} 
+                          checked={value} 
+                          onCheckedChange={(checked) => handleAdminAccessChange(key as keyof AdminAccessPermissions, checked)} 
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
 
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => navigate('/employees')}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Page Access</CardTitle>
+                    <CardDescription>Manage employee page permissions</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    {Object.entries(pageAccess).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Label htmlFor={`page-${key}`} className="capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </Label>
+                        <Switch 
+                          id={`page-${key}`} 
+                          checked={value} 
+                          onCheckedChange={(checked) => handlePageAccessChange(key as keyof EmployeePageAccessPermissions, checked)} 
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {isEditing && (
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </main>
       </div>

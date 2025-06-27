@@ -45,6 +45,8 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       baseSalary: emp.base_salary || undefined,
       hourlyRate: emp.hourly_rate || undefined,
       dailyRate: emp.daily_rate || undefined,
+      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
+      dailyWeekendRate: emp.daily_weekend_rate || undefined,
       paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
       bankName: emp.bank_name || '',
       bankAccount: emp.bank_account || '',
@@ -156,6 +158,8 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       baseSalary: emp.base_salary || undefined,
       hourlyRate: emp.hourly_rate || undefined,
       dailyRate: emp.daily_rate || undefined,
+      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
+      dailyWeekendRate: emp.daily_weekend_rate || undefined,
       paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
       bankName: emp.bank_name || '',
       bankAccount: emp.bank_account || '',
@@ -235,11 +239,11 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       certificates (*)
     `)
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('EmployeeService: Error fetching employee by ID:', error);
-    return null;
+    throw error;
   }
 
   if (!employee) {
@@ -254,9 +258,9 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     .from('employee_page_access')
     .select('*')
     .eq('employee_id', id)
-    .single();
+    .maybeSingle();
 
-  if (pageAccessError && pageAccessError.code !== 'PGRST116') {
+  if (pageAccessError) {
     console.error('EmployeeService: Error fetching page access:', pageAccessError);
   }
 
@@ -270,6 +274,8 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     baseSalary: employee.base_salary || undefined,
     hourlyRate: employee.hourly_rate || undefined,
     dailyRate: employee.daily_rate || undefined,
+    dailyWeekdayRate: employee.daily_weekday_rate || undefined,
+    dailyWeekendRate: employee.daily_weekend_rate || undefined,
     paymentType: employee.payment_type as 'Monthly' | 'Hourly' | 'Daily',
     bankName: employee.bank_name || '',
     bankAccount: employee.bank_account || '',
@@ -364,6 +370,8 @@ export const createEmployee = async (employeeData: any) => {
         base_salary: employeeData.baseSalary,
         hourly_rate: employeeData.hourlyRate,
         daily_rate: employeeData.dailyRate,
+        daily_weekday_rate: employeeData.dailyWeekdayRate,
+        daily_weekend_rate: employeeData.dailyWeekendRate,
         payment_type: employeeData.paymentType || 'Monthly',
         bank_name: employeeData.bankName,
         bank_account: employeeData.bankAccount,
@@ -408,6 +416,8 @@ export const updateEmployee = async (id: string, employeeData: any) => {
       base_salary: employeeData.baseSalary,
       hourly_rate: employeeData.hourlyRate,
       daily_rate: employeeData.dailyRate,
+      daily_weekday_rate: employeeData.dailyWeekdayRate,
+      daily_weekend_rate: employeeData.dailyWeekendRate,
       payment_type: employeeData.paymentType,
       bank_name: employeeData.bankName,
       bank_account: employeeData.bankAccount,
@@ -441,6 +451,8 @@ export const deleteEmployee = async (id: string) => {
     console.error('EmployeeService: Error deleting employee:', error);
     throw error;
   }
+
+  console.log('EmployeeService: Employee deleted successfully');
 };
 
 export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
@@ -448,7 +460,7 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
   
   const { error } = await supabase
     .from('employees')
-    .update({ resign_date: resignDate })
+    .update({ resign_date: resignDate || null })
     .eq('id', id);
 
   if (error) {
@@ -465,9 +477,9 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     .from('admin_access')
     .select('*')
     .eq('employee_id', employeeId)
-    .single();
+    .maybeSingle();
 
-  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found" error
+  if (fetchError) {
     console.error('EmployeeService: Error fetching admin access:', fetchError);
     throw fetchError;
   }
