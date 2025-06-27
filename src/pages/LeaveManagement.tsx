@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -11,18 +10,22 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Users, Plus, Info } from 'lucide-react';
+import { Calendar, Users, Plus, Info, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, updateLeaveStatus, LeaveRequest } from '@/services/leaveService';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
+import LeaveSettings from '@/components/leave/LeaveSettings';
+import { useAuth } from '@/contexts/AuthContext';
 
 const LeaveManagement = () => {
+  const { user } = useAuth();
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [isAddLeaveOpen, setIsAddLeaveOpen] = useState(false);
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
+  const [isLeaveSettingsOpen, setIsLeaveSettingsOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -350,6 +353,27 @@ const LeaveManagement = () => {
                     </form>
                   </DialogContent>
                 </Dialog>
+
+                {user?.role === 'superadmin' && (
+                  <Dialog open={isLeaveSettingsOpen} onOpenChange={setIsLeaveSettingsOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Leave Settings
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-auto">
+                      <DialogHeader>
+                        <DialogTitle>Leave Settings</DialogTitle>
+                        <DialogDescription>Configure leave types and policies</DialogDescription>
+                      </DialogHeader>
+                      <LeaveSettings />
+                      <DialogFooter>
+                        <Button onClick={() => setIsLeaveSettingsOpen(false)}>Close</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </div>
 
