@@ -314,6 +314,8 @@ export type Database = {
           base_salary: number | null
           created_at: string | null
           daily_rate: number | null
+          daily_weekday_rate: number | null
+          daily_weekend_rate: number | null
           date_of_birth: string
           department: string | null
           email: string | null
@@ -336,6 +338,8 @@ export type Database = {
           base_salary?: number | null
           created_at?: string | null
           daily_rate?: number | null
+          daily_weekday_rate?: number | null
+          daily_weekend_rate?: number | null
           date_of_birth: string
           department?: string | null
           email?: string | null
@@ -358,6 +362,8 @@ export type Database = {
           base_salary?: number | null
           created_at?: string | null
           daily_rate?: number | null
+          daily_weekday_rate?: number | null
+          daily_weekend_rate?: number | null
           date_of_birth?: string
           department?: string | null
           email?: string | null
