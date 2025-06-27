@@ -4,9 +4,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { PayrollEmployee } from '@/types/employee';
-import { getEmployeeById } from '@/data/employeeData';
+import { getEmployeeById } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 
 interface PayrollData {
@@ -52,11 +53,25 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
           cpfEmployee = cpfCalc.employeeCPF;
           cpfEmployer = cpfCalc.employerCPF;
           netPay = grossPay - cpfEmployee - totalDeductions;
-        } else if (empData.type === 'Casual' && empData.hourlyRate) {
-          // For casual employees, assume 120 hours worked (this should come from slot bookings)
-          const hoursWorked = 120;
-          grossPay = empData.hourlyRate * hoursWorked;
+        } else if (empData.type === 'Casual') {
           const age = calculateAge(empData.dateOfBirth);
+          
+          // Handle different payment types for casual employees
+          if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
+            // For hourly employees, assume 120 hours worked (should come from attendance)
+            const hoursWorked = 120;
+            grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
+          } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
+            // For daily employees, assume 22 working days (should come from attendance)
+            const weekdays = 18; // Estimated weekdays
+            const weekends = 4; // Estimated weekends
+            const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
+            const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
+            grossPay = weekdayPay + weekendPay + totalAllowances;
+          } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
+            grossPay = empData.baseSalary + totalAllowances;
+          }
+          
           const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
           cpfEmployee = cpfCalc.employeeCPF;
           cpfEmployer = cpfCalc.employerCPF;
@@ -70,6 +85,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
           baseSalary: empData.baseSalary,
           hourlyRate: empData.hourlyRate,
           dailyRate: empData.dailyRate,
+          dailyWeekdayRate: empData.dailyWeekdayRate,
+          dailyWeekendRate: empData.dailyWeekendRate,
           paymentType: empData.paymentType,
           allowances: empData.allowances,
           deductions: empData.deductions,
@@ -108,11 +125,29 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
             cpfEmployee = cpfCalc.employeeCPF;
             cpfEmployer = cpfCalc.employerCPF;
             netPay = grossPay - cpfEmployee - totalDeductions;
+          } else if (empData.type === 'Casual') {
+            // For casual employees, this might be updating their rate
+            if (empData.paymentType === 'Hourly') {
+              const hoursWorked = 120; // Should come from attendance
+              grossPay = newSalary * hoursWorked + totalAllowances;
+            } else if (empData.paymentType === 'Daily') {
+              const daysWorked = 22; // Should come from attendance
+              grossPay = newSalary * daysWorked + totalAllowances;
+            } else if (empData.paymentType === 'Monthly') {
+              grossPay = newSalary + totalAllowances;
+            }
+            
+            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+            cpfEmployee = cpfCalc.employeeCPF;
+            cpfEmployer = cpfCalc.employerCPF;
+            netPay = grossPay - cpfEmployee - totalDeductions;
           }
 
           return {
             ...emp,
-            baseSalary: newSalary,
+            baseSalary: empData.type === 'Full-Time' ? newSalary : emp.baseSalary,
+            hourlyRate: empData.paymentType === 'Hourly' ? newSalary : emp.hourlyRate,
+            dailyRate: empData.paymentType === 'Daily' ? newSalary : emp.dailyRate,
             grossPay,
             cpfEmployee,
             cpfEmployer,
@@ -153,7 +188,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Base Salary</TableHead>
+                  <TableHead>Payment Type</TableHead>
+                  <TableHead>Rate/Salary</TableHead>
                   <TableHead>Allowances</TableHead>
                   <TableHead>Deductions</TableHead>
                   <TableHead>CPF</TableHead>
@@ -169,14 +205,69 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                         <p className="text-xs text-gray-500">{employee.id}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{employee.type}</TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        value={employee.baseSalary || 0}
-                        onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
-                        className="w-24"
-                      />
+                      <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
+                        {employee.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{employee.paymentType}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {employee.type === 'Full-Time' && (
+                          <Input
+                            type="number"
+                            value={employee.baseSalary || 0}
+                            onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
+                            className="w-24"
+                          />
+                        )}
+                        {employee.type === 'Casual' && employee.paymentType === 'Hourly' && (
+                          <div>
+                            <Input
+                              type="number"
+                              value={employee.hourlyRate || 0}
+                              onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
+                              className="w-24"
+                            />
+                            <span className="text-xs text-gray-500">/hour</span>
+                          </div>
+                        )}
+                        {employee.type === 'Casual' && employee.paymentType === 'Daily' && (
+                          <div className="space-y-1">
+                            <div>
+                              <Input
+                                type="number"
+                                value={employee.dailyWeekdayRate || employee.dailyRate || 0}
+                                onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
+                                className="w-24"
+                              />
+                              <span className="text-xs text-gray-500">Weekday</span>
+                            </div>
+                            <div>
+                              <Input
+                                type="number"
+                                value={employee.dailyWeekendRate || employee.dailyRate || 0}
+                                className="w-24"
+                                disabled
+                              />
+                              <span className="text-xs text-gray-500">Weekend</span>
+                            </div>
+                          </div>
+                        )}
+                        {employee.type === 'Casual' && employee.paymentType === 'Monthly' && (
+                          <div>
+                            <Input
+                              type="number"
+                              value={employee.baseSalary || 0}
+                              onChange={(e) => handleSalaryChange(employee.id, Number(e.target.value))}
+                              className="w-24"
+                            />
+                            <span className="text-xs text-gray-500">/month</span>
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">

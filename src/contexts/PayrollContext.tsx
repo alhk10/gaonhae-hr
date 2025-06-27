@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { getEmployees } from '@/services/employeeService';
@@ -89,8 +88,88 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       return totalHours;
     } catch (error) {
       console.error(`Error fetching monthly hours for employee ${employeeId}:`, error);
-      return 0; // Return 0 if unable to fetch attendance data
+      return 0;
     }
+  };
+
+  const getEmployeeMonthlyDays = async (employeeId: string, period: string): Promise<{weekdays: number, weekends: number}> => {
+    try {
+      const attendanceRecords = await getEmployeeAttendanceRecords(employeeId);
+      
+      const [monthName, year] = period.split(' ');
+      const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
+      
+      const monthlyRecords = attendanceRecords.filter(record => {
+        const recordDate = new Date(record.date);
+        return recordDate.getMonth() + 1 === monthNumber && 
+               recordDate.getFullYear() === parseInt(year);
+      });
+      
+      let weekdays = 0;
+      let weekends = 0;
+      
+      monthlyRecords.forEach(record => {
+        const recordDate = new Date(record.date);
+        const dayOfWeek = recordDate.getDay();
+        
+        if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+          weekends++;
+        } else {
+          weekdays++;
+        }
+      });
+      
+      console.log(`Employee ${employeeId} worked ${weekdays} weekdays and ${weekends} weekends in ${period}`);
+      return { weekdays, weekends };
+    } catch (error) {
+      console.error(`Error fetching monthly days for employee ${employeeId}:`, error);
+      return { weekdays: 0, weekends: 0 };
+    }
+  };
+
+  const calculateCasualEmployeePay = async (emp: EmployeeProfile, period: string) => {
+    const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+    const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+    
+    let grossPay = 0;
+    let hoursWorked = 0;
+    let daysWorked = 0;
+    
+    if (emp.paymentType === 'Hourly') {
+      hoursWorked = await getEmployeeMonthlyHours(emp.id, period);
+      grossPay = (emp.hourlyRate || 0) * hoursWorked;
+      daysWorked = Math.ceil(hoursWorked / 8);
+    } else if (emp.paymentType === 'Daily') {
+      const { weekdays, weekends } = await getEmployeeMonthlyDays(emp.id, period);
+      const weekdayPay = (emp.dailyWeekdayRate || emp.dailyRate || 0) * weekdays;
+      const weekendPay = (emp.dailyWeekendRate || emp.dailyRate || 0) * weekends;
+      grossPay = weekdayPay + weekendPay;
+      daysWorked = weekdays + weekends;
+      hoursWorked = daysWorked * 8; // Estimate hours
+    } else if (emp.paymentType === 'Monthly') {
+      grossPay = emp.baseSalary || 0;
+      daysWorked = 22; // Standard working days
+      hoursWorked = daysWorked * 8;
+    }
+    
+    const grossPayWithAllowances = grossPay + totalAllowances;
+    const age = calculateAge(emp.dateOfBirth);
+    const cpfCalc = calculateCPF(grossPayWithAllowances, emp.residencyStatus, age);
+    const approvedClaims = await getApprovedClaimsTotal(emp.id);
+    const netPay = grossPayWithAllowances - cpfCalc.employeeCPF - totalDeductions;
+    const totalPay = netPay + approvedClaims;
+    
+    return {
+      grossPay: grossPayWithAllowances,
+      cpfEmployee: cpfCalc.employeeCPF,
+      cpfEmployer: cpfCalc.employerCPF,
+      netPay,
+      totalPay,
+      hoursWorked,
+      daysWorked,
+      employeeCPF: cpfCalc.employeeCPF,
+      employerCPF: cpfCalc.employerCPF
+    };
   };
 
   const initializePayroll = async () => {
@@ -98,14 +177,12 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     setIsLoading(true);
     
     try {
-      // First try to fetch from Supabase
       let allEmployees = [];
       try {
         allEmployees = await getEmployees();
         console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
       } catch (supabaseError) {
         console.log('Supabase fetch failed, using local employee data:', supabaseError);
-        // Fallback to local employee data from employeeData.ts
         const { getEmployees: getLocalEmployees } = await import('@/data/employeeData');
         allEmployees = getLocalEmployees();
         console.log('Using local employee data for payroll:', allEmployees.length);
@@ -148,6 +225,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               baseSalary: emp.baseSalary,
               hourlyRate: emp.hourlyRate,
               dailyRate: emp.dailyRate,
+              dailyWeekdayRate: emp.dailyWeekdayRate,
+              dailyWeekendRate: emp.dailyWeekendRate,
               paymentType: emp.paymentType,
               allowances: emp.allowances,
               deductions: emp.deductions,
@@ -155,7 +234,6 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               cpfEmployee: cpfCalc.employeeCPF,
               cpfEmployer: cpfCalc.employerCPF,
               netPay: netSalary,
-              // Legacy properties
               cpf: cpfCalc.employerCPF,
               total: netSalary
             };
@@ -168,6 +246,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               baseSalary: emp.baseSalary,
               hourlyRate: emp.hourlyRate,
               dailyRate: emp.dailyRate,
+              dailyWeekdayRate: emp.dailyWeekdayRate,
+              dailyWeekendRate: emp.dailyWeekendRate,
               paymentType: emp.paymentType,
               allowances: emp.allowances,
               deductions: emp.deductions,
@@ -182,54 +262,37 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         })
       );
 
-      // Initialize casual employees with actual attendance hours
+      // Initialize casual employees with proper payment type handling
       const casualPayroll: CasualEmployeePayroll[] = await Promise.all(
         casualEmps.map(async (emp) => {
           try {
-            // Get actual hours worked from attendance records for the current payroll period
-            let hoursWorked = 0;
-            try {
-              hoursWorked = await getEmployeeMonthlyHours(emp.id, payrollState.currentPeriod);
-            } catch (attendanceError) {
-              // If attendance fetch fails, use a default of 0 hours
-              console.log(`Could not fetch attendance for ${emp.name}, using 0 hours:`, attendanceError);
-              hoursWorked = 0;
-            }
+            const payCalc = await calculateCasualEmployeePay(emp, payrollState.currentPeriod);
             
-            const daysWorked = Math.ceil(hoursWorked / 8); // Estimate days based on 8-hour workdays
-            
-            const hourlyRate = emp.hourlyRate || emp.dailyRate || 0;
-            const grossPay = hourlyRate * hoursWorked; // Use actual hours worked
-            
-            const age = calculateAge(emp.dateOfBirth);
-            const cpfCalc = calculateCPF(grossPay, emp.residencyStatus, age);
-            const approvedClaims = await getApprovedClaimsTotal(emp.id);
-            const totalPay = grossPay - cpfCalc.employeeCPF + approvedClaims;
-            
-            console.log(`Casual employee ${emp.name}: ${hoursWorked}h × S$${hourlyRate}/h = S$${grossPay}`);
+            console.log(`Casual employee ${emp.name} (${emp.paymentType}): Total Pay = S$${payCalc.totalPay}`);
             
             return {
               id: emp.id,
               name: emp.name,
               type: emp.type,
               baseSalary: emp.baseSalary,
-              hourlyRate,
+              hourlyRate: emp.hourlyRate,
               dailyRate: emp.dailyRate,
+              dailyWeekdayRate: emp.dailyWeekdayRate,
+              dailyWeekendRate: emp.dailyWeekendRate,
               paymentType: emp.paymentType,
               allowances: emp.allowances,
               deductions: emp.deductions,
-              hoursWorked,
-              daysWorked,
-              grossPay,
-              cpfEmployee: cpfCalc.employeeCPF,
-              cpfEmployer: cpfCalc.employerCPF,
-              netPay: totalPay,
-              totalPay,
-              employeeCPF: cpfCalc.employeeCPF,
-              employerCPF: cpfCalc.employerCPF,
-              // Legacy properties for CasualEmployeePayroll
-              cpf: cpfCalc.employerCPF,
-              total: totalPay
+              hoursWorked: payCalc.hoursWorked,
+              daysWorked: payCalc.daysWorked,
+              grossPay: payCalc.grossPay,
+              cpfEmployee: payCalc.cpfEmployee,
+              cpfEmployer: payCalc.cpfEmployer,
+              netPay: payCalc.netPay,
+              totalPay: payCalc.totalPay,
+              employeeCPF: payCalc.employeeCPF,
+              employerCPF: payCalc.employerCPF,
+              cpf: payCalc.cpfEmployer,
+              total: payCalc.totalPay
             };
           } catch (error) {
             console.error('Error processing casual employee:', emp.id, error);
@@ -238,8 +301,10 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
               name: emp.name,
               type: emp.type,
               baseSalary: emp.baseSalary,
-              hourlyRate: emp.hourlyRate || emp.dailyRate || 0,
+              hourlyRate: emp.hourlyRate || 0,
               dailyRate: emp.dailyRate,
+              dailyWeekdayRate: emp.dailyWeekdayRate,
+              dailyWeekendRate: emp.dailyWeekendRate,
               paymentType: emp.paymentType,
               allowances: emp.allowances,
               deductions: emp.deductions,
@@ -270,12 +335,10 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         fullTimeCount: fullTimePayroll.length, 
         casualCount: casualPayroll.length,
         fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.netPay, 0),
-        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0),
-        casualEmployeeNames: casualPayroll.map(emp => emp.name)
+        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0)
       });
     } catch (error) {
       console.error('Error initializing payroll:', error);
-      // Set empty state if there's an error
       setPayrollState(prev => ({
         ...prev,
         fullTimeEmployees: [],
@@ -385,14 +448,29 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       casualEmployees: prev.casualEmployees.map(emp => {
         if (emp.id === employeeId) {
           const newRate = rate || emp.hourlyRate;
-          const grossPay = newRate * hours;
-          const totalPay = grossPay - emp.employeeCPF;
+          let grossPay = 0;
+          
+          if (emp.paymentType === 'Hourly') {
+            grossPay = newRate * hours;
+          } else if (emp.paymentType === 'Daily') {
+            const daysWorked = Math.ceil(hours / 8);
+            grossPay = (emp.dailyWeekdayRate || emp.dailyRate || 0) * daysWorked;
+          } else if (emp.paymentType === 'Monthly') {
+            grossPay = emp.baseSalary || 0;
+          }
+          
+          const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
+          const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+          const grossPayWithAllowances = grossPay + totalAllowances;
+          const netPay = grossPayWithAllowances - emp.employeeCPF - totalDeductions;
           
           return {
             ...emp,
             hourlyRate: newRate,
             hoursWorked: hours,
-            totalPay
+            grossPay: grossPayWithAllowances,
+            netPay,
+            totalPay: netPay
           };
         }
         return emp;
@@ -406,7 +484,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     const casualTotal = payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
     const total = fullTimeTotal + casualTotal;
     
-    return Math.round(total * 100) / 100; // Round to 2 decimal places
+    return Math.round(total * 100) / 100;
   };
 
   const setPayrollStatus = (status: PayrollState['status']) => {
@@ -459,13 +537,10 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     return false;
   };
 
-  // Initialize payroll on mount
   useEffect(() => {
-    // Always initialize from Supabase, don't use localStorage as fallback for employee data
     initializePayroll();
   }, []);
 
-  // Update total amount when employees change
   useEffect(() => {
     const total = calculatePayrollTotal();
     setPayrollState(prev => ({ ...prev, totalAmount: total }));

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -13,8 +12,11 @@ import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Plus, Trash2,
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
-import { getEmployeeById, systemAllowances, systemDeductions } from '@/data/employeeData';
+import { getEmployeeById } from '@/services/employeeService';
 import { getEmployeeClaims, type Claim } from '@/services/claimsService';
+import AddAllowanceDialog from '@/components/employee/AddAllowanceDialog';
+import AddDeductionDialog from '@/components/employee/AddDeductionDialog';
+import { AllowanceDeduction } from '@/types/employee';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -32,6 +34,8 @@ const PayrollProcessing = () => {
   const [editingAllowance, setEditingAllowance] = useState<{employeeId: string, allowance: any} | null>(null);
   const [editingDeduction, setEditingDeduction] = useState<{employeeId: string, deduction: any} | null>(null);
   const [employeeClaims, setEmployeeClaims] = useState<{[key: string]: Claim[]}>({});
+  const [showAddAllowanceDialog, setShowAddAllowanceDialog] = useState<{show: boolean, employeeId: string}>({show: false, employeeId: ''});
+  const [showAddDeductionDialog, setShowAddDeductionDialog] = useState<{show: boolean, employeeId: string}>({show: false, employeeId: ''});
 
   // Load employee claims data
   useEffect(() => {
@@ -80,20 +84,30 @@ const PayrollProcessing = () => {
     }
   };
 
-  const addAllowance = (employeeId: string, allowanceName: string) => {
+  const handleAddAllowance = (employeeId: string, allowance: AllowanceDeduction) => {
     const empData = getEmployeeById(employeeId);
     if (!empData) return;
     
-    const systemAllowance = systemAllowances.find(a => a.name === allowanceName);
-    const amount = systemAllowance?.amount || 0;
-    
     const newAllowances = [
       ...empData.allowances.map(a => ({ name: a.name, amount: a.amount })),
-      { name: allowanceName, amount }
+      { name: allowance.name, amount: allowance.amount }
     ];
     
     updateEmployeeAllowances(employeeId, newAllowances);
-    toast(`Added ${allowanceName} allowance`);
+    toast(`Added ${allowance.name} allowance`);
+  };
+
+  const handleAddDeduction = (employeeId: string, deduction: AllowanceDeduction) => {
+    const empData = getEmployeeById(employeeId);
+    if (!empData) return;
+    
+    const newDeductions = [
+      ...empData.deductions.map(d => ({ name: d.name, amount: d.amount })),
+      { name: deduction.name, amount: deduction.amount }
+    ];
+    
+    updateEmployeeDeductions(employeeId, newDeductions);
+    toast(`Added ${deduction.name} deduction`);
   };
 
   const removeAllowance = (employeeId: string, allowanceName: string) => {
@@ -119,22 +133,6 @@ const PayrollProcessing = () => {
     updateEmployeeAllowances(employeeId, newAllowances);
     setEditingAllowance(null);
     toast(`Updated ${allowanceName} allowance`);
-  };
-
-  const addDeduction = (employeeId: string, deductionName: string) => {
-    const empData = getEmployeeById(employeeId);
-    if (!empData) return;
-    
-    const systemDeduction = systemDeductions.find(d => d.name === deductionName);
-    const amount = systemDeduction?.amount || 0;
-    
-    const newDeductions = [
-      ...empData.deductions.map(d => ({ name: d.name, amount: d.amount })),
-      { name: deductionName, amount }
-    ];
-    
-    updateEmployeeDeductions(employeeId, newDeductions);
-    toast(`Added ${deductionName} deduction`);
   };
 
   const removeDeduction = (employeeId: string, deductionName: string) => {
@@ -241,21 +239,16 @@ const PayrollProcessing = () => {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">Allowances</h4>
-                        <Select onValueChange={(value) => addAllowance(employee.id, value)}>
-                          <SelectTrigger className="w-8 h-8 p-0">
-                            <Plus className="w-4 h-4" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {systemAllowances.map((allowance) => (
-                              <SelectItem key={allowance.name} value={allowance.name}>
-                                {allowance.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddAllowanceDialog({show: true, employeeId: employee.id})}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
                       </div>
                       <div className="space-y-1">
-                        {empData?.allowances.map((allowance, index) => (
+                        {employee.allowances.map((allowance, index) => (
                           <div key={index} className="flex items-center justify-between text-sm">
                             <span 
                               className="cursor-pointer hover:text-blue-600"
@@ -274,21 +267,16 @@ const PayrollProcessing = () => {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">Deductions</h4>
-                        <Select onValueChange={(value) => addDeduction(employee.id, value)}>
-                          <SelectTrigger className="w-8 h-8 p-0">
-                            <Plus className="w-4 h-4" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {systemDeductions.map((deduction) => (
-                              <SelectItem key={deduction.name} value={deduction.name}>
-                                {deduction.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddDeductionDialog({show: true, employeeId: employee.id})}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
                       </div>
                       <div className="space-y-1">
-                        {empData?.deductions.map((deduction, index) => (
+                        {employee.deductions.map((deduction, index) => (
                           <div key={index} className="flex items-center justify-between text-sm">
                             <span 
                               className="cursor-pointer hover:text-blue-600"
@@ -343,48 +331,150 @@ const PayrollProcessing = () => {
             <DollarSign className="w-5 h-5" />
             <span>Casual Employees ({payrollState.casualEmployees.length})</span>
           </CardTitle>
-          <CardDescription>Review casual employee hourly rates, hours worked, and claims</CardDescription>
+          <CardDescription>Review casual employee payment rates, work periods, and claims</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
             {payrollState.casualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const empData = getEmployeeById(employee.id);
+              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+              const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
+              
               return (
                 <div key={employee.id} className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-lg mb-4">{employee.name}</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-lg">{employee.name}</h3>
+                    <Badge variant="outline">{employee.paymentType} Payment</Badge>
+                  </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div>
-                      <h4 className="font-medium mb-2">Hourly Rate</h4>
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          type="number"
-                          value={employee.hourlyRate}
-                          onChange={(e) => handleRateChange(employee.id, parseFloat(e.target.value) || 0)}
-                          className="w-full"
-                        />
-                        <Edit className="w-4 h-4 text-gray-400" />
-                      </div>
+                      <h4 className="font-medium mb-2">Payment Rate</h4>
+                      {employee.paymentType === 'Hourly' && (
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={employee.hourlyRate}
+                            onChange={(e) => handleRateChange(employee.id, parseFloat(e.target.value) || 0)}
+                            className="w-full"
+                          />
+                          <span className="text-sm text-gray-500">/hr</span>
+                        </div>
+                      )}
+                      {employee.paymentType === 'Daily' && (
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              value={employee.dailyWeekdayRate || employee.dailyRate}
+                              onChange={(e) => {
+                                // Handle weekday rate change
+                              }}
+                              className="w-full"
+                              placeholder="Weekday"
+                            />
+                            <span className="text-xs text-gray-500">Weekday</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              value={employee.dailyWeekendRate || employee.dailyRate}
+                              onChange={(e) => {
+                                // Handle weekend rate change
+                              }}
+                              className="w-full"
+                              placeholder="Weekend"
+                            />
+                            <span className="text-xs text-gray-500">Weekend</span>
+                          </div>
+                        </div>
+                      )}
+                      {employee.paymentType === 'Monthly' && (
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={employee.baseSalary || 0}
+                            onChange={(e) => handleSalaryChange(employee.id, parseFloat(e.target.value) || 0)}
+                            className="w-full"
+                          />
+                          <span className="text-sm text-gray-500">/month</span>
+                        </div>
+                      )}
                     </div>
                     
                     <div>
-                      <h4 className="font-medium mb-2">Hours Worked</h4>
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          type="number"
-                          value={employee.hoursWorked}
-                          onChange={(e) => handleHoursChange(employee.id, parseFloat(e.target.value) || 0)}
-                          className="w-full"
-                        />
-                        <Edit className="w-4 h-4 text-gray-400" />
+                      <h4 className="font-medium mb-2">Work Period</h4>
+                      <div className="space-y-1 text-sm">
+                        {employee.paymentType === 'Hourly' && (
+                          <div>
+                            <Input
+                              type="number"
+                              value={employee.hoursWorked}
+                              onChange={(e) => handleHoursChange(employee.id, parseFloat(e.target.value) || 0)}
+                              className="w-full"
+                            />
+                            <span className="text-xs text-gray-500">Hours worked</span>
+                          </div>
+                        )}
+                        {employee.paymentType === 'Daily' && (
+                          <div>
+                            <div>{employee.daysWorked} days</div>
+                            <div className="text-xs text-gray-500">From attendance</div>
+                          </div>
+                        )}
+                        {employee.paymentType === 'Monthly' && (
+                          <div>
+                            <div>Monthly</div>
+                            <div className="text-xs text-gray-500">Fixed monthly salary</div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-medium mb-2">Days Worked</h4>
-                      <div className="text-sm">
-                        <div>{employee.daysWorked} days</div>
-                        <div className="text-gray-500">From slot bookings</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Allowances</h4>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddAllowanceDialog({show: true, employeeId: employee.id})}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        {employee.allowances.map((allowance, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <span>{allowance.name}: S${allowance.amount}</span>
+                            <Button size="sm" variant="ghost" onClick={() => removeAllowance(employee.id, allowance.name)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Deductions</h4>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddDeductionDialog({show: true, employeeId: employee.id})}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        {employee.deductions.map((deduction, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <span>{deduction.name}: S${deduction.amount}</span>
+                            <Button size="sm" variant="ghost" onClick={() => removeDeduction(employee.id, deduction.name)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -406,6 +496,9 @@ const PayrollProcessing = () => {
                     <div>
                       <h4 className="font-medium mb-2">Summary</h4>
                       <div className="space-y-1 text-sm">
+                        <div>Gross: S${employee.grossPay.toFixed(2)}</div>
+                        <div>Allowances: S${totalAllowances.toFixed(2)}</div>
+                        <div>Deductions: S${totalDeductions.toFixed(2)}</div>
                         <div>Employee CPF: S${employee.employeeCPF.toFixed(2)}</div>
                         <div>Employer CPF: S${employee.employerCPF.toFixed(2)}</div>
                         <div>Claims: S${approvedClaims.toFixed(2)}</div>
@@ -448,6 +541,7 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Payment Type</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Claims</TableHead>
               <TableHead>Bank Name</TableHead>
@@ -463,6 +557,7 @@ const PayrollProcessing = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Full-Time</TableCell>
+                  <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>{empData?.bankName}</TableCell>
@@ -482,6 +577,7 @@ const PayrollProcessing = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Casual</TableCell>
+                  <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>{empData?.bankName}</TableCell>
@@ -526,7 +622,8 @@ const PayrollProcessing = () => {
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Basic/Hourly</TableHead>
+              <TableHead>Payment Type</TableHead>
+              <TableHead>Basic/Rate</TableHead>
               <TableHead>Gross Pay</TableHead>
               <TableHead>Claims (Non-CPF)</TableHead>
               <TableHead>Employee CPF</TableHead>
@@ -545,10 +642,11 @@ const PayrollProcessing = () => {
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Full-Time</TableCell>
+                  <TableCell>{employee.paymentType}</TableCell>
                   <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
                   <TableCell>S${grossSalary.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
-                  <TableCell>S${(grossSalary * 0.20).toFixed(2)}</TableCell>
+                  <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
@@ -560,15 +658,24 @@ const PayrollProcessing = () => {
             })}
             {payrollState.casualEmployees.map((employee) => {
               const empData = getEmployeeById(employee.id);
-              const grossPay = (employee.hourlyRate || 0) * (employee.hoursWorked || 0);
               const approvedClaims = getApprovedClaimsTotal(employee.id);
+              let rateDisplay = '';
+              if (employee.paymentType === 'Hourly') {
+                rateDisplay = `S${(employee.hourlyRate || 0).toFixed(2)}/hr`;
+              } else if (employee.paymentType === 'Daily') {
+                rateDisplay = `S${(employee.dailyWeekdayRate || employee.dailyRate || 0).toFixed(2)}/day`;
+              } else {
+                rateDisplay = `S${(employee.baseSalary || 0).toFixed(2)}/month`;
+              }
+              
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{empData?.nric}</TableCell>
                   <TableCell>Casual</TableCell>
-                  <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}/hr</TableCell>
-                  <TableCell>S${grossPay.toFixed(2)}</TableCell>
+                  <TableCell>{employee.paymentType}</TableCell>
+                  <TableCell>{rateDisplay}</TableCell>
+                  <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
@@ -603,115 +710,127 @@ const PayrollProcessing = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={() => navigate('/payment-summary')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Payment Summary
-              </Button>
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Payroll Processing</h2>
-                <p className="text-gray-600">
-                  Step {currentStep === 'processing' ? '1' : currentStep === 'payment' ? '2' : '3'} of 3 | 
-                  Period: {payrollState.currentPeriod} | 
-                  Total: S${payrollState.totalAmount.toLocaleString()}
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">Payroll Processing</h1>
+                <p className="text-gray-600">Process payroll for {payrollState.currentPeriod}</p>
               </div>
-            </div>
-
-            <div className="flex space-x-4 mb-6">
-              <Badge variant={currentStep === 'processing' ? 'default' : 'outline'}>1. Processing</Badge>
-              <Badge variant={currentStep === 'payment' ? 'default' : 'outline'}>2. Payment</Badge>
-              <Badge variant={currentStep === 'cpf' ? 'default' : 'outline'}>3. CPF Submission</Badge>
+              <div className="flex items-center space-x-2">
+                <Badge variant={
+                  currentStep === 'processing' ? 'default' : 
+                  currentStep === 'payment' ? 'secondary' : 'outline'
+                }>
+                  Processing
+                </Badge>
+                <Badge variant={
+                  currentStep === 'payment' ? 'default' : 
+                  currentStep === 'cpf' ? 'secondary' : 'outline'
+                }>
+                  Payment
+                </Badge>
+                <Badge variant={currentStep === 'cpf' ? 'default' : 'outline'}>
+                  CPF
+                </Badge>
+              </div>
             </div>
 
             {currentStep === 'processing' && renderProcessingStep()}
             {currentStep === 'payment' && renderPaymentStep()}
             {currentStep === 'cpf' && renderCPFStep()}
           </div>
+
+          {/* Dialogs */}
+          <AddAllowanceDialog
+            open={showAddAllowanceDialog.show}
+            onOpenChange={(open) => setShowAddAllowanceDialog({show: open, employeeId: ''})}
+            onAdd={(allowance) => handleAddAllowance(showAddAllowanceDialog.employeeId, allowance)}
+          />
+
+          <AddDeductionDialog
+            open={showAddDeductionDialog.show}
+            onOpenChange={(open) => setShowAddDeductionDialog({show: open, employeeId: ''})}
+            onAdd={(deduction) => handleAddDeduction(showAddDeductionDialog.employeeId, deduction)}
+          />
+
+          {/* Edit Allowance Dialog */}
+          <Dialog open={!!editingAllowance} onOpenChange={() => setEditingAllowance(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Allowance</DialogTitle>
+                <DialogDescription>
+                  Update the amount for {editingAllowance?.allowance.name}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  type="number"
+                  defaultValue={editingAllowance?.allowance.amount}
+                  onChange={(e) => {
+                    if (editingAllowance) {
+                      editingAllowance.allowance.amount = parseFloat(e.target.value) || 0;
+                    }
+                  }}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingAllowance(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  if (editingAllowance) {
+                    editAllowance(
+                      editingAllowance.employeeId,
+                      editingAllowance.allowance.name,
+                      editingAllowance.allowance.amount
+                    );
+                  }
+                }}>
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Deduction Dialog */}
+          <Dialog open={!!editingDeduction} onOpenChange={() => setEditingDeduction(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Deduction</DialogTitle>
+                <DialogDescription>
+                  Update the amount for {editingDeduction?.deduction.name}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  type="number"
+                  defaultValue={editingDeduction?.deduction.amount}
+                  onChange={(e) => {
+                    if (editingDeduction) {
+                      editingDeduction.deduction.amount = parseFloat(e.target.value) || 0;
+                    }
+                  }}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingDeduction(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  if (editingDeduction) {
+                    editDeduction(
+                      editingDeduction.employeeId,
+                      editingDeduction.deduction.name,
+                      editingDeduction.deduction.amount
+                    );
+                  }
+                }}>
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
-
-      {/* Edit Allowance Dialog */}
-      <Dialog open={!!editingAllowance} onOpenChange={() => setEditingAllowance(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Allowance</DialogTitle>
-            <DialogDescription>
-              Modify the allowance amount
-            </DialogDescription>
-          </DialogHeader>
-          {editingAllowance && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Allowance Name</label>
-                <Input value={editingAllowance.allowance.name} disabled />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Amount (S$)</label>
-                <Input 
-                  type="number"
-                  defaultValue={editingAllowance.allowance.amount}
-                  id="allowance-amount"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingAllowance(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              const amountInput = document.getElementById('allowance-amount') as HTMLInputElement;
-              if (editingAllowance && amountInput) {
-                editAllowance(editingAllowance.employeeId, editingAllowance.allowance.name, parseFloat(amountInput.value) || 0);
-              }
-            }}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Deduction Dialog */}
-      <Dialog open={!!editingDeduction} onOpenChange={() => setEditingDeduction(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Deduction</DialogTitle>
-            <DialogDescription>
-              Modify the deduction amount
-            </DialogDescription>
-          </DialogHeader>
-          {editingDeduction && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Deduction Name</label>
-                <Input value={editingDeduction.deduction.name} disabled />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Amount (S$)</label>
-                <Input 
-                  type="number"
-                  defaultValue={editingDeduction.deduction.amount}
-                  id="deduction-amount"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingDeduction(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              const amountInput = document.getElementById('deduction-amount') as HTMLInputElement;
-              if (editingDeduction && amountInput) {
-                editDeduction(editingDeduction.employeeId, editingDeduction.deduction.name, parseFloat(amountInput.value) || 0);
-              }
-            }}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
