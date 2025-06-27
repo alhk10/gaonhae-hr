@@ -251,41 +251,57 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
 };
 
 export const createEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Creating employee in Supabase:', employeeData);
+  console.log('EmployeeService: Creating employee with data:', employeeData);
   
-  // Generate employee ID
-  const employeeId = `EMP${Date.now()}`;
-  
-  const { data: employee, error } = await supabase
-    .from('employees')
-    .insert([{
-      id: employeeId,
-      name: employeeData.name,
-      nric: employeeData.nric || '',
-      date_of_birth: employeeData.dateOfBirth,
-      residency_status: employeeData.residencyStatus,
-      type: employeeData.type,
-      base_salary: employeeData.baseSalary,
-      hourly_rate: employeeData.hourlyRate,
-      daily_rate: employeeData.dailyRate,
-      payment_type: employeeData.paymentType,
-      bank_name: employeeData.bankName || '',
-      bank_account: employeeData.bankAccount || '',
-      department: employeeData.branch || '',
-      position: employeeData.position || '',
-      phone: employeeData.phone || '',
-      address: employeeData.address || '',
-      email: employeeData.email || ''
-    }])
-    .select()
-    .single();
+  try {
+    // Validate required fields
+    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
+    const missingFields = requiredFields.filter(field => !employeeData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
 
-  if (error) {
-    console.error('EmployeeService: Error creating employee:', error);
+    // Generate employee ID
+    const employeeId = `EMP${Date.now()}`;
+    
+    console.log('EmployeeService: Inserting employee with ID:', employeeId);
+    
+    const { data: employee, error } = await supabase
+      .from('employees')
+      .insert([{
+        id: employeeId,
+        name: employeeData.name,
+        nric: employeeData.nric,
+        date_of_birth: employeeData.dateOfBirth,
+        residency_status: employeeData.residencyStatus,
+        type: employeeData.type,
+        base_salary: employeeData.baseSalary,
+        hourly_rate: employeeData.hourlyRate,
+        daily_rate: employeeData.dailyRate,
+        payment_type: employeeData.paymentType || 'Monthly',
+        bank_name: employeeData.bankName,
+        bank_account: employeeData.bankAccount,
+        department: employeeData.branch || '',
+        position: employeeData.position || '',
+        phone: employeeData.phone || '',
+        address: employeeData.address || '',
+        email: employeeData.email
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('EmployeeService: Supabase error creating employee:', error);
+      throw error;
+    }
+
+    console.log('EmployeeService: Employee created successfully:', employee);
+    return employee;
+  } catch (error) {
+    console.error('EmployeeService: Error in createEmployee:', error);
     throw error;
   }
-
-  return employee;
 };
 
 export const addEmployee = async (employeeData: any) => {
