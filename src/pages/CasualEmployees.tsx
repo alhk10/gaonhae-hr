@@ -7,8 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Plus, Calendar, MapPin } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getEmployees } from '@/data/employeeData';
 
 const CasualEmployees = () => {
+  // Get all employees and filter for casual workers
+  const allEmployees = getEmployees();
+  const casualWorkers = allEmployees.filter(emp => emp.type === 'Casual');
+
   const handleAddCasualWorker = () => {
     toast("Add casual worker functionality will be implemented");
   };
@@ -16,6 +21,12 @@ const CasualEmployees = () => {
   const handleAssignShift = (workerId: string) => {
     toast(`Assigning shift to worker ${workerId}`);
   };
+
+  // Calculate statistics
+  const totalCasualWorkers = casualWorkers.length;
+  const activeToday = Math.floor(casualWorkers.length * 0.4); // Simulate active workers
+  const available = Math.floor(casualWorkers.length * 0.6); // Simulate available workers
+  const locations = 3; // Fixed number of locations
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,7 +52,7 @@ const CasualEmployees = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Total Casual Workers</p>
-                      <p className="text-2xl font-bold text-gray-900">45</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalCasualWorkers}</p>
                     </div>
                     <Users className="w-8 h-8 text-blue-500" />
                   </div>
@@ -52,7 +63,7 @@ const CasualEmployees = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Active Today</p>
-                      <p className="text-2xl font-bold text-gray-900">12</p>
+                      <p className="text-2xl font-bold text-gray-900">{activeToday}</p>
                     </div>
                     <Calendar className="w-8 h-8 text-green-500" />
                   </div>
@@ -63,7 +74,7 @@ const CasualEmployees = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Available</p>
-                      <p className="text-2xl font-bold text-gray-900">18</p>
+                      <p className="text-2xl font-bold text-gray-900">{available}</p>
                     </div>
                     <Users className="w-8 h-8 text-orange-500" />
                   </div>
@@ -74,7 +85,7 @@ const CasualEmployees = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Locations</p>
-                      <p className="text-2xl font-bold text-gray-900">3</p>
+                      <p className="text-2xl font-bold text-gray-900">{locations}</p>
                     </div>
                     <MapPin className="w-8 h-8 text-purple-500" />
                   </div>
@@ -89,75 +100,49 @@ const CasualEmployees = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { 
-                      id: 'CW001', 
-                      name: 'Ahmad Rahman', 
-                      phone: '+65 9876 5432', 
-                      location: 'Singapore Office', 
-                      status: 'available',
-                      lastShift: '2024-12-20'
-                    },
-                    { 
-                      id: 'CW002', 
-                      name: 'Priya Sharma', 
-                      phone: '+65 8765 4321', 
-                      location: 'Jurong Branch', 
-                      status: 'working',
-                      lastShift: '2024-12-22'
-                    },
-                    { 
-                      id: 'CW003', 
-                      name: 'Chen Wei Ming', 
-                      phone: '+65 7654 3210', 
-                      location: 'Tampines Branch', 
-                      status: 'available',
-                      lastShift: '2024-12-21'
-                    },
-                    { 
-                      id: 'CW004', 
-                      name: 'Maria Santos', 
-                      phone: '+65 6543 2109', 
-                      location: 'Singapore Office', 
-                      status: 'unavailable',
-                      lastShift: '2024-12-19'
-                    },
-                  ].map((worker) => (
-                    <div key={worker.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <div>
-                            <p className="font-medium text-gray-900">{worker.name}</p>
-                            <p className="text-sm text-gray-600">{worker.id} • {worker.phone}</p>
+                  {casualWorkers.map((worker, index) => {
+                    // Simulate different statuses for workers
+                    const statuses = ['available', 'working', 'unavailable'];
+                    const status = statuses[index % statuses.length];
+                    
+                    return (
+                      <div key={worker.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <p className="font-medium text-gray-900">{worker.name}</p>
+                              <p className="text-sm text-gray-600">{worker.id} • {worker.phone}</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
+                            <span className="flex items-center">
+                              <MapPin className="w-4 h-4 mr-1" />
+                              {worker.branch || 'Singapore Office'}
+                            </span>
+                            <span>Hourly Rate: S${worker.hourlyRate}/hr</span>
+                            <span>Join Date: {worker.joinDate}</span>
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
-                          <span className="flex items-center">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {worker.location}
-                          </span>
-                          <span>Last shift: {worker.lastShift}</span>
+                        <div className="flex items-center space-x-3">
+                          <Badge variant={
+                            status === 'working' ? 'default' :
+                            status === 'available' ? 'secondary' : 
+                            'destructive'
+                          }>
+                            {status}
+                          </Badge>
+                          {status === 'available' && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleAssignShift(worker.id)}
+                            >
+                              Assign Shift
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge variant={
-                          worker.status === 'working' ? 'default' :
-                          worker.status === 'available' ? 'secondary' : 
-                          'destructive'
-                        }>
-                          {worker.status}
-                        </Badge>
-                        {worker.status === 'available' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleAssignShift(worker.id)}
-                          >
-                            Assign Shift
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

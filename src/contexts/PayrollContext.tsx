@@ -94,16 +94,25 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   };
 
   const initializePayroll = async () => {
-    console.log('Initializing payroll from Supabase employee database');
+    console.log('Initializing payroll from both Supabase and local employee data');
     setIsLoading(true);
     
     try {
-      // Fetch employees from Supabase
-      const allEmployees = await getEmployees();
-      console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
+      // First try to fetch from Supabase
+      let allEmployees = [];
+      try {
+        allEmployees = await getEmployees();
+        console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
+      } catch (supabaseError) {
+        console.log('Supabase fetch failed, using local employee data:', supabaseError);
+        // Fallback to local employee data from employeeData.ts
+        const { getEmployees: getLocalEmployees } = await import('@/data/employeeData');
+        allEmployees = getLocalEmployees();
+        console.log('Using local employee data for payroll:', allEmployees.length);
+      }
       
       if (allEmployees.length === 0) {
-        console.log('No employees found in Supabase database');
+        console.log('No employees found in any data source');
         setPayrollState(prev => ({
           ...prev,
           fullTimeEmployees: [],
@@ -116,6 +125,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
 
       const fullTimeEmps = allEmployees.filter(emp => emp.type === 'Full-Time');
       const casualEmps = allEmployees.filter(emp => emp.type === 'Casual');
+
+      console.log(`Found ${fullTimeEmps.length} full-time and ${casualEmps.length} casual employees`);
 
       // Initialize full-time employees
       const fullTimePayroll: PayrollEmployee[] = await Promise.all(
@@ -176,7 +187,15 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         casualEmps.map(async (emp) => {
           try {
             // Get actual hours worked from attendance records for the current payroll period
-            const hoursWorked = await getEmployeeMonthlyHours(emp.id, payrollState.currentPeriod);
+            let hoursWorked = 0;
+            try {
+              hoursWorked = await getEmployeeMonthlyHours(emp.id, payrollState.currentPeriod);
+            } catch (attendanceError) {
+              // If attendance fetch fails, use a default of 0 hours
+              console.log(`Could not fetch attendance for ${emp.name}, using 0 hours:`, attendanceError);
+              hoursWorked = 0;
+            }
+            
             const daysWorked = Math.ceil(hoursWorked / 8); // Estimate days based on 8-hour workdays
             
             const hourlyRate = emp.hourlyRate || emp.dailyRate || 0;
@@ -247,14 +266,15 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         lastUpdated: new Date()
       }));
       
-      console.log('Payroll initialized from Supabase:', { 
+      console.log('Payroll initialized successfully:', { 
         fullTimeCount: fullTimePayroll.length, 
         casualCount: casualPayroll.length,
         fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.netPay, 0),
-        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0)
+        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0),
+        casualEmployeeNames: casualPayroll.map(emp => emp.name)
       });
     } catch (error) {
-      console.error('Error initializing payroll from Supabase:', error);
+      console.error('Error initializing payroll:', error);
       // Set empty state if there's an error
       setPayrollState(prev => ({
         ...prev,
