@@ -31,6 +31,8 @@ interface AttendanceRecord {
 interface Employee {
   id: string;
   name: string;
+  branch?: string;
+  position?: string;
 }
 
 const Attendance = () => {

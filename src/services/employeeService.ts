@@ -26,7 +26,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     nric: emp.nric,
     dateOfBirth: emp.date_of_birth,
     residencyStatus: emp.residency_status,
-    type: emp.type,
+    type: emp.type as 'Full-Time' | 'Casual',
     baseSalary: emp.base_salary || undefined,
     hourlyRate: emp.hourly_rate || undefined,
     dailyRate: emp.daily_rate || undefined,
