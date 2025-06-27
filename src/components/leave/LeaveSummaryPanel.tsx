@@ -40,11 +40,11 @@ const LeaveSummaryPanel = () => {
 
   // Calculate total annual leave remaining using new calculation method
   const totalAnnualLeaveRemaining = fullTimeEmployees.reduce((total, employee) => {
-    if (!employee.join_date) return total; // Skip if no join date
+    if (!employee.joinDate) return total; // Skip if no join date
     
     const leaveBalance = calculateLeaveBalance(
       employee.id, 
-      employee.join_date, 
+      employee.joinDate, 
       allLeaveRequests
     );
     return total + leaveBalance.annualLeave.remaining;

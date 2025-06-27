@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -38,8 +37,8 @@ const ApplyLeave = () => {
   const leaveHistory = allLeaveRequests.filter(leave => leave.employeeId === user?.id);
 
   // Calculate leave balance using new calculation method
-  const leaveBalance = currentEmployee?.join_date 
-    ? calculateLeaveBalance(currentEmployee.id, currentEmployee.join_date, allLeaveRequests)
+  const leaveBalance = currentEmployee?.joinDate 
+    ? calculateLeaveBalance(currentEmployee.id, currentEmployee.joinDate, allLeaveRequests)
     : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
 
   // Mutation for adding leave request
@@ -231,17 +230,17 @@ const ApplyLeave = () => {
               </div>
 
               {/* Leave Entitlement Information */}
-              {currentEmployee.join_date && (
+              {currentEmployee.joinDate && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start space-x-3">
                     <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
                       <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
                       <p className="text-sm text-blue-700 mt-1">
-                        {getLeaveEntitlementSummary(currentEmployee.join_date)}
+                        {getLeaveEntitlementSummary(currentEmployee.joinDate)}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Based on join date: {new Date(currentEmployee.join_date).toLocaleDateString()}
+                        Based on join date: {new Date(currentEmployee.joinDate).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -366,17 +365,17 @@ const ApplyLeave = () => {
             </div>
 
             {/* Leave Entitlement Information */}
-            {currentEmployee.join_date && (
+            {currentEmployee.joinDate && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
                     <p className="text-sm text-blue-700 mt-1">
-                      {getLeaveEntitlementSummary(currentEmployee.join_date)}
+                      {getLeaveEntitlementSummary(currentEmployee.joinDate)}
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
-                      Based on join date: {new Date(currentEmployee.join_date).toLocaleDateString()}
+                      Based on join date: {new Date(currentEmployee.joinDate).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
