@@ -67,10 +67,10 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     dateOfBirth: employee.dateOfBirth,
     residencyStatus: employee.residencyStatus,
     type: employee.type,
-    baseSalary: employee.baseSalary || '',
-    hourlyRate: employee.hourlyRate || '',
-    dailyWeekdayRate: employee.dailyWeekdayRate || '',
-    dailyWeekendRate: employee.dailyWeekendRate || '',
+    baseSalary: employee.baseSalary ? employee.baseSalary.toString() : '',
+    hourlyRate: employee.hourlyRate ? employee.hourlyRate.toString() : '',
+    dailyWeekdayRate: employee.dailyWeekdayRate ? employee.dailyWeekdayRate.toString() : '',
+    dailyWeekendRate: employee.dailyWeekendRate ? employee.dailyWeekendRate.toString() : '',
     paymentType: employee.paymentType || 'Monthly',
     bankName: employee.bankName,
     bankAccount: employee.bankAccount,
@@ -99,6 +99,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   const branches = getBranches();
 
   const handleInputChange = (field: string, value: string | number) => {
+    console.log(`Updating field ${field} with value:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -130,15 +131,18 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      console.log('Saving employee with allowances:', allowances, 'and deductions:', deductions);
+      console.log('Saving employee with form data:', formData);
       
+      // Convert string values to numbers with proper null handling
       const updateData = {
         ...formData,
-        baseSalary: formData.baseSalary ? Number(formData.baseSalary) : null,
-        hourlyRate: formData.hourlyRate ? Number(formData.hourlyRate) : null,
-        dailyWeekdayRate: formData.dailyWeekdayRate ? Number(formData.dailyWeekdayRate) : null,
-        dailyWeekendRate: formData.dailyWeekendRate ? Number(formData.dailyWeekendRate) : null,
+        baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : null,
+        hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : null,
+        dailyWeekdayRate: formData.dailyWeekdayRate && formData.dailyWeekdayRate.trim() !== '' ? Number(formData.dailyWeekdayRate) : null,
+        dailyWeekendRate: formData.dailyWeekendRate && formData.dailyWeekendRate.trim() !== '' ? Number(formData.dailyWeekendRate) : null,
       };
+
+      console.log('Processed update data with converted numbers:', updateData);
 
       await updateEmployee(employee.id, updateData);
       
@@ -154,6 +158,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         deductions: deductions.map(d => ({ ...d, id: d.id })),
       };
       
+      console.log('Final updated employee object:', updatedEmployee);
       onSave(updatedEmployee);
       toast("Employee details updated successfully");
     } catch (error) {
@@ -326,15 +331,20 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               </Select>
             </div>
 
-            {/* Conditional Rate Fields */}
+            {/* Conditional Rate Fields with improved logging */}
             {formData.paymentType === 'Monthly' && (
               <div>
                 <Label htmlFor="baseSalary">Base Salary (S$)</Label>
                 <Input
                   id="baseSalary"
                   type="number"
+                  step="0.01"
                   value={formData.baseSalary}
-                  onChange={(e) => handleInputChange('baseSalary', e.target.value)}
+                  onChange={(e) => {
+                    console.log('Base salary input changed to:', e.target.value);
+                    handleInputChange('baseSalary', e.target.value);
+                  }}
+                  placeholder="Enter base salary"
                 />
               </div>
             )}
@@ -348,6 +358,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                   step="0.01"
                   value={formData.hourlyRate}
                   onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                  placeholder="Enter hourly rate"
                 />
               </div>
             )}
@@ -362,6 +373,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                     step="0.01"
                     value={formData.dailyWeekdayRate}
                     onChange={(e) => handleInputChange('dailyWeekdayRate', e.target.value)}
+                    placeholder="Enter weekday rate"
                   />
                 </div>
                 <div>
@@ -372,6 +384,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                     step="0.01"
                     value={formData.dailyWeekendRate}
                     onChange={(e) => handleInputChange('dailyWeekendRate', e.target.value)}
+                    placeholder="Enter weekend rate"
                   />
                 </div>
               </>

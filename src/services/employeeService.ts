@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
@@ -360,29 +359,34 @@ export const addEmployee = async (employeeData: any) => {
 export const updateEmployee = async (id: string, employeeData: any) => {
   console.log('EmployeeService: Updating employee in Supabase:', id, employeeData);
   
+  // Ensure proper number conversion and null handling for salary fields
+  const updateData = {
+    name: employeeData.name,
+    nric: employeeData.nric,
+    date_of_birth: employeeData.dateOfBirth,
+    residency_status: employeeData.residencyStatus,
+    type: employeeData.type,
+    base_salary: employeeData.baseSalary !== null && employeeData.baseSalary !== undefined ? Number(employeeData.baseSalary) : null,
+    hourly_rate: employeeData.hourlyRate !== null && employeeData.hourlyRate !== undefined ? Number(employeeData.hourlyRate) : null,
+    daily_rate: employeeData.dailyRate !== null && employeeData.dailyRate !== undefined ? Number(employeeData.dailyRate) : null,
+    daily_weekday_rate: employeeData.dailyWeekdayRate !== null && employeeData.dailyWeekdayRate !== undefined ? Number(employeeData.dailyWeekdayRate) : null,
+    daily_weekend_rate: employeeData.dailyWeekendRate !== null && employeeData.dailyWeekendRate !== undefined ? Number(employeeData.dailyWeekendRate) : null,
+    payment_type: employeeData.paymentType,
+    bank_name: employeeData.bankName,
+    bank_account: employeeData.bankAccount,
+    department: employeeData.branch,
+    position: employeeData.position,
+    phone: employeeData.phone,
+    address: employeeData.address,
+    email: employeeData.email,
+    join_date: employeeData.joinDate || null
+  };
+
+  console.log('EmployeeService: Processed update data for Supabase:', updateData);
+
   const { data: employee, error } = await supabase
     .from('employees')
-    .update({
-      name: employeeData.name,
-      nric: employeeData.nric,
-      date_of_birth: employeeData.dateOfBirth,
-      residency_status: employeeData.residencyStatus,
-      type: employeeData.type,
-      base_salary: employeeData.baseSalary,
-      hourly_rate: employeeData.hourlyRate,
-      daily_rate: employeeData.dailyRate,
-      daily_weekday_rate: employeeData.dailyWeekdayRate,
-      daily_weekend_rate: employeeData.dailyWeekendRate,
-      payment_type: employeeData.paymentType,
-      bank_name: employeeData.bankName,
-      bank_account: employeeData.bankAccount,
-      department: employeeData.branch,
-      position: employeeData.position,
-      phone: employeeData.phone,
-      address: employeeData.address,
-      email: employeeData.email,
-      join_date: employeeData.joinDate || null
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -392,6 +396,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     throw error;
   }
 
+  console.log('EmployeeService: Employee updated successfully:', employee);
   return employee;
 };
 
