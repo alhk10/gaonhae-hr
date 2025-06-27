@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -5,221 +6,121 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, Users, Plus, UserPlus } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { getAttendanceRecords, addAttendanceRecord, updateAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
 import { getEmployees } from '@/services/employeeService';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
 
-interface AttendanceRecord {
-  id: number;
-  employee_id: string;
-  date: string;
-  check_in: string | null;
-  check_out: string | null;
-  status: string;
-  hours_worked: number | null;
-  employee?: {
-    name: string;
-  };
-}
-
-interface Employee {
-  id: string;
-  name: string;
-  branch?: string;
-  position?: string;
-}
-
 const Attendance = () => {
+  const { user } = useAuth();
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAddAttendanceOpen, setIsAddAttendanceOpen] = useState(false);
-  const [isBulkAttendanceOpen, setIsBulkAttendanceOpen] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [stats, setStats] = useState({
+    totalPresent: 0,
+    totalAbsent: 0,
+    totalLate: 0,
+    averageHours: 0
+  });
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedDate]);
 
   const loadData = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
+      const [attendanceData, employeeData] = await Promise.all([
+        getAttendanceRecords(),
+        getEmployees()
+      ]);
       
-      // Load attendance records
-      const { data: attendance, error: attendanceError } = await supabase
-        .from('attendance')
-        .select(`
-          *,
-          employee:employee_id(name)
-        `)
-        .order('date', { ascending: false });
-
-      if (attendanceError) {
-        console.error('Error fetching attendance:', attendanceError);
-        toast('Error loading attendance data');
-      } else {
-        setAttendanceRecords(attendance || []);
-      }
-
-      // Load employees
-      const employeesData = await getEmployees();
-      setEmployees(employeesData);
+      setAttendanceRecords(attendanceData);
+      setEmployees(employeeData);
+      
+      // Calculate stats for selected date
+      const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+      const todayRecords = attendanceData.filter(record => record.date === dateStr);
+      
+      const totalPresent = todayRecords.filter(r => r.status === 'Present').length;
+      const totalAbsent = employeeData.length - todayRecords.length;
+      const totalLate = todayRecords.filter(r => r.status === 'Late').length;
+      const averageHours = todayRecords.length > 0 
+        ? todayRecords.reduce((sum, r) => sum + (r.hoursWorked || 0), 0) / todayRecords.length 
+        : 0;
+      
+      setStats({
+        totalPresent,
+        totalAbsent,
+        totalLate,
+        averageHours
+      });
       
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast('Error loading data');
+      console.error('Error loading attendance data:', error);
+      toast('Error loading attendance data');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const calculateHours = (checkIn: string, checkOut: string) => {
-    if (!checkIn || !checkOut) return 0;
-    
-    const checkInTime = new Date(`2000-01-01T${checkIn}`);
-    const checkOutTime = new Date(`2000-01-01T${checkOut}`);
-    const totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
-    
-    return Math.max(0, totalMinutes / 60);
-  };
-
-  const determineStatus = (checkIn: string, date: string) => {
-    if (!checkIn) return 'Absent';
-    
-    const checkInTime = new Date(`2000-01-01T${checkIn}`);
-    const nineAM = new Date(`2000-01-01T09:00`);
-    
-    return checkInTime > nineAM ? 'Late' : 'Present';
-  };
-
-  const handleAddAttendance = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const employeeId = formData.get('employee') as string;
-    const date = formData.get('date') as string;
-    const checkIn = formData.get('checkIn') as string;
-    const checkOut = formData.get('checkOut') as string;
-
-    if (!employeeId || !date) {
-      toast('Please fill in all required fields');
+  const handleDelete = async (recordId: number) => {
+    if (!user || user.role !== 'superadmin') {
+      toast('Only superadmin can delete attendance records');
       return;
     }
 
-    const hoursWorked = calculateHours(checkIn, checkOut);
-    const status = determineStatus(checkIn, date);
+    if (!confirm('Are you sure you want to delete this attendance record? This action cannot be undone.')) {
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('attendance')
-        .insert({
-          employee_id: employeeId,
-          date,
-          check_in: checkIn || null,
-          check_out: checkOut || null,
-          status,
-          hours_worked: hoursWorked
-        });
+        .delete()
+        .eq('id', recordId);
 
-      if (error) {
-        console.error('Error adding attendance:', error);
-        toast('Error adding attendance record');
-      } else {
-        toast('Attendance record added successfully');
-        setIsAddAttendanceOpen(false);
-        loadData();
-      }
+      if (error) throw error;
+
+      toast('Attendance record deleted successfully');
+      await loadData();
     } catch (error) {
-      console.error('Error adding attendance:', error);
-      toast('Error adding attendance record');
+      console.error('Error deleting attendance record:', error);
+      toast('Error deleting attendance record');
     }
   };
 
-  const handleBulkAttendance = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    // Get selected employees using the checkbox approach
-    const checkboxes = document.querySelectorAll('input[name="employees"]:checked') as NodeListOf<HTMLInputElement>;
-    const selectedEmployees = Array.from(checkboxes).map(checkbox => checkbox.value);
-    
-    const date = formData.get('date') as string;
-    const checkIn = formData.get('checkIn') as string;
-    const checkOut = formData.get('checkOut') as string;
+  const filteredRecords = selectedDate 
+    ? attendanceRecords.filter(record => record.date === format(selectedDate, 'yyyy-MM-dd'))
+    : attendanceRecords;
 
-    if (selectedEmployees.length === 0 || !date) {
-      toast('Please select employees and fill in required fields');
-      return;
-    }
-
-    const hoursWorked = calculateHours(checkIn, checkOut);
-    const status = determineStatus(checkIn, date);
-
-    try {
-      const attendanceRecords = selectedEmployees.map(employeeId => ({
-        employee_id: employeeId,
-        date,
-        check_in: checkIn || null,
-        check_out: checkOut || null,
-        status,
-        hours_worked: hoursWorked
-      }));
-
-      const { error } = await supabase
-        .from('attendance')
-        .insert(attendanceRecords);
-
-      if (error) {
-        console.error('Error adding bulk attendance:', error);
-        toast('Error adding bulk attendance records');
-      } else {
-        toast(`Bulk attendance added for ${selectedEmployees.length} employees`);
-        setIsBulkAttendanceOpen(false);
-        loadData();
-      }
-    } catch (error) {
-      console.error('Error adding bulk attendance:', error);
-      toast('Error adding bulk attendance records');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'present': return 'default';
-      case 'absent': return 'destructive';
-      case 'late': return 'secondary';
-      case 'half-day': return 'outline';
-      default: return 'secondary';
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <p>Loading attendance data...</p>
+            <div className="text-center flex items-center justify-center h-full">
+              <div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-lg text-gray-600">Loading attendance data...</p>
+              </div>
             </div>
           </main>
         </div>
       </div>
     );
   }
-
-  const todayRecords = attendanceRecords.filter(record => 
-    record.date === new Date().toISOString().split('T')[0]
-  );
-  const presentToday = todayRecords.filter(record => record.status === 'Present').length;
-  const absentToday = todayRecords.filter(record => record.status === 'Absent').length;
-  const lateToday = todayRecords.filter(record => record.status === 'Late').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -228,167 +129,186 @@ const Attendance = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
-                <p className="text-gray-600">Track and manage employee attendance</p>
+                <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
+                <p className="text-gray-600 mt-2">Track and manage employee attendance</p>
               </div>
-              <div className="flex space-x-2">
-                <Dialog open={isAddAttendanceOpen} onOpenChange={setIsAddAttendanceOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Attendance
+              
+              <div className="flex space-x-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Attendance Record</DialogTitle>
-                      <DialogDescription>Add attendance record for a single employee.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddAttendance}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="employee">Employee</Label>
-                          <Select name="employee" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {employees.map((employee) => (
-                                <SelectItem key={employee.id} value={employee.id}>
-                                  {employee.name} ({employee.id})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input
-                            name="date"
-                            type="date"
-                            required
-                            defaultValue={new Date().toISOString().split('T')[0]}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="grid gap-2">
-                            <Label htmlFor="checkIn">Check In</Label>
-                            <Input name="checkIn" type="time" />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="checkOut">Check Out</Label>
-                            <Input name="checkOut" type="time" />
-                          </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsAddAttendanceOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Add Attendance</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                <BulkAttendanceDialog
-                  isOpen={isBulkAttendanceOpen}
-                  onClose={() => setIsBulkAttendanceOpen(false)}
-                  employees={employees.map(emp => ({
-                    id: emp.id,
-                    name: emp.name,
-                    branch: emp.branch || 'Main Office',
-                    position: emp.position
-                  }))}
-                  onSubmit={handleBulkAttendance}
-                />
-
-                <Button variant="outline" onClick={() => setIsBulkAttendanceOpen(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add Bulk Attendance
-                </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                {user?.role !== 'employee' && (
+                  <Button onClick={() => setIsBulkDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Bulk Add
+                  </Button>
+                )}
               </div>
             </div>
 
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Present Today</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">{presentToday}</p>
+              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <Users className="w-8 h-8 text-green-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-green-600">Present</p>
+                      <p className="text-2xl font-bold text-green-900">{stats.totalPresent}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Absent Today</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-red-600">{absentToday}</p>
+
+              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <Users className="w-8 h-8 text-red-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-red-600">Absent</p>
+                      <p className="text-2xl font-bold text-red-900">{stats.totalAbsent}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Late Today</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-yellow-600">{lateToday}</p>
+
+              <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <Clock className="w-8 h-8 text-yellow-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-yellow-600">Late</p>
+                      <p className="text-2xl font-bold text-yellow-900">{stats.totalLate}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Total Records</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{attendanceRecords.length}</p>
+
+              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <Clock className="w-8 h-8 text-blue-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-blue-600">Avg Hours</p>
+                      <p className="text-2xl font-bold text-blue-900">{stats.averageHours.toFixed(1)}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Attendance Records */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="w-5 h-5" />
-                  <span>Attendance Records</span>
+                <CardTitle>
+                  Attendance Records - {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
                 </CardTitle>
-                <CardDescription>All employee attendance records</CardDescription>
+                <CardDescription>
+                  View and manage employee attendance for the selected date
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Check In</TableHead>
-                      <TableHead>Check Out</TableHead>
-                      <TableHead>Hours</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {attendanceRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {(record.employee as any)?.name || 'Unknown'} ({record.employee_id})
-                        </TableCell>
-                        <TableCell>{record.date}</TableCell>
-                        <TableCell>{record.check_in || '-'}</TableCell>
-                        <TableCell>{record.check_out || '-'}</TableCell>
-                        <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusColor(record.status)}>
-                            {record.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {filteredRecords.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Check In</TableHead>
+                          <TableHead>Check Out</TableHead>
+                          <TableHead>Hours</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Location</TableHead>
+                          {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredRecords.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {employees.find(emp => emp.id === record.employeeId)?.name || 'Unknown'}
+                            </TableCell>
+                            <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{record.checkIn || '-'}</TableCell>
+                            <TableCell>{record.checkOut || '-'}</TableCell>
+                            <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  record.status === 'Present' ? 'default' : 
+                                  record.status === 'Late' ? 'secondary' : 
+                                  'destructive'
+                                }
+                              >
+                                {record.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-1 text-gray-400" />
+                                <span className="text-sm">{record.location || 'Not specified'}</span>
+                              </div>
+                            </TableCell>
+                            {user?.role === 'superadmin' && (
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDelete(record.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg">No attendance records found</p>
+                    <p className="text-sm">
+                      {selectedDate 
+                        ? `No records for ${format(selectedDate, "MMMM d, yyyy")}`
+                        : "Attendance records will appear here"
+                      }
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
+
+          <BulkAttendanceDialog
+            isOpen={isBulkDialogOpen}
+            onClose={() => setIsBulkDialogOpen(false)}
+            employees={employees}
+            selectedDate={selectedDate || new Date()}
+            onSuccess={loadData}
+          />
         </main>
       </div>
     </div>

@@ -1,334 +1,246 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, Check, X, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/sonner';
-import { LeaveRequest, updateLeaveStatus } from '@/services/leaveService';
-import { getLeaveTypes, LeaveType } from '@/services/leaveTypesService';
+import { CalendarDays, Check, X, User, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface LeaveCalendarViewProps {
-  leaves: LeaveRequest[];
-  onLeaveUpdate?: () => void;
-}
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales: { 'en-US': enUS },
+});
 
-const LeaveCalendarView = ({ leaves, onLeaveUpdate }: LeaveCalendarViewProps) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+const LeaveCalendarView = () => {
+  const { user } = useAuth();
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
-  const [isLeaveDetailOpen, setIsLeaveDetailOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadLeaveTypes = async () => {
-      try {
-        const types = await getLeaveTypes();
-        setLeaveTypes(types);
-      } catch (error) {
-        console.error('Error loading leave types for calendar:', error);
-      }
-    };
-    loadLeaveTypes();
+    loadLeaves();
   }, []);
 
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const getLeaveForDate = (dateString: string) => {
-    return leaves.filter(leave => {
-      const startDate = new Date(leave.startDate);
-      const endDate = new Date(leave.endDate);
-      const checkDate = new Date(dateString);
-      
-      return checkDate >= startDate && checkDate <= endDate;
-    });
-  };
-
-  const handleApproveLeave = async (leaveId: number) => {
+  const loadLeaves = async () => {
     try {
-      await updateLeaveStatus(leaveId, 'Approved', 'Admin');
-      toast("Leave approved successfully");
-      if (onLeaveUpdate) {
-        onLeaveUpdate();
-      }
-      setIsLeaveDetailOpen(false);
+      setLoading(true);
+      const allLeaves = await getAllLeaveRequests();
+      // Filter out rejected leaves - only show pending and approved
+      const visibleLeaves = allLeaves.filter(leave => leave.status !== 'Rejected');
+      setLeaves(visibleLeaves);
+      console.log('Loaded visible leaves (excluding rejected):', visibleLeaves);
+    } catch (error) {
+      console.error('Error loading leaves:', error);
+      toast('Error loading leave requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const events = leaves.map(leave => ({
+    id: leave.id,
+    title: `${leave.employeeName} - ${leave.type}`,
+    start: new Date(leave.startDate),
+    end: new Date(leave.endDate),
+    resource: leave,
+    allDay: true
+  }));
+
+  const handleSelectEvent = (event: any) => {
+    setSelectedLeave(event.resource);
+    setIsDialogOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedLeave || !user) return;
+    
+    try {
+      await updateLeaveStatus(selectedLeave.id, 'Approved', user.name);
+      toast(`Leave request approved for ${selectedLeave.employeeName}`);
+      setIsDialogOpen(false);
+      await loadLeaves();
     } catch (error) {
       console.error('Error approving leave:', error);
-      toast("Error approving leave");
+      toast('Error approving leave request');
     }
   };
 
-  const handleRejectLeave = async (leaveId: number) => {
+  const handleReject = async () => {
+    if (!selectedLeave || !user) return;
+    
     try {
-      await updateLeaveStatus(leaveId, 'Rejected', 'Admin');
-      toast("Leave rejected successfully");
-      if (onLeaveUpdate) {
-        onLeaveUpdate();
-      }
-      setIsLeaveDetailOpen(false);
+      await updateLeaveStatus(selectedLeave.id, 'Rejected', user.name);
+      toast(`Leave request rejected for ${selectedLeave.employeeName}`);
+      setIsDialogOpen(false);
+      await loadLeaves();
     } catch (error) {
       console.error('Error rejecting leave:', error);
-      toast("Error rejecting leave");
+      toast('Error rejecting leave request');
     }
   };
 
-  const showLeaveDetail = (leave: LeaveRequest) => {
-    setSelectedLeave(leave);
-    setIsLeaveDetailOpen(true);
-  };
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(prev.getMonth() - 1);
-      } else {
-        newDate.setMonth(prev.getMonth() + 1);
-      }
-      return newDate;
-    });
-  };
-
-  const renderCalendarDays = () => {
-    const daysInMonth = getDaysInMonth(currentDate);
-    const firstDay = getFirstDayOfMonth(currentDate);
-    const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-20 border border-gray-100"></div>);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayLeaves = getLeaveForDate(dateString);
-      const isToday = new Date().toDateString() === new Date(dateString).toDateString();
-
-      days.push(
-        <div
-          key={day}
-          className={`h-20 border border-gray-100 p-1 ${isToday ? 'bg-blue-50 border-blue-200' : ''}`}
-        >
-          <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'} mb-1`}>
-            {day}
-          </div>
-          <div className="space-y-1">
-            {dayLeaves.slice(0, 2).map((leave, index) => (
-              <div
-                key={index}
-                className="text-xs px-1 py-0.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
-                style={{
-                  backgroundColor: getLeaveTypeColor(leave.type)
-                }}
-                title={`${leave.employeeName} - ${leave.type} (${leave.status})`}
-                onClick={() => showLeaveDetail(leave)}
-              >
-                <div className="flex items-center justify-between">
-                  <span>{leave.employeeName.split(' ')[0]}</span>
-                  {leave.status === 'Pending' && (
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {dayLeaves.length > 2 && (
-              <div className="text-xs text-gray-500 px-1 cursor-pointer hover:text-gray-700" 
-                   onClick={() => dayLeaves.length > 2 && showLeaveDetail(dayLeaves[2])}>
-                +{dayLeaves.length - 2} more
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return days;
-  };
-
-  const getLeaveTypeColor = (type: string) => {
-    // Generate colors based on leave type index to ensure consistency
-    const colors = [
-      '#3b82f6', // blue
-      '#ef4444', // red
-      '#f59e0b', // amber
-      '#ec4899', // pink
-      '#06b6d4', // cyan
-      '#10b981', // emerald
-      '#8b5cf6', // violet
-      '#f97316', // orange
-    ];
+  const eventStyleGetter = (event: any) => {
+    const leave = event.resource as LeaveRequest;
+    let backgroundColor = '#3174ad';
     
-    const typeIndex = leaveTypes.findIndex(lt => lt.name === type);
-    return colors[typeIndex % colors.length] || '#6b7280'; // gray default
+    switch (leave.status) {
+      case 'Approved':
+        backgroundColor = '#10b981';
+        break;
+      case 'Pending':
+        backgroundColor = '#f59e0b';
+        break;
+      default:
+        backgroundColor = '#6b7280';
+    }
+    
+    return {
+      style: {
+        backgroundColor,
+        borderRadius: '4px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+      }
+    };
   };
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading calendar...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <>
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>Leave Calendar</span>
-            </CardTitle>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="font-medium min-w-[140px] text-center">
-                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Dynamic Legend based on active leave types */}
-          <div className="flex flex-wrap gap-3 text-xs">
-            {leaveTypes.filter(type => type.isActive).map((type, index) => (
-              <div key={type.id} className="flex items-center space-x-1">
-                <div 
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: getLeaveTypeColor(type.name) }}
-                ></div>
-                <span className="text-gray-600">{type.name}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Click on leave entries to view details and approve/reject requests. Yellow dots indicate pending requests.
-          </p>
+          <CardTitle className="flex items-center space-x-2">
+            <CalendarDays className="w-5 h-5" />
+            <span>Leave Calendar</span>
+          </CardTitle>
+          <CardDescription>
+            View and manage leave requests in calendar format. Click on any leave to approve or reject it.
+            Only pending and approved leaves are shown.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-0 mb-2">
-            {dayNames.map(day => (
-              <div key={day} className="h-8 flex items-center justify-center text-sm font-medium text-gray-500 border-b">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-0">
-            {renderCalendarDays()}
+          <div style={{ height: '600px' }}>
+            <Calendar
+              localizer={localizer}
+              events={events}
+              startAccessor="start"
+              endAccessor="end"
+              onSelectEvent={handleSelectEvent}
+              eventPropGetter={eventStyleGetter}
+              views={['month', 'week', 'day']}
+              defaultView="month"
+              popup
+              tooltipAccessor={(event) => `${event.resource.employeeName} - ${event.resource.type} (${event.resource.status})`}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Leave Detail Dialog */}
-      <Dialog open={isLeaveDetailOpen} onOpenChange={setIsLeaveDetailOpen}>
-        <DialogContent className="sm:max-w-md">
+      {/* Leave Details Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
-              <Eye className="w-5 h-5" />
+              <User className="w-5 h-5" />
               <span>Leave Request Details</span>
             </DialogTitle>
             <DialogDescription>
-              Review and manage this leave request
+              Review and approve or reject this leave request
             </DialogDescription>
           </DialogHeader>
+          
           {selectedLeave && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Employee</label>
-                  <p className="text-sm">{selectedLeave.employeeName}</p>
+                  <p className="text-sm font-medium text-gray-500">Employee</p>
+                  <p className="text-sm font-semibold">{selectedLeave.employeeName}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Employee ID</label>
-                  <p className="text-sm">{selectedLeave.employeeId}</p>
+                  <p className="text-sm font-medium text-gray-500">Type</p>
+                  <p className="text-sm font-semibold">{selectedLeave.type}</p>
                 </div>
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Leave Type</label>
-                  <p className="text-sm">{selectedLeave.type}</p>
+                  <p className="text-sm font-medium text-gray-500">Start Date</p>
+                  <p className="text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Status</label>
-                  <Badge 
-                    variant={
-                      selectedLeave.status === 'Approved' ? 'default' : 
-                      selectedLeave.status === 'Pending' ? 'secondary' : 
-                      'destructive'
-                    }
-                  >
-                    {selectedLeave.status}
-                  </Badge>
+                  <p className="text-sm font-medium text-gray-500">End Date</p>
+                  <p className="text-sm">{new Date(selectedLeave.endDate).toLocaleDateString()}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Start Date</label>
-                  <p className="text-sm">{selectedLeave.startDate}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">End Date</label>
-                  <p className="text-sm">{selectedLeave.endDate}</p>
-                </div>
-              </div>
+              
               <div>
-                <label className="text-sm font-medium text-gray-700">Days Requested</label>
-                <p className="text-sm">{selectedLeave.days} day{selectedLeave.days !== 1 ? 's' : ''}</p>
+                <p className="text-sm font-medium text-gray-500">Duration</p>
+                <p className="text-sm">{selectedLeave.days} day(s)</p>
               </div>
+              
               <div>
-                <label className="text-sm font-medium text-gray-700">Reason</label>
-                <p className="text-sm">{selectedLeave.reason || 'No reason provided'}</p>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <Badge variant={selectedLeave.status === 'Approved' ? 'default' : selectedLeave.status === 'Pending' ? 'secondary' : 'destructive'}>
+                  {selectedLeave.status}
+                </Badge>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Applied On</label>
-                <p className="text-sm">{selectedLeave.appliedOn}</p>
-              </div>
-              {selectedLeave.approvedBy && (
+              
+              {selectedLeave.reason && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Approved By</label>
-                  <p className="text-sm">{selectedLeave.approvedBy} on {selectedLeave.approvedOn}</p>
+                  <p className="text-sm font-medium text-gray-500">Reason</p>
+                  <p className="text-sm">{selectedLeave.reason}</p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Applied On</p>
+                <div className="flex items-center space-x-1">
+                  <CalendarIcon className="w-4 h-4 text-gray-400" />
+                  <p className="text-sm">{new Date(selectedLeave.appliedOn).toLocaleDateString()}</p>
+                </div>
+              </div>
+              
+              {selectedLeave.status === 'Pending' && user?.role !== 'employee' && (
+                <div className="flex space-x-2 pt-4">
+                  <Button onClick={handleApprove} className="flex-1 bg-green-600 hover:bg-green-700">
+                    <Check className="w-4 h-4 mr-2" />
+                    Approve
+                  </Button>
+                  <Button onClick={handleReject} variant="destructive" className="flex-1">
+                    <X className="w-4 h-4 mr-2" />
+                    Reject
+                  </Button>
                 </div>
               )}
             </div>
           )}
-          <DialogFooter>
-            <div className="flex space-x-2 w-full">
-              <Button variant="outline" onClick={() => setIsLeaveDetailOpen(false)} className="flex-1">
-                Close
-              </Button>
-              {selectedLeave?.status === 'Pending' && (
-                <>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleRejectLeave(selectedLeave.id)}
-                    className="flex-1 text-red-600 hover:text-red-700"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Reject
-                  </Button>
-                  <Button 
-                    onClick={() => handleApproveLeave(selectedLeave.id)}
-                    className="flex-1"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Approve
-                  </Button>
-                </>
-              )}
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
