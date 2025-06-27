@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -76,7 +77,7 @@ const Payroll = () => {
         <table>
             <tr><th>Name</th><th>Base Salary</th><th>Allowances</th><th>CPF</th><th>Total</th></tr>
             ${payrollState.fullTimeEmployees.map(emp => 
-              `<tr><td>${emp.name}</td><td>S$ ${emp.baseSalary.toLocaleString()}</td><td>S$ ${emp.allowances.toLocaleString()}</td><td>S$ ${emp.cpf.toLocaleString()}</td><td>S$ ${emp.total.toLocaleString()}</td></tr>`
+              `<tr><td>${emp.name}</td><td>S$ ${(emp.baseSalary || 0).toLocaleString()}</td><td>S$ ${(emp.allowances || 0).toLocaleString()}</td><td>S$ ${(emp.cpf || 0).toLocaleString()}</td><td>S$ ${(emp.total || 0).toLocaleString()}</td></tr>`
             ).join('')}
         </table>
     </div>
@@ -84,10 +85,15 @@ const Payroll = () => {
     <div class="section">
         <h3>CASUAL EMPLOYEES</h3>
         <table>
-            <tr><th>Name</th><th>Hours</th><th>Rate</th><th>Gross Pay</th><th>Total</th></tr>
-            ${payrollState.casualEmployees.map(emp => 
-              `<tr><td>${emp.name}</td><td>${emp.hoursWorked}</td><td>S$ ${emp.hourlyRate.toFixed(2)}</td><td>S$ ${(emp.hourlyRate * emp.hoursWorked).toLocaleString()}</td><td>S$ ${emp.totalPay.toLocaleString()}</td></tr>`
-            ).join('')}
+            <tr><th>Name</th><th>Payment Type</th><th>Rate</th><th>Hours/Days</th><th>Total</th></tr>
+            ${payrollState.casualEmployees.map(emp => {
+              const rate = emp.hourlyRate || emp.dailyRate || emp.baseSalary || 0;
+              const workAmount = emp.hoursWorked || emp.daysWorked || 0;
+              const rateDisplay = emp.hourlyRate ? `S$ ${rate.toFixed(2)}/hr` : 
+                                emp.dailyRate ? `S$ ${rate.toFixed(2)}/day` : 
+                                `S$ ${rate.toFixed(2)}/month`;
+              return `<tr><td>${emp.name}</td><td>${emp.paymentType || 'Monthly'}</td><td>${rateDisplay}</td><td>${workAmount}</td><td>S$ ${(emp.totalPay || 0).toLocaleString()}</td></tr>`;
+            }).join('')}
         </table>
     </div>
 </body>
@@ -262,13 +268,13 @@ const Payroll = () => {
                         <div>
                           <p className="font-medium text-gray-900">{employee.name}</p>
                           <p className="text-sm text-gray-600">
-                            Base: S${employee.baseSalary.toLocaleString()} • 
-                            Allowances: S${employee.allowances.toLocaleString()}
+                            Base: S${(employee.baseSalary || 0).toLocaleString()} • 
+                            Allowances: S${(employee.allowances || 0).toLocaleString()}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-gray-900">S${employee.total.toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">+ S${employee.cpf.toLocaleString()} CPF</p>
+                          <p className="font-bold text-gray-900">S${(employee.total || 0).toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">+ S${(employee.cpf || 0).toLocaleString()} CPF</p>
                         </div>
                       </div>
                     ))}
@@ -294,24 +300,37 @@ const Payroll = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Casual Employees</CardTitle>
-                  <CardDescription>Hours and payments</CardDescription>
+                  <CardDescription>Payment details</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {hasEmployees && payrollState.casualEmployees.slice(0, 5).map((employee) => (
-                      <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{employee.name}</p>
-                          <p className="text-sm text-gray-600">
-                            {employee.hoursWorked}h @ S${employee.hourlyRate.toFixed(2)}/hr
-                          </p>
+                    {hasEmployees && payrollState.casualEmployees.slice(0, 5).map((employee) => {
+                      const rate = employee.hourlyRate || employee.dailyRate || employee.baseSalary || 0;
+                      const workAmount = employee.hoursWorked || employee.daysWorked || 0;
+                      const paymentType = employee.paymentType || 'Monthly';
+                      
+                      let rateDisplay = '';
+                      if (paymentType === 'Hourly' && employee.hourlyRate) {
+                        rateDisplay = `${workAmount}h @ S$${rate.toFixed(2)}/hr`;
+                      } else if (paymentType === 'Daily' && employee.dailyRate) {
+                        rateDisplay = `${workAmount} days @ S$${rate.toFixed(2)}/day`;
+                      } else {
+                        rateDisplay = `Monthly: S$${rate.toFixed(2)}`;
+                      }
+
+                      return (
+                        <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            <p className="text-sm text-gray-600">{rateDisplay}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900">S${(employee.totalPay || 0).toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">{paymentType}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-900">S${employee.totalPay.toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">{employee.daysWorked} days</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {!hasEmployees && (
                       <div className="text-center py-8">
                         <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
