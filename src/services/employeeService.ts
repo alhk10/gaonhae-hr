@@ -12,14 +12,15 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       deductions (*),
       admin_access (*),
       certificates (*)
-    `);
+    `)
+    .is('resign_date', null); // Only get employees who haven't resigned
 
   if (error) {
     console.error('EmployeeService: Error fetching employees:', error);
     throw error;
   }
 
-  console.log('EmployeeService: Fetched employees count:', employees?.length || 0);
+  console.log('EmployeeService: Fetched active employees count:', employees?.length || 0);
   console.log('EmployeeService: Employee emails found:', employees?.map(emp => emp.email).filter(Boolean) || []);
 
   // Fetch page access permissions for all employees
@@ -124,7 +125,8 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       admin_access (*),
       certificates (*)
     `)
-    .eq('type', 'Casual');
+    .eq('type', 'Casual')
+    .is('resign_date', null); // Only get active casual employees
 
   if (error) {
     console.error('EmployeeService: Error fetching casual employees:', error);
@@ -438,20 +440,23 @@ export const updateEmployee = async (id: string, employeeData: any) => {
   return employee;
 };
 
+// Updated deleteEmployee to use soft delete instead of hard delete
 export const deleteEmployee = async (id: string) => {
-  console.log('EmployeeService: Deleting employee from Supabase:', id);
+  console.log('EmployeeService: Soft deleting employee (setting resign date) in Supabase:', id);
+  
+  const today = new Date().toISOString().split('T')[0];
   
   const { error } = await supabase
     .from('employees')
-    .delete()
+    .update({ resign_date: today })
     .eq('id', id);
 
   if (error) {
-    console.error('EmployeeService: Error deleting employee:', error);
+    console.error('EmployeeService: Error soft deleting employee:', error);
     throw error;
   }
 
-  console.log('EmployeeService: Employee deleted successfully');
+  console.log('EmployeeService: Employee soft deleted successfully (resign date set)');
 };
 
 export const updateEmployeeResignDate = async (id: string, resignDate: string) => {

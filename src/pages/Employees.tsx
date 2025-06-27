@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Edit, Eye } from 'lucide-react';
+import { Plus, Search, Settings, Edit, Eye, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
+import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
@@ -86,6 +86,25 @@ const Employees = () => {
       toast("Error adding employee. Please try again.");
     }
   });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: deleteEmployee,
+    onSuccess: () => {
+      console.log('Employee deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast("Employee removed successfully");
+    },
+    onError: (error) => {
+      console.error('Error deleting employee:', error);
+      toast("Error removing employee. Please try again.");
+    }
+  });
+
+  const handleDeleteEmployee = (employeeId: string, employeeName: string) => {
+    if (window.confirm(`Are you sure you want to remove ${employeeName}? This will set their resign date to today.`)) {
+      deleteEmployeeMutation.mutate(employeeId);
+    }
+  };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +237,7 @@ const Employees = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>All Employees ({employees.length})</span>
+                  <span>Active Employees ({employees.length})</span>
                   <div className="flex items-center space-x-2">
                     <Search className="w-4 h-4 text-gray-400" />
                     <Input
@@ -266,6 +285,14 @@ const Employees = () => {
                                 onClick={() => setEditingEmployee(employee)}
                               >
                                 <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                           </td>
