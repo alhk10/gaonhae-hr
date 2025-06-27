@@ -7,12 +7,12 @@ export interface AttendanceRecord {
   employeeId: string;
   employee: string;
   date: string;
-  clockIn: string | null;
-  clockOut: string | null;
+  checkIn: string | null;
+  checkOut: string | null;
   breakStart: string | null;
   breakEnd: string | null;
   status: 'Present' | 'Absent' | 'Half Day' | 'Late';
-  hours: number;
+  hoursWorked: number;
   location?: string;
   clockInLocation?: string;
   clockOutLocation?: string;
@@ -50,12 +50,12 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
     employeeId: record.employee_id,
     employee: (record.employees as any)?.name || 'Unknown',
     date: record.date,
-    clockIn: record.check_in,
-    clockOut: record.check_out,
+    checkIn: record.check_in,
+    checkOut: record.check_out,
     breakStart: record.break_start,
     breakEnd: record.break_end,
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
-    hours: record.hours_worked || 0,
+    hoursWorked: record.hours_worked || 0,
     location: record.location || 'Office',
     clockInLocation: record.clock_in_location || undefined,
     clockOutLocation: record.clock_out_location || undefined
@@ -84,16 +84,67 @@ export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<
     employeeId: record.employee_id,
     employee: (record.employees as any)?.name || 'Unknown',
     date: record.date,
-    clockIn: record.check_in,
-    clockOut: record.check_out,
+    checkIn: record.check_in,
+    checkOut: record.check_out,
     breakStart: record.break_start,
     breakEnd: record.break_end,
     status: record.status as 'Present' | 'Absent' | 'Half Day' | 'Late',
-    hours: record.hours_worked || 0,
+    hoursWorked: record.hours_worked || 0,
     location: record.location || 'Office',
     clockInLocation: record.clock_in_location || undefined,
     clockOutLocation: record.clock_out_location || undefined
   }));
+};
+
+export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 'employee'>): Promise<void> => {
+  console.log('Adding attendance record:', record);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .insert({
+      employee_id: record.employeeId,
+      date: record.date,
+      check_in: record.checkIn,
+      check_out: record.checkOut,
+      break_start: record.breakStart,
+      break_end: record.breakEnd,
+      status: record.status,
+      hours_worked: record.hoursWorked,
+      location: record.location,
+      clock_in_location: record.clockInLocation,
+      clock_out_location: record.clockOutLocation
+    });
+
+  if (error) {
+    console.error('Error adding attendance record:', error);
+    throw error;
+  }
+};
+
+export const updateAttendanceRecord = async (id: number, updates: Partial<AttendanceRecord>): Promise<void> => {
+  console.log('Updating attendance record:', id, updates);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .update({
+      employee_id: updates.employeeId,
+      date: updates.date,
+      check_in: updates.checkIn,
+      check_out: updates.checkOut,
+      break_start: updates.breakStart,
+      break_end: updates.breakEnd,
+      status: updates.status,
+      hours_worked: updates.hoursWorked,
+      location: updates.location,
+      clock_in_location: updates.clockInLocation,
+      clock_out_location: updates.clockOutLocation
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating attendance record:', error);
+    throw error;
+  }
 };
 
 export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | undefined => {
