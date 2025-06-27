@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -107,8 +106,18 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                 dailyWeekdayRate: empData.dailyWeekdayRate,
                 dailyWeekendRate: empData.dailyWeekendRate,
                 paymentType: empData.paymentType,
-                allowances: allowances.map(a => ({ id: a.id, name: a.name, amount: Number(a.amount), type: a.type || 'Fixed' })),
-                deductions: deductions.map(d => ({ id: d.id, name: d.name, amount: Number(d.amount), type: d.type || 'Fixed' })),
+                allowances: allowances.map(a => ({ 
+                  id: a.id.toString(), // Convert number to string
+                  name: a.name, 
+                  amount: Number(a.amount), 
+                  type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual' // Ensure type compatibility
+                })),
+                deductions: deductions.map(d => ({ 
+                  id: d.id.toString(), // Convert number to string
+                  name: d.name, 
+                  amount: Number(d.amount), 
+                  type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual' // Ensure type compatibility
+                })),
                 grossPay,
                 cpfEmployee,
                 cpfEmployer,
