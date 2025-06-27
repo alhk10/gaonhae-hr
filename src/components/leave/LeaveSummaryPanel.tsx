@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { getAllLeaveRequests } from '@/services/leaveService';
+import { getEmployees } from '@/services/employeeService';
+import { calculateLeaveBalance } from '@/utils/leaveCalculations';
 
 const LeaveSummaryPanel = () => {
   const { data: allLeaveRequests = [] } = useQuery({
@@ -11,7 +13,12 @@ const LeaveSummaryPanel = () => {
     queryFn: getAllLeaveRequests,
   });
 
-  // Calculate real leave statistics
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: getEmployees,
+  });
+
+  // Calculate real leave statistics using new calculation method
   const today = new Date();
   const next30Days = new Date();
   next30Days.setDate(today.getDate() + 30);
@@ -21,6 +28,9 @@ const LeaveSummaryPanel = () => {
   
   const currentYear = new Date().getFullYear();
 
+  // Filter full-time employees only
+  const fullTimeEmployees = employees.filter(emp => emp.type === 'Full-Time');
+
   // Upcoming leave (next 30 days)
   const upcomingLeave = allLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
@@ -28,17 +38,17 @@ const LeaveSummaryPanel = () => {
     return startDate >= today && startDate <= next30Days;
   }).length;
 
-  // Total annual leave remaining (company-wide)
-  const approvedAnnualLeave = allLeaveRequests.filter(leave => 
-    leave.type === 'Annual Leave' && 
-    leave.status === 'Approved' &&
-    new Date(leave.startDate).getFullYear() === currentYear
-  ).reduce((total, leave) => total + leave.days, 0);
-  
-  // Assuming each employee has 21 days annually and get unique employee count
-  const uniqueEmployees = [...new Set(allLeaveRequests.map(leave => leave.employeeId))];
-  const totalAnnualEntitlement = uniqueEmployees.length * 21;
-  const totalAnnualLeaveRemaining = totalAnnualEntitlement - approvedAnnualLeave;
+  // Calculate total annual leave remaining using new calculation method
+  const totalAnnualLeaveRemaining = fullTimeEmployees.reduce((total, employee) => {
+    if (!employee.join_date) return total; // Skip if no join date
+    
+    const leaveBalance = calculateLeaveBalance(
+      employee.id, 
+      employee.join_date, 
+      allLeaveRequests
+    );
+    return total + leaveBalance.annualLeave.remaining;
+  }, 0);
 
   // Approved leave this month
   const approvedLeaveThisMonth = allLeaveRequests.filter(leave => {
@@ -71,7 +81,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Annual Leave Remaining</p>
               <p className="text-2xl font-bold text-gray-900">{Math.max(0, totalAnnualLeaveRemaining)}</p>
-              <p className="text-xs text-gray-500">Company-wide</p>
+              <p className="text-xs text-gray-500">Company-wide (Full-time only)</p>
             </div>
             <Clock className="w-8 h-8 text-green-500" />
           </div>

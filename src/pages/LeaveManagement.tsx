@@ -16,7 +16,9 @@ import { getEmployees } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, updateLeaveStatus, LeaveRequest } from '@/services/leaveService';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 import LeaveSettings from '@/components/leave/LeaveSettings';
+import LeaveSummaryPanel from '@/components/leave/LeaveSummaryPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
 
 const LeaveManagement = () => {
   const { user } = useAuth();
@@ -27,6 +29,7 @@ const LeaveManagement = () => {
   const [isLeaveDetailsOpen, setIsLeaveDetailsOpen] = useState(false);
   const [isLeaveSettingsOpen, setIsLeaveSettingsOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [selectedEmployeeForBalance, setSelectedEmployeeForBalance] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const leaveTypes = ['Annual Leave', 'Medical Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
@@ -113,6 +116,17 @@ const LeaveManagement = () => {
       return;
     }
 
+    const leaveType = formData.get('type') as string;
+    
+    // Check if employee has remaining leave days
+    if (employee.join_date && leaveType === 'Annual Leave') {
+      const leaveBalance = calculateLeaveBalance(employee.id, employee.join_date, leaves);
+      if (leaveBalance.annualLeave.remaining <= 0) {
+        toast(`${employee.name} has no remaining annual leave days`);
+        return;
+      }
+    }
+
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
     const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)) + 1;
@@ -120,7 +134,7 @@ const LeaveManagement = () => {
     const newLeave: Omit<LeaveRequest, 'id'> = {
       employeeId: employee.id,
       employeeName: employee.name,
-      type: formData.get('type') as string,
+      type: leaveType,
       startDate,
       endDate,
       days: daysDiff,
@@ -186,6 +200,10 @@ const LeaveManagement = () => {
   const showLeaveDetails = (leave: LeaveRequest) => {
     setSelectedLeave(leave);
     setIsLeaveDetailsOpen(true);
+  };
+
+  const showEmployeeLeaveBalance = (employee: any) => {
+    setSelectedEmployeeForBalance(employee);
   };
 
   if (loading) {
@@ -377,19 +395,70 @@ const LeaveManagement = () => {
               </div>
             </div>
 
-            {/* Information Banner */}
+            {/* Updated Information Banner */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
                   <h3 className="font-medium text-blue-900">Leave Policy Information</h3>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Only full-time employees are entitled to annual leave and medical leave benefits. 
-                    Casual employees are not included in leave management as they are paid based on actual hours/days worked.
-                  </p>
+                  <div className="text-sm text-blue-700 mt-1 space-y-1">
+                    <p>• Only full-time employees are entitled to annual leave and medical leave benefits</p>
+                    <p>• Annual leave starts at 14 days + 1 additional day per year of service (max 18 days)</p>
+                    <p>• Annual leave is pro-rated for employees joining mid-year</p>
+                    <p>• Medical leave is fixed at 14 days per year for all full-time employees</p>
+                    <p>• Casual employees are not included in leave management as they are paid based on actual hours/days worked</p>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Leave Summary Panel */}
+            <LeaveSummaryPanel />
+
+            {/* Employee Leave Balance Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Employee Leave Balances</CardTitle>
+                <CardDescription>Current leave balances for all full-time employees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {employees.map((employee) => {
+                    const leaveBalance = employee.join_date 
+                      ? calculateLeaveBalance(employee.id, employee.join_date, leaves)
+                      : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
+                    
+                    return (
+                      <Card key={employee.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-gray-900">{employee.name}</h4>
+                            <p className="text-xs text-gray-500">{employee.id}</p>
+                            {employee.join_date && (
+                              <p className="text-xs text-blue-600">
+                                {getLeaveEntitlementSummary(employee.join_date)}
+                              </p>
+                            )}
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="text-center p-2 bg-blue-50 rounded">
+                                <p className="text-xs text-gray-600">Annual</p>
+                                <p className="font-bold text-blue-600">{leaveBalance.annualLeave.remaining}</p>
+                                <p className="text-xs text-gray-500">remaining</p>
+                              </div>
+                              <div className="text-center p-2 bg-green-50 rounded">
+                                <p className="text-xs text-gray-600">Medical</p>
+                                <p className="font-bold text-green-600">{leaveBalance.medicalLeave.remaining}</p>
+                                <p className="text-xs text-gray-500">remaining</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Leave Calendar View */}
             <LeaveCalendarView leaves={leaves} />

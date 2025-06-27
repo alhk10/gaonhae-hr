@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,11 +7,12 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Clock, AlertCircle, Info } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, LeaveRequest } from '@/services/leaveService';
 import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
+import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
@@ -35,28 +37,10 @@ const ApplyLeave = () => {
   // Filter leave history for current employee
   const leaveHistory = allLeaveRequests.filter(leave => leave.employeeId === user?.id);
 
-  // Calculate leave balance (in a real system, this would be in the database)
-  const calculateLeaveBalance = () => {
-    const currentYear = new Date().getFullYear();
-    const thisYearLeaves = leaveHistory.filter(leave => 
-      new Date(leave.startDate).getFullYear() === currentYear && leave.status === 'Approved'
-    );
-    
-    const annualLeaveUsed = thisYearLeaves
-      .filter(leave => leave.type === 'Annual Leave')
-      .reduce((total, leave) => total + leave.days, 0);
-    
-    const medicalLeaveUsed = thisYearLeaves
-      .filter(leave => leave.type === 'Medical Leave')
-      .reduce((total, leave) => total + leave.days, 0);
-
-    return {
-      annualLeave: { total: 21, used: annualLeaveUsed, remaining: 21 - annualLeaveUsed },
-      medicalLeave: { total: 14, used: medicalLeaveUsed, remaining: 14 - medicalLeaveUsed }
-    };
-  };
-
-  const leaveBalance = calculateLeaveBalance();
+  // Calculate leave balance using new calculation method
+  const leaveBalance = currentEmployee?.join_date 
+    ? calculateLeaveBalance(currentEmployee.id, currentEmployee.join_date, allLeaveRequests)
+    : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
 
   // Mutation for adding leave request
   const addLeaveMutation = useMutation({
@@ -65,6 +49,8 @@ const ApplyLeave = () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       toast("Leave application submitted successfully");
       setShowApplyForm(false);
+      setMedicalCertificate(null);
+      setSelectedLeaveType('');
     },
     onError: (error) => {
       console.error('Error submitting leave:', error);
@@ -244,6 +230,24 @@ const ApplyLeave = () => {
                 </Button>
               </div>
 
+              {/* Leave Entitlement Information */}
+              {currentEmployee.join_date && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {getLeaveEntitlementSummary(currentEmployee.join_date)}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Based on join date: {new Date(currentEmployee.join_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {currentLeaveStatus.map((leave) => (
                   <Card key={leave.type}>
@@ -361,6 +365,24 @@ const ApplyLeave = () => {
               </Button>
             </div>
 
+            {/* Leave Entitlement Information */}
+            {currentEmployee.join_date && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {getLeaveEntitlementSummary(currentEmployee.join_date)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Based on join date: {new Date(currentEmployee.join_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Leave Balance Widget */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {currentLeaveStatus.map((leave) => (
@@ -377,7 +399,7 @@ const ApplyLeave = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${(leave.used / leave.total) * 100}%` }}
+                            style={{ width: `${leave.total > 0 ? (leave.used / leave.total) * 100 : 0}%` }}
                           ></div>
                         </div>
                       </div>
