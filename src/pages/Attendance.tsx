@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,6 +13,7 @@ import { Calendar, Clock, Users, Plus, UserPlus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
+import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
 
 interface AttendanceRecord {
   id: number;
@@ -142,7 +142,10 @@ const Attendance = () => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
-    const selectedEmployees = formData.getAll('employees') as string[];
+    // Get selected employees using the checkbox approach
+    const checkboxes = document.querySelectorAll('input[name="employees"]:checked') as NodeListOf<HTMLInputElement>;
+    const selectedEmployees = Array.from(checkboxes).map(checkbox => checkbox.value);
+    
     const date = formData.get('date') as string;
     const checkIn = formData.get('checkIn') as string;
     const checkOut = formData.get('checkOut') as string;
@@ -288,67 +291,22 @@ const Attendance = () => {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={isBulkAttendanceOpen} onOpenChange={setIsBulkAttendanceOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Add Bulk Attendance
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Add Bulk Attendance</DialogTitle>
-                      <DialogDescription>Add attendance records for multiple employees at once.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleBulkAttendance}>
-                      <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
-                        <div className="grid gap-2">
-                          <Label>Select Employees</Label>
-                          <div className="max-h-32 overflow-y-auto border rounded p-2">
-                            {employees.map((employee) => (
-                              <div key={employee.id} className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  name="employees"
-                                  value={employee.id}
-                                  id={`emp-${employee.id}`}
-                                />
-                                <label htmlFor={`emp-${employee.id}`} className="text-sm">
-                                  {employee.name} ({employee.id})
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input
-                            name="date"
-                            type="date"
-                            required
-                            defaultValue={new Date().toISOString().split('T')[0]}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="grid gap-2">
-                            <Label htmlFor="checkIn">Check In</Label>
-                            <Input name="checkIn" type="time" />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="checkOut">Check Out</Label>
-                            <Input name="checkOut" type="time" />
-                          </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsBulkAttendanceOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Add Bulk Attendance</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <BulkAttendanceDialog
+                  isOpen={isBulkAttendanceOpen}
+                  onClose={() => setIsBulkAttendanceOpen(false)}
+                  employees={employees.map(emp => ({
+                    id: emp.id,
+                    name: emp.name,
+                    branch: emp.branch || 'Main Office',
+                    position: emp.position
+                  }))}
+                  onSubmit={handleBulkAttendance}
+                />
+
+                <Button variant="outline" onClick={() => setIsBulkAttendanceOpen(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add Bulk Attendance
+                </Button>
               </div>
             </div>
 
