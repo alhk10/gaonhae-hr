@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar, Filter, Download, MapPin } from 'lucide-react';
+import { Clock, Calendar, Filter, Download, MapPin, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
+import { getAttendanceSettings, type AttendanceSetting } from '@/services/attendanceSettingsService';
 
 interface AttendanceRecord {
   id: number;
@@ -37,13 +38,24 @@ const MyAttendance = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
 
   useEffect(() => {
     fetchAttendanceData();
     checkClockStatus();
+    fetchAttendanceSettings();
   }, [user?.id]);
+
+  const fetchAttendanceSettings = async () => {
+    try {
+      const settings = await getAttendanceSettings();
+      setAttendanceSettings(settings);
+    } catch (error) {
+      console.error('Error fetching attendance settings:', error);
+    }
+  };
 
   const fetchAttendanceData = async () => {
     try {
@@ -122,6 +134,30 @@ const MyAttendance = () => {
     }
   };
 
+  const getCurrentWorkingHours = () => {
+    const today = new Date();
+    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const mainBranch = attendanceSettings.find(setting => setting.branch_name === 'Main Branch');
+    
+    if (mainBranch) {
+      const startKey = `${dayOfWeek}_start` as keyof AttendanceSetting;
+      const endKey = `${dayOfWeek}_end` as keyof AttendanceSetting;
+      const startTime = mainBranch[startKey] as string;
+      const endTime = mainBranch[endKey] as string;
+      
+      if (startTime && endTime) {
+        return `${startTime} - ${endTime}`;
+      }
+    }
+    
+    return '09:00 - 18:00'; // Default
+  };
+
+  const getGracePeriod = () => {
+    const mainBranch = attendanceSettings.find(setting => setting.branch_name === 'Main Branch');
+    return mainBranch?.grace_period_minutes || 15; // Default 15 minutes
+  };
+
   const calculateHours = (checkIn: string, checkOut: string) => {
     if (!checkIn || !checkOut) return 0;
     
@@ -185,7 +221,13 @@ const MyAttendance = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Time Tracking</CardTitle>
-                <CardDescription>Clock in and out for your work day (must be within 100m of branch)</CardDescription>
+                <CardDescription>
+                  Clock in and out for your work day (must be within 100m of branch)
+                  <br />
+                  <span className="text-sm text-gray-500">
+                    Working Hours: {getCurrentWorkingHours()} | Grace Period: {getGracePeriod()} minutes
+                  </span>
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button 
@@ -217,6 +259,33 @@ const MyAttendance = () => {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Working Hours Information */}
+            {attendanceSettings.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Settings className="w-5 h-5" />
+                    <span>Branch Working Hours</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {attendanceSettings.map((setting) => (
+                      <div key={setting.id} className="p-4 border rounded-lg">
+                        <h4 className="font-medium text-sm text-gray-900 mb-2">{setting.branch_name}</h4>
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <p>Mon-Fri: {setting.monday_start || 'N/A'} - {setting.monday_end || 'N/A'}</p>
+                          <p>Saturday: {setting.saturday_start || 'N/A'} - {setting.saturday_end || 'N/A'}</p>
+                          <p>Sunday: {setting.sunday_start || 'N/A'} - {setting.sunday_end || 'N/A'}</p>
+                          <p className="text-blue-600">Grace: {setting.grace_period_minutes}min</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

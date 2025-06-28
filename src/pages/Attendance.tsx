@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
-import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getAttendanceRecords, addAttendanceRecord, updateAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
@@ -19,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
 import AttendanceCalendarView from '@/components/attendance/AttendanceCalendarView';
+import AttendanceSettings from '@/components/attendance/AttendanceSettings';
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -33,6 +33,7 @@ const Attendance = () => {
     averageHours: 0
   });
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -159,10 +160,20 @@ const Attendance = () => {
                 </Popover>
                 
                 {user?.role !== 'employee' && (
-                  <Button onClick={() => setIsBulkDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Bulk Add
-                  </Button>
+                  <>
+                    <Button onClick={() => setIsBulkDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Bulk Add
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsSettingsOpen(true)}
+                      className="flex items-center space-x-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Settings</span>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -323,6 +334,11 @@ const Attendance = () => {
             employees={employees}
             selectedDate={selectedDate || new Date()}
             onSuccess={loadData}
+          />
+
+          <AttendanceSettings
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
           />
         </main>
       </div>

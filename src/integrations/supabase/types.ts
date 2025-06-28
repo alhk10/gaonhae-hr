@@ -147,6 +147,75 @@ export type Database = {
           },
         ]
       }
+      attendance_settings: {
+        Row: {
+          branch_name: string
+          created_at: string | null
+          friday_end: string | null
+          friday_start: string | null
+          grace_period_minutes: number | null
+          id: string
+          is_active: boolean | null
+          monday_end: string | null
+          monday_start: string | null
+          saturday_end: string | null
+          saturday_start: string | null
+          sunday_end: string | null
+          sunday_start: string | null
+          thursday_end: string | null
+          thursday_start: string | null
+          tuesday_end: string | null
+          tuesday_start: string | null
+          updated_at: string | null
+          wednesday_end: string | null
+          wednesday_start: string | null
+        }
+        Insert: {
+          branch_name: string
+          created_at?: string | null
+          friday_end?: string | null
+          friday_start?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          monday_end?: string | null
+          monday_start?: string | null
+          saturday_end?: string | null
+          saturday_start?: string | null
+          sunday_end?: string | null
+          sunday_start?: string | null
+          thursday_end?: string | null
+          thursday_start?: string | null
+          tuesday_end?: string | null
+          tuesday_start?: string | null
+          updated_at?: string | null
+          wednesday_end?: string | null
+          wednesday_start?: string | null
+        }
+        Update: {
+          branch_name?: string
+          created_at?: string | null
+          friday_end?: string | null
+          friday_start?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          monday_end?: string | null
+          monday_start?: string | null
+          saturday_end?: string | null
+          saturday_start?: string | null
+          sunday_end?: string | null
+          sunday_start?: string | null
+          thursday_end?: string | null
+          thursday_start?: string | null
+          tuesday_end?: string | null
+          tuesday_start?: string | null
+          updated_at?: string | null
+          wednesday_end?: string | null
+          wednesday_start?: string | null
+        }
+        Relationships: []
+      }
       certificates: {
         Row: {
           employee_id: string | null
