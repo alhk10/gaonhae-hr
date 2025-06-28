@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ import { getEmployees } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
+import AttendanceCalendarView from '@/components/attendance/AttendanceCalendarView';
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -216,90 +218,103 @@ const Attendance = () => {
               </Card>
             </div>
 
-            {/* Attendance Records */}
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  Attendance Records - {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
-                </CardTitle>
-                <CardDescription>
-                  View and manage employee attendance for the selected date
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {filteredRecords.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Check In</TableHead>
-                          <TableHead>Check Out</TableHead>
-                          <TableHead>Hours</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Location</TableHead>
-                          {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredRecords.map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell className="font-medium">
-                              {employees.find(emp => emp.id === record.employeeId)?.name || 'Unknown'}
-                            </TableCell>
-                            <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                            <TableCell>{record.checkIn || '-'}</TableCell>
-                            <TableCell>{record.checkOut || '-'}</TableCell>
-                            <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={
-                                  record.status === 'Present' ? 'default' : 
-                                  record.status === 'Late' ? 'secondary' : 
-                                  'destructive'
-                                }
-                              >
-                                {record.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-1 text-gray-400" />
-                                <span className="text-sm">{record.location || 'Not specified'}</span>
-                              </div>
-                            </TableCell>
-                            {user?.role === 'superadmin' && (
-                              <TableCell>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDelete(record.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">No attendance records found</p>
-                    <p className="text-sm">
-                      {selectedDate 
-                        ? `No records for ${format(selectedDate, "MMMM d, yyyy")}`
-                        : "Attendance records will appear here"
-                      }
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Main Content with Tabs */}
+            <Tabs defaultValue="list" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="list">Attendance Records</TabsTrigger>
+                <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="list">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      Attendance Records - {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
+                    </CardTitle>
+                    <CardDescription>
+                      View and manage employee attendance for the selected date
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {filteredRecords.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Employee</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Check In</TableHead>
+                              <TableHead>Check Out</TableHead>
+                              <TableHead>Hours</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Location</TableHead>
+                              {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredRecords.map((record) => (
+                              <TableRow key={record.id}>
+                                <TableCell className="font-medium">
+                                  {employees.find(emp => emp.id === record.employeeId)?.name || 'Unknown'}
+                                </TableCell>
+                                <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                                <TableCell>{record.checkIn || '-'}</TableCell>
+                                <TableCell>{record.checkOut || '-'}</TableCell>
+                                <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={
+                                      record.status === 'Present' ? 'default' : 
+                                      record.status === 'Late' ? 'secondary' : 
+                                      'destructive'
+                                    }
+                                  >
+                                    {record.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center">
+                                    <MapPin className="w-4 h-4 mr-1 text-gray-400" />
+                                    <span className="text-sm">{record.location || 'Not specified'}</span>
+                                  </div>
+                                </TableCell>
+                                {user?.role === 'superadmin' && (
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDelete(record.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg">No attendance records found</p>
+                        <p className="text-sm">
+                          {selectedDate 
+                            ? `No records for ${format(selectedDate, "MMMM d, yyyy")}`
+                            : "Attendance records will appear here"
+                          }
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="calendar">
+                <AttendanceCalendarView />
+              </TabsContent>
+            </Tabs>
           </div>
 
           <BulkAttendanceDialog

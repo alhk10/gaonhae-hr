@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -8,9 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/sonner';
-import { CalendarDays, Check, X, User, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { CalendarDays, Check, X, User, Calendar as CalendarIcon, Clock, Plus } from 'lucide-react';
 import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
+import BulkLeaveDialog from './BulkLeaveDialog';
 
 const localizer = dateFnsLocalizer({
   format,
@@ -25,6 +27,8 @@ const LeaveCalendarView = () => {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,6 +63,13 @@ const LeaveCalendarView = () => {
   const handleSelectEvent = (event: any) => {
     setSelectedLeave(event.resource);
     setIsDialogOpen(true);
+  };
+
+  const handleSelectSlot = (slotInfo: any) => {
+    if (user?.role !== 'employee') {
+      setSelectedDate(slotInfo.start);
+      setIsBulkLeaveOpen(true);
+    }
   };
 
   const handleApprove = async () => {
@@ -139,6 +150,7 @@ const LeaveCalendarView = () => {
           </CardTitle>
           <CardDescription>
             View and manage leave requests in calendar format. Click on any leave to approve or reject it.
+            {user?.role !== 'employee' && ' Click on any date to add bulk leave requests.'}
             Only pending and approved leaves are shown.
           </CardDescription>
         </CardHeader>
@@ -150,8 +162,10 @@ const LeaveCalendarView = () => {
               startAccessor="start"
               endAccessor="end"
               onSelectEvent={handleSelectEvent}
+              onSelectSlot={handleSelectSlot}
+              selectable={user?.role !== 'employee'}
               eventPropGetter={eventStyleGetter}
-              views={['month', 'week', 'day']}
+              views={['month']}
               defaultView="month"
               popup
               tooltipAccessor={(event) => `${event.resource.employeeName} - ${event.resource.type} (${event.resource.status})`}
@@ -240,6 +254,14 @@ const LeaveCalendarView = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Leave Dialog */}
+      <BulkLeaveDialog
+        isOpen={isBulkLeaveOpen}
+        onClose={() => setIsBulkLeaveOpen(false)}
+        selectedDate={selectedDate}
+        onSuccess={loadLeaves}
+      />
     </div>
   );
 };
