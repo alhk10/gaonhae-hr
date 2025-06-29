@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ interface EditEmployeeFormProps {
   onCancel: () => void;
 }
 
-// Common positions in Singapore companies
+// Updated positions list including common casual positions
 const POSITION_OPTIONS = [
   'Manager',
   'Assistant Manager',
@@ -56,6 +57,12 @@ const POSITION_OPTIONS = [
   'Senior Director',
   'General Manager',
   'Senior Partner',
+  'Instructor',
+  'Casual Instructor',
+  'Training Assistant',
+  'Part-time Staff',
+  'Freelancer',
+  'Consultant',
   'Other'
 ];
 
@@ -132,6 +139,33 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     try {
       setIsSaving(true);
       console.log('Saving employee with form data:', formData);
+      
+      // Validate required fields
+      if (!formData.name.trim()) {
+        toast("Please enter employee name");
+        return;
+      }
+      
+      if (!formData.position.trim()) {
+        toast("Please select a position");
+        return;
+      }
+      
+      // Validate salary based on payment type
+      if (formData.paymentType === 'Monthly' && !formData.baseSalary.trim()) {
+        toast("Please enter base salary for monthly payment");
+        return;
+      }
+      
+      if (formData.paymentType === 'Hourly' && !formData.hourlyRate.trim()) {
+        toast("Please enter hourly rate for hourly payment");
+        return;
+      }
+      
+      if (formData.paymentType === 'Daily' && (!formData.dailyWeekdayRate.trim() || !formData.dailyWeekendRate.trim())) {
+        toast("Please enter both weekday and weekend rates for daily payment");
+        return;
+      }
       
       // Convert string values to numbers with proper null handling
       const updateData = {
@@ -331,7 +365,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               </Select>
             </div>
 
-            {/* Conditional Rate Fields with improved logging */}
+            {/* Show Base Salary for Monthly payment (both Full-Time and Casual) */}
             {formData.paymentType === 'Monthly' && (
               <div>
                 <Label htmlFor="baseSalary">Base Salary (S$)</Label>
