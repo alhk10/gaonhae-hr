@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
-import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2, Settings } from 'lucide-react';
+import { CalendarDays, Clock, Users, MapPin, Calendar as CalendarIcon, Plus, Trash2, Settings, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getAttendanceRecords, addAttendanceRecord, updateAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
@@ -17,6 +17,7 @@ import { getEmployees } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
+import EditAttendanceDialog from '@/components/attendance/EditAttendanceDialog';
 import AttendanceCalendarView from '@/components/attendance/AttendanceCalendarView';
 import AttendanceSettings from '@/components/attendance/AttendanceSettings';
 
@@ -33,6 +34,8 @@ const Attendance = () => {
     averageHours: 0
   });
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -74,6 +77,12 @@ const Attendance = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (record: AttendanceRecord) => {
+    console.log('Editing attendance record:', record);
+    setSelectedRecord(record);
+    setIsEditDialogOpen(true);
   };
 
   const handleDelete = async (recordId: number) => {
@@ -291,14 +300,24 @@ const Attendance = () => {
                                 </TableCell>
                                 {user?.role === 'superadmin' && (
                                   <TableCell>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleDelete(record.id)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex space-x-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleEdit(record)}
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDelete(record.id)}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 )}
                               </TableRow>
@@ -333,6 +352,13 @@ const Attendance = () => {
             onClose={() => setIsBulkDialogOpen(false)}
             employees={employees}
             selectedDate={selectedDate || new Date()}
+            onSuccess={loadData}
+          />
+
+          <EditAttendanceDialog
+            isOpen={isEditDialogOpen}
+            onClose={() => setIsEditDialogOpen(false)}
+            record={selectedRecord}
             onSuccess={loadData}
           />
 
