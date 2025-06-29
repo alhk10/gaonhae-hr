@@ -114,6 +114,7 @@ export interface EmployeeProfile {
   bankName: string;
   bankAccount: string;
   branch: string;
+  department?: string; // Added department property for database consistency
   position: string;
   phone: string;
   address: string;
