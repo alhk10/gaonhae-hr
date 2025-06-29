@@ -1,13 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { addAttendanceRecord } from '@/services/attendanceService';
+import { getBranches } from '@/services/settingsService';
 import { format } from 'date-fns';
 
 interface Employee {
@@ -34,6 +36,28 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   onSuccess
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [branches, setBranches] = useState<Array<{id: number; name: string; address: string}>>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      loadBranches();
+    }
+  }, [isOpen]);
+
+  const loadBranches = async () => {
+    try {
+      const branchData = getBranches();
+      setBranches(branchData);
+      // Set default to first branch if available
+      if (branchData.length > 0) {
+        setSelectedBranch(branchData[0].name);
+      }
+    } catch (error) {
+      console.error('Error loading branches:', error);
+      toast('Error loading branches');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,6 +73,11 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
       
       if (selectedEmployees.length === 0) {
         toast('Please select at least one employee');
+        return;
+      }
+
+      if (!selectedBranch) {
+        toast('Please select a branch');
         return;
       }
 
@@ -78,15 +107,16 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           checkOut,
           status,
           hoursWorked,
-          location: 'Office'
+          location: selectedBranch
         })
       );
 
       await Promise.all(promises);
       
-      toast(`Bulk attendance added for ${selectedEmployees.length} employees`);
+      toast(`Bulk attendance added for ${selectedEmployees.length} employees at ${selectedBranch}`);
       await onSuccess();
       onClose();
+      setSelectedBranch('');
     } catch (error) {
       console.error('Error adding bulk attendance:', error);
       toast('Error adding bulk attendance');
@@ -114,6 +144,23 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                 defaultValue={format(selectedDate, 'yyyy-MM-dd')}
               />
             </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="branch">Branch</Label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.name}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-2">
                 <Label htmlFor="checkIn">Check In</Label>
@@ -146,7 +193,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                       <TableHead>Employee ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Position</TableHead>
-                      <TableHead>Branch</TableHead>
+                      <TableHead>Current Branch</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -177,7 +224,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !selectedBranch}>
               {isSubmitting ? 'Adding...' : 'Add Bulk Attendance'}
             </Button>
           </DialogFooter>
