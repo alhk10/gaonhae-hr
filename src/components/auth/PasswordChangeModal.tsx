@@ -42,17 +42,34 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
     setIsLoading(true);
     
     try {
+      console.log('PasswordChangeModal: Attempting to update password');
       const success = await updatePassword(newPassword);
+      
       if (success) {
+        console.log('PasswordChangeModal: Password updated successfully');
         toast({
           title: "Password Updated",
           description: "Your password has been successfully updated.",
         });
-        if (onClose) onClose();
+        
+        // Reset form
+        setNewPassword('');
+        setConfirmPassword('');
+        
+        // Close modal after successful update
+        if (onClose) {
+          onClose();
+        }
       } else {
-        throw new Error('Password update failed');
+        console.error('PasswordChangeModal: Password update failed');
+        toast({
+          title: "Update Failed",
+          description: "Failed to update password. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
+      console.error('PasswordChangeModal: Error updating password:', error);
       toast({
         title: "Update Failed",
         description: "Failed to update password. Please try again.",
@@ -63,12 +80,13 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
     }
   };
 
-  // Prevent dialog from closing by not allowing onOpenChange to set false
-  const handleOpenChange = (open: boolean) => {
-    // Only allow closing if we explicitly call onClose after successful password update
-    if (!open) {
-      return; // Prevent closing
+  // Prevent dialog from closing when requiresPasswordChange is true
+  const handleOpenChange = (newOpen: boolean) => {
+    // Only allow closing if we have an onClose handler (optional closing)
+    if (!newOpen && onClose) {
+      onClose();
     }
+    // If no onClose handler, this is a required password change - don't allow closing
   };
 
   return (
@@ -91,6 +109,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
               placeholder="Enter new password"
               required
               minLength={6}
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -103,6 +122,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
               placeholder="Confirm new password"
               required
               minLength={6}
+              disabled={isLoading}
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>

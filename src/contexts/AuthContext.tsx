@@ -128,8 +128,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       saveUserSession(foundUser, password);
       
       if (password === 'password' && !storedPassword) {
+        console.log('AuthContext: Setting password change requirement');
         localStorage.setItem('requiresPasswordChange', 'true');
         setRequiresPasswordChange(true);
+      } else {
+        console.log('AuthContext: No password change required');
+        setRequiresPasswordChange(false);
       }
       
       return true;
@@ -160,8 +164,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveUserSession(userRecord, password);
         
         if (password === 'password' && !storedPassword) {
+          console.log('AuthContext: Setting password change requirement for employee');
           localStorage.setItem('requiresPasswordChange', 'true');
           setRequiresPasswordChange(true);
+        } else {
+          console.log('AuthContext: No password change required for employee');
+          setRequiresPasswordChange(false);
         }
         
         return true;
@@ -181,7 +189,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePassword = async (newPassword: string): Promise<boolean> => {
     console.log('AuthContext: Updating password for user:', user?.email);
     
-    if (!user?.email) return false;
+    if (!user?.email) {
+      console.error('AuthContext: No user email found');
+      return false;
+    }
     
     try {
       // Save new password
@@ -192,6 +203,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear password change requirement
       localStorage.removeItem('requiresPasswordChange');
       setRequiresPasswordChange(false);
+      
+      // Update session with new password
+      saveUserSession(user, newPassword);
       
       console.log('AuthContext: Password updated successfully');
       return true;
@@ -213,10 +227,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Debug log current user state
   useEffect(() => {
     console.log('AuthContext: Current user state changed:', user);
+    console.log('AuthContext: requiresPasswordChange state:', requiresPasswordChange);
     if (user) {
       console.log('AuthContext: Current user role:', user.role);
     }
-  }, [user]);
+  }, [user, requiresPasswordChange]);
 
   return (
     <AuthContext.Provider value={{ 
