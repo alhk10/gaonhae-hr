@@ -163,7 +163,8 @@ const EmployeeDetails = () => {
       const updatedEmployee: EmployeeProfile = {
         ...employee,
         ...updateData,
-        type: updateData.type as 'Full-Time' | 'Casual', // Fix: Properly type cast the type field
+        type: updateData.type as 'Full-Time' | 'Casual',
+        paymentType: updateData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
         dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
