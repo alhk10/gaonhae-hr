@@ -6,21 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Employees = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
-  const [paymentType, setPaymentType] = useState('Monthly'); // Add payment type state for form
+  const [paymentType, setPaymentType] = useState('Monthly');
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -49,7 +51,6 @@ const Employees = () => {
     mutationFn: async (employeeData: any) => {
       const newEmployee = await createEmployee(employeeData);
       
-      // Update both admin access and page access permissions after employee creation
       if (newEmployee && newEmployee.id) {
         await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
         await updateEmployeePageAccess(newEmployee.id, newEmployeePageAccess);
@@ -112,7 +113,6 @@ const Employees = () => {
     
     const formData = new FormData(e.target as HTMLFormElement);
     
-    // Validate required fields
     const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount', 'joinDate'];
     const missingFields = requiredFields.filter(field => !formData.get(field));
     
@@ -174,7 +174,7 @@ const Employees = () => {
         <Navbar />
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
@@ -193,7 +193,7 @@ const Employees = () => {
         <Navbar />
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
             <div className="text-center">
               <p className="text-red-600">Error loading employees. Please try again.</p>
             </div>
@@ -208,17 +208,18 @@ const Employees = () => {
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <main className="flex-1 p-3 md:p-6 overflow-auto">
+          <div className="space-y-4 md:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
-                <p className="text-gray-600">Manage your workforce efficiently</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Employee Management</h2>
+                <p className="text-sm md:text-base text-gray-600">Manage your workforce efficiently</p>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowModuleSettings(true)}
+                  className="w-full sm:w-auto"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Module Settings
@@ -228,6 +229,7 @@ const Employees = () => {
                     console.log('Add Employee button clicked');
                     setShowAddForm(true);
                   }}
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Employee
@@ -237,64 +239,131 @@ const Employees = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Active Employees ({employees.length})</span>
-                  <div className="flex items-center space-x-2">
-                    <Search className="w-4 h-4 text-gray-400" />
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <span className="text-lg md:text-xl">Active Employees ({employees.length})</span>
+                  <div className="flex items-center space-x-2 w-full sm:w-auto">
+                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <Input
                       placeholder="Search employees..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-64"
+                      className="w-full sm:w-64"
                     />
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-medium text-gray-600">Name</th>
-                        <th className="text-left p-3 font-medium text-gray-600">Position</th>
-                        <th className="text-left p-3 font-medium text-gray-600">Type</th>
-                        <th className="text-left p-3 font-medium text-gray-600">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEmployees.map((employee) => (
-                        <tr key={employee.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-medium">{employee.name}</td>
-                          <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
-                          <td className="p-3">
+                {/* Mobile Card Layout */}
+                {isMobile ? (
+                  <div className="space-y-4">
+                    {filteredEmployees.map((employee) => (
+                      <Card key={employee.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">{employee.name}</h3>
+                              <p className="text-sm text-gray-600">{employee.position || 'Not specified'}</p>
+                            </div>
                             <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
                               {employee.type}
                             </Badge>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex space-x-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => navigate(`/employees/${employee.id}`)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteEmployee(employee.id, employee.name)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-2 text-sm text-gray-600">
+                            {employee.email && (
+                              <div className="flex items-center space-x-2">
+                                <Mail className="w-4 h-4" />
+                                <span className="break-all">{employee.email}</span>
+                              </div>
+                            )}
+                            {employee.phone && (
+                              <div className="flex items-center space-x-2">
+                                <Phone className="w-4 h-4" />
+                                <span>{employee.phone}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>Joined: {employee.joinDate}</span>
                             </div>
-                          </td>
+                            {employee.branch && (
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="w-4 h-4" />
+                                <span>{employee.branch}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex space-x-2 pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/employees/${employee.id}`)}
+                              className="flex-1"
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  /* Desktop Table Layout */
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-3 font-medium text-gray-600">Name</th>
+                          <th className="text-left p-3 font-medium text-gray-600">Position</th>
+                          <th className="text-left p-3 font-medium text-gray-600">Type</th>
+                          <th className="text-left p-3 font-medium text-gray-600">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredEmployees.map((employee) => (
+                          <tr key={employee.id} className="border-b hover:bg-gray-50">
+                            <td className="p-3 font-medium">{employee.name}</td>
+                            <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
+                            <td className="p-3">
+                              <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
+                                {employee.type}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/employees/${employee.id}`)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteEmployee(employee.id, employee.name)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -311,179 +380,18 @@ const Employees = () => {
       )}
 
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Add New Employee</h2>
-                <p className="text-gray-600">Fill out the employee information</p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  console.log('Closing add employee form');
-                  setShowAddForm(false);
-                  setPaymentType('Monthly');
-                  setNewEmployeeAdminAccess({
-                    employees: false,
-                    payroll: false,
-                    leaveManagement: false,
-                    claims: false,
-                    attendance: false,
-                    slotBooking: false,
-                    reports: false
-                  });
-                  setNewEmployeePageAccess({
-                    profile: true,
-                    applyLeave: true,
-                    submitClaim: true,
-                    payslips: true,
-                    myAttendance: true,
-                    slotBookingEmployee: true
-                  });
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-
-            <form onSubmit={handleAddEmployee} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-                  <Input name="name" required />
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Add New Employee</h2>
+                  <p className="text-sm md:text-base text-gray-600">Fill out the employee information</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                  <Input name="email" type="email" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                  <Input name="phone" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
-                  <Input name="nric" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
-                  <Input name="dateOfBirth" type="date" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
-                  <Input name="joinDate" type="date" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                  <Input name="position" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-                  <Input name="branch" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
-                  <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                    <option value="">Select Type</option>
-                    <option value="Full-Time">Full-Time</option>
-                    <option value="Casual">Casual</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
-                  <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                    <option value="">Select Status</option>
-                    <option value="Citizen">Citizen</option>
-                    <option value="PR">Permanent Resident</option>
-                    <option value="Work Permit">Work Permit</option>
-                    <option value="S Pass">S Pass</option>
-                    <option value="Employment Pass">Employment Pass</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
-                  <Input name="bankName" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
-                  <Input name="bankAccount" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
-                  <select 
-                    name="paymentType" 
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    value={paymentType}
-                    onChange={(e) => setPaymentType(e.target.value)}
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Hourly">Hourly</option>
-                    <option value="Daily">Daily</option>
-                  </select>
-                </div>
-
-                {/* Conditional Rate Fields */}
-                {paymentType === 'Monthly' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
-                    <Input name="baseSalary" type="number" step="0.01" />
-                  </div>
-                )}
-
-                {paymentType === 'Hourly' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
-                    <Input name="hourlyRate" type="number" step="0.01" />
-                  </div>
-                )}
-
-                {paymentType === 'Daily' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
-                      <Input name="dailyWeekdayRate" type="number" step="0.01" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
-                      <Input name="dailyWeekendRate" type="number" step="0.01" />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                <textarea 
-                  name="address"
-                  rows={3} 
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  placeholder="Enter full address..."
-                ></textarea>
-              </div>
-
-              {/* Module Access Permissions */}
-              <div className="border-t pt-6">
-                <AdminAccessManager
-                  adminAccess={newEmployeeAdminAccess}
-                  pageAccess={newEmployeePageAccess}
-                  onAdminAccessChange={handleAdminAccessChange}
-                  onPageAccessChange={handlePageAccessChange}
-                  isEditing={true}
-                />
-              </div>
-
-              <div className="flex space-x-4">
                 <Button 
-                  type="submit" 
-                  className="flex-1"
-                  disabled={addEmployeeMutation.isPending}
-                >
-                  {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
-                </Button>
-                <Button 
-                  type="button"
                   variant="outline" 
-                  className="flex-1"
                   onClick={() => {
+                    console.log('Closing add employee form');
                     setShowAddForm(false);
                     setPaymentType('Monthly');
                     setNewEmployeeAdminAccess({
@@ -504,11 +412,175 @@ const Employees = () => {
                       slotBookingEmployee: true
                     });
                   }}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
               </div>
-            </form>
+            </div>
+
+            <div className="p-4 md:p-6">
+              <form onSubmit={handleAddEmployee} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                    <Input name="name" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                    <Input name="email" type="email" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                    <Input name="phone" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
+                    <Input name="nric" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+                    <Input name="dateOfBirth" type="date" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
+                    <Input name="joinDate" type="date" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                    <Input name="position" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                    <Input name="branch" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
+                    <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                      <option value="">Select Type</option>
+                      <option value="Full-Time">Full-Time</option>
+                      <option value="Casual">Casual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
+                    <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                      <option value="">Select Status</option>
+                      <option value="Citizen">Citizen</option>
+                      <option value="PR">Permanent Resident</option>
+                      <option value="Work Permit">Work Permit</option>
+                      <option value="S Pass">S Pass</option>
+                      <option value="Employment Pass">Employment Pass</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
+                    <Input name="bankName" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
+                    <Input name="bankAccount" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                    <select 
+                      name="paymentType" 
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      value={paymentType}
+                      onChange={(e) => setPaymentType(e.target.value)}
+                    >
+                      <option value="Monthly">Monthly</option>
+                      <option value="Hourly">Hourly</option>
+                      <option value="Daily">Daily</option>
+                    </select>
+                  </div>
+
+                  {paymentType === 'Monthly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
+                      <Input name="baseSalary" type="number" step="0.01" />
+                    </div>
+                  )}
+
+                  {paymentType === 'Hourly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
+                      <Input name="hourlyRate" type="number" step="0.01" />
+                    </div>
+                  )}
+
+                  {paymentType === 'Daily' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
+                        <Input name="dailyWeekdayRate" type="number" step="0.01" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
+                        <Input name="dailyWeekendRate" type="number" step="0.01" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                  <textarea 
+                    name="address"
+                    rows={3} 
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Enter full address..."
+                  ></textarea>
+                </div>
+
+                <div className="border-t pt-6">
+                  <AdminAccessManager
+                    adminAccess={newEmployeeAdminAccess}
+                    pageAccess={newEmployeePageAccess}
+                    onAdminAccessChange={handleAdminAccessChange}
+                    onPageAccessChange={handlePageAccessChange}
+                    isEditing={true}
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                  <Button 
+                    type="submit" 
+                    className="flex-1"
+                    disabled={addEmployeeMutation.isPending}
+                  >
+                    {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
+                  </Button>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setPaymentType('Monthly');
+                      setNewEmployeeAdminAccess({
+                        employees: false,
+                        payroll: false,
+                        leaveManagement: false,
+                        claims: false,
+                        attendance: false,
+                        slotBooking: false,
+                        reports: false
+                      });
+                      setNewEmployeePageAccess({
+                        profile: true,
+                        applyLeave: true,
+                        submitClaim: true,
+                        payslips: true,
+                        myAttendance: true,
+                        slotBookingEmployee: true
+                      });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
