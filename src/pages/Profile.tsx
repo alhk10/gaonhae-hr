@@ -285,6 +285,10 @@ const Profile = () => {
                     <p className="text-base md:text-lg text-gray-900">{employeeData.id}</p>
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-gray-600">Branch</label>
+                    <p className="text-base md:text-lg text-gray-900">{employeeData.branch || employeeData.department || 'Not specified'}</p>
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-gray-600">Position</label>
                     <p className="text-base md:text-lg text-gray-900">{employeeData.position || 'Not specified'}</p>
                   </div>

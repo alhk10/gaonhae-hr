@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +80,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     paymentType: employee.paymentType || 'Monthly',
     bankName: employee.bankName,
     bankAccount: employee.bankAccount,
-    branch: employee.branch || '',
+    branch: employee.branch || employee.department || '',
     position: employee.position || '',
     phone: employee.phone || '',
     address: employee.address || '',

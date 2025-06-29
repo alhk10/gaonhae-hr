@@ -537,6 +537,17 @@ const EmployeeDetails = () => {
                       <CardDescription>Job information and status</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 p-6">
+                      <div>
+                        <Label htmlFor="branch" className="text-sm font-medium text-gray-700">Branch</Label>
+                        <Input 
+                          id="branch" 
+                          value={employee.branch || employee.department || ''} 
+                          onChange={(e) => handleInputChange(e, 'branch')} 
+                          disabled={!isEditing}
+                          className="mt-1"
+                        />
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="type" className="text-sm font-medium text-gray-700">Employee Type</Label>
@@ -738,16 +749,6 @@ const EmployeeDetails = () => {
                           id="bankAccount" 
                           value={employee.bankAccount || ''} 
                           onChange={(e) => handleInputChange(e, 'bankAccount')} 
-                          disabled={!isEditing}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="branch" className="text-sm font-medium text-gray-700">Branch</Label>
-                        <Input 
-                          id="branch" 
-                          value={employee.branch || ''} 
-                          onChange={(e) => handleInputChange(e, 'branch')} 
                           disabled={!isEditing}
                           className="mt-1"
                         />
