@@ -47,11 +47,14 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
 
   const loadBranches = async () => {
     try {
+      console.log('Loading branches...');
       const branchData = getBranches();
+      console.log('Loaded branches:', branchData);
       setBranches(branchData);
       // Set default to first branch if available
       if (branchData.length > 0) {
         setSelectedBranch(branchData[0].name);
+        console.log('Default branch set to:', branchData[0].name);
       }
     } catch (error) {
       console.error('Error loading branches:', error);
@@ -151,7 +154,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white z-50">
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.name}>
                       {branch.name}
@@ -159,6 +162,11 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                   ))}
                 </SelectContent>
               </Select>
+              {branches.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  {branches.length} branches available
+                </p>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-2">
