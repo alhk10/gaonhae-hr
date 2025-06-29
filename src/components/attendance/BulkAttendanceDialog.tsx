@@ -14,6 +14,7 @@ interface Employee {
   id: string;
   name: string;
   branch?: string;
+  department?: string;
   position?: string;
 }
 
@@ -161,7 +162,9 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                         <TableCell className="font-mono text-sm">{employee.id}</TableCell>
                         <TableCell className="font-medium">{employee.name}</TableCell>
                         <TableCell className="text-sm text-gray-600">{employee.position || 'N/A'}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{employee.branch || 'Main Office'}</TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {employee.branch || employee.department || 'Main Office'}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

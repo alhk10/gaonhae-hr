@@ -11,13 +11,12 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
 
   if (error) {
     console.error('Error fetching employees:', error);
-    // Fallback to mock data
-    return getEmployees();
+    throw error;
   }
 
   if (!employees || employees.length === 0) {
-    console.log('No employees found in database, using mock data');
-    return getEmployees();
+    console.log('No employees found in database');
+    return [];
   }
 
   return employees.map(emp => ({
@@ -35,7 +34,8 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
     bankName: emp.bank_name,
     bankAccount: emp.bank_account,
-    branch: emp.department || 'Main Office', // Map department to branch for display
+    branch: emp.department || 'Main Office', // Map department to branch for display consistency
+    department: emp.department, // Keep original department field
     position: emp.position || '',
     phone: emp.phone || '',
     address: emp.address || '',
@@ -116,7 +116,8 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
       bankName: emp.bank_name || '',
       bankAccount: emp.bank_account || '',
-      branch: emp.department || '',
+      branch: emp.department || 'Main Office', // Map department to branch for consistency
+      department: emp.department || '', // Keep original department field
       position: emp.position || '',
       phone: emp.phone || '',
       address: emp.address || '',
@@ -232,7 +233,8 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     paymentType: employee.payment_type as 'Monthly' | 'Hourly' | 'Daily',
     bankName: employee.bank_name || '',
     bankAccount: employee.bank_account || '',
-    branch: employee.department || '',
+    branch: employee.department || 'Main Office', // Map department to branch for consistency
+    department: employee.department || '', // Keep original department field
     position: employee.position || '',
     phone: employee.phone || '',
     address: employee.address || '',
@@ -328,7 +330,7 @@ export const createEmployee = async (employeeData: any) => {
         payment_type: employeeData.paymentType || 'Monthly',
         bank_name: employeeData.bankName,
         bank_account: employeeData.bankAccount,
-        department: employeeData.branch || '',
+        department: employeeData.branch || employeeData.department || '', // Store as department in DB
         position: employeeData.position || '',
         phone: employeeData.phone || '',
         address: employeeData.address || '',
@@ -374,7 +376,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     payment_type: employeeData.paymentType,
     bank_name: employeeData.bankName,
     bank_account: employeeData.bankAccount,
-    department: employeeData.branch,
+    department: employeeData.branch || employeeData.department, // Store as department in DB
     position: employeeData.position,
     phone: employeeData.phone,
     address: employeeData.address,

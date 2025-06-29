@@ -7,13 +7,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Plus, Calendar, MapPin, Phone, Mail } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees } from '@/data/employeeData';
+import { getCasualEmployees } from '@/services/employeeService';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useQuery } from '@tanstack/react-query';
 
 const CasualEmployees = () => {
   const isMobile = useIsMobile();
-  const allEmployees = getEmployees();
-  const casualWorkers = allEmployees.filter(emp => emp.type === 'Casual');
+  
+  const { data: casualWorkers = [], isLoading, error } = useQuery({
+    queryKey: ['casualEmployees'],
+    queryFn: getCasualEmployees,
+  });
+
+  if (error) {
+    console.error('Error loading casual employees:', error);
+    toast('Error loading casual employees');
+  }
 
   const handleAddCasualWorker = () => {
     toast("Add casual worker functionality will be implemented");
@@ -27,6 +36,25 @@ const CasualEmployees = () => {
   const activeToday = Math.floor(casualWorkers.length * 0.4);
   const available = Math.floor(casualWorkers.length * 0.6);
   const locations = 3;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading casual employees...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -152,7 +180,7 @@ const CasualEmployees = () => {
                             )}
                             <div className="flex items-center space-x-2">
                               <MapPin className="w-4 h-4 flex-shrink-0" />
-                              <span>{worker.branch || 'Singapore Office'}</span>
+                              <span>{worker.branch || worker.department || 'Main Office'}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <Calendar className="w-4 h-4 flex-shrink-0" />
