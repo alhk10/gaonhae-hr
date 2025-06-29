@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -11,17 +10,26 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Settings as SettingsIcon, MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   getBranches, 
   saveBranches, 
-  getSystemAllowances, 
-  saveSystemAllowances, 
-  getSystemDeductions, 
-  saveSystemDeductions,
-  Branch,
-  SystemAllowance,
-  SystemDeduction
+  Branch
 } from '@/services/settingsService';
+
+interface SystemAllowance {
+  id: number;
+  name: string;
+  description?: string;
+  default_amount?: number;
+}
+
+interface SystemDeduction {
+  id: number;
+  name: string;
+  description?: string;
+  default_amount?: number;
+}
 
 const Settings = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -33,12 +41,49 @@ const Settings = () => {
   const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
   const [isAddDeductionOpen, setIsAddDeductionOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setBranches(getBranches());
-    setAllowances(getSystemAllowances());
-    setDeductions(getSystemDeductions());
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setBranches(getBranches());
+      
+      // Load system allowances from Supabase
+      const { data: allowancesData, error: allowancesError } = await supabase
+        .from('system_allowances')
+        .select('*')
+        .order('name');
+
+      if (allowancesError) {
+        console.error('Error loading system allowances:', allowancesError);
+        toast("Error loading allowances");
+      } else {
+        setAllowances(allowancesData || []);
+      }
+
+      // Load system deductions from Supabase
+      const { data: deductionsData, error: deductionsError } = await supabase
+        .from('system_deductions')
+        .select('*')
+        .order('name');
+
+      if (deductionsError) {
+        console.error('Error loading system deductions:', deductionsError);
+        toast("Error loading deductions");
+      } else {
+        setDeductions(deductionsData || []);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast("Error loading data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddBranch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -77,56 +122,131 @@ const Settings = () => {
     toast("Branch deleted successfully");
   };
 
-  const handleAddAllowance = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddAllowance = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const newAllowance: SystemAllowance = {
-      id: Date.now(),
-      name: formData.get('name') as string,
-      type: '',
-      amount: ''
-    };
-    const updatedAllowances = [...allowances, newAllowance];
-    setAllowances(updatedAllowances);
-    saveSystemAllowances(updatedAllowances);
-    setIsAddAllowanceOpen(false);
-    toast("Allowance added successfully");
+    
+    try {
+      const { data, error } = await supabase
+        .from('system_allowances')
+        .insert([{
+          name: formData.get('name') as string,
+          description: formData.get('description') as string || null,
+          default_amount: 0
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding allowance:', error);
+        toast("Error adding allowance");
+        return;
+      }
+
+      setAllowances(prev => [...prev, data]);
+      setIsAddAllowanceOpen(false);
+      toast("Allowance added successfully");
+    } catch (error) {
+      console.error('Error adding allowance:', error);
+      toast("Error adding allowance");
+    }
   };
 
-  const handleDeleteAllowance = (id: number) => {
-    const updatedAllowances = allowances.filter(allowance => allowance.id !== id);
-    setAllowances(updatedAllowances);
-    saveSystemAllowances(updatedAllowances);
-    toast("Allowance deleted successfully");
+  const handleDeleteAllowance = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('system_allowances')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting allowance:', error);
+        toast("Error deleting allowance");
+        return;
+      }
+
+      setAllowances(prev => prev.filter(allowance => allowance.id !== id));
+      toast("Allowance deleted successfully");
+    } catch (error) {
+      console.error('Error deleting allowance:', error);
+      toast("Error deleting allowance");
+    }
   };
 
-  const handleAddDeduction = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddDeduction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const newDeduction: SystemDeduction = {
-      id: Date.now(),
-      name: formData.get('name') as string,
-      type: '',
-      amount: ''
-    };
-    const updatedDeductions = [...deductions, newDeduction];
-    setDeductions(updatedDeductions);
-    saveSystemDeductions(updatedDeductions);
-    setIsAddDeductionOpen(false);
-    toast("Deduction added successfully");
+    
+    try {
+      const { data, error } = await supabase
+        .from('system_deductions')
+        .insert([{
+          name: formData.get('name') as string,
+          description: formData.get('description') as string || null,
+          default_amount: 0
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding deduction:', error);
+        toast("Error adding deduction");
+        return;
+      }
+
+      setDeductions(prev => [...prev, data]);
+      setIsAddDeductionOpen(false);
+      toast("Deduction added successfully");
+    } catch (error) {
+      console.error('Error adding deduction:', error);
+      toast("Error adding deduction");
+    }
   };
 
-  const handleDeleteDeduction = (id: number) => {
-    const updatedDeductions = deductions.filter(deduction => deduction.id !== id);
-    setDeductions(updatedDeductions);
-    saveSystemDeductions(updatedDeductions);
-    toast("Deduction deleted successfully");
+  const handleDeleteDeduction = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('system_deductions')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting deduction:', error);
+        toast("Error deleting deduction");
+        return;
+      }
+
+      setDeductions(prev => prev.filter(deduction => deduction.id !== id));
+      toast("Deduction deleted successfully");
+    } catch (error) {
+      console.error('Error deleting deduction:', error);
+      toast("Error deleting deduction");
+    }
   };
 
   const openEditBranch = (branch: Branch) => {
     setEditingBranch(branch);
     setIsEditBranchOpen(true);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading settings...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -240,6 +360,10 @@ const Settings = () => {
                               <Label htmlFor="name">Name</Label>
                               <Input name="name" required />
                             </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="description">Description (Optional)</Label>
+                              <Input name="description" />
+                            </div>
                           </div>
                           <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsAddAllowanceOpen(false)}>
@@ -303,6 +427,10 @@ const Settings = () => {
                             <div className="grid gap-2">
                               <Label htmlFor="name">Name</Label>
                               <Input name="name" required />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="description">Description (Optional)</Label>
+                              <Input name="description" />
                             </div>
                           </div>
                           <DialogFooter>

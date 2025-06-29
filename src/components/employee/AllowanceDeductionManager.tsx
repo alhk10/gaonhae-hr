@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { AllowanceDeduction } from '@/types/employee';
 
 interface AllowanceDeductionManagerProps {
   employeeId: string;
@@ -63,66 +61,32 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
         setEmployeeDeductions(deductions || []);
       }
 
-      // Load system allowances - use type assertion to handle the missing table type
-      try {
-        const { data: sysAllowances, error: sysAllowancesError } = await (supabase as any)
-          .from('system_allowances')
-          .select('*');
+      // Load system allowances
+      const { data: sysAllowances, error: sysAllowancesError } = await supabase
+        .from('system_allowances')
+        .select('*')
+        .order('name');
 
-        if (sysAllowancesError) {
-          console.error('Error loading system allowances:', sysAllowancesError);
-          // Use hardcoded data as fallback
-          setSystemAllowances([
-            { id: 1, name: 'Transport Allowance' },
-            { id: 2, name: 'Meal Allowance' },
-            { id: 3, name: 'Mobile Allowance' },
-            { id: 4, name: 'Overtime Allowance' },
-            { id: 5, name: 'Performance Bonus' }
-          ]);
-        } else {
-          console.log('Loaded system allowances:', sysAllowances);
-          setSystemAllowances(sysAllowances || []);
-        }
-      } catch (error) {
-        console.error('Error loading system allowances:', error);
-        setSystemAllowances([
-          { id: 1, name: 'Transport Allowance' },
-          { id: 2, name: 'Meal Allowance' },
-          { id: 3, name: 'Mobile Allowance' },
-          { id: 4, name: 'Overtime Allowance' },
-          { id: 5, name: 'Performance Bonus' }
-        ]);
+      if (sysAllowancesError) {
+        console.error('Error loading system allowances:', sysAllowancesError);
+        toast("Error loading system allowances");
+      } else {
+        console.log('Loaded system allowances:', sysAllowances);
+        setSystemAllowances(sysAllowances || []);
       }
 
-      // Load system deductions - use type assertion to handle the missing table type
-      try {
-        const { data: sysDeductions, error: sysDeductionsError } = await (supabase as any)
-          .from('system_deductions')
-          .select('*');
+      // Load system deductions
+      const { data: sysDeductions, error: sysDeductionsError } = await supabase
+        .from('system_deductions')
+        .select('*')
+        .order('name');
 
-        if (sysDeductionsError) {
-          console.error('Error loading system deductions:', sysDeductionsError);
-          // Use hardcoded data as fallback
-          setSystemDeductions([
-            { id: 1, name: 'Late Deduction' },
-            { id: 2, name: 'Absent Deduction' },
-            { id: 3, name: 'Uniform Deduction' },
-            { id: 4, name: 'Equipment Damage' },
-            { id: 5, name: 'Other Deduction' }
-          ]);
-        } else {
-          console.log('Loaded system deductions:', sysDeductions);
-          setSystemDeductions(sysDeductions || []);
-        }
-      } catch (error) {
-        console.error('Error loading system deductions:', error);
-        setSystemDeductions([
-          { id: 1, name: 'Late Deduction' },
-          { id: 2, name: 'Absent Deduction' },
-          { id: 3, name: 'Uniform Deduction' },
-          { id: 4, name: 'Equipment Damage' },
-          { id: 5, name: 'Other Deduction' }
-        ]);
+      if (sysDeductionsError) {
+        console.error('Error loading system deductions:', sysDeductionsError);
+        toast("Error loading system deductions");
+      } else {
+        console.log('Loaded system deductions:', sysDeductions);
+        setSystemDeductions(sysDeductions || []);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -144,7 +108,8 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       const insertData = {
         employee_id: employeeId,
         name: selectedAllowance,
-        amount: parseFloat(allowanceAmount)
+        amount: parseFloat(allowanceAmount),
+        type: 'Fixed'
       };
 
       console.log('Inserting allowance data:', insertData);
@@ -183,7 +148,8 @@ const AllowanceDeductionManager: React.FC<AllowanceDeductionManagerProps> = ({ e
       const insertData = {
         employee_id: employeeId,
         name: selectedDeduction,
-        amount: parseFloat(deductionAmount)
+        amount: parseFloat(deductionAmount),
+        type: 'Fixed'
       };
 
       console.log('Inserting deduction data:', insertData);
