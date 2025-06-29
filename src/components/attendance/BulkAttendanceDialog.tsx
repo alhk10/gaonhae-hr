@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { addAttendanceRecord } from '@/services/attendanceService';
 import { getBranches } from '@/services/settingsService';
+import { getEmployees } from '@/services/employeeService';
 import { format } from 'date-fns';
 
 interface Employee {
@@ -31,17 +32,19 @@ interface BulkAttendanceDialogProps {
 const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   isOpen,
   onClose,
-  employees,
+  employees: propEmployees,
   selectedDate,
   onSuccess
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [branches, setBranches] = useState<Array<{id: number; name: string; address: string}>>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       loadBranches();
+      loadEmployees();
     }
   }, [isOpen]);
 
@@ -59,6 +62,25 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     } catch (error) {
       console.error('Error loading branches:', error);
       toast('Error loading branches');
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      console.log('Loading all employees for bulk attendance...');
+      const employeeData = await getEmployees();
+      console.log('Loaded employees:', employeeData);
+      
+      // Filter out resigned employees
+      const activeEmployees = employeeData.filter(emp => !emp.resignDate);
+      console.log('Active employees:', activeEmployees);
+      
+      setAllEmployees(activeEmployees);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      toast('Error loading employees');
+      // Fallback to prop employees if service fails
+      setAllEmployees(propEmployees);
     }
   };
 
@@ -128,6 +150,8 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     }
   };
 
+  const employeesToDisplay = allEmployees.length > 0 ? allEmployees : propEmployees;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -154,7 +178,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
-                <SelectContent className="bg-white z-50">
+                <SelectContent className="bg-white z-50 max-h-[200px] overflow-auto">
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.name}>
                       {branch.name}
@@ -205,7 +229,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {employees.map((employee) => (
+                    {employeesToDisplay.map((employee) => (
                       <TableRow key={employee.id}>
                         <TableCell>
                           <Checkbox 
@@ -226,6 +250,9 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                 </Table>
               </div>
             </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {employeesToDisplay.length} employees available
+            </p>
           </div>
 
           <DialogFooter className="mt-4">
