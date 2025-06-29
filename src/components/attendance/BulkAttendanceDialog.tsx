@@ -69,17 +69,43 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     try {
       console.log('Loading all employees for bulk attendance...');
       const employeeData = await getEmployees();
-      console.log('Loaded employees:', employeeData);
+      console.log('Total employees loaded from service:', employeeData.length);
+      console.log('All employees:', employeeData.map(emp => ({ id: emp.id, name: emp.name, resignDate: emp.resignDate })));
       
-      // Filter out resigned employees
-      const activeEmployees = employeeData.filter(emp => !emp.resignDate);
-      console.log('Active employees:', activeEmployees);
+      // Filter out resigned employees and log the filtering process
+      const activeEmployees = employeeData.filter(emp => {
+        const isActive = !emp.resignDate;
+        if (!isActive) {
+          console.log('Filtering out resigned employee:', emp.name, 'resign date:', emp.resignDate);
+        }
+        return isActive;
+      });
+      
+      console.log('Active employees after filtering:', activeEmployees.length);
+      console.log('Active employee names:', activeEmployees.map(emp => emp.name));
+      
+      // Check specifically for Jovious and Jolene
+      const jovious = employeeData.find(emp => emp.name.toLowerCase().includes('jovious'));
+      const jolene = employeeData.find(emp => emp.name.toLowerCase().includes('jolene'));
+      
+      if (jovious) {
+        console.log('Found Jovious:', jovious.name, 'resign date:', jovious.resignDate, 'active:', !jovious.resignDate);
+      } else {
+        console.log('Jovious not found in employee data');
+      }
+      
+      if (jolene) {
+        console.log('Found Jolene:', jolene.name, 'resign date:', jolene.resignDate, 'active:', !jolene.resignDate);
+      } else {
+        console.log('Jolene not found in employee data');
+      }
       
       setAllEmployees(activeEmployees);
     } catch (error) {
       console.error('Error loading employees:', error);
       toast('Error loading employees');
       // Fallback to prop employees if service fails
+      console.log('Using fallback prop employees:', propEmployees.length);
       setAllEmployees(propEmployees);
     }
   };
