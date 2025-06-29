@@ -5,9 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getSystemDeductions } from '@/services/settingsService';
-import type { SystemDeduction } from '@/services/settingsService';
+import { supabase } from '@/integrations/supabase/client';
 import { AllowanceDeduction } from '@/types/employee';
+
+interface SystemDeduction {
+  id: number;
+  name: string;
+  description?: string;
+  default_amount: number;
+}
 
 interface AddDeductionDialogProps {
   open: boolean;
@@ -24,10 +30,7 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
 
   useEffect(() => {
     if (open) {
-      console.log('Loading system deductions...');
-      const deductions = getSystemDeductions();
-      console.log('System deductions loaded:', deductions);
-      setSystemDeductions(deductions);
+      loadSystemDeductions();
       // Reset form
       setSelectedDeduction('');
       setCustomName('');
@@ -35,6 +38,26 @@ const AddDeductionDialog: React.FC<AddDeductionDialogProps> = ({ open, onOpenCha
       setType('Fixed');
     }
   }, [open]);
+
+  const loadSystemDeductions = async () => {
+    try {
+      console.log('Loading system deductions...');
+      const { data, error } = await supabase
+        .from('system_deductions')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error loading system deductions:', error);
+        return;
+      }
+
+      console.log('System deductions loaded:', data);
+      setSystemDeductions(data || []);
+    } catch (error) {
+      console.error('Error loading system deductions:', error);
+    }
+  };
 
   const handleAdd = () => {
     const name = selectedDeduction === 'custom' ? customName : selectedDeduction;

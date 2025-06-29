@@ -5,9 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getSystemAllowances } from '@/services/settingsService';
-import type { SystemAllowance } from '@/services/settingsService';
+import { supabase } from '@/integrations/supabase/client';
 import { AllowanceDeduction } from '@/types/employee';
+
+interface SystemAllowance {
+  id: number;
+  name: string;
+  description?: string;
+  default_amount: number;
+}
 
 interface AddAllowanceDialogProps {
   open: boolean;
@@ -24,10 +30,7 @@ const AddAllowanceDialog: React.FC<AddAllowanceDialogProps> = ({ open, onOpenCha
 
   useEffect(() => {
     if (open) {
-      console.log('Loading system allowances...');
-      const allowances = getSystemAllowances();
-      console.log('System allowances loaded:', allowances);
-      setSystemAllowances(allowances);
+      loadSystemAllowances();
       // Reset form
       setSelectedAllowance('');
       setCustomName('');
@@ -35,6 +38,26 @@ const AddAllowanceDialog: React.FC<AddAllowanceDialogProps> = ({ open, onOpenCha
       setType('Fixed');
     }
   }, [open]);
+
+  const loadSystemAllowances = async () => {
+    try {
+      console.log('Loading system allowances...');
+      const { data, error } = await supabase
+        .from('system_allowances')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error loading system allowances:', error);
+        return;
+      }
+
+      console.log('System allowances loaded:', data);
+      setSystemAllowances(data || []);
+    } catch (error) {
+      console.error('Error loading system allowances:', error);
+    }
+  };
 
   const handleAdd = () => {
     const name = selectedAllowance === 'custom' ? customName : selectedAllowance;
