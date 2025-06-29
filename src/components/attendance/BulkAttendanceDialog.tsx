@@ -75,8 +75,6 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           date,
           checkIn,
           checkOut,
-          breakStart: null,
-          breakEnd: null,
           status,
           hoursWorked,
           location: 'Office'
