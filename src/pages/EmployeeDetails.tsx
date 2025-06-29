@@ -163,6 +163,7 @@ const EmployeeDetails = () => {
       const updatedEmployee: EmployeeProfile = {
         ...employee,
         ...updateData,
+        type: updateData.type as 'Full-Time' | 'Casual', // Fix: Properly type cast the type field
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
         dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
@@ -410,7 +411,7 @@ const EmployeeDetails = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Employee ID</Label>
-                    <p className="text-base md:text-lg text-gray-900 mt-1">{employee.id}</p>
+                    <p className="text-base md:text-lg text-gray-900 mt-1">{employee?.id}</p>
                   </div>
 
                   <div>
@@ -432,7 +433,7 @@ const EmployeeDetails = () => {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.branch || employee.department || 'Not specified'}</p>
+                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee?.branch || employee?.department || 'Not specified'}</p>
                     )}
                   </div>
 
