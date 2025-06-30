@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { EmployeeProfile } from '@/types/employee';
 import { updateEmployeeAdminAccess } from '@/services/employeeService';
@@ -44,22 +45,22 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
   const [employeePermissions, setEmployeePermissions] = useState<{[key: string]: ExtendedAdminAccessPermissions}>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const modules = [
-    { key: 'employees', label: 'Employee Management', description: 'View and manage employee records', category: 'admin' },
-    { key: 'payroll', label: 'Payroll Management', description: 'Process payroll and manage salaries', category: 'admin' },
-    { key: 'leaveManagement', label: 'Leave Management', description: 'Approve and manage leave requests', category: 'admin' },
-    { key: 'claims', label: 'Claims Management', description: 'Review and approve expense claims', category: 'admin' },
-    { key: 'attendance', label: 'Attendance Management', description: 'Monitor and manage employee attendance', category: 'admin' },
-    { key: 'slotBooking', label: 'Slot Booking Admin', description: 'Manage booking slots and schedules', category: 'admin' }
+  const adminModules = [
+    { key: 'employees', label: 'Employee Management', description: 'View and manage employee records' },
+    { key: 'payroll', label: 'Payroll Management', description: 'Process payroll and manage salaries' },
+    { key: 'leaveManagement', label: 'Leave Management', description: 'Approve and manage leave requests' },
+    { key: 'claims', label: 'Claims Management', description: 'Review and approve expense claims' },
+    { key: 'attendance', label: 'Attendance Management', description: 'Monitor and manage employee attendance' },
+    { key: 'slotBooking', label: 'Slot Booking Admin', description: 'Manage booking slots and schedules' }
   ];
 
   const employeePages = [
-    { key: 'profile', label: 'Profile', description: 'Access to employee profile page', category: 'employee' },
-    { key: 'applyLeave', label: 'Apply Leave', description: 'Submit leave applications', category: 'employee' },
-    { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims', category: 'employee' },
-    { key: 'payslips', label: 'Payslips', description: 'View and download payslips', category: 'employee' },
-    { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records', category: 'employee' },
-    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots', category: 'employee' }
+    { key: 'profile', label: 'Profile', description: 'Access to employee profile page' },
+    { key: 'applyLeave', label: 'Apply Leave', description: 'Submit leave applications' },
+    { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims' },
+    { key: 'payslips', label: 'Payslips', description: 'View and download payslips' },
+    { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records' },
+    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' }
   ];
 
   useEffect(() => {
@@ -138,13 +139,119 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     }
   };
 
+  const getAdminPermissionCount = (employeeId: string) => {
+    const permissions = employeePermissions[employeeId];
+    if (!permissions) return 0;
+    return adminModules.filter(module => permissions[module.key as keyof ExtendedAdminAccessPermissions]).length;
+  };
+
   const getEmployeePermissionCount = (employeeId: string) => {
     const permissions = employeePermissions[employeeId];
     if (!permissions) return 0;
-    return Object.values(permissions).filter(Boolean).length;
+    return employeePages.filter(page => permissions[page.key as keyof ExtendedAdminAccessPermissions]).length;
   };
 
-  const allModules = [...modules, ...employeePages];
+  const renderPermissionTable = (modules: typeof adminModules, type: 'admin' | 'employee') => {
+    if (isMobile) {
+      return (
+        <div className="p-4 space-y-4">
+          {employees.map((employee) => (
+            <Card key={employee.id} className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm">{employee.name}</h3>
+                  </div>
+                  <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">
+                    {type === 'admin' ? getAdminPermissionCount(employee.id) : getEmployeePermissionCount(employee.id)}/{modules.length}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {modules.map(module => (
+                    <div key={module.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`${employee.id}-${module.key}`}
+                        checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
+                        onCheckedChange={(checked) => 
+                          handlePermissionChange(employee.id, module.key, checked as boolean)
+                        }
+                      />
+                      <label 
+                        htmlFor={`${employee.id}-${module.key}`}
+                        className="text-xs cursor-pointer truncate"
+                      >
+                        {module.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader className="sticky top-0 bg-white z-10 border-b">
+            <TableRow>
+              <TableHead className="min-w-[200px] p-3 border-r bg-gray-50">
+                <div className="font-semibold">Employee Name</div>
+              </TableHead>
+              <TableHead className="w-16 text-center p-2 border-r bg-gray-50">
+                <div className="text-xs font-semibold">Total</div>
+              </TableHead>
+              {modules.map(module => (
+                <TableHead key={module.key} className="min-w-[120px] text-center p-2 border-r bg-gray-50">
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="text-xs font-medium leading-tight text-center break-words">
+                      {module.label}
+                    </span>
+                  </div>
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id} className="hover:bg-gray-50">
+                <TableCell className="p-3 border-r min-w-[200px]">
+                  <div className="flex flex-col space-y-1">
+                    <span className="font-medium text-sm">{employee.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center p-2 border-r">
+                  <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                    {type === 'admin' ? getAdminPermissionCount(employee.id) : getEmployeePermissionCount(employee.id)}/{modules.length}
+                  </Badge>
+                </TableCell>
+                {modules.map(module => (
+                  <TableCell key={module.key} className="text-center p-2 border-r">
+                    <div className="flex justify-center">
+                      <Checkbox
+                        checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
+                        onCheckedChange={(checked) => 
+                          handlePermissionChange(employee.id, module.key, checked as boolean)
+                        }
+                      />
+                    </div>
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {employees.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No employees found</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   console.log('EmployeeModuleSettings: Rendering with employees:', employees.length, 'permissions:', Object.keys(employeePermissions).length);
 
@@ -156,172 +263,40 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
         </DialogHeader>
         
         <div className="flex flex-col h-full space-y-4 min-h-0">
-          <Card className="flex-shrink-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm md:text-base">Module Permissions Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-gray-600">Admin Modules:</div>
-                <div className="flex flex-wrap gap-1 md:gap-2 text-xs">
-                  {modules.map(module => (
-                    <div key={module.key} className="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded text-[10px] md:text-xs">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                      <span className="truncate">{isMobile ? module.key : module.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-xs font-medium text-gray-600 mt-3">Employee Pages:</div>
-                <div className="flex flex-wrap gap-1 md:gap-2 text-xs">
-                  {employeePages.map(page => (
-                    <div key={page.key} className="flex items-center space-x-1 bg-green-50 px-2 py-1 rounded text-[10px] md:text-xs">
-                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                      <span className="truncate">{isMobile ? page.key : page.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex-1 min-h-0 border rounded-lg">
-            <ScrollArea className="h-full">
-              {isMobile ? (
-                /* Mobile Card Layout */
-                <div className="p-4 space-y-4">
-                  {employees.map((employee) => (
-                    <Card key={employee.id} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm truncate">{employee.name}</h3>
-                            <p className="text-xs text-gray-500 truncate">{employee.id}</p>
-                            {employee.email && (
-                              <p className="text-xs text-gray-400 truncate">{employee.email}</p>
-                            )}
-                          </div>
-                          <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">
-                            {getEmployeePermissionCount(employee.id)}/{allModules.length}
-                          </Badge>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="text-xs font-medium text-blue-600 mb-2">Admin Modules</h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {modules.map(module => (
-                                <div key={module.key} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${employee.id}-${module.key}`}
-                                    checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
-                                    onCheckedChange={(checked) => 
-                                      handlePermissionChange(employee.id, module.key, checked as boolean)
-                                    }
-                                  />
-                                  <label 
-                                    htmlFor={`${employee.id}-${module.key}`}
-                                    className="text-xs cursor-pointer truncate"
-                                  >
-                                    {module.key}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <h4 className="text-xs font-medium text-green-600 mb-2">Employee Pages</h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {employeePages.map(page => (
-                                <div key={page.key} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${employee.id}-${page.key}`}
-                                    checked={employeePermissions[employee.id]?.[page.key as keyof ExtendedAdminAccessPermissions] || false}
-                                    onCheckedChange={(checked) => 
-                                      handlePermissionChange(employee.id, page.key, checked as boolean)
-                                    }
-                                  />
-                                  <label 
-                                    htmlFor={`${employee.id}-${page.key}`}
-                                    className="text-xs cursor-pointer truncate"
-                                  >
-                                    {page.key}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                /* Desktop Table Layout - Improved */
-                <div className="w-full overflow-x-auto">
-                  <Table className="min-w-full">
-                    <TableHeader className="sticky top-0 bg-white z-10 border-b">
-                      <TableRow>
-                        <TableHead className="min-w-[220px] p-3 border-r bg-gray-50">
-                          <div className="font-semibold">Employee Details</div>
-                        </TableHead>
-                        <TableHead className="w-16 text-center p-2 border-r bg-gray-50">
-                          <div className="text-xs font-semibold">Total</div>
-                        </TableHead>
-                        {allModules.map(module => (
-                          <TableHead key={module.key} className="min-w-[80px] text-center p-2 border-r bg-gray-50">
-                            <div className="flex flex-col items-center space-y-1">
-                              <span className="text-xs font-medium leading-tight text-center max-w-20 break-words hyphens-auto">
-                                {module.label}
-                              </span>
-                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${module.category === 'admin' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {employees.map((employee) => (
-                        <TableRow key={employee.id} className="hover:bg-gray-50">
-                          <TableCell className="p-3 border-r min-w-[220px]">
-                            <div className="flex flex-col space-y-1">
-                              <span className="font-medium text-sm leading-tight">{employee.name}</span>
-                              <span className="text-xs text-gray-500 font-mono">{employee.id}</span>
-                              {employee.email && (
-                                <span className="text-xs text-gray-400 break-all leading-tight">{employee.email}</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center p-2 border-r">
-                            <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                              {getEmployeePermissionCount(employee.id)}/{allModules.length}
-                            </Badge>
-                          </TableCell>
-                          {allModules.map(module => (
-                            <TableCell key={module.key} className="text-center p-2 border-r">
-                              <div className="flex justify-center">
-                                <Checkbox
-                                  checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
-                                  onCheckedChange={(checked) => 
-                                    handlePermissionChange(employee.id, module.key, checked as boolean)
-                                  }
-                                />
-                              </div>
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {employees.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No employees found</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </ScrollArea>
-          </div>
+          <Tabs defaultValue="admin" className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="admin">Admin Modules</TabsTrigger>
+              <TabsTrigger value="employee">Employee Pages</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="admin" className="flex-1 min-h-0 mt-4">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3 flex-shrink-0">
+                  <CardTitle className="text-sm md:text-base">Admin Module Permissions</CardTitle>
+                  <p className="text-xs text-gray-600">Control access to administrative functions</p>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-0 p-0">
+                  <ScrollArea className="h-full">
+                    {renderPermissionTable(adminModules, 'admin')}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="employee" className="flex-1 min-h-0 mt-4">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3 flex-shrink-0">
+                  <CardTitle className="text-sm md:text-base">Employee Page Permissions</CardTitle>
+                  <p className="text-xs text-gray-600">Control access to employee self-service pages</p>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-0 p-0">
+                  <ScrollArea className="h-full">
+                    {renderPermissionTable(employeePages, 'employee')}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
           <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t bg-white flex-shrink-0 gap-4">
             <div className="text-sm text-gray-600 text-center sm:text-left">
