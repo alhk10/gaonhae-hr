@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { EmployeeProfile } from '@/types/employee';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
@@ -44,6 +44,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
   const isMobile = useIsMobile();
   const [employeePermissions, setEmployeePermissions] = useState<{[key: string]: ExtendedAdminAccessPermissions}>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState<string>('all');
 
   const adminModules = [
     { key: 'employees', label: 'Employee Management', description: 'View and manage employee records' },
@@ -62,6 +63,12 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records' },
     { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' }
   ];
+
+  // Filter employees based on the selected type
+  const filteredEmployees = employees.filter(employee => {
+    if (employeeTypeFilter === 'all') return true;
+    return employee.type.toLowerCase() === employeeTypeFilter.toLowerCase();
+  });
 
   useEffect(() => {
     if (open && employees.length > 0) {
@@ -172,12 +179,13 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
       return (
         <ScrollArea className="h-[400px] w-full">
           <div className="p-4 space-y-4">
-            {employees.map((employee) => (
+            {filteredEmployees.map((employee) => (
               <Card key={employee.id} className="p-4">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm truncate">{employee.name}</h3>
+                      <p className="text-xs text-gray-500">{employee.type}</p>
                     </div>
                     <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">
                       {type === 'admin' ? getAdminPermissionCount(employee.id) : getEmployeePermissionCount(employee.id)}/{modules.length}
@@ -235,13 +243,14 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((employee) => (
+              {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} className="hover:bg-gray-50">
                   <TableCell className="p-3 border-r w-[200px] sticky left-0 bg-white z-10">
                     <div className="flex flex-col space-y-1">
                       <span className="font-medium text-sm truncate" title={employee.name}>
                         {employee.name}
                       </span>
+                      <span className="text-xs text-gray-500">{employee.type}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-center p-2 border-r">
@@ -270,7 +279,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     );
   };
 
-  console.log('EmployeeModuleSettings: Rendering with employees:', employees.length, 'permissions:', Object.keys(employeePermissions).length);
+  console.log('EmployeeModuleSettings: Rendering with employees:', employees.length, 'filtered employees:', filteredEmployees.length, 'permissions:', Object.keys(employeePermissions).length);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -280,42 +289,61 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
         </DialogHeader>
         
         <div className="flex-1 flex flex-col min-h-0">
-          <Tabs defaultValue="admin" className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 pt-4 flex-shrink-0">
+          <div className="px-6 pt-4 flex-shrink-0 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Filter by Employee Type:</label>
+                <Select value={employeeTypeFilter} onValueChange={setEmployeeTypeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    <SelectItem value="full-time">Full-Time</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-gray-600">
+                Showing {filteredEmployees.length} of {employees.length} employees
+              </div>
+            </div>
+
+            <Tabs defaultValue="admin" className="flex-1 flex flex-col min-h-0">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="admin">Admin Modules</TabsTrigger>
                 <TabsTrigger value="employee">Employee Pages</TabsTrigger>
               </TabsList>
-            </div>
-            
-            <TabsContent value="admin" className="flex-1 min-h-0 mt-4 px-6">
-              <Card className="h-full flex flex-col">
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <CardTitle className="text-sm md:text-base">Admin Module Permissions</CardTitle>
-                  <p className="text-xs text-gray-600">Control access to administrative functions</p>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-0 p-0">
-                  {renderPermissionTable(adminModules, 'admin')}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="employee" className="flex-1 min-h-0 mt-4 px-6">
-              <Card className="h-full flex flex-col">
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <CardTitle className="text-sm md:text-base">Employee Page Permissions</CardTitle>
-                  <p className="text-xs text-gray-600">Control access to employee self-service pages</p>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-0 p-0">
-                  {renderPermissionTable(employeePages, 'employee')}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              
+              <TabsContent value="admin" className="flex-1 min-h-0 mt-4">
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="pb-3 flex-shrink-0">
+                    <CardTitle className="text-sm md:text-base">Admin Module Permissions</CardTitle>
+                    <p className="text-xs text-gray-600">Control access to administrative functions</p>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 p-0">
+                    {renderPermissionTable(adminModules, 'admin')}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="employee" className="flex-1 min-h-0 mt-4">
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="pb-3 flex-shrink-0">
+                    <CardTitle className="text-sm md:text-base">Employee Page Permissions</CardTitle>
+                    <p className="text-xs text-gray-600">Control access to employee self-service pages</p>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 p-0">
+                    {renderPermissionTable(employeePages, 'employee')}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t bg-white flex-shrink-0 gap-4">
             <div className="text-sm text-gray-600 text-center sm:text-left">
-              Managing permissions for {employees.length} employees
+              Managing permissions for {filteredEmployees.length} employees
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
               <Button 
