@@ -6,23 +6,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin } from 'lucide-react';
+import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin, KeyRound } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Employees = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
   const [paymentType, setPaymentType] = useState('Monthly');
+  
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -107,6 +113,12 @@ const Employees = () => {
     }
   };
 
+  const handleResetPassword = (employeeName: string, employeeEmail: string) => {
+    console.log('Opening reset password dialog for:', employeeName, employeeEmail);
+    setSelectedEmployee({ name: employeeName, email: employeeEmail });
+    setShowResetPasswordDialog(true);
+  };
+
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Add employee form submitted');
@@ -167,6 +179,8 @@ const Employees = () => {
     employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const isSuperAdmin = user?.role === 'superadmin';
 
   if (isLoading) {
     return (
@@ -304,6 +318,17 @@ const Employees = () => {
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
+                            {isSuperAdmin && employee.email && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResetPassword(employee.name, employee.email)}
+                                className="text-blue-600 hover:text-blue-700"
+                                title="Reset password to default"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -348,6 +373,17 @@ const Employees = () => {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
+                                {isSuperAdmin && employee.email && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleResetPassword(employee.name, employee.email)}
+                                    className="text-blue-600 hover:text-blue-700"
+                                    title="Reset password to default"
+                                  >
+                                    <KeyRound className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -376,6 +412,18 @@ const Employees = () => {
           onOpenChange={setShowModuleSettings}
           employees={employees}
           onEmployeesUpdate={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
+        />
+      )}
+
+      {showResetPasswordDialog && selectedEmployee && (
+        <ResetPasswordDialog
+          open={showResetPasswordDialog}
+          onClose={() => {
+            setShowResetPasswordDialog(false);
+            setSelectedEmployee(null);
+          }}
+          employeeName={selectedEmployee.name}
+          employeeEmail={selectedEmployee.email}
         />
       )}
 
