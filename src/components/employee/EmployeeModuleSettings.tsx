@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -149,7 +150,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-[95vw] max-h-[90vh]'} overflow-hidden flex flex-col`}>
+      <DialogContent className="max-w-[98vw] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-lg md:text-xl">Employee Module Settings</DialogTitle>
         </DialogHeader>
@@ -191,12 +192,15 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                   {employees.map((employee) => (
                     <Card key={employee.id} className="p-4">
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium text-sm">{employee.name}</h3>
-                            <p className="text-xs text-gray-500">{employee.id}</p>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate">{employee.name}</h3>
+                            <p className="text-xs text-gray-500 truncate">{employee.id}</p>
+                            {employee.email && (
+                              <p className="text-xs text-gray-400 truncate">{employee.email}</p>
+                            )}
                           </div>
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">
                             {getEmployeePermissionCount(employee.id)}/{allModules.length}
                           </Badge>
                         </div>
@@ -253,24 +257,24 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                   ))}
                 </div>
               ) : (
-                /* Desktop Table Layout */
-                <div className="min-w-max">
-                  <Table className="w-full">
+                /* Desktop Table Layout - Improved */
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-full">
                     <TableHeader className="sticky top-0 bg-white z-10 border-b">
                       <TableRow>
-                        <TableHead className="w-48 p-3 border-r bg-gray-50">
-                          <div className="font-semibold">Employee</div>
+                        <TableHead className="min-w-[220px] p-3 border-r bg-gray-50">
+                          <div className="font-semibold">Employee Details</div>
                         </TableHead>
-                        <TableHead className="w-20 text-center p-2 border-r bg-gray-50">
+                        <TableHead className="w-16 text-center p-2 border-r bg-gray-50">
                           <div className="text-xs font-semibold">Total</div>
                         </TableHead>
                         {allModules.map(module => (
-                          <TableHead key={module.key} className="w-20 text-center p-2 border-r bg-gray-50">
+                          <TableHead key={module.key} className="min-w-[80px] text-center p-2 border-r bg-gray-50">
                             <div className="flex flex-col items-center space-y-1">
-                              <span className="text-xs font-medium leading-tight text-center max-w-16 break-words">
+                              <span className="text-xs font-medium leading-tight text-center max-w-20 break-words hyphens-auto">
                                 {module.label}
                               </span>
-                              <div className={`w-2 h-2 rounded-full ${module.category === 'admin' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${module.category === 'admin' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
                             </div>
                           </TableHead>
                         ))}
@@ -279,26 +283,30 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                     <TableBody>
                       {employees.map((employee) => (
                         <TableRow key={employee.id} className="hover:bg-gray-50">
-                          <TableCell className="p-3 border-r">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-sm">{employee.name}</span>
-                              <span className="text-xs text-gray-500">{employee.id}</span>
-                              <span className="text-xs text-gray-400">{employee.email || 'No email'}</span>
+                          <TableCell className="p-3 border-r min-w-[220px]">
+                            <div className="flex flex-col space-y-1">
+                              <span className="font-medium text-sm leading-tight">{employee.name}</span>
+                              <span className="text-xs text-gray-500 font-mono">{employee.id}</span>
+                              {employee.email && (
+                                <span className="text-xs text-gray-400 break-all leading-tight">{employee.email}</span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-center p-2 border-r">
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs whitespace-nowrap">
                               {getEmployeePermissionCount(employee.id)}/{allModules.length}
                             </Badge>
                           </TableCell>
                           {allModules.map(module => (
                             <TableCell key={module.key} className="text-center p-2 border-r">
-                              <Checkbox
-                                checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
-                                onCheckedChange={(checked) => 
-                                  handlePermissionChange(employee.id, module.key, checked as boolean)
-                                }
-                              />
+                              <div className="flex justify-center">
+                                <Checkbox
+                                  checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
+                                  onCheckedChange={(checked) => 
+                                    handlePermissionChange(employee.id, module.key, checked as boolean)
+                                  }
+                                />
+                              </div>
                             </TableCell>
                           ))}
                         </TableRow>
