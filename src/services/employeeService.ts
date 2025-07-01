@@ -2,67 +2,127 @@ import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('Fetching employees from database...');
+  console.log('EmployeeService: Fetching employees with permissions from database...');
   
   const { data: employees, error } = await supabase
     .from('employees')
-    .select('*')
+    .select(`
+      *,
+      allowances (*),
+      deductions (*),
+      admin_access (*),
+      certificates (*)
+    `)
     .order('name');
 
   if (error) {
-    console.error('Error fetching employees:', error);
+    console.error('EmployeeService: Error fetching employees:', error);
     throw error;
   }
 
   if (!employees || employees.length === 0) {
-    console.log('No employees found in database');
+    console.log('EmployeeService: No employees found in database');
     return [];
   }
 
-  return employees.map(emp => ({
-    id: emp.id,
-    name: emp.name,
-    nric: emp.nric,
-    dateOfBirth: emp.date_of_birth,
-    residencyStatus: emp.residency_status,
-    type: emp.type as 'Full-Time' | 'Casual',
-    baseSalary: emp.base_salary || undefined,
-    hourlyRate: emp.hourly_rate || undefined,
-    dailyRate: emp.daily_rate || undefined,
-    dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-    dailyWeekendRate: emp.daily_weekend_rate || undefined,
-    paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
-    bankName: emp.bank_name,
-    bankAccount: emp.bank_account,
-    branch: emp.department || 'Main Office', // Map department to branch for display consistency
-    department: emp.department, // Keep original department field
-    position: emp.position || '',
-    phone: emp.phone || '',
-    address: emp.address || '',
-    email: emp.email || '',
-    joinDate: emp.join_date || new Date().toISOString().split('T')[0],
-    resignDate: emp.resign_date || undefined,
-    allowances: [],
-    deductions: [],
-    certificates: [],
-    adminAccess: {
-      employees: false,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: false,
-      slotBooking: false,
-      reports: false
-    },
-    pageAccess: {
-      profile: true,
-      applyLeave: true,
-      submitClaim: true,
-      payslips: true,
-      myAttendance: true,
-      slotBookingEmployee: true
-    }
-  }));
+  // Fetch page access permissions for all employees
+  const employeeIds = employees.map(emp => emp.id);
+  const { data: pageAccessData, error: pageAccessError } = await supabase
+    .from('employee_page_access')
+    .select('*')
+    .in('employee_id', employeeIds);
+
+  if (pageAccessError) {
+    console.error('EmployeeService: Error fetching page access:', pageAccessError);
+  }
+
+  console.log('EmployeeService: Fetched employees with permissions:', employees.length);
+
+  return employees.map(emp => {
+    const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
+    
+    console.log(`EmployeeService: Processing employee ${emp.name}:`, {
+      adminAccess: emp.admin_access?.[0],
+      pageAccess: pageAccess
+    });
+    
+    return {
+      id: emp.id,
+      name: emp.name,
+      nric: emp.nric || '',
+      dateOfBirth: emp.date_of_birth,
+      residencyStatus: emp.residency_status,
+      type: emp.type as 'Full-Time' | 'Casual',
+      baseSalary: emp.base_salary || undefined,
+      hourlyRate: emp.hourly_rate || undefined,
+      dailyRate: emp.daily_rate || undefined,
+      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
+      dailyWeekendRate: emp.daily_weekend_rate || undefined,
+      paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
+      bankName: emp.bank_name || '',
+      bankAccount: emp.bank_account || '',
+      branch: emp.department || 'Main Office',
+      department: emp.department || '',
+      position: emp.position || '',
+      phone: emp.phone || '',
+      address: emp.address || '',
+      email: emp.email || '',
+      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
+      resignDate: emp.resign_date || undefined,
+      allowances: emp.allowances?.map(a => ({
+        id: String(a.id),
+        name: a.name,
+        amount: Number(a.amount),
+        type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      })) || [],
+      deductions: emp.deductions?.map(d => ({
+        id: String(d.id),
+        name: d.name,
+        amount: Number(d.amount),
+        type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      })) || [],
+      certificates: emp.certificates?.map(cert => ({
+        id: cert.id,
+        name: cert.name,
+        fileName: cert.file_name,
+        uploadDate: cert.upload_date,
+        fileSize: cert.file_size,
+        fileType: cert.file_type
+      })) || [],
+      adminAccess: emp.admin_access?.[0] ? {
+        employees: emp.admin_access[0].employees || false,
+        payroll: emp.admin_access[0].payroll || false,
+        leaveManagement: emp.admin_access[0].leave_management || false,
+        claims: emp.admin_access[0].claims || false,
+        attendance: emp.admin_access[0].attendance || false,
+        slotBooking: emp.admin_access[0].slot_booking || false,
+        reports: emp.admin_access[0].reports || false
+      } : {
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      pageAccess: pageAccess ? {
+        profile: pageAccess.profile !== false, // Default to true if not explicitly false
+        applyLeave: pageAccess.apply_leave !== false,
+        submitClaim: pageAccess.submit_claim !== false,
+        payslips: pageAccess.payslips !== false,
+        myAttendance: pageAccess.my_attendance !== false,
+        slotBookingEmployee: pageAccess.slot_booking_employee !== false
+      } : {
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
+      }
+    };
+  });
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {

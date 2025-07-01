@@ -82,25 +82,25 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
         console.log('EmployeeModuleSettings: Page access:', emp.pageAccess);
         
         permissions[emp.id] = {
-          // Admin permissions
+          // Admin permissions - use actual values from database
           employees: emp.adminAccess?.employees || false,
           payroll: emp.adminAccess?.payroll || false,
           leaveManagement: emp.adminAccess?.leaveManagement || false,
           claims: emp.adminAccess?.claims || false,
           attendance: emp.adminAccess?.attendance || false,
           slotBooking: emp.adminAccess?.slotBooking || false,
-          // Page permissions
-          profile: emp.pageAccess?.profile ?? true,
-          applyLeave: emp.pageAccess?.applyLeave ?? true,
-          submitClaim: emp.pageAccess?.submitClaim ?? true,
-          payslips: emp.pageAccess?.payslips ?? true,
-          myAttendance: emp.pageAccess?.myAttendance ?? true,
-          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee ?? true
+          // Page permissions - use actual values from database
+          profile: emp.pageAccess?.profile !== false, // Default to true if not explicitly false
+          applyLeave: emp.pageAccess?.applyLeave !== false,
+          submitClaim: emp.pageAccess?.submitClaim !== false,
+          payslips: emp.pageAccess?.payslips !== false,
+          myAttendance: emp.pageAccess?.myAttendance !== false,
+          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false
         };
       });
       
       setEmployeePermissions(permissions);
-      console.log('EmployeeModuleSettings: Initialized permissions:', permissions);
+      console.log('EmployeeModuleSettings: Initialized permissions for', Object.keys(permissions).length, 'employees:', permissions);
     }
   }, [open, employees]);
 
@@ -117,9 +117,12 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
 
   const handleSaveChanges = async () => {
     console.log('EmployeeModuleSettings: Starting save process...');
+    console.log('EmployeeModuleSettings: Current employee permissions:', employeePermissions);
+    
     setIsLoading(true);
     
     try {
+      // Process each employee's permissions
       const updatePromises = Object.entries(employeePermissions).map(async ([employeeId, permissions]) => {
         console.log('EmployeeModuleSettings: Updating permissions for employee:', employeeId);
         console.log('EmployeeModuleSettings: Current permissions:', permissions);
@@ -244,14 +247,14 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           <Table className="w-full">
             <TableHeader className="sticky top-0 bg-white z-10 border-b">
               <TableRow>
-                <TableHead className="w-[200px] p-1 border-r bg-gray-50 sticky left-0 z-20">
+                <TableHead className="w-[200px] p-2 border-r bg-gray-50 sticky left-0 z-20">
                   <div className="font-semibold text-sm">Employee Name</div>
                 </TableHead>
-                <TableHead className="w-16 text-center p-1 border-r bg-gray-50">
+                <TableHead className="w-16 text-center p-2 border-r bg-gray-50">
                   <div className="text-xs font-semibold">Total</div>
                 </TableHead>
                 {modules.map(module => (
-                  <TableHead key={module.key} className="min-w-[140px] text-center p-1 border-r bg-gray-50">
+                  <TableHead key={module.key} className="min-w-[140px] text-center p-2 border-r bg-gray-50">
                     <div className="flex flex-col items-center space-y-1">
                       <span className="text-xs font-medium leading-tight text-center break-words px-1">
                         {module.label}
@@ -264,19 +267,19 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
             <TableBody>
               {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} className="hover:bg-gray-50">
-                  <TableCell className="p-1 border-r w-[200px] sticky left-0 bg-white z-10">
-                    <div className="font-medium text-sm truncate py-1" title={employee.name}>
+                  <TableCell className="p-2 border-r w-[200px] sticky left-0 bg-white z-10">
+                    <div className="font-medium text-sm truncate" title={employee.name}>
                       {employee.name}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center p-1 border-r">
+                  <TableCell className="text-center p-2 border-r">
                     <Badge variant="secondary" className="text-xs whitespace-nowrap">
                       {type === 'admin' ? getAdminPermissionCount(employee.id) : getEmployeePermissionCount(employee.id)}/{modules.length}
                     </Badge>
                   </TableCell>
                   {modules.map(module => (
-                    <TableCell key={module.key} className="text-center p-1 border-r">
-                      <div className="flex justify-center py-1">
+                    <TableCell key={module.key} className="text-center p-2 border-r">
+                      <div className="flex justify-center">
                         <Checkbox
                           checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
                           onCheckedChange={(checked) => 
