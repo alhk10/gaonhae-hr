@@ -129,7 +129,7 @@ const AdminSlotBooking = () => {
 
     daysInMonth.forEach(day => {
       const dayBookings = getBookingsForDate(day);
-      const dayName = format(day, 'EEEE').toLowerCase() as keyof WeeklySlotConfig;
+      const dayName = format(day, 'EEEE').toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
       
       if (selectedBranch === 'all') {
         branches.forEach(branch => {
@@ -183,7 +183,7 @@ const AdminSlotBooking = () => {
       // Weekly slots configuration will be updated in Supabase through the service
       // For now, we'll keep the current structure but this should be moved to Supabase in the future
       const updatedWeeklySlots: { [branchId: string]: WeeklySlotConfig } = { ...currentWeeklySlots };
-      const daysOfWeek: (keyof WeeklySlotConfig)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
       branches.forEach(branch => {
         daysOfWeek.forEach(day => {
@@ -192,6 +192,8 @@ const AdminSlotBooking = () => {
           if (value && !isNaN(parseInt(value))) {
             if (!updatedWeeklySlots[branch.id]) {
               updatedWeeklySlots[branch.id] = {
+                id: `config-${branch.id}`,
+                branchId: branch.id,
                 monday: 0,
                 tuesday: 0,
                 wednesday: 0,
@@ -319,7 +321,7 @@ const AdminSlotBooking = () => {
                                   <h4 className="font-medium">{branch.name}</h4>
                                 </div>
                                 <div className="grid grid-cols-7 gap-2">
-                                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                                  {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
                                     <div key={day} className="space-y-1">
                                       <Label className="text-xs font-medium">{day.slice(0, 3)}</Label>
                                       <Input
@@ -327,7 +329,7 @@ const AdminSlotBooking = () => {
                                         type="number"
                                         min="0"
                                         max="50"
-                                        defaultValue={currentWeeklySlots[branch.id]?.[day as keyof WeeklySlotConfig] || 0}
+                                        defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
                                         className="text-center"
                                       />
                                     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +13,7 @@ import { getAllLeaveRequests } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
-import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
+import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -39,6 +38,15 @@ const EmployeeDashboard = () => {
   const { data: allLeaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
     queryFn: getAllLeaveRequests,
+  });
+
+  // Fetch employee slot bookings from Supabase
+  const { data: employeeSlotBookings = [] } = useQuery({
+    queryKey: ['employee-slot-bookings', user?.id],
+    queryFn: () => getEmployeeSlotBookings(user?.id || ''),
+    enabled: !!user?.id,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Calculate leave balance for current employee
@@ -93,13 +101,12 @@ const EmployeeDashboard = () => {
     }
   }, [user?.id]);
 
-  // Check slot booking for casual employees
+  // Check slot booking for casual employees using Supabase data
   useEffect(() => {
     if (user?.id && employeeData?.type === 'Casual') {
       const today = new Date().toISOString().split('T')[0];
-      const allSlotBookings = getAllSlotBookings();
       
-      const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
+      const approvedSlot = employeeSlotBookings.some((booking: SlotBooking) => 
         booking.employeeId === user.id && 
         booking.date === today && 
         booking.status === 'approved'
@@ -108,7 +115,7 @@ const EmployeeDashboard = () => {
       setHasApprovedSlot(approvedSlot);
       console.log('Dashboard: Has approved slot for today:', approvedSlot);
     }
-  }, [user?.id, employeeData]);
+  }, [user?.id, employeeData, employeeSlotBookings]);
 
   // Fetch employee-specific data
   const { data: employeeClaims = [], error: claimsError } = useQuery({
