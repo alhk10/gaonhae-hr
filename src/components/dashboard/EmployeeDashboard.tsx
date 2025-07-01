@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, DollarSign, MapPin } from 'lucide-react';
+import { Calendar, FileText, Clock, DollarSign, MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -13,6 +14,7 @@ import { getAllLeaveRequests } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
+import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ const EmployeeDashboard = () => {
   const [clockLocation, setClockLocation] = useState<string | null>(null);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
+  const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
 
   // Try to fetch employee data from Supabase first, then fallback to local data
   const { data: supabaseEmployee, error: supabaseError } = useQuery({
@@ -89,6 +92,23 @@ const EmployeeDashboard = () => {
       }
     }
   }, [user?.id]);
+
+  // Check slot booking for casual employees
+  useEffect(() => {
+    if (user?.id && employeeData?.type === 'Casual') {
+      const today = new Date().toISOString().split('T')[0];
+      const allSlotBookings = getAllSlotBookings();
+      
+      const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
+        booking.employeeId === user.id && 
+        booking.date === today && 
+        booking.status === 'approved'
+      );
+      
+      setHasApprovedSlot(approvedSlot);
+      console.log('Dashboard: Has approved slot for today:', approvedSlot);
+    }
+  }, [user?.id, employeeData]);
 
   // Fetch employee-specific data
   const { data: employeeClaims = [], error: claimsError } = useQuery({
@@ -175,6 +195,7 @@ const EmployeeDashboard = () => {
   const displayName = employeeData?.name || user?.name || 'Employee';
   const displayDepartment = employeeData?.branch || user?.department || 'Not specified';
   const displayEmployeeId = employeeData?.id || user?.id || user?.employeeId || 'Not specified';
+  const canClockIn = employeeData?.type !== 'Casual' || hasApprovedSlot;
 
   // Debug logging
   console.log('EmployeeDashboard: Current state:', {
@@ -187,7 +208,9 @@ const EmployeeDashboard = () => {
     isClockedIn,
     clockTime,
     clockLocation,
-    leaveBalance
+    leaveBalance,
+    hasApprovedSlot,
+    canClockIn
   });
 
   if (claimsError) {
@@ -206,6 +229,26 @@ const EmployeeDashboard = () => {
           <p className="text-gray-600">Position: {employeeData.position}</p>
         )}
       </div>
+
+      {/* Casual Employee Slot Booking Warning */}
+      {employeeData?.type === 'Casual' && !hasApprovedSlot && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  Slot Booking Required
+                </p>
+                <p className="text-sm text-orange-700">
+                  As a casual employee, you need an approved slot booking for today to clock in. 
+                  Please book a slot and wait for approval before attempting to clock in.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {personalStats.map((stat) => (
@@ -234,9 +277,13 @@ const EmployeeDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-1 gap-3">
               <Button 
-                className={`justify-start h-auto p-4 ${isClockedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                className={`justify-start h-auto p-4 ${
+                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+                  'bg-gray-400 cursor-not-allowed'
+                }`}
                 onClick={handleClockInOut}
-                disabled={isClockingInOut}
+                disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
               >
                 <Clock className="w-5 h-5 mr-3" />
                 <div className="text-left flex-1">
@@ -254,6 +301,8 @@ const EmployeeDashboard = () => {
                           </>
                         )}
                       </>
+                    ) : !canClockIn ? (
+                      'Approved slot booking required'
                     ) : (
                       'Must be within 100m of branch'
                     )}

@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
+import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
+import { getEmployeeById } from './employeeService';
 
 export interface AttendanceRecord {
   id: number;
@@ -149,6 +151,31 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
   const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
   try {
+    // Check if employee is casual and validate slot booking for clock in
+    if (action === 'in') {
+      const employeeData = await getEmployeeById(employeeId);
+      
+      if (employeeData && employeeData.type === 'Casual') {
+        console.log('Checking slot booking for casual employee:', employeeId);
+        
+        // Get all slot bookings
+        const allSlotBookings = getAllSlotBookings();
+        
+        // Find approved slot booking for this employee and date
+        const hasApprovedSlot = allSlotBookings.some((booking: SlotBooking) => 
+          booking.employeeId === employeeId && 
+          booking.date === currentDate && 
+          booking.status === 'approved'
+        );
+        
+        console.log('Has approved slot for today:', hasApprovedSlot);
+        
+        if (!hasApprovedSlot) {
+          throw new Error('Casual employees can only clock in with an approved slot booking for today. Please ensure you have booked and got approval for a slot before attempting to clock in.');
+        }
+      }
+    }
+
     // Check if there's an existing record for today
     const { data: existingRecord, error: fetchError } = await supabase
       .from('attendance')

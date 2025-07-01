@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar, Filter, Download, MapPin, Settings } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { Clock, Calendar, Filter, Download, MapPin, Settings, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getAttendanceSettings, type AttendanceSetting } from '@/services/attendanceSettingsService';
+import { getEmployeeById } from '@/services/employeeService';
+import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
 
 interface AttendanceRecord {
   id: number;
@@ -41,12 +43,46 @@ const MyAttendance = () => {
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
+  const [employeeType, setEmployeeType] = useState<string>('');
+  const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
 
   useEffect(() => {
     fetchAttendanceData();
     checkClockStatus();
     fetchAttendanceSettings();
+    fetchEmployeeData();
+    checkSlotBooking();
   }, [user?.id]);
+
+  const fetchEmployeeData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const employee = await getEmployeeById(user.id);
+      if (employee) {
+        setEmployeeType(employee.type);
+        console.log('Employee type:', employee.type);
+      }
+    } catch (error) {
+      console.error('Error fetching employee data:', error);
+    }
+  };
+
+  const checkSlotBooking = () => {
+    if (!user?.id) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const allSlotBookings = getAllSlotBookings();
+    
+    const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
+      booking.employeeId === user.id && 
+      booking.date === today && 
+      booking.status === 'approved'
+    );
+    
+    setHasApprovedSlot(approvedSlot);
+    console.log('Has approved slot for today:', approvedSlot);
+  };
 
   const fetchAttendanceSettings = async () => {
     try {
@@ -93,7 +129,7 @@ const MyAttendance = () => {
 
   const handleClockInOut = async () => {
     if (!user?.id) {
-      toast("User authentication required");
+      toast.error("User authentication required");
       return;
     }
 
@@ -118,9 +154,9 @@ const MyAttendance = () => {
       const locationText = newStatus?.location ? ` at ${newStatus.location}` : '';
       
       if (action === 'out') {
-        toast(`Clocked out at ${currentTime}${locationText}`);
+        toast.success(`Clocked out at ${currentTime}${locationText}`);
       } else {
-        toast(`Clocked in at ${currentTime}${locationText}`);
+        toast.success(`Clocked in at ${currentTime}${locationText}`);
       }
       
       // Refresh attendance data
@@ -128,7 +164,7 @@ const MyAttendance = () => {
     } catch (error) {
       console.error('Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error processing clock in/out. Please try again.';
-      toast(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsClockingInOut(false);
     }
@@ -185,6 +221,7 @@ const MyAttendance = () => {
   const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
 
   const isClockedIn = clockStatus?.status === 'clocked-in';
+  const canClockIn = employeeType !== 'Casual' || hasApprovedSlot;
 
   if (loading) {
     return (
@@ -217,6 +254,26 @@ const MyAttendance = () => {
               <p className="text-gray-600">View your attendance records and clock in/out</p>
             </div>
 
+            {/* Casual Employee Slot Booking Warning */}
+            {employeeType === 'Casual' && !hasApprovedSlot && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-800">
+                        Slot Booking Required
+                      </p>
+                      <p className="text-sm text-orange-700">
+                        As a casual employee, you need an approved slot booking for today to clock in. 
+                        Please book a slot and wait for approval before attempting to clock in.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Clock In/Out Section */}
             <Card>
               <CardHeader>
@@ -227,13 +284,25 @@ const MyAttendance = () => {
                   <span className="text-sm text-gray-500">
                     Working Hours: {getCurrentWorkingHours()} | Grace Period: {getGracePeriod()} minutes
                   </span>
+                  {employeeType === 'Casual' && (
+                    <>
+                      <br />
+                      <span className="text-sm text-orange-600">
+                        Casual employees require approved slot booking to clock in
+                      </span>
+                    </>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button 
-                  className={`w-full sm:w-auto h-auto p-6 ${isClockedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                  className={`w-full sm:w-auto h-auto p-6 ${
+                    isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+                    canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+                    'bg-gray-400 cursor-not-allowed'
+                  }`}
                   onClick={handleClockInOut}
-                  disabled={isClockingInOut}
+                  disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
                 >
                   <Clock className="w-6 h-6 mr-3" />
                   <div className="text-left flex-1">
@@ -251,6 +320,8 @@ const MyAttendance = () => {
                             </>
                           )}
                         </>
+                      ) : !canClockIn ? (
+                        'Approved slot booking required'
                       ) : (
                         'Must be within 100m of any branch'
                       )}
