@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { Calendar, Users, Clock, Search } from 'lucide-react';
+import { Calendar, Users, Clock, Search, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { addAttendanceRecord } from '@/services/attendanceService';
 import { getEmployees } from '@/services/employeeService';
@@ -30,6 +30,15 @@ interface EmployeeData {
   position?: string;
 }
 
+// Mock branches data - you can replace this with actual data from your system
+const branches = [
+  { id: 'main', name: 'Main Branch' },
+  { id: 'north', name: 'North Branch' },
+  { id: 'south', name: 'South Branch' },
+  { id: 'east', name: 'East Branch' },
+  { id: 'west', name: 'West Branch' }
+];
+
 const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   isOpen,
   onClose,
@@ -40,7 +49,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [checkInTime, setCheckInTime] = useState('09:00');
   const [checkOutTime, setCheckOutTime] = useState('18:00');
-  const [status, setStatus] = useState<'Present' | 'Late' | 'Absent' | 'Half Day'>('Present');
+  const [selectedBranch, setSelectedBranch] = useState('main');
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
@@ -135,20 +144,19 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
       console.log('BulkAttendanceDialog: Creating attendance records for', selectedEmployees.length, 'employees');
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const hoursWorked = status === 'Present' || status === 'Late' 
-        ? calculateHours(checkInTime, checkOutTime)
-        : status === 'Half Day' ? 4 : 0;
+      const hoursWorked = calculateHours(checkInTime, checkOutTime);
+      const selectedBranchData = branches.find(b => b.id === selectedBranch);
 
       const attendancePromises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
         return addAttendanceRecord({
           employeeId,
           date: dateStr,
-          checkIn: status === 'Present' || status === 'Late' ? checkInTime : null,
-          checkOut: status === 'Present' || status === 'Late' ? checkOutTime : null,
-          status,
+          checkIn: checkInTime,
+          checkOut: checkOutTime,
+          status: 'Present',
           hoursWorked,
-          location: 'Office'
+          location: selectedBranchData?.name || 'Main Branch'
         });
       });
 
@@ -183,7 +191,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-auto">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="date">Date</Label>
               <Input
@@ -194,49 +202,51 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
               />
             </div>
             <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
+              <Label htmlFor="branch">Branch</Label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Present">Present</SelectItem>
-                  <SelectItem value="Late">Late</SelectItem>
-                  <SelectItem value="Absent">Absent</SelectItem>
-                  <SelectItem value="Half Day">Half Day</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span>{branch.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {(status === 'Present' || status === 'Late') && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="checkIn">Check In Time</Label>
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <Input
-                    id="checkIn"
-                    type="time"
-                    value={checkInTime}
-                    onChange={(e) => setCheckInTime(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="checkOut">Check Out Time</Label>
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <Input
-                    id="checkOut"
-                    type="time"
-                    value={checkOutTime}
-                    onChange={(e) => setCheckOutTime(e.target.value)}
-                  />
-                </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="checkIn">Check In Time</Label>
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <Input
+                  id="checkIn"
+                  type="time"
+                  value={checkInTime}
+                  onChange={(e) => setCheckInTime(e.target.value)}
+                />
               </div>
             </div>
-          )}
+            <div>
+              <Label htmlFor="checkOut">Check Out Time</Label>
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <Input
+                  id="checkOut"
+                  type="time"
+                  value={checkOutTime}
+                  onChange={(e) => setCheckOutTime(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -293,9 +303,9 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
               <ScrollArea className="h-64 border rounded-lg">
                 <div className="p-3">
                   {filteredEmployees.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {filteredEmployees.map((employee) => (
-                        <div key={employee.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg border">
+                        <div key={employee.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg border">
                           <Checkbox
                             id={employee.id}
                             checked={selectedEmployees.includes(employee.id)}
@@ -305,15 +315,11 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-sm">{employee.name}</p>
-                                <p className="text-xs text-gray-500">{employee.id}</p>
                               </div>
                               <div className="text-right">
                                 <Badge variant="secondary" className="text-xs">
                                   {employee.type}
                                 </Badge>
-                                {employee.department && (
-                                  <p className="text-xs text-gray-500 mt-1">{employee.department}</p>
-                                )}
                               </div>
                             </div>
                           </div>
