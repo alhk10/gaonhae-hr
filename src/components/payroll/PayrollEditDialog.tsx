@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,21 +10,13 @@ import { PayrollEmployee } from '@/types/employee';
 import { getEmployees, getEmployeeById } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { supabase } from '@/integrations/supabase/client';
-
-interface PayrollData {
-  id: string;
-  period: string;
-  status: string;
-  totalAmount: number;
-  employeeCount: number;
-  processedDate: string | null;
-}
+import { PayrollRecord } from '@/services/payrollService';
 
 interface PayrollEditDialogProps {
-  payroll: PayrollData | null;
+  payroll: PayrollRecord | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedPayroll: PayrollData) => void;
+  onSave: (updatedPayroll: PayrollRecord) => void;
 }
 
 const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDialogProps) => {
@@ -35,105 +28,106 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       if (payroll) {
         setLoading(true);
         try {
-          // Get all employees instead of hardcoded IDs
-          const allEmployees = await getEmployees();
-          console.log('All employees loaded:', allEmployees);
+          // Load the specific employee for this payroll record
+          const empData = await getEmployeeById(payroll.employeeId);
+          if (!empData) {
+            toast.error('Employee not found');
+            return;
+          }
+
+          console.log('Employee data loaded:', empData);
           
-          const employees = await Promise.all(
-            allEmployees.map(async (empData) => {
-              // Load allowances from database
-              const { data: allowancesData } = await supabase
-                .from('allowances')
-                .select('*')
-                .eq('employee_id', empData.id);
-              
-              // Load deductions from database
-              const { data: deductionsData } = await supabase
-                .from('deductions')
-                .select('*')
-                .eq('employee_id', empData.id);
+          // Load allowances from database
+          const { data: allowancesData } = await supabase
+            .from('allowances')
+            .select('*')
+            .eq('employee_id', empData.id);
+          
+          // Load deductions from database
+          const { data: deductionsData } = await supabase
+            .from('deductions')
+            .select('*')
+            .eq('employee_id', empData.id);
 
-              const allowances = allowancesData || [];
-              const deductions = deductionsData || [];
-              
-              console.log(`Employee ${empData.name} allowances:`, allowances);
-              console.log(`Employee ${empData.name} deductions:`, deductions);
+          const allowances = allowancesData || [];
+          const deductions = deductionsData || [];
+          
+          console.log(`Employee ${empData.name} allowances:`, allowances);
+          console.log(`Employee ${empData.name} deductions:`, deductions);
 
-              const totalAllowances = allowances.reduce((sum, allowance) => sum + Number(allowance.amount), 0);
-              const totalDeductions = deductions.reduce((sum, deduction) => sum + Number(deduction.amount), 0);
-              
-              let cpfEmployee = 0;
-              let cpfEmployer = 0;
-              let grossPay = 0;
-              let netPay = 0;
+          const totalAllowances = allowances.reduce((sum, allowance) => sum + Number(allowance.amount), 0);
+          const totalDeductions = deductions.reduce((sum, deduction) => sum + Number(deduction.amount), 0);
+          
+          let cpfEmployee = 0;
+          let cpfEmployer = 0;
+          let grossPay = 0;
+          let netPay = 0;
 
-              if (empData.type === 'Full-Time' && empData.baseSalary) {
-                const age = calculateAge(empData.dateOfBirth);
-                grossPay = empData.baseSalary + totalAllowances;
-                const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-                cpfEmployee = cpfCalc.employeeCPF;
-                cpfEmployer = cpfCalc.employerCPF;
-                netPay = grossPay - cpfEmployee - totalDeductions;
-              } else if (empData.type === 'Casual') {
-                const age = calculateAge(empData.dateOfBirth);
-                
-                if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
-                  const hoursWorked = 120;
-                  grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
-                } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
-                  const weekdays = 18;
-                  const weekends = 4;
-                  const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
-                  const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
-                  grossPay = weekdayPay + weekendPay + totalAllowances;
-                } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
-                  grossPay = empData.baseSalary + totalAllowances;
-                }
-                
-                const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
-                cpfEmployee = cpfCalc.employeeCPF;
-                cpfEmployer = cpfCalc.employerCPF;
-                netPay = grossPay - cpfEmployee - totalDeductions;
-              }
+          if (empData.type === 'Full-Time' && empData.baseSalary) {
+            const age = calculateAge(empData.dateOfBirth);
+            grossPay = empData.baseSalary + totalAllowances;
+            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+            cpfEmployee = cpfCalc.employeeCPF;
+            cpfEmployer = cpfCalc.employerCPF;
+            netPay = grossPay - cpfEmployee - totalDeductions;
+          } else if (empData.type === 'Casual') {
+            const age = calculateAge(empData.dateOfBirth);
+            
+            if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
+              const hoursWorked = 120;
+              grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
+            } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
+              const weekdays = 18;
+              const weekends = 4;
+              const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
+              const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
+              grossPay = weekdayPay + weekendPay + totalAllowances;
+            } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
+              grossPay = empData.baseSalary + totalAllowances;
+            }
+            
+            const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
+            cpfEmployee = cpfCalc.employeeCPF;
+            cpfEmployer = cpfCalc.employerCPF;
+            netPay = grossPay - cpfEmployee - totalDeductions;
+          }
 
-              return {
-                id: empData.id,
-                name: empData.name,
-                type: empData.type,
-                baseSalary: empData.baseSalary,
-                hourlyRate: empData.hourlyRate,
-                dailyRate: empData.dailyRate,
-                dailyWeekdayRate: empData.dailyWeekdayRate,
-                dailyWeekendRate: empData.dailyWeekendRate,
-                paymentType: empData.paymentType,
-                allowances: allowances.map(a => ({ 
-                  id: a.id.toString(), // Convert number to string
-                  name: a.name, 
-                  amount: Number(a.amount), 
-                  type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual' // Ensure type compatibility
-                })),
-                deductions: deductions.map(d => ({ 
-                  id: d.id.toString(), // Convert number to string
-                  name: d.name, 
-                  amount: Number(d.amount), 
-                  type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual' // Ensure type compatibility
-                })),
-                grossPay,
-                cpfEmployee,
-                cpfEmployer,
-                netPay,
-                // Legacy properties for backward compatibility
-                cpf: cpfEmployee,
-                total: netPay
-              };
-            })
-          );
+          const employee: PayrollEmployee = {
+            id: empData.id,
+            name: empData.name,
+            type: empData.type,
+            baseSalary: empData.baseSalary,
+            hourlyRate: empData.hourlyRate,
+            dailyRate: empData.dailyRate,
+            dailyWeekdayRate: empData.dailyWeekdayRate,
+            dailyWeekendRate: empData.dailyWeekendRate,
+            paymentType: empData.paymentType,
+            allowances: allowances.map(a => ({ 
+              id: a.id.toString(),
+              name: a.name, 
+              amount: Number(a.amount), 
+              type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+            })),
+            deductions: deductions.map(d => ({ 
+              id: d.id.toString(),
+              name: d.name, 
+              amount: Number(d.amount), 
+              type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+            })),
+            grossPay,
+            cpfEmployee,
+            cpfEmployer,
+            netPay,
+            // Legacy properties for backward compatibility
+            cpf: cpfEmployee,
+            total: netPay
+          };
 
-          console.log('Processed employee details:', employees);
-          setEmployeeDetails(employees);
+          console.log('Processed employee details:', employee);
+          setEmployeeDetails([employee]);
         } catch (error) {
           console.error('Error loading employee details:', error);
-          toast('Error loading employee details');
+          toast.error('Error loading employee details');
         } finally {
           setLoading(false);
         }
@@ -168,10 +162,10 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
           } else if (empData.type === 'Casual') {
             // For casual employees, this might be updating their rate
             if (empData.paymentType === 'Hourly') {
-              const hoursWorked = 120; // Should come from attendance
+              const hoursWorked = 120;
               grossPay = newSalary * hoursWorked + totalAllowances;
             } else if (empData.paymentType === 'Daily') {
-              const daysWorked = 22; // Should come from attendance
+              const daysWorked = 22;
               grossPay = newSalary * daysWorked + totalAllowances;
             } else if (empData.paymentType === 'Monthly') {
               grossPay = newSalary + totalAllowances;
@@ -199,17 +193,6 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     );
   };
 
-  const handleSave = () => {
-    const newTotal = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
-    const updatedPayroll = {
-      ...payroll,
-      totalAmount: newTotal
-    };
-    onSave(updatedPayroll);
-    toast(`Payroll for ${payroll.period} updated successfully`);
-    onClose();
-  };
-
   if (!payroll) return null;
 
   if (loading) {
@@ -227,13 +210,29 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
     );
   }
 
+  const employee = employeeDetails[0];
+  if (!employee) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl">
+          <div className="text-center p-8">
+            <p className="text-red-600">Employee data not found</p>
+            <Button onClick={onClose} className="mt-4">Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Edit Payroll - {payroll.period}</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            Edit Payroll - {payroll.month} {payroll.year}
+          </DialogTitle>
           <DialogDescription>
-            Modify payroll details for {payroll.period}. Allowances and deductions are automatically loaded from employee profiles.
+            Modify payroll details for {employee.name}. Allowances and deductions are loaded from Supabase.
           </DialogDescription>
         </DialogHeader>
         
@@ -242,219 +241,107 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-blue-900">Payroll Summary</h3>
-                <p className="text-blue-700">Total Employees: {employeeDetails.length}</p>
+                <p className="text-blue-700">Employee: {employee.name} ({employee.type})</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-blue-600">Total Payroll Amount</p>
+                <p className="text-sm text-blue-600">Net Pay</p>
                 <p className="text-2xl font-bold text-blue-900">
-                  S${employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0).toLocaleString()}
+                  S${employee.netPay.toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm mr-3">
-                {employeeDetails.filter(emp => emp.type === 'Full-Time').length}
-              </span>
-              Full-Time Employees
-            </h3>
-            
-            {employeeDetails.filter(emp => emp.type === 'Full-Time').length > 0 ? (
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="font-semibold">Employee</TableHead>
-                      <TableHead className="font-semibold">Basic Salary</TableHead>
-                      <TableHead className="font-semibold">Allowances</TableHead>
-                      <TableHead className="font-semibold">Deductions</TableHead>
-                      <TableHead className="font-semibold">CPF (Employee)</TableHead>
-                      <TableHead className="font-semibold">CPF (Employer)</TableHead>
-                      <TableHead className="font-semibold">Net Pay</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeeDetails.filter(emp => emp.type === 'Full-Time').map((employee) => (
-                      <TableRow key={employee.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{employee.name}</p>
-                            <p className="text-xs text-gray-500">{employee.id}</p>
+          <div className="bg-white border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="font-semibold">Employee</TableHead>
+                  <TableHead className="font-semibold">Payment Type</TableHead>
+                  <TableHead className="font-semibold">Basic Rate/Salary</TableHead>
+                  <TableHead className="font-semibold">Allowances</TableHead>
+                  <TableHead className="font-semibold">Deductions</TableHead>
+                  <TableHead className="font-semibold">CPF (Employee)</TableHead>
+                  <TableHead className="font-semibold">CPF (Employer)</TableHead>
+                  <TableHead className="font-semibold">Net Pay</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="hover:bg-gray-50">
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{employee.name}</p>
+                      <p className="text-xs text-gray-500">{employee.id}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{employee.paymentType || employee.type}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {employee.type === 'Full-Time' && (
+                      <span>S${employee.baseSalary?.toLocaleString() || '0'}/month</span>
+                    )}
+                    {employee.type === 'Casual' && employee.paymentType === 'Hourly' && (
+                      <span>S${employee.hourlyRate || '0'}/hr</span>
+                    )}
+                    {employee.type === 'Casual' && employee.paymentType === 'Daily' && (
+                      <div className="space-y-1">
+                        <div>S${employee.dailyWeekdayRate || employee.dailyRate || '0'}/day (WD)</div>
+                        <div>S${employee.dailyWeekendRate || employee.dailyRate || '0'}/day (WE)</div>
+                      </div>
+                    )}
+                    {employee.type === 'Casual' && employee.paymentType === 'Monthly' && (
+                      <span>S${employee.baseSalary?.toLocaleString() || '0'}/month</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {employee.allowances.length > 0 ? (
+                        employee.allowances.map((allowance, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="text-sm">{allowance.name}</span>
+                            <Badge variant="secondary" className="ml-2">
+                              S${allowance.amount}
+                            </Badge>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              value={employee.baseSalary || 0}
-                              className="w-28"
-                              readOnly
-                            />
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">No allowances</span>
+                      )}
+                      <div className="border-t pt-1">
+                        <span className="text-sm font-medium">
+                          Total: S${employee.allowances.reduce((sum, a) => sum + a.amount, 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {employee.deductions.length > 0 ? (
+                        employee.deductions.map((deduction, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="text-sm">{deduction.name}</span>
+                            <Badge variant="destructive" className="ml-2">
+                              S${deduction.amount}
+                            </Badge>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {employee.allowances.length > 0 ? (
-                              employee.allowances.map((allowance, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="text-sm">{allowance.name}</span>
-                                  <Badge variant="secondary" className="ml-2">
-                                    S${allowance.amount}
-                                  </Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-sm text-gray-500">No allowances</span>
-                            )}
-                            <div className="border-t pt-1">
-                              <span className="text-sm font-medium">
-                                Total: S${employee.allowances.reduce((sum, a) => sum + a.amount, 0)}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {employee.deductions.length > 0 ? (
-                              employee.deductions.map((deduction, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="text-sm">{deduction.name}</span>
-                                  <Badge variant="destructive" className="ml-2">
-                                    S${deduction.amount}
-                                  </Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-sm text-gray-500">No deductions</span>
-                            )}
-                            <div className="border-t pt-1">
-                              <span className="text-sm font-medium">
-                                Total: S${employee.deductions.reduce((sum, d) => sum + d.amount, 0)}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">S${employee.cpfEmployee.toLocaleString()}</TableCell>
-                        <TableCell className="font-medium">S${employee.cpfEmployer.toLocaleString()}</TableCell>
-                        <TableCell className="font-bold text-green-600">S${employee.netPay.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No full-time employees found
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-3">
-                {employeeDetails.filter(emp => emp.type === 'Casual').length}
-              </span>
-              Casual Employees
-            </h3>
-            
-            {employeeDetails.filter(emp => emp.type === 'Casual').length > 0 ? (
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="font-semibold">Employee</TableHead>
-                      <TableHead className="font-semibold">Payment Type</TableHead>
-                      <TableHead className="font-semibold">Rate</TableHead>
-                      <TableHead className="font-semibold">Allowances</TableHead>
-                      <TableHead className="font-semibold">Deductions</TableHead>
-                      <TableHead className="font-semibold">CPF (Employee)</TableHead>
-                      <TableHead className="font-semibold">CPF (Employer)</TableHead>
-                      <TableHead className="font-semibold">Net Pay</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeeDetails.filter(emp => emp.type === 'Casual').map((employee) => (
-                      <TableRow key={employee.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{employee.name}</p>
-                            <p className="text-xs text-gray-500">{employee.id}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{employee.paymentType}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {employee.paymentType === 'Hourly' && (
-                            <span>S${employee.hourlyRate}/hr</span>
-                          )}
-                          {employee.paymentType === 'Daily' && (
-                            <div className="space-y-1">
-                              <div>S${employee.dailyWeekdayRate || employee.dailyRate}/day (WD)</div>
-                              <div>S${employee.dailyWeekendRate || employee.dailyRate}/day (WE)</div>
-                            </div>
-                          )}
-                          {employee.paymentType === 'Monthly' && (
-                            <span>S${employee.baseSalary}/month</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {employee.allowances.length > 0 ? (
-                              employee.allowances.map((allowance, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="text-sm">{allowance.name}</span>
-                                  <Badge variant="secondary" className="ml-2">
-                                    S${allowance.amount}
-                                  </Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-sm text-gray-500">No allowances</span>
-                            )}
-                            <div className="border-t pt-1">
-                              <span className="text-sm font-medium">
-                                Total: S${employee.allowances.reduce((sum, a) => sum + a.amount, 0)}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {employee.deductions.length > 0 ? (
-                              employee.deductions.map((deduction, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="text-sm">{deduction.name}</span>
-                                  <Badge variant="destructive" className="ml-2">
-                                    S${deduction.amount}
-                                  </Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-sm text-gray-500">No deductions</span>
-                            )}
-                            <div className="border-t pt-1">
-                              <span className="text-sm font-medium">
-                                Total: S${employee.deductions.reduce((sum, d) => sum + d.amount, 0)}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">S${employee.cpfEmployee.toLocaleString()}</TableCell>
-                        <TableCell className="font-medium">S${employee.cpfEmployer.toLocaleString()}</TableCell>
-                        <TableCell className="font-bold text-green-600">S${employee.netPay.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No casual employees found
-              </div>
-            )}
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">No deductions</span>
+                      )}
+                      <div className="border-t pt-1">
+                        <span className="text-sm font-medium">
+                          Total: S${employee.deductions.reduce((sum, d) => sum + d.amount, 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">S${employee.cpfEmployee.toLocaleString()}</TableCell>
+                  <TableCell className="font-medium">S${employee.cpfEmployer.toLocaleString()}</TableCell>
+                  <TableCell className="font-bold text-green-600">S${employee.netPay.toLocaleString()}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </div>
 
@@ -463,14 +350,27 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
             Cancel
           </Button>
           <Button onClick={() => {
-            const newTotal = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
-            const updatedPayroll = {
+            // Update the payroll record with new calculated values
+            const updatedPayroll: PayrollRecord = {
               ...payroll,
-              totalAmount: newTotal,
-              employeeCount: employeeDetails.length
+              payrollData: {
+                ...payroll.payrollData,
+                baseSalary: employee.baseSalary || 0,
+                totalAllowances: employee.allowances.reduce((sum, a) => sum + a.amount, 0),
+                totalDeductions: employee.deductions.reduce((sum, d) => sum + d.amount, 0),
+                grossSalary: employee.grossPay,
+                employeeCPF: employee.cpfEmployee,
+                employerCPF: employee.cpfEmployer,
+                totalCPF: employee.cpfEmployee + employee.cpfEmployer,
+                approvedClaims: payroll.payrollData?.approvedClaims || 0,
+                netSalary: employee.netPay,
+                allowances: employee.allowances,
+                deductions: employee.deductions
+              }
             };
+            
             onSave(updatedPayroll);
-            toast(`Payroll for ${payroll.period} updated successfully`);
+            toast.success(`Payroll for ${payroll.month} ${payroll.year} updated successfully`);
             onClose();
           }}>
             Save Changes
