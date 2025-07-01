@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
-import { branches, addSlotBooking, getAvailableSlotsForDate, weeklySlots } from '@/data/slotBookingData';
+import { branches, addSlotBooking, getAvailableSlotsForDate, getWeeklySlotConfig } from '@/data/slotBookingData';
 import { getEmployees } from '@/services/employeeService';
 
 interface BulkSlotBookingDialogProps {
@@ -134,9 +134,18 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }) as keyof typeof weeklySlots[string];
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }) as keyof ReturnType<typeof getWeeklySlotConfig>[string];
+  const weeklySlots = getWeeklySlotConfig();
   const totalSlotsForDay = weeklySlots[selectedBranch]?.[dayName] || 0;
   const availableSlots = getAvailableSlotsForDate(dateStr, selectedBranch);
+
+  console.log('BulkSlotBookingDialog: Current branch config:', {
+    branchId: selectedBranch,
+    dayName,
+    totalSlotsForDay,
+    availableSlots,
+    weeklySlots: weeklySlots[selectedBranch]
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

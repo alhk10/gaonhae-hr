@@ -38,7 +38,7 @@ export const branches: Branch[] = [
     id: 'headquarters', 
     name: 'Headquarters', 
     address: '123 Business District, #12-34, Singapore 068123',
-    totalSlots: 8,
+    totalSlots: 0,
     color: 'bg-blue-500'
   },
   { 
@@ -78,15 +78,39 @@ export const branches: Branch[] = [
   },
 ];
 
-// Weekly slot configuration - Updated Headquarters slots to correct values
-export const weeklySlots: WeeklySlotConfig = {
-  headquarters: { Monday: 10, Tuesday: 10, Wednesday: 10, Thursday: 10, Friday: 10, Saturday: 6, Sunday: 4 },
-  balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
-  'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
-  kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 2 },
-  yishun: { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 7, Friday: 7, Saturday: 4, Sunday: 2 },
-  'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
+// Load weekly slots from localStorage or use defaults
+const getWeeklySlots = (): WeeklySlotConfig => {
+  try {
+    const storedConfig = localStorage.getItem('weekly_slots_config');
+    if (storedConfig) {
+      const parsed = JSON.parse(storedConfig);
+      console.log('Loaded weekly slots config from localStorage:', parsed);
+      return parsed;
+    }
+  } catch (error) {
+    console.error('Error loading weekly slots config:', error);
+  }
+  
+  // Default configuration with Headquarters set to 0
+  const defaultConfig: WeeklySlotConfig = {
+    headquarters: { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 },
+    balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
+    'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
+    kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 2 },
+    yishun: { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 7, Friday: 7, Saturday: 4, Sunday: 2 },
+    'bukit-merah': { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 }
+  };
+  
+  return defaultConfig;
 };
+
+// Dynamic weekly slots that updates from localStorage
+export const getWeeklySlotConfig = (): WeeklySlotConfig => {
+  return getWeeklySlots();
+};
+
+// Export the current config (backwards compatibility)
+export const weeklySlots: WeeklySlotConfig = getWeeklySlots();
 
 // Initialize slot bookings from localStorage with fallback
 const getStoredBookings = (): SlotBooking[] => {
@@ -229,7 +253,9 @@ export const getAvailableSlotsForDate = (date: string, branchId: string): number
   const dateObj = new Date(date);
   const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }) as keyof WeeklySlotConfig[string];
   const bookedSlots = getBookedSlotsForDate(date, branchId);
-  const totalSlots = weeklySlots[branchId]?.[dayName] || 0;
+  const currentWeeklySlots = getWeeklySlots();
+  const totalSlots = currentWeeklySlots[branchId]?.[dayName] || 0;
+  console.log(`getAvailableSlotsForDate: ${branchId} on ${dayName} - Total: ${totalSlots}, Booked: ${bookedSlots}, Available: ${Math.max(0, totalSlots - bookedSlots)}`);
   return Math.max(0, totalSlots - bookedSlots);
 };
 
@@ -244,6 +270,7 @@ export const getTotalSlotsStats = () => {
   
   let totalAvailableSlots = 0;
   let totalBookings = 0;
+  const currentWeeklySlots = getWeeklySlots();
   
   // Calculate for each day in the current month
   for (let day = 1; day <= monthEnd.getDate(); day++) {
@@ -252,7 +279,7 @@ export const getTotalSlotsStats = () => {
     const dayName = checkDate.toLocaleDateString('en-US', { weekday: 'long' }) as keyof WeeklySlotConfig[string];
     
     branches.forEach(branch => {
-      const totalSlotsForDay = weeklySlots[branch.id]?.[dayName] || 0;
+      const totalSlotsForDay = currentWeeklySlots[branch.id]?.[dayName] || 0;
       const bookedSlotsForDay = getBookedSlotsForDate(dateStr, branch.id);
       totalAvailableSlots += Math.max(0, totalSlotsForDay - bookedSlotsForDay);
       totalBookings += bookedSlotsForDay;

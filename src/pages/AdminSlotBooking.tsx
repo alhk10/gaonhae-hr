@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -23,7 +22,7 @@ import {
   updateSlotBookingStatus,
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
-  weeklySlots,
+  getWeeklySlotConfig,
   SlotBooking,
   WeeklySlotConfig
 } from '@/data/slotBookingData';
@@ -40,7 +39,7 @@ const AdminSlotBooking = () => {
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
-  const [currentWeeklySlots, setCurrentWeeklySlots] = useState(weeklySlots);
+  const [currentWeeklySlots, setCurrentWeeklySlots] = useState<WeeklySlotConfig>({});
 
   // Load settings from localStorage
   useEffect(() => {
@@ -52,12 +51,10 @@ const AdminSlotBooking = () => {
           console.log('Loaded slot booking settings:', settings);
         }
 
-        const storedWeeklySlots = localStorage.getItem('weekly_slots_config');
-        if (storedWeeklySlots) {
-          const weeklyConfig = JSON.parse(storedWeeklySlots);
-          console.log('Loaded weekly slots config:', weeklyConfig);
-          setCurrentWeeklySlots(weeklyConfig);
-        }
+        // Load current weekly slots configuration
+        const weeklyConfig = getWeeklySlotConfig();
+        console.log('Loaded weekly slots config:', weeklyConfig);
+        setCurrentWeeklySlots(weeklyConfig);
       } catch (error) {
         console.error('Error loading settings:', error);
       }
