@@ -39,8 +39,12 @@ const Settings = () => {
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isEditBranchOpen, setIsEditBranchOpen] = useState(false);
   const [isAddAllowanceOpen, setIsAddAllowanceOpen] = useState(false);
+  const [isEditAllowanceOpen, setIsEditAllowanceOpen] = useState(false);
   const [isAddDeductionOpen, setIsAddDeductionOpen] = useState(false);
+  const [isEditDeductionOpen, setIsEditDeductionOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [editingAllowance, setEditingAllowance] = useState<SystemAllowance | null>(null);
+  const [editingDeduction, setEditingDeduction] = useState<SystemDeduction | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -122,6 +126,11 @@ const Settings = () => {
     toast("Branch deleted successfully");
   };
 
+  const openEditBranch = (branch: Branch) => {
+    setEditingBranch(branch);
+    setIsEditBranchOpen(true);
+  };
+
   const handleAddAllowance = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
@@ -152,6 +161,41 @@ const Settings = () => {
     }
   };
 
+  const handleEditAllowance = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingAllowance) return;
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    try {
+      const { data, error } = await supabase
+        .from('system_allowances')
+        .update({
+          name: formData.get('name') as string,
+          description: formData.get('description') as string || null
+        })
+        .eq('id', editingAllowance.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating allowance:', error);
+        toast("Error updating allowance");
+        return;
+      }
+
+      setAllowances(prev => prev.map(allowance => 
+        allowance.id === editingAllowance.id ? data : allowance
+      ));
+      setIsEditAllowanceOpen(false);
+      setEditingAllowance(null);
+      toast("Allowance updated successfully");
+    } catch (error) {
+      console.error('Error updating allowance:', error);
+      toast("Error updating allowance");
+    }
+  };
+
   const handleDeleteAllowance = async (id: number) => {
     try {
       const { error } = await supabase
@@ -171,6 +215,11 @@ const Settings = () => {
       console.error('Error deleting allowance:', error);
       toast("Error deleting allowance");
     }
+  };
+
+  const openEditAllowance = (allowance: SystemAllowance) => {
+    setEditingAllowance(allowance);
+    setIsEditAllowanceOpen(true);
   };
 
   const handleAddDeduction = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -203,6 +252,41 @@ const Settings = () => {
     }
   };
 
+  const handleEditDeduction = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingDeduction) return;
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    try {
+      const { data, error } = await supabase
+        .from('system_deductions')
+        .update({
+          name: formData.get('name') as string,
+          description: formData.get('description') as string || null
+        })
+        .eq('id', editingDeduction.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating deduction:', error);
+        toast("Error updating deduction");
+        return;
+      }
+
+      setDeductions(prev => prev.map(deduction => 
+        deduction.id === editingDeduction.id ? data : deduction
+      ));
+      setIsEditDeductionOpen(false);
+      setEditingDeduction(null);
+      toast("Deduction updated successfully");
+    } catch (error) {
+      console.error('Error updating deduction:', error);
+      toast("Error updating deduction");
+    }
+  };
+
   const handleDeleteDeduction = async (id: number) => {
     try {
       const { error } = await supabase
@@ -224,9 +308,9 @@ const Settings = () => {
     }
   };
 
-  const openEditBranch = (branch: Branch) => {
-    setEditingBranch(branch);
-    setIsEditBranchOpen(true);
+  const openEditDeduction = (deduction: SystemDeduction) => {
+    setEditingDeduction(deduction);
+    setIsEditDeductionOpen(true);
   };
 
   if (loading) {
@@ -389,13 +473,22 @@ const Settings = () => {
                         <TableRow key={allowance.id}>
                           <TableCell>{allowance.name}</TableCell>
                           <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDeleteAllowance(allowance.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openEditAllowance(allowance)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDeleteAllowance(allowance.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -457,13 +550,22 @@ const Settings = () => {
                         <TableRow key={deduction.id}>
                           <TableCell>{deduction.name}</TableCell>
                           <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDeleteDeduction(deduction.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openEditDeduction(deduction)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDeleteDeduction(deduction.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -493,6 +595,64 @@ const Settings = () => {
                     </div>
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setIsEditBranchOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditAllowanceOpen} onOpenChange={setIsEditAllowanceOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Allowance</DialogTitle>
+                  <DialogDescription>Update allowance information.</DialogDescription>
+                </DialogHeader>
+                {editingAllowance && (
+                  <form onSubmit={handleEditAllowance}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input name="name" defaultValue={editingAllowance.name} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Description (Optional)</Label>
+                        <Input name="description" defaultValue={editingAllowance.description || ''} />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsEditAllowanceOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditDeductionOpen} onOpenChange={setIsEditDeductionOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Deduction</DialogTitle>
+                  <DialogDescription>Update deduction information.</DialogDescription>
+                </DialogHeader>
+                {editingDeduction && (
+                  <form onSubmit={handleEditDeduction}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input name="name" defaultValue={editingDeduction.name} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Description (Optional)</Label>
+                        <Input name="description" defaultValue={editingDeduction.description || ''} />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsEditDeductionOpen(false)}>
                         Cancel
                       </Button>
                       <Button type="submit">Save Changes</Button>
