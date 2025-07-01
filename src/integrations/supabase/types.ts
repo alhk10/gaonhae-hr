@@ -539,6 +539,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_records: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          month: string
+          payroll_data: Json
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id: string
+          month: string
+          payroll_data: Json
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          month?: string
+          payroll_data?: Json
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slot_bookings: {
         Row: {
           created_at: string | null

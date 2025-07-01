@@ -103,7 +103,8 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
   const year = new Date().getFullYear();
   const recordId = `${employeeId}_${year}_${month.replace(' ', '_')}`;
   
-  const { error } = await supabase
+  // Use type assertion since TypeScript types haven't been updated yet
+  const { error } = await (supabase as any)
     .from('payroll_records')
     .upsert({
       id: recordId,
@@ -123,7 +124,8 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
 export const getEmployeePayrollRecords = async (employeeId: string): Promise<PayrollRecord[]> => {
   console.log('Fetching payroll records for employee:', employeeId);
   
-  const { data: records, error } = await supabase
+  // Use type assertion since TypeScript types haven't been updated yet
+  const { data: records, error } = await (supabase as any)
     .from('payroll_records')
     .select('*')
     .eq('employee_id', employeeId)
@@ -135,7 +137,7 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     throw error;
   }
 
-  return records?.map(record => ({
+  return records?.map((record: any) => ({
     id: record.id,
     employeeId: record.employee_id,
     month: record.month,
