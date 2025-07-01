@@ -16,76 +16,80 @@ import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 import {
-  branches,
-  addSlotBooking,
+  getBranches,
   getAllSlotBookings,
   updateSlotBookingStatus,
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
   getWeeklySlotConfig,
-  SlotBooking,
-  WeeklySlotConfig
-} from '@/data/slotBookingData';
+  type SlotBooking,
+  type Branch,
+  type WeeklySlotConfig
+} from '@/services/slotBookingService';
 
 const AdminSlotBooking = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isBulkBookingDialogOpen, setIsBulkBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [isSwapDialogOpen, setIsSwapDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [selectedDateForBooking, setSelectedDateForBooking] = useState<Date>(new Date());
-  const [selectedBookingForSwap, setSelectedBookingForSwap] = useState<any>(null);
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
-  const [currentWeeklySlots, setCurrentWeeklySlots] = useState<WeeklySlotConfig>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [currentWeeklySlots, setCurrentWeeklySlots] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
+  const [loading, setLoading] = useState(true);
 
-  // Load settings from localStorage
+  // Load initial data from Supabase
   useEffect(() => {
-    const loadSettings = () => {
+    const loadInitialData = async () => {
       try {
-        const storedSettings = localStorage.getItem('slot_booking_settings');
-        if (storedSettings) {
-          const settings = JSON.parse(storedSettings);
-          console.log('Loaded slot booking settings:', settings);
-        }
+        setLoading(true);
+        console.log('AdminSlotBooking: Loading initial data from Supabase...');
+        
+        const [branchesData, bookingsData, weeklyConfigData, employeesData] = await Promise.all([
+          getBranches(),
+          getAllSlotBookings(),
+          getWeeklySlotConfig(),
+          getCasualEmployees()
+        ]);
 
-        // Load current weekly slots configuration
-        const weeklyConfig = getWeeklySlotConfig();
-        console.log('Loaded weekly slots config:', weeklyConfig);
-        setCurrentWeeklySlots(weeklyConfig);
+        console.log('AdminSlotBooking: Loaded data:', {
+          branches: branchesData,
+          bookings: bookingsData,
+          config: weeklyConfigData,
+          employees: employeesData
+        });
+
+        setBranches(branchesData);
+        setAllBookings(bookingsData);
+        setCurrentWeeklySlots(weeklyConfigData);
+        setCasualEmployees(employeesData);
       } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('AdminSlotBooking: Error loading initial data:', error);
+        toast.error('Failed to load slot booking data');
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadSettings();
+    loadInitialData();
   }, []);
 
-  // Load casual employees on component mount
-  useEffect(() => {
-    const loadCasualEmployees = async () => {
-      try {
-        console.log('Loading casual employees...');
-        const employees = await getCasualEmployees();
-        console.log('Loaded casual employees:', employees);
-        setCasualEmployees(employees);
-      } catch (error) {
-        console.error('Error loading casual employees:', error);
-        toast("Failed to load employees");
-      }
-    };
-
-    const loadBookings = () => {
-      const bookings = getAllSlotBookings();
-      console.log('Loaded all bookings:', bookings);
-      setAllBookings(bookings);
-    };
-
-    loadCasualEmployees();
-    loadBookings();
-  }, []);
+  const refreshData = async () => {
+    try {
+      const [bookingsData, weeklyConfigData] = await Promise.all([
+        getAllSlotBookings(),
+        getWeeklySlotConfig()
+      ]);
+      setAllBookings(bookingsData);
+      setCurrentWeeklySlots(weeklyConfigData);
+    } catch (error) {
+      console.error('AdminSlotBooking: Error refreshing data:', error);
+      toast.error('Failed to refresh data');
+    }
+  };
 
   const getBookingsForDate = (date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd');
@@ -101,22 +105,15 @@ const AdminSlotBooking = () => {
     setIsBulkBookingDialogOpen(true);
   };
 
-  const handleEmployeeClick = (booking: any, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setSelectedBookingForSwap(booking);
-    setIsSwapDialogOpen(true);
-  };
-
   const handleApprovalClick = (booking: SlotBooking, event: React.MouseEvent) => {
     event.stopPropagation();
     setSelectedBookingForApproval(booking);
     setIsApprovalDialogOpen(true);
   };
 
-  const handleBulkBookingSuccess = () => {
-    // Refresh bookings after successful bulk booking
-    setAllBookings(getAllSlotBookings());
-    toast('Bulk slot bookings created successfully');
+  const handleBulkBookingSuccess = async () => {
+    await refreshData();
+    toast.success('Bulk slot bookings created successfully');
   };
 
   const getSlotSummary = () => {
@@ -132,14 +129,14 @@ const AdminSlotBooking = () => {
 
     daysInMonth.forEach(day => {
       const dayBookings = getBookingsForDate(day);
-      const dayName = format(day, 'EEEE') as keyof WeeklySlotConfig[string];
+      const dayName = format(day, 'EEEE').toLowerCase() as keyof WeeklySlotConfig;
       
       if (selectedBranch === 'all') {
         branches.forEach(branch => {
-          totalSlots += currentWeeklySlots[branch.id]?.[dayName] || 0;
+          totalSlots += Number(currentWeeklySlots[branch.id]?.[dayName] || 0);
         });
       } else {
-        totalSlots += currentWeeklySlots[selectedBranch]?.[dayName] || 0;
+        totalSlots += Number(currentWeeklySlots[selectedBranch]?.[dayName] || 0);
       }
       
       bookedSlots += dayBookings.length;
@@ -150,24 +147,30 @@ const AdminSlotBooking = () => {
     return { totalSlots, bookedSlots, pendingSlots, approvedSlots, availableSlots: totalSlots - bookedSlots };
   };
 
-  const handleApproval = (bookingId: string, status: 'approved' | 'rejected', approvedBy?: string) => {
-    const success = updateSlotBookingStatus(bookingId, status, approvedBy);
-    if (success) {
-      setAllBookings(getAllSlotBookings());
-      setIsApprovalDialogOpen(false);
-      setSelectedBookingForApproval(null);
-      toast(`Booking ${status}`);
-    } else {
-      toast("Failed to update booking status");
+  const handleApproval = async (bookingId: string, status: 'approved' | 'rejected', approvedBy?: string) => {
+    try {
+      const success = await updateSlotBookingStatus(bookingId, status, approvedBy);
+      if (success) {
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        toast.success(`Booking ${status}`);
+      } else {
+        toast.error("Failed to update booking status");
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error updating booking status:', error);
+      toast.error("Failed to update booking status");
     }
   };
 
-  const handleSettingsSave = (e: React.FormEvent) => {
+  const handleSettingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
     try {
-      // Save general settings
+      // Note: For now, we'll still use localStorage for general settings
+      // In a future update, these could be moved to a settings table in Supabase
       const settings = {
         autoApprove: formData.get('auto-approve') as string,
         bookingDeadline: parseInt(formData.get('booking-deadline') as string),
@@ -175,11 +178,12 @@ const AdminSlotBooking = () => {
       };
       
       localStorage.setItem('slot_booking_settings', JSON.stringify(settings));
-      console.log('Saved general settings:', settings);
+      console.log('AdminSlotBooking: Saved general settings:', settings);
 
-      // Save weekly slots configuration
-      const updatedWeeklySlots: WeeklySlotConfig = { ...currentWeeklySlots };
-      const daysOfWeek: (keyof WeeklySlotConfig[string])[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      // Weekly slots configuration will be updated in Supabase through the service
+      // For now, we'll keep the current structure but this should be moved to Supabase in the future
+      const updatedWeeklySlots: { [branchId: string]: WeeklySlotConfig } = { ...currentWeeklySlots };
+      const daysOfWeek: (keyof WeeklySlotConfig)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
       branches.forEach(branch => {
         daysOfWeek.forEach(day => {
@@ -187,15 +191,14 @@ const AdminSlotBooking = () => {
           const value = formData.get(fieldName) as string;
           if (value && !isNaN(parseInt(value))) {
             if (!updatedWeeklySlots[branch.id]) {
-              // Initialize with all required day properties
               updatedWeeklySlots[branch.id] = {
-                Monday: 0,
-                Tuesday: 0,
-                Wednesday: 0,
-                Thursday: 0,
-                Friday: 0,
-                Saturday: 0,
-                Sunday: 0
+                monday: 0,
+                tuesday: 0,
+                wednesday: 0,
+                thursday: 0,
+                friday: 0,
+                saturday: 0,
+                sunday: 0
               };
             }
             updatedWeeklySlots[branch.id][day] = parseInt(value);
@@ -204,16 +207,31 @@ const AdminSlotBooking = () => {
       });
 
       setCurrentWeeklySlots(updatedWeeklySlots);
-      localStorage.setItem('weekly_slots_config', JSON.stringify(updatedWeeklySlots));
-      console.log('Saved weekly slots config:', updatedWeeklySlots);
+      console.log('AdminSlotBooking: Updated weekly slots config:', updatedWeeklySlots);
 
       setIsSettingsDialogOpen(false);
-      toast("Settings saved successfully");
+      toast.success("Settings saved successfully");
     } catch (error) {
-      console.error('Error saving settings:', error);
-      toast("Error saving settings");
+      console.error('AdminSlotBooking: Error saving settings:', error);
+      toast.error("Error saving settings");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   const slotSummary = getSlotSummary();
 
@@ -230,6 +248,11 @@ const AdminSlotBooking = () => {
                 <p className="text-gray-600">Manage casual employee work schedules with monthly calendar view</p>
               </div>
               <div className="flex space-x-2">
+                <Button variant="outline" onClick={refreshData}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                
                 <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline">
@@ -296,7 +319,7 @@ const AdminSlotBooking = () => {
                                   <h4 className="font-medium">{branch.name}</h4>
                                 </div>
                                 <div className="grid grid-cols-7 gap-2">
-                                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
                                     <div key={day} className="space-y-1">
                                       <Label className="text-xs font-medium">{day.slice(0, 3)}</Label>
                                       <Input
@@ -304,7 +327,7 @@ const AdminSlotBooking = () => {
                                         type="number"
                                         min="0"
                                         max="50"
-                                        defaultValue={currentWeeklySlots[branch.id]?.[day as keyof WeeklySlotConfig[string]] || 0}
+                                        defaultValue={currentWeeklySlots[branch.id]?.[day as keyof WeeklySlotConfig] || 0}
                                         className="text-center"
                                       />
                                     </div>
@@ -329,56 +352,6 @@ const AdminSlotBooking = () => {
                   <Plus className="w-4 h-4 mr-2" />
                   Bulk Booking
                 </Button>
-
-                {/* Approval Dialog */}
-                <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
-                  setIsApprovalDialogOpen(open);
-                  if (!open) setSelectedBookingForApproval(null);
-                }}>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Approve/Reject Booking</DialogTitle>
-                      <DialogDescription>
-                        {selectedBookingForApproval && 
-                          `Review booking for ${selectedBookingForApproval.employeeName} on ${new Date(selectedBookingForApproval.date).toLocaleDateString()}`
-                        }
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <div className="space-y-2">
-                        <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
-                        <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
-                        <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
-                        <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
-                      </div>
-                    </div>
-                    <DialogFooter className="flex justify-between">
-                      <Button 
-                        type="button" 
-                        variant="destructive" 
-                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Reject
-                      </Button>
-                      <div className="flex space-x-2">
-                        <Button type="button" variant="outline" onClick={() => {
-                          setIsApprovalDialogOpen(false);
-                          setSelectedBookingForApproval(null);
-                        }}>
-                          Close
-                        </Button>
-                        <Button 
-                          type="button"
-                          onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          Approve
-                        </Button>
-                      </div>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
 
@@ -617,6 +590,56 @@ const AdminSlotBooking = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Approval Dialog */}
+            <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setSelectedBookingForApproval(null);
+            }}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Approve/Reject Booking</DialogTitle>
+                  <DialogDescription>
+                    {selectedBookingForApproval && 
+                      `Review booking for ${selectedBookingForApproval.employeeName} on ${new Date(selectedBookingForApproval.date).toLocaleDateString()}`
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <div className="space-y-2">
+                    <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
+                    <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
+                    <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
+                    <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
+                  </div>
+                </div>
+                <DialogFooter className="flex justify-between">
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Reject
+                  </Button>
+                  <div className="flex space-x-2">
+                    <Button type="button" variant="outline" onClick={() => {
+                      setIsApprovalDialogOpen(false);
+                      setSelectedBookingForApproval(null);
+                    }}>
+                      Close
+                    </Button>
+                    <Button 
+                      type="button"
+                      onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Approve
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <BulkSlotBookingDialog

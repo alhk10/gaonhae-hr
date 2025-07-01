@@ -49,7 +49,7 @@ const SlotBooking = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Loading initial slot booking data...');
+      console.log('SlotBooking: Loading initial slot booking data from Supabase...');
       
       const [branchesData, statsData] = await Promise.all([
         getBranches(),
@@ -60,10 +60,10 @@ const SlotBooking = () => {
       setTotalAvailableSlots(statsData.totalAvailableSlots);
       setTotalBookings(statsData.totalBookings);
       
-      console.log('Loaded branches:', branchesData);
-      console.log('Loaded stats:', statsData);
+      console.log('SlotBooking: Loaded branches:', branchesData);
+      console.log('SlotBooking: Loaded stats:', statsData);
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('SlotBooking: Error loading initial data:', error);
       toast.error('Failed to load slot booking data');
     } finally {
       setLoading(false);
@@ -83,9 +83,9 @@ const SlotBooking = () => {
       setAvailableSlots(available);
       setBookedSlots(booked);
       
-      console.log('Updated slot counts:', { available, booked, date: dateStr, branch: selectedBranch });
+      console.log('SlotBooking: Updated slot counts:', { available, booked, date: dateStr, branch: selectedBranch });
     } catch (error) {
-      console.error('Error updating slot counts:', error);
+      console.error('SlotBooking: Error updating slot counts:', error);
     }
   };
 
@@ -120,7 +120,7 @@ const SlotBooking = () => {
       setTotalAvailableSlots(statsData.totalAvailableSlots);
       setTotalBookings(statsData.totalBookings);
     } catch (error) {
-      console.error('Error booking slot:', error);
+      console.error('SlotBooking: Error booking slot:', error);
       toast.error('Failed to book slot. Please try again.');
     }
   };
