@@ -1,32 +1,33 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { addAttendanceRecord } from '@/services/attendanceService';
-import { getBranches } from '@/services/settingsService';
-import { getEmployees } from '@/services/employeeService';
+import { Calendar, Users, Clock, Search } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Employee {
-  id: string;
-  name: string;
-  branch?: string;
-  department?: string;
-  position?: string;
-}
+import { addAttendanceRecord } from '@/services/attendanceService';
+import { getEmployees } from '@/services/employeeService';
 
 interface BulkAttendanceDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  employees: Employee[];
+  employees: any[];
   selectedDate: Date;
-  onSuccess: () => Promise<void>;
+  onSuccess: () => void;
+}
+
+interface EmployeeData {
+  id: string;
+  name: string;
+  type: string;
+  department?: string;
+  position?: string;
 }
 
 const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
@@ -36,260 +37,315 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   selectedDate,
   onSuccess
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [branches, setBranches] = useState<Array<{id: number; name: string; address: string}>>([]);
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [checkInTime, setCheckInTime] = useState('09:00');
+  const [checkOutTime, setCheckOutTime] = useState('18:00');
+  const [status, setStatus] = useState<'Present' | 'Late' | 'Absent' | 'Half Day'>('Present');
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeData[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     if (isOpen) {
-      loadBranches();
-      loadEmployees();
+      loadAllEmployees();
     }
   }, [isOpen]);
 
-  const loadBranches = async () => {
+  const loadAllEmployees = async () => {
     try {
-      console.log('Loading branches...');
-      const branchData = getBranches();
-      console.log('Loaded branches:', branchData);
-      setBranches(branchData);
-      // Set default to first branch if available
-      if (branchData.length > 0) {
-        setSelectedBranch(branchData[0].name);
-        console.log('Default branch set to:', branchData[0].name);
-      }
-    } catch (error) {
-      console.error('Error loading branches:', error);
-      toast('Error loading branches');
-    }
-  };
-
-  const loadEmployees = async () => {
-    try {
-      console.log('Loading all employees for bulk attendance...');
+      setLoadingEmployees(true);
+      console.log('BulkAttendanceDialog: Loading all employees from Supabase...');
+      
+      // Load employees directly from the service to ensure we get all employees
       const employeeData = await getEmployees();
-      console.log('Total employees loaded from service:', employeeData.length);
-      console.log('All employees:', employeeData.map(emp => ({ id: emp.id, name: emp.name, resignDate: emp.resignDate })));
+      console.log('BulkAttendanceDialog: Loaded employees from service:', employeeData.length, 'employees');
+      console.log('BulkAttendanceDialog: Employee names:', employeeData.map(emp => emp.name));
       
-      // Filter out resigned employees and log the filtering process
-      const activeEmployees = employeeData.filter(emp => {
-        const isActive = !emp.resignDate;
-        if (!isActive) {
-          console.log('Filtering out resigned employee:', emp.name, 'resign date:', emp.resignDate);
-        }
-        return isActive;
-      });
+      // Check if "Ng Kai Rui Jovious" is in the data
+      const ngKaiRui = employeeData.find(emp => 
+        emp.name.toLowerCase().includes('ng kai rui') || 
+        emp.name.toLowerCase().includes('jovious')
+      );
+      console.log('BulkAttendanceDialog: Found Ng Kai Rui Jovious:', ngKaiRui);
       
-      console.log('Active employees after filtering:', activeEmployees.length);
-      console.log('Active employee names:', activeEmployees.map(emp => emp.name));
-      
-      // Check specifically for Jovious and Jolene
-      const jovious = employeeData.find(emp => emp.name.toLowerCase().includes('jovious'));
-      const jolene = employeeData.find(emp => emp.name.toLowerCase().includes('jolene'));
-      
-      if (jovious) {
-        console.log('Found Jovious:', jovious.name, 'resign date:', jovious.resignDate, 'active:', !jovious.resignDate);
-      } else {
-        console.log('Jovious not found in employee data');
-      }
-      
-      if (jolene) {
-        console.log('Found Jolene:', jolene.name, 'resign date:', jolene.resignDate, 'active:', !jolene.resignDate);
-      } else {
-        console.log('Jolene not found in employee data');
-      }
-      
-      setAllEmployees(activeEmployees);
+      setEmployees(employeeData);
     } catch (error) {
-      console.error('Error loading employees:', error);
+      console.error('BulkAttendanceDialog: Error loading employees:', error);
       toast('Error loading employees');
       // Fallback to prop employees if service fails
-      console.log('Using fallback prop employees:', propEmployees.length);
-      setAllEmployees(propEmployees);
+      console.log('BulkAttendanceDialog: Falling back to prop employees:', propEmployees.length);
+      setEmployees(propEmployees || []);
+    } finally {
+      setLoadingEmployees(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  // Filter employees based on search term and type
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = searchTerm === '' || 
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = employeeTypeFilter === 'all' || 
+      employee.type?.toLowerCase() === employeeTypeFilter.toLowerCase();
+    
+    return matchesSearch && matchesType;
+  });
+
+  console.log('BulkAttendanceDialog: Filtered employees count:', filteredEmployees.length);
+  console.log('BulkAttendanceDialog: Search term:', searchTerm);
+  console.log('BulkAttendanceDialog: Type filter:', employeeTypeFilter);
+
+  const handleEmployeeToggle = (employeeId: string) => {
+    setSelectedEmployees(prev => 
+      prev.includes(employeeId)
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedEmployees.length === filteredEmployees.length) {
+      setSelectedEmployees([]);
+    } else {
+      setSelectedEmployees(filteredEmployees.map(emp => emp.id));
+    }
+  };
+
+  const calculateHours = (checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) return 0;
+    
+    const checkInTime = new Date(`2000-01-01T${checkIn}`);
+    const checkOutTime = new Date(`2000-01-01T${checkOut}`);
+    const totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
+    
+    return Math.max(0, totalMinutes / 60);
+  };
+
+  const handleSubmit = async () => {
+    if (selectedEmployees.length === 0) {
+      toast('Please select at least one employee');
+      return;
+    }
 
     try {
-      const formData = new FormData(e.currentTarget);
-      const date = formData.get('date') as string;
-      const checkIn = formData.get('checkIn') as string;
-      const checkOut = formData.get('checkOut') as string;
-      
-      const selectedEmployees = formData.getAll('employees') as string[];
-      
-      if (selectedEmployees.length === 0) {
-        toast('Please select at least one employee');
-        return;
-      }
+      setLoading(true);
+      console.log('BulkAttendanceDialog: Creating attendance records for', selectedEmployees.length, 'employees');
 
-      if (!selectedBranch) {
-        toast('Please select a branch');
-        return;
-      }
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const hoursWorked = status === 'Present' || status === 'Late' 
+        ? calculateHours(checkInTime, checkOutTime)
+        : status === 'Half Day' ? 4 : 0;
 
-      // Calculate hours worked
-      let hoursWorked = 0;
-      if (checkIn && checkOut) {
-        const checkInTime = new Date(`2000-01-01T${checkIn}`);
-        const checkOutTime = new Date(`2000-01-01T${checkOut}`);
-        const diffInMs = checkOutTime.getTime() - checkInTime.getTime();
-        hoursWorked = Math.max(0, diffInMs / (1000 * 60 * 60));
-      }
-
-      // Determine status based on check-in time
-      let status: 'Present' | 'Late' = 'Present';
-      if (checkIn) {
-        const checkInTime = new Date(`2000-01-01T${checkIn}`);
-        const nineAM = new Date(`2000-01-01T09:00`);
-        status = checkInTime > nineAM ? 'Late' : 'Present';
-      }
-
-      // Add attendance records for selected employees
-      const promises = selectedEmployees.map(employeeId =>
-        addAttendanceRecord({
+      const attendancePromises = selectedEmployees.map(employeeId => {
+        const employee = employees.find(emp => emp.id === employeeId);
+        return addAttendanceRecord({
           employeeId,
-          date,
-          checkIn,
-          checkOut,
+          date: dateStr,
+          checkIn: status === 'Present' || status === 'Late' ? checkInTime : null,
+          checkOut: status === 'Present' || status === 'Late' ? checkOutTime : null,
           status,
           hoursWorked,
-          location: selectedBranch
-        })
-      );
+          location: 'Office'
+        });
+      });
 
-      await Promise.all(promises);
-      
-      toast(`Bulk attendance added for ${selectedEmployees.length} employees at ${selectedBranch}`);
-      await onSuccess();
+      await Promise.all(attendancePromises);
+
+      toast(`Successfully added attendance records for ${selectedEmployees.length} employees`);
+      onSuccess();
       onClose();
-      setSelectedBranch('');
+      setSelectedEmployees([]);
     } catch (error) {
-      console.error('Error adding bulk attendance:', error);
-      toast('Error adding bulk attendance');
+      console.error('BulkAttendanceDialog: Error adding attendance records:', error);
+      toast('Error adding attendance records');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const employeesToDisplay = allEmployees.length > 0 ? allEmployees : propEmployees;
+  // Get unique employee types for filter
+  const employeeTypes = [...new Set(employees.map(emp => emp.type).filter(Boolean))];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Bulk Attendance</DialogTitle>
-          <DialogDescription>Add attendance records for multiple employees at once.</DialogDescription>
+          <DialogTitle className="flex items-center space-x-2">
+            <Calendar className="w-5 h-5" />
+            <span>Add Bulk Attendance</span>
+          </DialogTitle>
+          <DialogDescription>
+            Add attendance records for multiple employees at once for {format(selectedDate, 'PPP')}
+          </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
+
+        <div className="flex-1 space-y-4 overflow-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="date">Date</Label>
               <Input
-                name="date"
-                type="date"
-                required
-                defaultValue={format(selectedDate, 'yyyy-MM-dd')}
+                id="date"
+                value={format(selectedDate, 'dd/MM/yyyy')}
+                disabled
+                className="bg-gray-50"
               />
             </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="branch">Branch</Label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch} required>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent className="bg-white z-50 max-h-[200px] overflow-auto">
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.name}>
-                      {branch.name}
+                <SelectContent>
+                  <SelectItem value="Present">Present</SelectItem>
+                  <SelectItem value="Late">Late</SelectItem>
+                  <SelectItem value="Absent">Absent</SelectItem>
+                  <SelectItem value="Half Day">Half Day</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {(status === 'Present' || status === 'Late') && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="checkIn">Check In Time</Label>
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <Input
+                    id="checkIn"
+                    type="time"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="checkOut">Check Out Time</Label>
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <Input
+                    id="checkOut"
+                    type="time"
+                    value={checkOutTime}
+                    onChange={(e) => setCheckOutTime(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label>Select Employees ({selectedEmployees.length} selected)</Label>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline">
+                  {filteredEmployees.length} employees
+                </Badge>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  disabled={loadingEmployees}
+                >
+                  {selectedEmployees.length === filteredEmployees.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search employees by name or ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={employeeTypeFilter} onValueChange={setEmployeeTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {employeeTypes.map(type => (
+                    <SelectItem key={type} value={type.toLowerCase()}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {branches.length > 0 && (
-                <p className="text-xs text-gray-500">
-                  {branches.length} branches available
-                </p>
-              )}
             </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-2">
-                <Label htmlFor="checkIn">Check In</Label>
-                <Input name="checkIn" type="time" defaultValue="09:00" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="checkOut">Check Out</Label>
-                <Input name="checkOut" type="time" defaultValue="18:00" />
-              </div>
-            </div>
-          </div>
 
-          <div className="flex-1 overflow-hidden">
-            <Label className="text-sm font-medium">Select Employees</Label>
-            <div className="border rounded-md mt-2 overflow-hidden">
-              <div className="max-h-80 overflow-y-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox 
-                          onCheckedChange={(checked) => {
-                            const checkboxes = document.querySelectorAll('input[name="employees"]') as NodeListOf<HTMLInputElement>;
-                            checkboxes.forEach(checkbox => {
-                              checkbox.checked = checked as boolean;
-                            });
-                          }}
-                        />
-                      </TableHead>
-                      <TableHead>Employee ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Position</TableHead>
-                      <TableHead>Current Branch</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeesToDisplay.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <Checkbox 
-                            name="employees"
-                            value={employee.id}
-                            id={`emp-${employee.id}`}
+            {loadingEmployees ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading employees...</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-64 border rounded-lg">
+                <div className="p-3">
+                  {filteredEmployees.length > 0 ? (
+                    <div className="space-y-2">
+                      {filteredEmployees.map((employee) => (
+                        <div key={employee.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg border">
+                          <Checkbox
+                            id={employee.id}
+                            checked={selectedEmployees.includes(employee.id)}
+                            onCheckedChange={() => handleEmployeeToggle(employee.id)}
                           />
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{employee.id}</TableCell>
-                        <TableCell className="font-medium">{employee.name}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{employee.position || 'N/A'}</TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          {employee.branch || employee.department || 'Main Office'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              {employeesToDisplay.length} employees available
-            </p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{employee.name}</p>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="secondary" className="text-xs">
+                                  {employee.type}
+                                </Badge>
+                                {employee.department && (
+                                  <p className="text-xs text-gray-500 mt-1">{employee.department}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p>No employees found</p>
+                      {searchTerm && (
+                        <p className="text-sm">Try adjusting your search terms</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            )}
           </div>
+        </div>
 
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !selectedBranch}>
-              {isSubmitting ? 'Adding...' : 'Add Bulk Attendance'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <div className="flex justify-end space-x-2 pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || selectedEmployees.length === 0}
+          >
+            {loading ? 'Adding...' : `Add Attendance (${selectedEmployees.length})`}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

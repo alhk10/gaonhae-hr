@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, MapPin, Users, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, Clock, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,11 +19,14 @@ import {
   getTotalSlotsStats,
   weeklySlots
 } from '@/data/slotBookingData';
+import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 
 const SlotBooking = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [selectedDateForBulk, setSelectedDateForBulk] = useState<Date>(new Date());
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
   
@@ -57,6 +60,22 @@ const SlotBooking = () => {
     toast(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      // For admin users, open bulk booking dialog when clicking on calendar
+      if (user?.role !== 'employee') {
+        setSelectedDateForBulk(date);
+        setIsBulkDialogOpen(true);
+      }
+    }
+  };
+
+  const handleBulkBookingSuccess = () => {
+    toast('Bulk slot bookings created successfully');
+    // Refresh any data if needed
+  };
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -67,9 +86,18 @@ const SlotBooking = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Slot Booking</h2>
-              <p className="text-gray-600">Book daily work slots for casual workers</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Slot Booking</h2>
+                <p className="text-gray-600">Book daily work slots for casual workers</p>
+              </div>
+              
+              {user?.role !== 'employee' && (
+                <Button onClick={() => setIsBulkDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Booking
+                </Button>
+              )}
             </div>
 
             {/* Statistics Cards */}
@@ -119,7 +147,12 @@ const SlotBooking = () => {
                     <CalendarIcon className="w-5 h-5" />
                     <span>Select Date & Branch</span>
                   </CardTitle>
-                  <CardDescription>Choose your preferred work date and branch location</CardDescription>
+                  <CardDescription>
+                    {user?.role === 'employee' 
+                      ? 'Choose your preferred work date and branch location'
+                      : 'Click on a date to create bulk bookings for casual employees'
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -146,7 +179,7 @@ const SlotBooking = () => {
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={setSelectedDate}
+                      onSelect={handleDateSelect}
                       className="rounded-md border"
                       disabled={(date) => date < today}
                     />
@@ -158,7 +191,12 @@ const SlotBooking = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Booking Details</CardTitle>
-                  <CardDescription>Confirm your slot booking</CardDescription>
+                  <CardDescription>
+                    {user?.role === 'employee' 
+                      ? 'Confirm your slot booking'
+                      : 'View slot availability information'
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {currentBranch && (
@@ -196,17 +234,26 @@ const SlotBooking = () => {
                     </div>
                   )}
 
-                  <Button 
-                    onClick={handleBookSlot} 
-                    className="w-full"
-                    disabled={!selectedDate || !currentBranch || getAvailableSlotsForDate(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedBranch) <= 0}
-                  >
-                    Book Slot
-                  </Button>
+                  {user?.role === 'employee' && (
+                    <Button 
+                      onClick={handleBookSlot} 
+                      className="w-full"
+                      disabled={!selectedDate || !currentBranch || getAvailableSlotsForDate(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedBranch) <= 0}
+                    >
+                      Book Slot
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </div>
+
+          <BulkSlotBookingDialog
+            isOpen={isBulkDialogOpen}
+            onClose={() => setIsBulkDialogOpen(false)}
+            selectedDate={selectedDateForBulk}
+            onSuccess={handleBulkBookingSuccess}
+          />
         </main>
       </div>
     </div>
