@@ -75,15 +75,21 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     if (open && employees.length > 0) {
       console.log('EmployeeModuleSettings: Initializing permissions for employees:', employees.length);
       const permissions: {[key: string]: ExtendedAdminAccessPermissions} = {};
+      
       employees.forEach(emp => {
-        console.log('EmployeeModuleSettings: Setting permissions for employee:', emp.id, emp.name, emp.adminAccess, emp.pageAccess);
+        console.log('EmployeeModuleSettings: Processing employee:', emp.id, emp.name);
+        console.log('EmployeeModuleSettings: Admin access:', emp.adminAccess);
+        console.log('EmployeeModuleSettings: Page access:', emp.pageAccess);
+        
         permissions[emp.id] = {
+          // Admin permissions
           employees: emp.adminAccess?.employees || false,
           payroll: emp.adminAccess?.payroll || false,
           leaveManagement: emp.adminAccess?.leaveManagement || false,
           claims: emp.adminAccess?.claims || false,
           attendance: emp.adminAccess?.attendance || false,
           slotBooking: emp.adminAccess?.slotBooking || false,
+          // Page permissions
           profile: emp.pageAccess?.profile ?? true,
           applyLeave: emp.pageAccess?.applyLeave ?? true,
           submitClaim: emp.pageAccess?.submitClaim ?? true,
@@ -92,6 +98,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           slotBookingEmployee: emp.pageAccess?.slotBookingEmployee ?? true
         };
       });
+      
       setEmployeePermissions(permissions);
       console.log('EmployeeModuleSettings: Initialized permissions:', permissions);
     }
@@ -109,13 +116,15 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
   };
 
   const handleSaveChanges = async () => {
-    console.log('EmployeeModuleSettings: Saving changes for permissions:', employeePermissions);
+    console.log('EmployeeModuleSettings: Starting save process...');
     setIsLoading(true);
+    
     try {
       const updatePromises = Object.entries(employeePermissions).map(async ([employeeId, permissions]) => {
-        console.log('EmployeeModuleSettings: Updating permissions for employee:', employeeId, permissions);
+        console.log('EmployeeModuleSettings: Updating permissions for employee:', employeeId);
+        console.log('EmployeeModuleSettings: Current permissions:', permissions);
         
-        // Update admin permissions
+        // Prepare admin permissions
         const adminPermissions = {
           employees: permissions.employees,
           payroll: permissions.payroll,
@@ -123,10 +132,10 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           claims: permissions.claims,
           attendance: permissions.attendance,
           slotBooking: permissions.slotBooking,
-          reports: false
+          reports: false // Always false as per existing logic
         };
         
-        // Update page permissions
+        // Prepare page permissions
         const pagePermissions = {
           profile: permissions.profile,
           applyLeave: permissions.applyLeave,
@@ -136,26 +145,36 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           slotBookingEmployee: permissions.slotBookingEmployee
         };
         
+        console.log('EmployeeModuleSettings: Saving admin permissions:', adminPermissions);
+        console.log('EmployeeModuleSettings: Saving page permissions:', pagePermissions);
+        
+        // Update both admin and page permissions
         await Promise.all([
           updateEmployeeAdminAccess(employeeId, adminPermissions),
           updateEmployeePageAccess(employeeId, pagePermissions)
         ]);
+        
+        console.log('EmployeeModuleSettings: Successfully updated permissions for employee:', employeeId);
       });
       
       await Promise.all(updatePromises);
+      
+      console.log('EmployeeModuleSettings: All permissions updated successfully');
       
       toast({
         title: "Success",
         description: "Employee module permissions updated successfully",
       });
       
-      onEmployeesUpdate();
+      // Refresh the employees data to reflect changes
+      await onEmployeesUpdate();
       onOpenChange(false);
+      
     } catch (error) {
       console.error('EmployeeModuleSettings: Error updating employee permissions:', error);
       toast({
         title: "Error",
-        description: "Failed to update employee permissions",
+        description: "Failed to update employee permissions. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -225,7 +244,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           <Table className="w-full">
             <TableHeader className="sticky top-0 bg-white z-10 border-b">
               <TableRow>
-                <TableHead className="w-[200px] p-2 border-r bg-gray-50 sticky left-0 z-20">
+                <TableHead className="w-[200px] p-1 border-r bg-gray-50 sticky left-0 z-20">
                   <div className="font-semibold text-sm">Employee Name</div>
                 </TableHead>
                 <TableHead className="w-16 text-center p-1 border-r bg-gray-50">
@@ -245,8 +264,8 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
             <TableBody>
               {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} className="hover:bg-gray-50">
-                  <TableCell className="p-2 border-r w-[200px] sticky left-0 bg-white z-10">
-                    <div className="font-medium text-sm truncate" title={employee.name}>
+                  <TableCell className="p-1 border-r w-[200px] sticky left-0 bg-white z-10">
+                    <div className="font-medium text-sm truncate py-1" title={employee.name}>
                       {employee.name}
                     </div>
                   </TableCell>
@@ -257,7 +276,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
                   </TableCell>
                   {modules.map(module => (
                     <TableCell key={module.key} className="text-center p-1 border-r">
-                      <div className="flex justify-center">
+                      <div className="flex justify-center py-1">
                         <Checkbox
                           checked={employeePermissions[employee.id]?.[module.key as keyof ExtendedAdminAccessPermissions] || false}
                           onCheckedChange={(checked) => 
