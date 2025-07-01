@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -5,22 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { usePayroll } from '@/contexts/PayrollContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
-import { getEmployeeClaims } from '@/services/claimsService';
-import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
-import { supabase } from '@/integrations/supabase/client';
+import { getEmployeePayrollData, getEmployeePayrollRecords, savePayrollRecord, type PayrollData } from '@/services/payrollService';
 import { EmployeeProfile } from '@/types/employee';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 
+interface PayslipDisplayData extends PayrollData {
+  month: string;
+}
+
 const Payslips = () => {
-  const { payrollState } = usePayroll();
   const { user } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
-  const [approvedClaimsTotal, setApprovedClaimsTotal] = useState(0);
-  const [employeeAllowances, setEmployeeAllowances] = useState<any[]>([]);
-  const [employeeDeductions, setEmployeeDeductions] = useState<any[]>([]);
+  const [payslips, setPayslips] = useState<PayslipDisplayData[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -36,7 +35,7 @@ const Payslips = () => {
 
         console.log('Loading employee data for ID:', user.employeeId);
         
-        // Use the current user's employee ID
+        // Load employee details
         const employee = await getEmployeeById(user.employeeId);
         console.log('Loaded employee:', employee);
         setCurrentEmployee(employee);
@@ -47,34 +46,54 @@ const Payslips = () => {
           return;
         }
         
-        // Load approved claims
-        const claims = await getEmployeeClaims(employee.id);
-        console.log('Loaded claims:', claims);
-        const approvedTotal = claims
-          .filter(claim => claim.status === 'Approved')
-          .reduce((sum, claim) => sum + claim.amount, 0);
-        console.log('Approved claims total:', approvedTotal);
-        setApprovedClaimsTotal(approvedTotal);
-
-        // Load current allowances and deductions from Supabase
-        const { data: allowances } = await supabase
-          .from('allowances')
-          .select('*')
-          .eq('employee_id', employee.id);
-
-        const { data: deductions } = await supabase
-          .from('deductions')
-          .select('*')
-          .eq('employee_id', employee.id);
-
-        console.log('Loaded allowances:', allowances);
-        console.log('Loaded deductions:', deductions);
-
-        setEmployeeAllowances(allowances || []);
-        setEmployeeDeductions(deductions || []);
+        // Try to load existing payroll records first
+        const existingRecords = await getEmployeePayrollRecords(user.employeeId);
+        console.log('Existing payroll records:', existingRecords);
+        
+        // Generate current payroll data
+        const currentPayrollData = await getEmployeePayrollData(user.employeeId);
+        console.log('Current payroll data:', currentPayrollData);
+        
+        // Generate payslips for recent months
+        const months = [
+          'December 2024',
+          'November 2024', 
+          'October 2024',
+          'September 2024'
+        ];
+        
+        const generatedPayslips: PayslipDisplayData[] = [];
+        
+        for (const month of months) {
+          // Check if we have existing record for this month
+          const existingRecord = existingRecords.find(record => record.month === month);
+          
+          let payrollData: PayrollData;
+          if (existingRecord) {
+            payrollData = existingRecord.payrollData;
+          } else {
+            // Use current payroll data for all months (in real system, this would be historical data)
+            payrollData = currentPayrollData;
+            
+            // Save the generated payroll record
+            try {
+              await savePayrollRecord(user.employeeId, month, payrollData);
+            } catch (error) {
+              console.error('Error saving payroll record for', month, ':', error);
+            }
+          }
+          
+          generatedPayslips.push({
+            month,
+            ...payrollData
+          });
+        }
+        
+        setPayslips(generatedPayslips);
+        
       } catch (error) {
         console.error('Error loading payroll data:', error);
-        toast("Error loading employee data");
+        toast.error("Error loading employee data");
       } finally {
         setLoading(false);
       }
@@ -86,6 +105,60 @@ const Payslips = () => {
       setLoading(false);
     }
   }, [user?.employeeId]);
+
+  const handleDownloadPayslipPDF = (month: string) => {
+    try {
+      console.log('Starting PDF download for month:', month);
+      
+      if (!currentEmployee) {
+        console.error('No current employee data available');
+        toast.error("Error: No employee data available");
+        return;
+      }
+
+      const payslipData = payslips.find(p => p.month === month);
+      if (!payslipData) {
+        toast.error("Payslip data not found for this month");
+        return;
+      }
+      
+      const pdfData = {
+        employee: {
+          id: currentEmployee.id,
+          name: currentEmployee.name,
+          nric: currentEmployee.nric,
+          branch: currentEmployee.branch,
+          position: currentEmployee.position,
+          bankName: currentEmployee.bankName,
+          bankAccount: currentEmployee.bankAccount
+        },
+        month,
+        baseSalary: payslipData.baseSalary,
+        totalAllowances: payslipData.totalAllowances,
+        totalDeductions: payslipData.totalDeductions,
+        grossSalary: payslipData.grossSalary,
+        employeeCPF: payslipData.employeeCPF,
+        employerCPF: payslipData.employerCPF,
+        totalCPF: payslipData.totalCPF,
+        approvedClaims: payslipData.approvedClaims,
+        netSalary: payslipData.netSalary,
+        allowances: payslipData.allowances,
+        deductions: payslipData.deductions
+      };
+      
+      console.log('PDF data being passed to generator:', pdfData);
+      
+      generatePayslipPDF(pdfData);
+      toast.success(`PDF payslip downloaded for ${month}`, {
+        description: `Employee: ${currentEmployee.name} (${currentEmployee.id})`
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error(`Error generating PDF for ${month}`, {
+        description: 'Please check console for details'
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -142,88 +215,6 @@ const Payslips = () => {
     );
   }
 
-  const generatePayslipData = (month: string) => {
-    console.log('Generating payslip data for month:', month);
-    console.log('Current employee:', currentEmployee);
-    console.log('Employee allowances:', employeeAllowances);
-    console.log('Employee deductions:', employeeDeductions);
-    
-    const baseSalary = currentEmployee?.baseSalary || 0;
-    const totalAllowances = employeeAllowances.reduce((sum, a) => sum + Number(a.amount), 0);
-    const totalDeductions = employeeDeductions.reduce((sum, d) => sum + Number(d.amount), 0);
-    const grossSalary = baseSalary + totalAllowances;
-    
-    const age = calculateAge(currentEmployee?.dateOfBirth || '');
-    const cpfCalc = calculateCPF(grossSalary, currentEmployee?.residencyStatus || 'Citizen', age);
-    
-    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaimsTotal;
-    
-    const payslipData = {
-      baseSalary,
-      totalAllowances,
-      totalDeductions,
-      grossSalary,
-      employeeCPF: cpfCalc.employeeCPF,
-      employerCPF: cpfCalc.employerCPF,
-      totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
-      approvedClaims: approvedClaimsTotal,
-      netSalary,
-      allowances: employeeAllowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
-      deductions: employeeDeductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
-    };
-    
-    console.log('Generated payslip data:', payslipData);
-    return payslipData;
-  };
-
-  const handleDownloadPayslipPDF = (month: string) => {
-    try {
-      console.log('Starting PDF download for month:', month);
-      
-      if (!currentEmployee) {
-        console.error('No current employee data available');
-        toast("Error: No employee data available");
-        return;
-      }
-
-      const payslipData = generatePayslipData(month);
-      
-      const pdfData = {
-        employee: {
-          id: currentEmployee.id,
-          name: currentEmployee.name,
-          nric: currentEmployee.nric,
-          branch: currentEmployee.branch,
-          position: currentEmployee.position,
-          bankName: currentEmployee.bankName,
-          bankAccount: currentEmployee.bankAccount
-        },
-        month,
-        ...payslipData
-      };
-      
-      console.log('PDF data being passed to generator:', pdfData);
-      
-      generatePayslipPDF(pdfData);
-      toast(`PDF payslip downloaded for ${month}`, {
-        description: `Employee: ${currentEmployee.name} (${currentEmployee.id})`
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast(`Error generating PDF for ${month}`, {
-        description: 'Please check console for details'
-      });
-    }
-  };
-
-  // Generate payslips for recent months using current employee data
-  const payslips = [
-    { month: 'December 2024', ...generatePayslipData('December 2024') },
-    { month: 'November 2024', ...generatePayslipData('November 2024') },
-    { month: 'October 2024', ...generatePayslipData('October 2024') },
-    { month: 'September 2024', ...generatePayslipData('September 2024') },
-  ];
-
   const totalEarningsYear = payslips.reduce((sum, payslip) => sum + payslip.grossSalary + payslip.approvedClaims, 0);
   const totalCPFYear = payslips.reduce((sum, payslip) => sum + payslip.totalCPF, 0);
 
@@ -236,7 +227,7 @@ const Payslips = () => {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-              <p className="text-gray-600">View and download your payslips with live data</p>
+              <p className="text-gray-600">View and download your payslips with live data from Supabase</p>
               <p className="text-sm text-gray-500 mt-1">
                 Employee: {currentEmployee?.name} ({currentEmployee?.id})
               </p>
@@ -276,7 +267,7 @@ const Payslips = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips as PDF</CardDescription>
+                <CardDescription>Download your monthly payslips as PDF (Data from Supabase)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -289,6 +280,11 @@ const Payslips = () => {
                           Gross: S${(payslip.grossSalary + payslip.approvedClaims).toLocaleString()} • 
                           CPF: S${payslip.totalCPF.toLocaleString()}
                           {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Base: S${payslip.baseSalary.toLocaleString()} • 
+                          Allowances: S${payslip.totalAllowances.toLocaleString()} • 
+                          Deductions: S${payslip.totalDeductions.toLocaleString()}
                         </p>
                       </div>
                       <div className="flex gap-2">
