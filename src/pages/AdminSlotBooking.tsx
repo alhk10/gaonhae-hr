@@ -22,6 +22,7 @@ import {
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
   getWeeklySlotConfig,
+  updateWeeklySlotConfig,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig
@@ -40,6 +41,7 @@ const AdminSlotBooking = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentWeeklySlots, setCurrentWeeklySlots] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
   const [loading, setLoading] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Load initial data from Supabase
   useEffect(() => {
@@ -85,6 +87,7 @@ const AdminSlotBooking = () => {
       ]);
       setAllBookings(bookingsData);
       setCurrentWeeklySlots(weeklyConfigData);
+      console.log('AdminSlotBooking: Data refreshed successfully');
     } catch (error) {
       console.error('AdminSlotBooking: Error refreshing data:', error);
       toast.error('Failed to refresh data');
@@ -166,56 +169,58 @@ const AdminSlotBooking = () => {
 
   const handleSettingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
+    setIsSavingSettings(true);
     
     try {
-      // Note: For now, we'll still use localStorage for general settings
-      // In a future update, these could be moved to a settings table in Supabase
-      const settings = {
-        autoApprove: formData.get('auto-approve') as string,
-        bookingDeadline: parseInt(formData.get('booking-deadline') as string),
-        maxBookings: parseInt(formData.get('max-bookings') as string)
-      };
+      const formData = new FormData(e.target as HTMLFormElement);
+      console.log('AdminSlotBooking: Saving settings to Supabase...');
       
-      localStorage.setItem('slot_booking_settings', JSON.stringify(settings));
-      console.log('AdminSlotBooking: Saved general settings:', settings);
-
-      // Weekly slots configuration will be updated in Supabase through the service
-      // For now, we'll keep the current structure but this should be moved to Supabase in the future
-      const updatedWeeklySlots: { [branchId: string]: WeeklySlotConfig } = { ...currentWeeklySlots };
+      // Save weekly slots configuration to Supabase
       const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
-      branches.forEach(branch => {
+      const updatePromises = branches.map(async (branch) => {
+        const weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'> = {
+          monday: 0,
+          tuesday: 0,
+          wednesday: 0,
+          thursday: 0,
+          friday: 0,
+          saturday: 0,
+          sunday: 0
+        };
+        
         daysOfWeek.forEach(day => {
           const fieldName = `${branch.id}-${day}`;
           const value = formData.get(fieldName) as string;
           if (value && !isNaN(parseInt(value))) {
-            if (!updatedWeeklySlots[branch.id]) {
-              updatedWeeklySlots[branch.id] = {
-                id: `config-${branch.id}`,
-                branchId: branch.id,
-                monday: 0,
-                tuesday: 0,
-                wednesday: 0,
-                thursday: 0,
-                friday: 0,
-                saturday: 0,
-                sunday: 0
-              };
-            }
-            updatedWeeklySlots[branch.id][day] = parseInt(value);
+            weeklyConfig[day] = parseInt(value);
           }
         });
+        
+        console.log(`Updating weekly slots for branch ${branch.id}:`, weeklyConfig);
+        return updateWeeklySlotConfig(branch.id, weeklyConfig);
       });
 
-      setCurrentWeeklySlots(updatedWeeklySlots);
-      console.log('AdminSlotBooking: Updated weekly slots config:', updatedWeeklySlots);
-
-      setIsSettingsDialogOpen(false);
-      toast.success("Settings saved successfully");
+      const results = await Promise.all(updatePromises);
+      const allSuccessful = results.every(result => result === true);
+      
+      if (allSuccessful) {
+        // Refresh the local state with updated data
+        const updatedWeeklyConfig = await getWeeklySlotConfig();
+        setCurrentWeeklySlots(updatedWeeklyConfig);
+        
+        setIsSettingsDialogOpen(false);
+        toast.success("Settings saved successfully to Supabase");
+        console.log('AdminSlotBooking: All settings saved successfully to Supabase');
+      } else {
+        toast.error("Some settings failed to save. Please try again.");
+        console.error('AdminSlotBooking: Some settings failed to save');
+      }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
       toast.error("Error saving settings");
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -265,53 +270,14 @@ const AdminSlotBooking = () => {
                   <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Slot Booking Settings</DialogTitle>
-                      <DialogDescription>Configure slot booking parameters, branch settings, and daily slot allocations.</DialogDescription>
+                      <DialogDescription>Configure weekly slot allocations for each branch. All changes will be saved to Supabase.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSettingsSave}>
                       <div className="grid gap-6 py-4">
-                        {/* General Settings */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium">General Settings</h3>
-                          <div className="grid gap-4">
-                            <div className="grid gap-2">
-                              <Label htmlFor="auto-approve">Auto-approve bookings</Label>
-                              <Select name="auto-approve" defaultValue="disabled">
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select auto-approve setting" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="enabled">Enabled</SelectItem>
-                                  <SelectItem value="disabled">Disabled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="booking-deadline">Booking deadline (hours before)</Label>
-                              <Input 
-                                name="booking-deadline" 
-                                type="number" 
-                                defaultValue="24"
-                                min="1"
-                                max="72"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="max-bookings">Max bookings per employee per month</Label>
-                              <Input 
-                                name="max-bookings" 
-                                type="number" 
-                                defaultValue="20"
-                                min="1"
-                                max="31"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Weekly Slots Configuration */}
                         <div className="space-y-4">
                           <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
-                          <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week.</p>
+                          <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week. Changes will be immediately saved to Supabase.</p>
                           
                           <div className="space-y-6">
                             {branches.map((branch) => (
@@ -344,7 +310,9 @@ const AdminSlotBooking = () => {
                         <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
                           Cancel
                         </Button>
-                        <Button type="submit">Save Settings</Button>
+                        <Button type="submit" disabled={isSavingSettings}>
+                          {isSavingSettings ? 'Saving...' : 'Save Settings'}
+                        </Button>
                       </DialogFooter>
                     </form>
                   </DialogContent>

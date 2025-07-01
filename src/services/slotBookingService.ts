@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Branch {
@@ -87,6 +86,32 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
   });
 
   return config;
+};
+
+// Update weekly slot configuration in Supabase
+export const updateWeeklySlotConfig = async (branchId: string, config: Omit<WeeklySlotConfig, 'id' | 'branchId'>): Promise<boolean> => {
+  console.log('Updating weekly slot config for branch:', branchId, config);
+  
+  const { error } = await supabase
+    .from('weekly_slot_config')
+    .update({
+      monday: config.monday,
+      tuesday: config.tuesday,
+      wednesday: config.wednesday,
+      thursday: config.thursday,
+      friday: config.friday,
+      saturday: config.saturday,
+      sunday: config.sunday
+    })
+    .eq('branch_id', branchId);
+
+  if (error) {
+    console.error('Error updating weekly slot config:', error);
+    return false;
+  }
+
+  console.log('Successfully updated weekly slot config for branch:', branchId);
+  return true;
 };
 
 // Fetch all slot bookings from Supabase
