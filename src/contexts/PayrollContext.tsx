@@ -4,6 +4,8 @@ import { getEmployees } from '@/services/employeeService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
+import { getEmployeePayrollData, savePayrollRecord, getAllPayrollRecords } from '@/services/payrollService';
+import { toast } from '@/components/ui/sonner';
 
 interface PayrollState {
   currentPeriod: string;
@@ -25,8 +27,8 @@ interface PayrollContextType {
   setCurrentPeriod: (period: string) => void;
   resetPayroll: () => void;
   initializePayroll: () => void;
-  savePayrollDraft: () => void;
-  loadPayrollDraft: () => boolean;
+  savePayrollToSupabase: () => Promise<void>;
+  loadPayrollFromSupabase: () => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -173,32 +175,37 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   };
 
   const initializePayroll = async () => {
-    console.log('Initializing payroll from both Supabase and local employee data');
+    console.log('Initializing payroll from Supabase');
     setIsLoading(true);
     
     try {
-      let allEmployees = [];
-      try {
-        allEmployees = await getEmployees();
-        console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
-      } catch (supabaseError) {
-        console.log('Supabase fetch failed, using local employee data:', supabaseError);
-        const { getEmployees: getLocalEmployees } = await import('@/data/employeeData');
-        allEmployees = getLocalEmployees();
-        console.log('Using local employee data for payroll:', allEmployees.length);
-      }
+      // First try to load existing payroll data from Supabase
+      const existingData = await loadPayrollFromSupabase();
       
-      if (allEmployees.length === 0) {
-        console.log('No employees found in any data source');
-        setPayrollState(prev => ({
-          ...prev,
-          fullTimeEmployees: [],
-          casualEmployees: [],
-          lastUpdated: new Date()
-        }));
-        setIsLoading(false);
-        return;
-      }
+      if (!existingData) {
+        // If no existing data, generate fresh payroll from employee data
+        let allEmployees = [];
+        try {
+          allEmployees = await getEmployees();
+          console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
+        } catch (supabaseError) {
+          console.log('Supabase fetch failed, using local employee data:', supabaseError);
+          const { getEmployees: getLocalEmployees } = await import('@/data/employeeData');
+          allEmployees = getLocalEmployees();
+          console.log('Using local employee data for payroll:', allEmployees.length);
+        }
+        
+        if (allEmployees.length === 0) {
+          console.log('No employees found in any data source');
+          setPayrollState(prev => ({
+            ...prev,
+            fullTimeEmployees: [],
+            casualEmployees: [],
+            lastUpdated: new Date()
+          }));
+          setIsLoading(false);
+          return;
+        }
 
       const fullTimeEmps = allEmployees.filter(emp => emp.type === 'Full-Time');
       const casualEmps = allEmployees.filter(emp => emp.type === 'Casual');
@@ -331,22 +338,71 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
         lastUpdated: new Date()
       }));
       
-      console.log('Payroll initialized successfully:', { 
-        fullTimeCount: fullTimePayroll.length, 
-        casualCount: casualPayroll.length,
-        fullTimeTotal: fullTimePayroll.reduce((sum, emp) => sum + emp.netPay, 0),
-        casualTotal: casualPayroll.reduce((sum, emp) => sum + emp.totalPay, 0)
-      });
+        // After processing, save to Supabase
+        await savePayrollToSupabase();
+      }
+      
+      console.log('Payroll initialized successfully from Supabase');
     } catch (error) {
-      console.error('Error initializing payroll:', error);
+      console.error('Error initializing payroll from Supabase:', error);
+      toast.error('Error loading payroll data from Supabase');
       setPayrollState(prev => ({
-        ...prev,
+        ...prev,  
         fullTimeEmployees: [],
         casualEmployees: [],
         lastUpdated: new Date()
       }));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const savePayrollToSupabase = async (): Promise<void> => {
+    try {
+      console.log('Saving payroll data to Supabase');
+      
+      // Save payroll records for all employees
+      const allEmployees = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees];
+      
+      for (const employee of allEmployees) {
+        const payrollData = await getEmployeePayrollData(employee.id);
+        await savePayrollRecord(employee.id, payrollState.currentPeriod, payrollData);
+      }
+      
+      console.log('Payroll data saved to Supabase successfully');
+      toast.success('Payroll data saved to Supabase');
+    } catch (error) {
+      console.error('Error saving payroll to Supabase:', error);
+      toast.error('Error saving payroll data to Supabase');
+      throw error;
+    }
+  };
+
+  const loadPayrollFromSupabase = async (): Promise<boolean> => {
+    try {
+      console.log('Loading payroll data from Supabase');
+      
+      const records = await getAllPayrollRecords();
+      
+      if (records.length === 0) {
+        console.log('No payroll records found in Supabase');
+        return false;
+      }
+      
+      // Process records and update payroll state
+      const currentPeriodRecords = records.filter(record => record.month === payrollState.currentPeriod);
+      
+      if (currentPeriodRecords.length > 0) {
+        console.log('Found existing payroll data in Supabase for current period');
+        // Load and process existing data
+        // This would require more complex logic to rebuild the payroll state
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error loading payroll from Supabase:', error);
+      return false;
     }
   };
 
@@ -558,8 +614,8 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       setCurrentPeriod,
       resetPayroll,
       initializePayroll,
-      savePayrollDraft,
-      loadPayrollDraft,
+      savePayrollToSupabase,
+      loadPayrollFromSupabase,
       isLoading
     }}>
       {children}

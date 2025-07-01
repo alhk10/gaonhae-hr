@@ -32,13 +32,13 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
   console.log('Fetching payroll data for employee:', employeeId);
   
   try {
-    // Get employee details
+    // Get employee details from Supabase
     const employee = await getEmployeeById(employeeId);
     if (!employee) {
       throw new Error('Employee not found');
     }
 
-    // Get employee allowances
+    // Get employee allowances from Supabase
     const { data: allowances = [], error: allowancesError } = await supabase
       .from('allowances')
       .select('*')
@@ -46,9 +46,10 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
 
     if (allowancesError) {
       console.error('Error fetching allowances:', allowancesError);
+      throw allowancesError;
     }
 
-    // Get employee deductions
+    // Get employee deductions from Supabase
     const { data: deductions = [], error: deductionsError } = await supabase
       .from('deductions')
       .select('*')
@@ -56,9 +57,10 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
 
     if (deductionsError) {
       console.error('Error fetching deductions:', deductionsError);
+      throw deductionsError;
     }
 
-    // Get approved claims
+    // Get approved claims from Supabase
     const claims = await getEmployeeClaims(employeeId);
     const approvedClaimsTotal = claims
       .filter(claim => claim.status === 'Approved')
@@ -89,7 +91,7 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
       deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
     };
 
-    console.log('Generated payroll data:', payrollData);
+    console.log('Generated payroll data from Supabase:', payrollData);
     return payrollData;
   } catch (error) {
     console.error('Error generating payroll data:', error);
@@ -98,13 +100,12 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
 };
 
 export const savePayrollRecord = async (employeeId: string, month: string, payrollData: PayrollData): Promise<void> => {
-  console.log('Saving payroll record:', { employeeId, month, payrollData });
+  console.log('Saving payroll record to Supabase:', { employeeId, month, payrollData });
   
   const year = new Date().getFullYear();
   const recordId = `${employeeId}_${year}_${month.replace(' ', '_')}`;
   
-  // Use type assertion since TypeScript types haven't been updated yet
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('payroll_records')
     .upsert({
       id: recordId,
@@ -116,16 +117,17 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
     });
 
   if (error) {
-    console.error('Error saving payroll record:', error);
+    console.error('Error saving payroll record to Supabase:', error);
     throw error;
   }
+  
+  console.log('Payroll record saved successfully to Supabase');
 };
 
 export const getEmployeePayrollRecords = async (employeeId: string): Promise<PayrollRecord[]> => {
-  console.log('Fetching payroll records for employee:', employeeId);
+  console.log('Fetching payroll records from Supabase for employee:', employeeId);
   
-  // Use type assertion since TypeScript types haven't been updated yet
-  const { data: records, error } = await (supabase as any)
+  const { data: records, error } = await supabase
     .from('payroll_records')
     .select('*')
     .eq('employee_id', employeeId)
@@ -133,11 +135,11 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     .order('month', { ascending: false });
 
   if (error) {
-    console.error('Error fetching payroll records:', error);
+    console.error('Error fetching payroll records from Supabase:', error);
     throw error;
   }
 
-  return records?.map((record: any) => ({
+  const formattedRecords = records?.map((record: any) => ({
     id: record.id,
     employeeId: record.employee_id,
     month: record.month,
@@ -146,4 +148,51 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     createdAt: record.created_at,
     updatedAt: record.updated_at
   })) || [];
+
+  console.log('Fetched payroll records from Supabase:', formattedRecords);
+  return formattedRecords;
+};
+
+export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
+  console.log('Fetching all payroll records from Supabase');
+  
+  const { data: records, error } = await supabase
+    .from('payroll_records')
+    .select('*')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all payroll records from Supabase:', error);
+    throw error;
+  }
+
+  const formattedRecords = records?.map((record: any) => ({
+    id: record.id,
+    employeeId: record.employee_id,
+    month: record.month,
+    year: record.year,
+    payrollData: record.payroll_data as PayrollData,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at
+  })) || [];
+
+  console.log('Fetched all payroll records from Supabase:', formattedRecords);
+  return formattedRecords;
+};
+
+export const deletePayrollRecord = async (recordId: string): Promise<void> => {
+  console.log('Deleting payroll record from Supabase:', recordId);
+  
+  const { error } = await supabase
+    .from('payroll_records')
+    .delete()
+    .eq('id', recordId);
+
+  if (error) {
+    console.error('Error deleting payroll record from Supabase:', error);
+    throw error;
+  }
+  
+  console.log('Payroll record deleted successfully from Supabase');
 };

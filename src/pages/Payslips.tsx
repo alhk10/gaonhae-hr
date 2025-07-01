@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Calendar, FileText } from 'lucide-react';
+import { DollarSign, Calendar, FileText, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
@@ -21,90 +21,102 @@ const Payslips = () => {
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [payslips, setPayslips] = useState<PayslipDisplayData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
-  useEffect(() => {
-    const loadEmployeeData = async () => {
-      try {
-        setLoading(true);
-        
-        if (!user?.employeeId) {
-          console.error('No employee ID found for current user');
-          setLoading(false);
-          return;
-        }
-
-        console.log('Loading employee data for ID:', user.employeeId);
-        
-        // Load employee details
-        const employee = await getEmployeeById(user.employeeId);
-        console.log('Loaded employee:', employee);
-        setCurrentEmployee(employee);
-        
-        if (!employee) {
-          console.error('Employee not found:', user.employeeId);
-          setLoading(false);
-          return;
-        }
-        
-        // Try to load existing payroll records first
-        const existingRecords = await getEmployeePayrollRecords(user.employeeId);
-        console.log('Existing payroll records:', existingRecords);
-        
-        // Generate current payroll data
-        const currentPayrollData = await getEmployeePayrollData(user.employeeId);
-        console.log('Current payroll data:', currentPayrollData);
-        
-        // Generate payslips for recent months
-        const months = [
-          'December 2024',
-          'November 2024', 
-          'October 2024',
-          'September 2024'
-        ];
-        
-        const generatedPayslips: PayslipDisplayData[] = [];
-        
-        for (const month of months) {
-          // Check if we have existing record for this month
-          const existingRecord = existingRecords.find(record => record.month === month);
-          
-          let payrollData: PayrollData;
-          if (existingRecord) {
-            payrollData = existingRecord.payrollData;
-          } else {
-            // Use current payroll data for all months (in real system, this would be historical data)
-            payrollData = currentPayrollData;
-            
-            // Save the generated payroll record
-            try {
-              await savePayrollRecord(user.employeeId, month, payrollData);
-            } catch (error) {
-              console.error('Error saving payroll record for', month, ':', error);
-            }
-          }
-          
-          generatedPayslips.push({
-            month,
-            ...payrollData
-          });
-        }
-        
-        setPayslips(generatedPayslips);
-        
-      } catch (error) {
-        console.error('Error loading payroll data:', error);
-        toast.error("Error loading employee data");
-      } finally {
-        setLoading(false);
+  const loadEmployeeData = async () => {
+    try {
+      if (!user?.employeeId) {
+        console.error('No employee ID found for current user');
+        return;
       }
+
+      console.log('Loading employee data from Supabase for ID:', user.employeeId);
+      
+      // Load employee details from Supabase
+      const employee = await getEmployeeById(user.employeeId);
+      console.log('Loaded employee from Supabase:', employee);
+      setCurrentEmployee(employee);
+      
+      if (!employee) {
+        console.error('Employee not found in Supabase:', user.employeeId);
+        toast.error("Employee record not found");
+        return;
+      }
+      
+      // Load existing payroll records from Supabase
+      const existingRecords = await getEmployeePayrollRecords(user.employeeId);
+      console.log('Existing payroll records from Supabase:', existingRecords);
+      
+      // Generate current payroll data from Supabase
+      const currentPayrollData = await getEmployeePayrollData(user.employeeId);
+      console.log('Current payroll data from Supabase:', currentPayrollData);
+      
+      // Generate payslips for recent months
+      const months = [
+        'December 2024',
+        'November 2024', 
+        'October 2024',
+        'September 2024'
+      ];
+      
+      const generatedPayslips: PayslipDisplayData[] = [];
+      
+      for (const month of months) {
+        // Check if we have existing record for this month
+        const existingRecord = existingRecords.find(record => record.month === month);
+        
+        let payrollData: PayrollData;
+        if (existingRecord) {
+          payrollData = existingRecord.payrollData;
+          console.log(`Using existing payroll data for ${month}:`, payrollData);
+        } else {
+          // Use current payroll data and save it to Supabase
+          payrollData = currentPayrollData;
+          console.log(`Generating new payroll data for ${month}:`, payrollData);
+          
+          // Save the generated payroll record to Supabase
+          try {
+            await savePayrollRecord(user.employeeId, month, payrollData);
+            console.log(`Saved payroll record to Supabase for ${month}`);
+          } catch (error) {
+            console.error('Error saving payroll record to Supabase for', month, ':', error);
+            toast.error(`Error saving payroll data for ${month}`);
+          }
+        }
+        
+        generatedPayslips.push({
+          month,
+          ...payrollData
+        });
+      }
+      
+      setPayslips(generatedPayslips);
+      console.log('All payslips loaded and synced with Supabase:', generatedPayslips);
+      
+    } catch (error) {
+      console.error('Error loading payroll data from Supabase:', error);
+      toast.error("Error loading employee data from Supabase");
+    }
+  };
+
+  useEffect(() => {
+    const initializeData = async () => {
+      setLoading(true);
+      if (user?.employeeId) {
+        await loadEmployeeData();
+      }
+      setLoading(false);
     };
 
-    if (user?.employeeId) {
-      loadEmployeeData();
-    } else {
-      setLoading(false);
-    }
+    initializeData();
   }, [user?.employeeId]);
+
+  const handleRefreshData = async () => {
+    setRefreshing(true);
+    await loadEmployeeData();
+    setRefreshing(false);
+    toast.success("Payroll data refreshed from Supabase");
+  };
 
   const handleDownloadPayslipPDF = (month: string) => {
     try {
@@ -170,7 +182,7 @@ const Payslips = () => {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading payslip data...</p>
+                <p className="mt-4 text-gray-600">Loading payslip data from Supabase...</p>
               </div>
             </div>
           </main>
@@ -203,11 +215,15 @@ const Payslips = () => {
         <div className="flex h-[calc(100vh-73px)]">
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center">
-              <p className="text-red-600">Employee record not found</p>
-              <p className="text-sm text-gray-500 mt-2">
+            <div className="text-center space-y-4">
+              <p className="text-red-600">Employee record not found in Supabase</p>
+              <p className="text-sm text-gray-500">
                 Employee ID: {user.employeeId} could not be found in the system
               </p>
+              <Button onClick={handleRefreshData} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry Loading from Supabase
+              </Button>
             </div>
           </main>
         </div>
@@ -225,12 +241,23 @@ const Payslips = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-              <p className="text-gray-600">View and download your payslips with live data from Supabase</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Employee: {currentEmployee?.name} ({currentEmployee?.id})
-              </p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
+                <p className="text-gray-600">View and download your payslips with live data from Supabase</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Employee: {currentEmployee?.name} ({currentEmployee?.id})
+                </p>
+              </div>
+              <Button 
+                onClick={handleRefreshData} 
+                variant="outline" 
+                disabled={refreshing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh Data
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -267,7 +294,7 @@ const Payslips = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips as PDF (Data from Supabase)</CardDescription>
+                <CardDescription>Download your monthly payslips as PDF (Data synced with Supabase)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
