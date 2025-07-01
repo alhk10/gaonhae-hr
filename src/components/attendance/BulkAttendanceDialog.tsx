@@ -13,6 +13,7 @@ import { Calendar, Users, Clock, Search, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { addAttendanceRecord } from '@/services/attendanceService';
 import { getEmployees } from '@/services/employeeService';
+import { getBranches } from '@/services/settingsService';
 
 interface BulkAttendanceDialogProps {
   isOpen: boolean;
@@ -30,15 +31,6 @@ interface EmployeeData {
   position?: string;
 }
 
-// Mock branches data - you can replace this with actual data from your system
-const branches = [
-  { id: 'main', name: 'Main Branch' },
-  { id: 'north', name: 'North Branch' },
-  { id: 'south', name: 'South Branch' },
-  { id: 'east', name: 'East Branch' },
-  { id: 'west', name: 'West Branch' }
-];
-
 const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   isOpen,
   onClose,
@@ -49,18 +41,41 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [checkInTime, setCheckInTime] = useState('09:00');
   const [checkOutTime, setCheckOutTime] = useState('18:00');
-  const [selectedBranch, setSelectedBranch] = useState('main');
+  const [selectedBranch, setSelectedBranch] = useState('');
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<string>('all');
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       loadAllEmployees();
+      loadBranches();
     }
   }, [isOpen]);
+
+  const loadBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      console.log('BulkAttendanceDialog: Loading branches from settings service...');
+      const branchData = getBranches();
+      console.log('BulkAttendanceDialog: Loaded branches:', branchData);
+      setBranches(branchData);
+      
+      // Set first branch as default if available
+      if (branchData.length > 0) {
+        setSelectedBranch(branchData[0].name);
+      }
+    } catch (error) {
+      console.error('BulkAttendanceDialog: Error loading branches:', error);
+      toast('Error loading branches');
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
 
   const loadAllEmployees = async () => {
     try {
@@ -70,28 +85,33 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
       // Load employees directly from the service to ensure we get all employees
       const employeeData = await getEmployees();
       console.log('BulkAttendanceDialog: Loaded employees from service:', employeeData.length, 'employees');
-      console.log('BulkAttendanceDialog: Employee names:', employeeData.map(emp => emp.name));
+      
+      // Filter out partners from attendance
+      const filteredEmployees = employeeData.filter(emp => emp.type?.toLowerCase() !== 'partner');
+      console.log('BulkAttendanceDialog: Filtered out partners, remaining employees:', filteredEmployees.length);
+      console.log('BulkAttendanceDialog: Employee names:', filteredEmployees.map(emp => emp.name));
       
       // Check if "Ng Kai Rui Jovious" is in the data
-      const ngKaiRui = employeeData.find(emp => 
+      const ngKaiRui = filteredEmployees.find(emp => 
         emp.name.toLowerCase().includes('ng kai rui') || 
         emp.name.toLowerCase().includes('jovious')
       );
       console.log('BulkAttendanceDialog: Found Ng Kai Rui Jovious:', ngKaiRui);
       
-      setEmployees(employeeData);
+      setEmployees(filteredEmployees);
     } catch (error) {
       console.error('BulkAttendanceDialog: Error loading employees:', error);
       toast('Error loading employees');
-      // Fallback to prop employees if service fails
-      console.log('BulkAttendanceDialog: Falling back to prop employees:', propEmployees.length);
-      setEmployees(propEmployees || []);
+      // Fallback to prop employees if service fails, also filter out partners
+      const fallbackEmployees = (propEmployees || []).filter(emp => emp.type?.toLowerCase() !== 'partner');
+      console.log('BulkAttendanceDialog: Falling back to prop employees (filtered):', fallbackEmployees.length);
+      setEmployees(fallbackEmployees);
     } finally {
       setLoadingEmployees(false);
     }
   };
 
-  // Filter employees based on search term and type
+  // Filter employees based on search term and type (excluding partners)
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = searchTerm === '' || 
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +120,10 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     const matchesType = employeeTypeFilter === 'all' || 
       employee.type?.toLowerCase() === employeeTypeFilter.toLowerCase();
     
-    return matchesSearch && matchesType;
+    // Always exclude partners
+    const isNotPartner = employee.type?.toLowerCase() !== 'partner';
+    
+    return matchesSearch && matchesType && isNotPartner;
   });
 
   console.log('BulkAttendanceDialog: Filtered employees count:', filteredEmployees.length);
@@ -139,13 +162,17 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
       return;
     }
 
+    if (!selectedBranch) {
+      toast('Please select a branch');
+      return;
+    }
+
     try {
       setLoading(true);
       console.log('BulkAttendanceDialog: Creating attendance records for', selectedEmployees.length, 'employees');
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const hoursWorked = calculateHours(checkInTime, checkOutTime);
-      const selectedBranchData = branches.find(b => b.id === selectedBranch);
 
       const attendancePromises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
@@ -156,7 +183,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           checkOut: checkOutTime,
           status: 'Present',
           hoursWorked,
-          location: selectedBranchData?.name || 'Main Branch'
+          location: selectedBranch
         });
       });
 
@@ -174,8 +201,8 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     }
   };
 
-  // Get unique employee types for filter
-  const employeeTypes = [...new Set(employees.map(emp => emp.type).filter(Boolean))];
+  // Get unique employee types for filter (excluding partners)
+  const employeeTypes = [...new Set(employees.map(emp => emp.type).filter(type => type && type.toLowerCase() !== 'partner'))];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -190,7 +217,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-auto">
+        <div className="flex-1 space-y-3 overflow-auto">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="date">Date</Label>
@@ -203,13 +230,13 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
             </div>
             <div>
               <Label htmlFor="branch">Branch</Label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch} disabled={loadingBranches}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
+                  <SelectValue placeholder={loadingBranches ? "Loading branches..." : "Select branch"} />
                 </SelectTrigger>
                 <SelectContent>
                   {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
+                    <SelectItem key={branch.id} value={branch.name}>
                       <div className="flex items-center space-x-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
                         <span>{branch.name}</span>
@@ -249,7 +276,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <Label>Select Employees ({selectedEmployees.length} selected)</Label>
               <div className="flex items-center space-x-2">
                 <Badge variant="outline">
@@ -267,12 +294,12 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row gap-2 mb-2">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search employees by name or ID..."
+                    placeholder="Search employees by name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -295,13 +322,13 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
             </div>
 
             {loadingEmployees ? (
-              <div className="text-center py-8">
+              <div className="text-center py-6">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-sm text-gray-600 mt-2">Loading employees...</p>
               </div>
             ) : (
               <ScrollArea className="h-64 border rounded-lg">
-                <div className="p-3">
+                <div className="p-2">
                   {filteredEmployees.length > 0 ? (
                     <div className="space-y-1">
                       {filteredEmployees.map((employee) => (
@@ -327,7 +354,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-6 text-gray-500">
                       <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                       <p>No employees found</p>
                       {searchTerm && (
@@ -341,13 +368,13 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 pt-4 border-t">
+        <div className="flex justify-end space-x-2 pt-3 border-t">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || selectedEmployees.length === 0}
+            disabled={loading || selectedEmployees.length === 0 || !selectedBranch}
           >
             {loading ? 'Adding...' : `Add Attendance (${selectedEmployees.length})`}
           </Button>
