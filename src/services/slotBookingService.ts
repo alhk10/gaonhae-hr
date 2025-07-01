@@ -274,7 +274,7 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
     const weeklyConfig = await getWeeklySlotConfig();
     const bookedSlots = await getBookedSlotsForDate(date, branchId);
     
-    const totalSlots = weeklyConfig[branchId]?.[dayName] || 0;
+    const totalSlots = Number(weeklyConfig[branchId]?.[dayName] || 0);
     const availableSlots = Math.max(0, totalSlots - bookedSlots);
     
     console.log(`Available slots for ${branchId} on ${dayName}: ${availableSlots} (Total: ${totalSlots}, Booked: ${bookedSlots})`);
@@ -337,7 +337,7 @@ export const getTotalSlotsStats = async () => {
       const dayName = checkDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
       
       for (const branch of branches) {
-        const totalSlotsForDay = weeklyConfig[branch.id]?.[dayName] || 0;
+        const totalSlotsForDay = Number(weeklyConfig[branch.id]?.[dayName] || 0);
         const bookedSlotsForDay = await getBookedSlotsForDate(dateStr, branch.id);
         totalAvailableSlots += Math.max(0, totalSlotsForDay - bookedSlotsForDay);
         totalBookings += bookedSlotsForDay;
