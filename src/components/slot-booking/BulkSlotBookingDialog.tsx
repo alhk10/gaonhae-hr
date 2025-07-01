@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
-import { branches, addSlotBooking, getAvailableSlotsForDate } from '@/data/slotBookingData';
+import { branches, addSlotBooking, getAvailableSlotsForDate, weeklySlots } from '@/data/slotBookingData';
 import { getEmployees } from '@/services/employeeService';
 
 interface BulkSlotBookingDialogProps {
@@ -133,7 +133,10 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   };
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  const availableSlots = getAvailableSlotsForDate(format(selectedDate, 'yyyy-MM-dd'), selectedBranch);
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }) as keyof typeof weeklySlots[string];
+  const totalSlotsForDay = weeklySlots[selectedBranch]?.[dayName] || 0;
+  const availableSlots = getAvailableSlotsForDate(dateStr, selectedBranch);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -185,7 +188,9 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                 <MapPin className="w-4 h-4 text-blue-600" />
                 <div>
                   <h4 className="font-medium text-blue-900">{currentBranch.name}</h4>
-                  <p className="text-sm text-blue-700">Available slots: {availableSlots}</p>
+                  <p className="text-sm text-blue-700">
+                    Available slots: {availableSlots} (Total for {dayName}: {totalSlotsForDay})
+                  </p>
                 </div>
               </div>
             </div>
@@ -226,7 +231,6 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-sm">{employee.name}</p>
-                                <p className="text-xs text-gray-500">{employee.id}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-xs text-gray-600">{employee.type}</p>

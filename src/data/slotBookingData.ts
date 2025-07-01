@@ -1,4 +1,3 @@
-
 export interface SlotBooking {
   id: string;
   employeeId: string;
@@ -79,9 +78,9 @@ export const branches: Branch[] = [
   },
 ];
 
-// Weekly slot configuration - Fixed Kembangan Sunday slots
+// Weekly slot configuration - Updated Headquarters slots to correct values
 export const weeklySlots: WeeklySlotConfig = {
-  headquarters: { Monday: 8, Tuesday: 8, Wednesday: 8, Thursday: 8, Friday: 8, Saturday: 4, Sunday: 2 },
+  headquarters: { Monday: 10, Tuesday: 10, Wednesday: 10, Thursday: 10, Friday: 10, Saturday: 6, Sunday: 4 },
   balmoral: { Monday: 5, Tuesday: 5, Wednesday: 5, Thursday: 5, Friday: 5, Saturday: 3, Sunday: 1 },
   'jurong-west': { Monday: 6, Tuesday: 6, Wednesday: 6, Thursday: 6, Friday: 6, Saturday: 3, Sunday: 2 },
   kembangan: { Monday: 4, Tuesday: 4, Wednesday: 4, Thursday: 4, Friday: 4, Saturday: 2, Sunday: 2 },
