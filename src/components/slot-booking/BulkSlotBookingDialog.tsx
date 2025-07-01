@@ -232,7 +232,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                 <div>
                   <h4 className="font-medium text-blue-900">{currentBranch.name}</h4>
                   <p className="text-sm text-blue-700">
-                    Available slots: {availableSlots} (Total for {dayName}: {totalSlotsForDay})
+                    Available slots: {availableSlots}
                   </p>
                 </div>
               </div>

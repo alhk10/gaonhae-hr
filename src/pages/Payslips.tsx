@@ -43,15 +43,11 @@ const Payslips = () => {
         return;
       }
       
-      // Load existing payroll records from Supabase
+      // Load existing payroll records from Supabase first
       const existingRecords = await getEmployeePayrollRecords(user.employeeId);
       console.log('Existing payroll records from Supabase:', existingRecords);
       
-      // Generate current payroll data from Supabase
-      const currentPayrollData = await getEmployeePayrollData(user.employeeId);
-      console.log('Current payroll data from Supabase:', currentPayrollData);
-      
-      // Generate payslips for recent months
+      // Generate current payroll data from Supabase for any missing months
       const months = [
         'December 2024',
         'November 2024', 
@@ -70,14 +66,16 @@ const Payslips = () => {
           payrollData = existingRecord.payrollData;
           console.log(`Using existing payroll data for ${month}:`, payrollData);
         } else {
-          // Use current payroll data and save it to Supabase
-          payrollData = currentPayrollData;
-          console.log(`Generating new payroll data for ${month}:`, payrollData);
+          // Generate fresh payroll data and save it to Supabase
+          console.log(`Generating fresh payroll data for ${month} from Supabase`);
+          payrollData = await getEmployeePayrollData(user.employeeId);
+          console.log(`Generated fresh payroll data for ${month}:`, payrollData);
           
           // Save the generated payroll record to Supabase
           try {
             await savePayrollRecord(user.employeeId, month, payrollData);
-            console.log(`Saved payroll record to Supabase for ${month}`);
+            console.log(`Saved new payroll record to Supabase for ${month}`);
+            toast.success(`Generated payroll data for ${month}`);
           } catch (error) {
             console.error('Error saving payroll record to Supabase for', month, ':', error);
             toast.error(`Error saving payroll data for ${month}`);
@@ -113,9 +111,47 @@ const Payslips = () => {
 
   const handleRefreshData = async () => {
     setRefreshing(true);
-    await loadEmployeeData();
-    setRefreshing(false);
-    toast.success("Payroll data refreshed from Supabase");
+    
+    try {
+      console.log('Refreshing payroll data from Supabase...');
+      
+      if (!user?.employeeId) {
+        toast.error('No employee ID found');
+        return;
+      }
+
+      // Force regenerate payroll data for all months
+      const months = [
+        'December 2024',
+        'November 2024', 
+        'October 2024',
+        'September 2024'
+      ];
+      
+      const refreshedPayslips: PayslipDisplayData[] = [];
+      
+      for (const month of months) {
+        console.log(`Refreshing payroll data for ${month}`);
+        const freshPayrollData = await getEmployeePayrollData(user.employeeId);
+        
+        // Save/update the payroll record in Supabase
+        await savePayrollRecord(user.employeeId, month, freshPayrollData);
+        
+        refreshedPayslips.push({
+          month,
+          ...freshPayrollData
+        });
+      }
+      
+      setPayslips(refreshedPayslips);
+      console.log('Payroll data refreshed successfully:', refreshedPayslips);
+      toast.success("Payroll data refreshed from Supabase");
+    } catch (error) {
+      console.error('Error refreshing payroll data:', error);
+      toast.error("Error refreshing payroll data");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDownloadPayslipPDF = (month: string) => {
