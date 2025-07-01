@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,6 +15,7 @@ import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
+import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 import {
   branches,
   addSlotBooking,
@@ -29,11 +31,11 @@ import {
 const AdminSlotBooking = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isBulkBookingDialogOpen, setIsBulkBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isSwapDialogOpen, setIsSwapDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
-  const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
+  const [selectedDateForBooking, setSelectedDateForBooking] = useState<Date>(new Date());
   const [selectedBookingForSwap, setSelectedBookingForSwap] = useState<any>(null);
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
@@ -98,8 +100,8 @@ const AdminSlotBooking = () => {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    setQuickAddDate(date);
-    setIsBookingDialogOpen(true);
+    setSelectedDateForBooking(date);
+    setIsBulkBookingDialogOpen(true);
   };
 
   const handleEmployeeClick = (booking: any, event: React.MouseEvent) => {
@@ -112,6 +114,12 @@ const AdminSlotBooking = () => {
     event.stopPropagation();
     setSelectedBookingForApproval(booking);
     setIsApprovalDialogOpen(true);
+  };
+
+  const handleBulkBookingSuccess = () => {
+    // Refresh bookings after successful bulk booking
+    setAllBookings(getAllSlotBookings());
+    toast('Bulk slot bookings created successfully');
   };
 
   const getSlotSummary = () => {
@@ -143,46 +151,6 @@ const AdminSlotBooking = () => {
     });
 
     return { totalSlots, bookedSlots, pendingSlots, approvedSlots, availableSlots: totalSlots - bookedSlots };
-  };
-
-  const handleBooking = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const selectedDate = formData.get('date') as string;
-    const selectedBranch = formData.get('branch') as string;
-    const selectedEmployeeId = formData.get('employee') as string;
-
-    // Find employee details
-    const employee = casualEmployees.find(emp => emp.id === selectedEmployeeId);
-    if (!employee) {
-      toast("Employee not found");
-      return;
-    }
-
-    // Check if slot is available
-    const dateObj = new Date(selectedDate);
-    const availableSlots = getAvailableSlotsForDate(selectedDate, selectedBranch);
-    
-    if (availableSlots <= 0) {
-      toast("No slots available for this date and branch");
-      return;
-    }
-
-    const branch = branches.find(b => b.id === selectedBranch);
-    const newBookingId = addSlotBooking({
-      employeeId: employee.id,
-      employeeName: employee.name,
-      branchId: selectedBranch,
-      branchName: branch?.name || 'Unknown Branch',
-      date: selectedDate,
-      status: 'pending'
-    });
-
-    // Refresh bookings
-    setAllBookings(getAllSlotBookings());
-    setIsBookingDialogOpen(false);
-    setQuickAddDate(null);
-    toast(`Booked ${employee.name} for ${new Date(selectedDate).toLocaleDateString()} (ID: ${newBookingId})`);
   };
 
   const handleApproval = (bookingId: string, status: 'approved' | 'rejected', approvedBy?: string) => {
@@ -360,75 +328,10 @@ const AdminSlotBooking = () => {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={isBookingDialogOpen} onOpenChange={(open) => {
-                  setIsBookingDialogOpen(open);
-                  if (!open) setQuickAddDate(null);
-                }}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Booking
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Booking</DialogTitle>
-                      <DialogDescription>Book a casual employee for a work slot.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleBooking}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input 
-                            name="date" 
-                            type="date" 
-                            defaultValue={quickAddDate ? format(quickAddDate, 'yyyy-MM-dd') : ''}
-                            required 
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="branch">Branch</Label>
-                          <Select name="branch" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {branches.map((branch) => (
-                                <SelectItem key={branch.id} value={branch.id}>
-                                  {branch.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="employee">Employee</Label>
-                          <Select name="employee" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {casualEmployees.map((employee) => (
-                                <SelectItem key={employee.id} value={employee.id}>
-                                  {employee.name} ({employee.id})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => {
-                          setIsBookingDialogOpen(false);
-                          setQuickAddDate(null);
-                        }}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Add Booking</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <Button onClick={() => setIsBulkBookingDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Booking
+                </Button>
 
                 {/* Approval Dialog */}
                 <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
@@ -554,6 +457,9 @@ const AdminSlotBooking = () => {
                     </Select>
                   </div>
                 </div>
+                <CardDescription>
+                  Click on any date to create bulk bookings for casual employees
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="w-full">
@@ -708,13 +614,20 @@ const AdminSlotBooking = () => {
 
                   {getBookingsForDate(selectedDate).length === 0 && (
                     <p className="text-sm text-gray-500 text-center py-4">
-                      No bookings for this date
+                      No bookings for this date. Click on the calendar to add bulk bookings.
                     </p>
                   )}
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          <BulkSlotBookingDialog
+            isOpen={isBulkBookingDialogOpen}
+            onClose={() => setIsBulkBookingDialogOpen(false)}
+            selectedDate={selectedDateForBooking}
+            onSuccess={handleBulkBookingSuccess}
+          />
         </main>
       </div>
     </div>
