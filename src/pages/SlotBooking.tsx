@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,13 +12,13 @@ import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  branches,
+  getBranches,
   addSlotBooking,
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
   getTotalSlotsStats,
-  weeklySlots
-} from '@/data/slotBookingData';
+  type Branch
+} from '@/services/slotBookingService';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 
 const SlotBooking = () => {
@@ -27,37 +27,102 @@ const SlotBooking = () => {
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [selectedDateForBulk, setSelectedDateForBulk] = useState<Date>(new Date());
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [totalAvailableSlots, setTotalAvailableSlots] = useState(0);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [availableSlots, setAvailableSlots] = useState(0);
+  const [bookedSlots, setBookedSlots] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  
-  // Get statistics from centralized data
-  const { totalAvailableSlots, totalBookings } = getTotalSlotsStats();
 
-  const handleBookSlot = () => {
-    if (!selectedDate || !currentBranch) {
-      toast("Please select a date and branch");
-      return;
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDate && selectedBranch) {
+      updateSlotCounts();
     }
+  }, [selectedDate, selectedBranch]);
 
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const availableSlots = getAvailableSlotsForDate(dateStr, selectedBranch);
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading initial slot booking data...');
+      
+      const [branchesData, statsData] = await Promise.all([
+        getBranches(),
+        getTotalSlotsStats()
+      ]);
+      
+      setBranches(branchesData);
+      setTotalAvailableSlots(statsData.totalAvailableSlots);
+      setTotalBookings(statsData.totalBookings);
+      
+      console.log('Loaded branches:', branchesData);
+      console.log('Loaded stats:', statsData);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      toast.error('Failed to load slot booking data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSlotCounts = async () => {
+    if (!selectedDate || !selectedBranch) return;
     
-    if (availableSlots <= 0) {
-      toast("No slots available for this date");
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const [available, booked] = await Promise.all([
+        getAvailableSlotsForDate(dateStr, selectedBranch),
+        getBookedSlotsForDate(dateStr, selectedBranch)
+      ]);
+      
+      setAvailableSlots(available);
+      setBookedSlots(booked);
+      
+      console.log('Updated slot counts:', { available, booked, date: dateStr, branch: selectedBranch });
+    } catch (error) {
+      console.error('Error updating slot counts:', error);
+    }
+  };
+
+  const handleBookSlot = async () => {
+    if (!selectedDate || !currentBranch) {
+      toast.error("Please select a date and branch");
       return;
     }
 
-    // Add booking using centralized service
-    const newBookingId = addSlotBooking({
-      employeeId: user?.id || 'CAS001',
-      employeeName: user?.name || 'Current User',
-      branchId: selectedBranch,
-      branchName: currentBranch.name,
-      date: dateStr,
-      status: 'pending'
-    });
+    if (availableSlots <= 0) {
+      toast.error("No slots available for this date");
+      return;
+    }
 
-    toast(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      
+      const newBookingId = await addSlotBooking({
+        employeeId: user?.id || 'CAS001',
+        employeeName: user?.name || 'Current User',
+        branchId: selectedBranch,
+        branchName: currentBranch.name,
+        date: dateStr,
+        status: 'pending'
+      });
+
+      toast.success(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
+      
+      // Refresh slot counts and stats
+      await updateSlotCounts();
+      const statsData = await getTotalSlotsStats();
+      setTotalAvailableSlots(statsData.totalAvailableSlots);
+      setTotalBookings(statsData.totalBookings);
+    } catch (error) {
+      console.error('Error booking slot:', error);
+      toast.error('Failed to book slot. Please try again.');
+    }
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -71,13 +136,33 @@ const SlotBooking = () => {
     }
   };
 
-  const handleBulkBookingSuccess = () => {
-    toast('Bulk slot bookings created successfully');
-    // Refresh any data if needed
+  const handleBulkBookingSuccess = async () => {
+    toast.success('Bulk slot bookings created successfully');
+    // Refresh data
+    await loadInitialData();
+    if (selectedDate && selectedBranch) {
+      await updateSlotCounts();
+    }
   };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -222,13 +307,13 @@ const SlotBooking = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Available slots:</span>
                         <Badge variant="secondary">
-                          {getAvailableSlotsForDate(format(selectedDate, 'yyyy-MM-dd'), selectedBranch)} remaining
+                          {availableSlots} remaining
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-sm text-gray-600">Booked slots:</span>
                         <Badge variant="outline">
-                          {getBookedSlotsForDate(format(selectedDate, 'yyyy-MM-dd'), selectedBranch)} booked
+                          {bookedSlots} booked
                         </Badge>
                       </div>
                     </div>
@@ -238,7 +323,7 @@ const SlotBooking = () => {
                     <Button 
                       onClick={handleBookSlot} 
                       className="w-full"
-                      disabled={!selectedDate || !currentBranch || getAvailableSlotsForDate(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', selectedBranch) <= 0}
+                      disabled={!selectedDate || !currentBranch || availableSlots <= 0}
                     >
                       Book Slot
                     </Button>

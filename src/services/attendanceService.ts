@@ -1,6 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
-import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
+import { getAllSlotBookings } from './slotBookingService';
 import { getEmployeeById } from './employeeService';
 
 export interface AttendanceRecord {
@@ -158,11 +159,11 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
       if (employeeData && employeeData.type === 'Casual') {
         console.log('Checking slot booking for casual employee:', employeeId);
         
-        // Get all slot bookings
-        const allSlotBookings = getAllSlotBookings();
+        // Get all slot bookings from Supabase
+        const allSlotBookings = await getAllSlotBookings();
         
         // Find approved slot booking for this employee and date
-        const hasApprovedSlot = allSlotBookings.some((booking: SlotBooking) => 
+        const hasApprovedSlot = allSlotBookings.some(booking => 
           booking.employeeId === employeeId && 
           booking.date === currentDate && 
           booking.status === 'approved'

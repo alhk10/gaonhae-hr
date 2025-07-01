@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
-import { branches, addSlotBooking, getAvailableSlotsForDate, getWeeklySlotConfig } from '@/data/slotBookingData';
+import { 
+  getBranches, 
+  addSlotBooking, 
+  getAvailableSlotsForDate, 
+  getWeeklySlotConfig,
+  type Branch,
+  type WeeklySlotConfig
+} from '@/services/slotBookingService';
 import { getEmployees } from '@/services/employeeService';
 
 interface BulkSlotBookingDialogProps {
@@ -36,21 +43,38 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [weeklyConfig, setWeeklyConfig] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
+  const [availableSlots, setAvailableSlots] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-      loadEmployees();
+      loadInitialData();
     }
   }, [isOpen]);
 
-  const loadEmployees = async () => {
+  useEffect(() => {
+    if (selectedBranch && isOpen) {
+      updateAvailableSlots();
+    }
+  }, [selectedBranch, selectedDate, isOpen]);
+
+  const loadInitialData = async () => {
     try {
       setLoadingEmployees(true);
-      console.log('BulkSlotBookingDialog: Loading employees...');
-      const employeeData = await getEmployees();
+      console.log('BulkSlotBookingDialog: Loading initial data...');
+      
+      const [employeeData, branchesData, configData] = await Promise.all([
+        getEmployees(),
+        getBranches(),
+        getWeeklySlotConfig()
+      ]);
+      
       console.log('BulkSlotBookingDialog: Loaded employees:', employeeData);
+      console.log('BulkSlotBookingDialog: Loaded branches:', branchesData);
+      console.log('BulkSlotBookingDialog: Loaded config:', configData);
       
       // Filter for casual employees only for slot booking
       const casualEmployees = employeeData.filter(emp => 
@@ -59,11 +83,25 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       console.log('BulkSlotBookingDialog: Filtered casual employees:', casualEmployees);
       
       setEmployees(casualEmployees);
+      setBranches(branchesData);
+      setWeeklyConfig(configData);
     } catch (error) {
-      console.error('BulkSlotBookingDialog: Error loading employees:', error);
-      toast('Error loading employees');
+      console.error('BulkSlotBookingDialog: Error loading initial data:', error);
+      toast.error('Error loading data');
     } finally {
       setLoadingEmployees(false);
+    }
+  };
+
+  const updateAvailableSlots = async () => {
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const available = await getAvailableSlotsForDate(dateStr, selectedBranch);
+      setAvailableSlots(available);
+      console.log('BulkSlotBookingDialog: Updated available slots:', available);
+    } catch (error) {
+      console.error('BulkSlotBookingDialog: Error updating available slots:', error);
+      setAvailableSlots(0);
     }
   };
 
@@ -85,22 +123,21 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
 
   const handleSubmit = async () => {
     if (selectedEmployees.length === 0) {
-      toast('Please select at least one employee');
+      toast.error('Please select at least one employee');
       return;
     }
 
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const branch = branches.find(b => b.id === selectedBranch);
-    const availableSlots = getAvailableSlotsForDate(dateStr, selectedBranch);
-
     if (selectedEmployees.length > availableSlots) {
-      toast(`Only ${availableSlots} slots available for this date at ${branch?.name}`);
+      toast.error(`Only ${availableSlots} slots available for this date at the selected branch`);
       return;
     }
 
     try {
       setLoading(true);
       console.log('BulkSlotBookingDialog: Creating bulk bookings for', selectedEmployees.length, 'employees');
+
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const branch = branches.find(b => b.id === selectedBranch);
 
       const bookingPromises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
@@ -116,7 +153,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
 
       await Promise.all(bookingPromises);
 
-      toast(`Successfully created ${selectedEmployees.length} slot bookings for ${format(selectedDate, 'PPP')}`);
+      toast.success(`Successfully created ${selectedEmployees.length} slot bookings for ${format(selectedDate, 'PPP')}`);
       
       if (onSuccess) {
         onSuccess();
@@ -126,25 +163,22 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       setSelectedEmployees([]);
     } catch (error) {
       console.error('BulkSlotBookingDialog: Error creating bulk bookings:', error);
-      toast('Error creating bulk bookings');
+      toast.error('Error creating bulk bookings');
     } finally {
       setLoading(false);
     }
   };
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }) as keyof ReturnType<typeof getWeeklySlotConfig>[string];
-  const weeklySlots = getWeeklySlotConfig();
-  const totalSlotsForDay = weeklySlots[selectedBranch]?.[dayName] || 0;
-  const availableSlots = getAvailableSlotsForDate(dateStr, selectedBranch);
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+  const totalSlotsForDay = weeklyConfig[selectedBranch]?.[dayName] || 0;
 
-  console.log('BulkSlotBookingDialog: Current branch config:', {
+  console.log('BulkSlotBookingDialog: Current state:', {
     branchId: selectedBranch,
     dayName,
     totalSlotsForDay,
     availableSlots,
-    weeklySlots: weeklySlots[selectedBranch]
+    selectedEmployeesCount: selectedEmployees.length
   });
 
   return (

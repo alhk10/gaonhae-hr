@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getAttendanceSettings, type AttendanceSetting } from '@/services/attendanceSettingsService';
 import { getEmployeeById } from '@/services/employeeService';
-import { getAllSlotBookings, type SlotBooking } from '@/data/slotBookingData';
+import { getAllSlotBookings } from '@/services/slotBookingService';
 
 interface AttendanceRecord {
   id: number;
@@ -68,20 +68,25 @@ const MyAttendance = () => {
     }
   };
 
-  const checkSlotBooking = () => {
+  const checkSlotBooking = async () => {
     if (!user?.id) return;
     
-    const today = new Date().toISOString().split('T')[0];
-    const allSlotBookings = getAllSlotBookings();
-    
-    const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
-      booking.employeeId === user.id && 
-      booking.date === today && 
-      booking.status === 'approved'
-    );
-    
-    setHasApprovedSlot(approvedSlot);
-    console.log('Has approved slot for today:', approvedSlot);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const allSlotBookings = await getAllSlotBookings();
+      
+      const approvedSlot = allSlotBookings.some(booking => 
+        booking.employeeId === user.id && 
+        booking.date === today && 
+        booking.status === 'approved'
+      );
+      
+      setHasApprovedSlot(approvedSlot);
+      console.log('Has approved slot for today:', approvedSlot);
+    } catch (error) {
+      console.error('Error checking slot booking:', error);
+      setHasApprovedSlot(false);
+    }
   };
 
   const fetchAttendanceSettings = async () => {

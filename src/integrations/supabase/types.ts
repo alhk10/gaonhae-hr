@@ -216,6 +216,36 @@ export type Database = {
         }
         Relationships: []
       }
+      branches: {
+        Row: {
+          address: string
+          color: string
+          created_at: string | null
+          id: string
+          name: string
+          total_slots: number
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          color?: string
+          created_at?: string | null
+          id: string
+          name: string
+          total_slots?: number
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          color?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          total_slots?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       certificates: {
         Row: {
           employee_id: string | null
@@ -618,6 +648,69 @@ export type Database = {
           },
         ]
       }
+      slot_bookings_new: {
+        Row: {
+          approved_by: string | null
+          approved_on: string | null
+          booked_on: string
+          branch_id: string
+          branch_name: string
+          created_at: string | null
+          date: string
+          employee_id: string
+          employee_name: string
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          approved_on?: string | null
+          booked_on?: string
+          branch_id: string
+          branch_name: string
+          created_at?: string | null
+          date: string
+          employee_id: string
+          employee_name: string
+          id: string
+          notes?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          approved_on?: string | null
+          booked_on?: string
+          branch_id?: string
+          branch_name?: string
+          created_at?: string | null
+          date?: string
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_bookings_new_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_bookings_new_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_allowances: {
         Row: {
           created_at: string | null
@@ -665,6 +758,56 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      weekly_slot_config: {
+        Row: {
+          branch_id: string
+          created_at: string | null
+          friday: number
+          id: string
+          monday: number
+          saturday: number
+          sunday: number
+          thursday: number
+          tuesday: number
+          updated_at: string | null
+          wednesday: number
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string | null
+          friday?: number
+          id?: string
+          monday?: number
+          saturday?: number
+          sunday?: number
+          thursday?: number
+          tuesday?: number
+          updated_at?: string | null
+          wednesday?: number
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string | null
+          friday?: number
+          id?: string
+          monday?: number
+          saturday?: number
+          sunday?: number
+          thursday?: number
+          tuesday?: number
+          updated_at?: string | null
+          wednesday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_slot_config_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
