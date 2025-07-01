@@ -112,7 +112,7 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
       employee_id: employeeId,
       month,
       year,
-      payroll_data: payrollData,
+      payroll_data: payrollData as any, // Type cast to avoid Json type issues
       updated_at: new Date().toISOString()
     });
 

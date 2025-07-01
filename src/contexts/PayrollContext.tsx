@@ -29,6 +29,7 @@ interface PayrollContextType {
   initializePayroll: () => void;
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<boolean>;
+  savePayrollDraft: () => void;
   isLoading: boolean;
 }
 
@@ -406,6 +407,15 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     }
   };
 
+  const savePayrollDraft = () => {
+    const draftData = {
+      ...payrollState,
+      lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem('payrollDraft', JSON.stringify(draftData));
+    console.log('Payroll draft saved to localStorage');
+  };
+
   const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
     console.log(`Updating salary for employee ${employeeId}: ${newSalary}`);
     
@@ -566,33 +576,6 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     initializePayroll();
   };
 
-  const savePayrollDraft = () => {
-    const draftData = {
-      ...payrollState,
-      lastUpdated: new Date().toISOString()
-    };
-    localStorage.setItem('payrollDraft', JSON.stringify(draftData));
-    console.log('Payroll draft saved to localStorage');
-  };
-
-  const loadPayrollDraft = (): boolean => {
-    try {
-      const saved = localStorage.getItem('payrollDraft');
-      if (saved) {
-        const draftData = JSON.parse(saved);
-        setPayrollState({
-          ...draftData,
-          lastUpdated: new Date(draftData.lastUpdated)
-        });
-        console.log('Payroll draft loaded from localStorage');
-        return true;
-      }
-    } catch (error) {
-      console.error('Error loading payroll draft:', error);
-    }
-    return false;
-  };
-
   useEffect(() => {
     initializePayroll();
   }, []);
@@ -616,6 +599,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       initializePayroll,
       savePayrollToSupabase,
       loadPayrollFromSupabase,
+      savePayrollDraft,
       isLoading
     }}>
       {children}
