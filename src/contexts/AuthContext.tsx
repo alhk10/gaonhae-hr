@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -103,6 +102,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updatePassword = async (newPassword: string): Promise<boolean> => {
+    console.log('AuthContext: Updating password for user:', user?.email);
+    
+    if (!user?.email) {
+      console.error('AuthContext: No user email found');
+      return false;
+    }
+    
+    try {
+      // First, check if a password record exists
+      const { data: existingPassword } = await supabase
+        .from('user_passwords')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      // Save new password to Supabase with proper encoding
+      const passwordHash = btoa(newPassword + user.email); // Include email for better uniqueness
+      
+      const { error } = await supabase
+        .from('user_passwords')
+        .upsert({
+          email: user.email,
+          password_hash: passwordHash,
+          requires_change: false
+        });
+
+      if (error) {
+        console.error('AuthContext: Error updating password:', error);
+        return false;
+      }
+      
+      console.log('AuthContext: Password updated in database successfully');
+      
+      // Clear password change requirement
+      setRequiresPasswordChange(false);
+      
+      // Update session with new password info
+      await saveUserSession(user, newPassword);
+      
+      console.log('AuthContext: Password updated and session refreshed successfully');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error updating password:', error);
+      return false;
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
     
@@ -113,11 +160,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('email', email)
       .single();
 
-    if (passwordData && atob(passwordData.password_hash) === password) {
-      console.log('AuthContext: Using stored password for login');
+    if (passwordData) {
+      const storedHash = passwordData.password_hash;
+      const testHash = btoa(password + email); // Match the encoding used in updatePassword
+      
+      if (storedHash === testHash || storedHash === btoa(password)) {
+        console.log('AuthContext: Using stored password for login');
+      } else if (password !== 'password') {
+        console.log('AuthContext: Invalid password');
+        return false;
+      }
     } else if (password !== 'password') {
-      // If not default password and no stored password matches
-      console.log('AuthContext: Invalid password');
+      // If no stored password and not default password
+      console.log('AuthContext: Invalid password - no stored password found');
       return false;
     }
     
@@ -214,43 +269,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     console.log('AuthContext: Login failed for email:', email);
     return false;
-  };
-
-  const updatePassword = async (newPassword: string): Promise<boolean> => {
-    console.log('AuthContext: Updating password for user:', user?.email);
-    
-    if (!user?.email) {
-      console.error('AuthContext: No user email found');
-      return false;
-    }
-    
-    try {
-      // Save new password to Supabase
-      const { error } = await supabase
-        .from('user_passwords')
-        .upsert({
-          email: user.email,
-          password_hash: btoa(newPassword),
-          requires_change: false
-        });
-
-      if (error) {
-        console.error('AuthContext: Error updating password:', error);
-        return false;
-      }
-      
-      // Clear password change requirement
-      setRequiresPasswordChange(false);
-      
-      // Update session
-      await saveUserSession(user, newPassword);
-      
-      console.log('AuthContext: Password updated successfully');
-      return true;
-    } catch (error) {
-      console.error('AuthContext: Error updating password:', error);
-      return false;
-    }
   };
 
   const logout = async () => {

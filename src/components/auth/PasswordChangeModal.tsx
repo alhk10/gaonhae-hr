@@ -38,6 +38,15 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
       });
       return;
     }
+
+    if (newPassword === 'password') {
+      toast({
+        title: "Invalid Password",
+        description: "Please choose a password other than 'password'.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     
@@ -72,7 +81,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
       console.error('PasswordChangeModal: Error updating password:', error);
       toast({
         title: "Update Failed",
-        description: "Failed to update password. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -106,10 +115,11 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
+              placeholder="Enter new password (at least 6 characters)"
               required
               minLength={6}
               disabled={isLoading}
+              autoComplete="new-password"
             />
           </div>
           <div className="space-y-2">
@@ -123,9 +133,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
               required
               minLength={6}
               disabled={isLoading}
+              autoComplete="new-password"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || !newPassword || !confirmPassword}>
             {isLoading ? 'Updating Password...' : 'Update Password'}
           </Button>
         </form>

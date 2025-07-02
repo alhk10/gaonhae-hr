@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { AlertTriangle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -25,20 +26,23 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     setIsLoading(true);
 
     try {
-      // Get current stored passwords
-      const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
-      
-      // Reset to default password "password" (encoded)
-      userPasswords[employeeEmail] = btoa('password');
-      localStorage.setItem('userPasswords', JSON.stringify(userPasswords));
-      
-      // Also clear any password change requirements for this user
-      const currentUser = localStorage.getItem('currentUser');
-      if (currentUser) {
-        const userData = JSON.parse(currentUser);
-        if (userData.email === employeeEmail) {
-          localStorage.setItem('requiresPasswordChange', 'true');
-        }
+      // Reset to default password "password" and require change
+      const { error } = await supabase
+        .from('user_passwords')
+        .upsert({
+          email: employeeEmail,
+          password_hash: btoa('password'),
+          requires_change: true
+        });
+
+      if (error) {
+        console.error('ResetPasswordDialog: Error resetting password:', error);
+        toast({
+          title: "Reset Failed",
+          description: "Failed to reset password. Please try again.",
+          variant: "destructive",
+        });
+        return;
       }
 
       console.log('ResetPasswordDialog: Password reset successfully for:', employeeEmail);
