@@ -3,6 +3,7 @@ import type { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermiss
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   try {
+    console.log('Fetching active employees from Supabase...');
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
@@ -21,7 +22,11 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       throw error;
     }
 
-    return employees?.map(transformEmployeeData) || [];
+    console.log('Raw employee data from Supabase:', employees);
+    const transformedEmployees = employees?.map(transformEmployeeData) || [];
+    console.log('Transformed employees:', transformedEmployees);
+    
+    return transformedEmployees;
   } catch (error) {
     console.error('Error in getEmployees:', error);
     throw error;
@@ -30,6 +35,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
 
 export const getAllEmployees = async (): Promise<EmployeeProfile[]> => {
   try {
+    console.log('Fetching all employees from Supabase...');
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
@@ -47,6 +53,7 @@ export const getAllEmployees = async (): Promise<EmployeeProfile[]> => {
       throw error;
     }
 
+    console.log('All employees fetched:', employees?.length || 0);
     return employees?.map(transformEmployeeData) || [];
   } catch (error) {
     console.error('Error in getAllEmployees:', error);
@@ -56,6 +63,7 @@ export const getAllEmployees = async (): Promise<EmployeeProfile[]> => {
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
   try {
+    console.log('Fetching casual employees from Supabase...');
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
@@ -75,6 +83,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       throw error;
     }
 
+    console.log('Casual employees fetched:', employees?.length || 0);
     return employees?.map(transformEmployeeData) || [];
   } catch (error) {
     console.error('Error in getCasualEmployees:', error);
@@ -84,6 +93,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
 
 export const getFullTimeEmployees = async (): Promise<EmployeeProfile[]> => {
   try {
+    console.log('Fetching full-time employees from Supabase...');
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
@@ -103,6 +113,7 @@ export const getFullTimeEmployees = async (): Promise<EmployeeProfile[]> => {
       throw error;
     }
 
+    console.log('Full-time employees fetched:', employees?.length || 0);
     return employees?.map(transformEmployeeData) || [];
   } catch (error) {
     console.error('Error in getFullTimeEmployees:', error);
@@ -112,6 +123,7 @@ export const getFullTimeEmployees = async (): Promise<EmployeeProfile[]> => {
 
 export const getActiveEmployeeCount = async (): Promise<number> => {
   try {
+    console.log('Fetching active employee count...');
     const { count, error } = await supabase
       .from('employees')
       .select('*', { count: 'exact', head: true })
@@ -122,6 +134,7 @@ export const getActiveEmployeeCount = async (): Promise<number> => {
       throw error;
     }
 
+    console.log('Active employee count:', count || 0);
     return count || 0;
   } catch (error) {
     console.error('Error in getActiveEmployeeCount:', error);
@@ -130,6 +143,8 @@ export const getActiveEmployeeCount = async (): Promise<number> => {
 };
 
 const transformEmployeeData = (employeeData: any): EmployeeProfile => {
+  console.log('Transforming employee data:', employeeData);
+  
   return {
     id: employeeData.id,
     name: employeeData.name,
@@ -140,7 +155,7 @@ const transformEmployeeData = (employeeData: any): EmployeeProfile => {
     address: employeeData.address,
     position: employeeData.position,
     department: employeeData.department,
-    branch: employeeData.branch,
+    branch: employeeData.department || 'Main Office', // Use department as branch or default
     type: employeeData.type,
     residencyStatus: employeeData.residency_status,
     baseSalary: employeeData.base_salary,
@@ -236,7 +251,6 @@ export const createEmployee = async (employeeData: Partial<EmployeeProfile>): Pr
         address: employeeData.address,
         position: employeeData.position,
         department: employeeData.department,
-        branch: employeeData.branch,
         type: employeeData.type,
         residency_status: employeeData.residencyStatus,
         base_salary: employeeData.baseSalary,
@@ -277,7 +291,6 @@ export const updateEmployee = async (id: string, employeeData: Partial<EmployeeP
         address: employeeData.address,
         position: employeeData.position,
         department: employeeData.department,
-        branch: employeeData.branch,
         type: employeeData.type,
         residency_status: employeeData.residencyStatus,
         base_salary: employeeData.baseSalary,
