@@ -8,7 +8,7 @@ import { DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
-import { getEmployeePayrollData, getEmployeePayrollRecords, savePayrollRecord, type PayrollData } from '@/services/payrollService';
+import { getEmployeePayrollRecords, type PayrollData } from '@/services/payrollService';
 import { EmployeeProfile } from '@/types/employee';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 
@@ -42,57 +42,36 @@ const Payslips = () => {
         return;
       }
       
-      // Load existing payroll records from Supabase first
+      // Load actual payroll records from Supabase
+      console.log('Fetching live payroll records from Supabase...');
       const existingRecords = await getEmployeePayrollRecords(user.employeeId);
-      console.log('Existing payroll records from Supabase:', existingRecords);
+      console.log('Live payroll records from Supabase:', existingRecords);
       
-      // Generate current payroll data from Supabase for any missing months
-      const months = [
-        'December 2024',
-        'November 2024', 
-        'October 2024',
-        'September 2024'
-      ];
-      
-      const generatedPayslips: PayslipDisplayData[] = [];
-      
-      for (const month of months) {
-        // Check if we have existing record for this month
-        const existingRecord = existingRecords.find(record => record.month === month);
-        
-        let payrollData: PayrollData;
-        if (existingRecord) {
-          payrollData = existingRecord.payrollData;
-          console.log(`Using existing payroll data for ${month}:`, payrollData);
-        } else {
-          // Generate fresh payroll data and save it to Supabase
-          console.log(`Generating fresh payroll data for ${month} from Supabase`);
-          payrollData = await getEmployeePayrollData(user.employeeId);
-          console.log(`Generated fresh payroll data for ${month}:`, payrollData);
-          
-          // Save the generated payroll record to Supabase
-          try {
-            await savePayrollRecord(user.employeeId, month, payrollData);
-            console.log(`Saved new payroll record to Supabase for ${month}`);
-            toast.success(`Generated payroll data for ${month}`);
-          } catch (error) {
-            console.error('Error saving payroll record to Supabase for', month, ':', error);
-            toast.error(`Error saving payroll data for ${month}`);
-          }
-        }
-        
-        generatedPayslips.push({
-          month,
-          ...payrollData
-        });
+      if (!existingRecords || existingRecords.length === 0) {
+        console.log('No payroll records found in Supabase for employee:', user.employeeId);
+        toast.info("No payroll records found");
+        setPayslips([]);
+        return;
       }
       
-      setPayslips(generatedPayslips);
-      console.log('All payslips loaded and synced with Supabase:', generatedPayslips);
+      // Transform payroll records to display format
+      const transformedPayslips: PayslipDisplayData[] = existingRecords.map(record => ({
+        month: record.month,
+        ...record.payrollData
+      }));
+      
+      // Sort by most recent first (assuming month format is consistent)
+      transformedPayslips.sort((a, b) => {
+        // Simple string comparison for month sorting (works for "Month YYYY" format)
+        return b.month.localeCompare(a.month);
+      });
+      
+      setPayslips(transformedPayslips);
+      console.log('Live payslips loaded from Supabase:', transformedPayslips);
       
     } catch (error) {
-      console.error('Error loading payroll data from Supabase:', error);
-      toast.error("Error loading employee data from Supabase");
+      console.error('Error loading live payroll data from Supabase:', error);
+      toast.error("Error loading payroll data from Supabase");
     }
   };
 
@@ -210,6 +189,41 @@ const Payslips = () => {
               <p className="text-sm text-gray-500">
                 Employee ID: {user.employeeId} could not be found in the system
               </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if no payslips are found
+  if (payslips.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
+                <p className="text-gray-600">View and download your payslips</p>
+              </div>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <FileText className="w-16 h-16 text-gray-400 mx-auto" />
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">No Payslips Found</h3>
+                      <p className="text-gray-500">
+                        No payroll records have been generated for your account yet.
+                        Please contact your administrator if you believe this is an error.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </main>
         </div>
