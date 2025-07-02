@@ -186,27 +186,27 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
 };
 
 export const deletePayrollRecord = async (recordId: string): Promise<void> => {
-  console.log('Attempting to delete payroll record from Supabase:', recordId);
+  console.log('Starting deletion process for payroll record:', recordId);
   
   try {
-    // First, let's check if the record exists
+    // First, check if the record exists and get its lock status
     const { data: existingRecord, error: fetchError } = await supabase
       .from('payroll_records')
       .select('id, employee_id, month, year, is_locked')
       .eq('id', recordId)
       .single();
 
-    if (fetchError) {
-      console.error('Error fetching payroll record before deletion:', fetchError);
-      throw new Error(`Failed to find payroll record: ${fetchError.message}`);
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error checking record existence:', fetchError);
+      throw new Error(`Failed to verify record existence: ${fetchError.message}`);
     }
 
     if (!existingRecord) {
-      console.error('Payroll record not found:', recordId);
-      throw new Error('Payroll record not found');
+      console.log('Record not found, may have been already deleted:', recordId);
+      return; // Record doesn't exist, consider it already deleted
     }
 
-    console.log('Found existing record:', existingRecord);
+    console.log('Found record to delete:', existingRecord);
 
     // Check if record is locked
     if (existingRecord.is_locked) {
@@ -214,10 +214,10 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
       throw new Error('Cannot delete locked payroll record. Please unlock it first.');
     }
 
-    // Perform the deletion
-    const { error: deleteError } = await supabase
+    // Perform the deletion with a more specific query
+    const { error: deleteError, count } = await supabase
       .from('payroll_records')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('id', recordId);
 
     if (deleteError) {
@@ -225,9 +225,17 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
       throw new Error(`Failed to delete payroll record: ${deleteError.message}`);
     }
     
-    console.log('Payroll record deleted successfully from Supabase:', recordId);
+    console.log('Delete operation completed, affected rows:', count);
     
-    // Verify deletion
+    if (count === 0) {
+      console.warn('No rows were deleted, record may not exist:', recordId);
+      throw new Error('No records were deleted. The record may not exist or may not be accessible.');
+    }
+
+    // Add a small delay before verification to ensure database consistency
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Verify deletion with a fresh query
     const { data: verifyRecord, error: verifyError } = await supabase
       .from('payroll_records')
       .select('id')
@@ -236,11 +244,13 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
 
     if (verifyError) {
       console.error('Error verifying deletion:', verifyError);
+      // Don't throw here, the deletion might have succeeded
+      console.log('Deletion verification failed, but delete operation reported success');
     } else if (verifyRecord) {
       console.error('Record still exists after deletion attempt:', recordId);
-      throw new Error('Record was not properly deleted');
+      throw new Error('Record was not properly deleted from the database');
     } else {
-      console.log('Deletion verified - record no longer exists:', recordId);
+      console.log('Deletion verified successfully - record no longer exists:', recordId);
     }
 
   } catch (error) {

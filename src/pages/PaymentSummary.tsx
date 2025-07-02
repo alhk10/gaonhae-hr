@@ -136,20 +136,42 @@ const PaymentSummary = () => {
       // Delete from Supabase
       await deletePayrollRecord(payrollId);
       
-      // Update local state to remove the deleted record
+      // Update local state to remove the deleted record immediately
       setPayrollHistory(prev => {
         const updated = prev.filter(p => p.id !== payrollId);
         console.log(`Updated payroll history after deletion. Records count: ${updated.length}`);
         return updated;
       });
       
-      console.log(`Payroll ${payrollId} successfully deleted from Supabase and UI state`);
+      console.log(`Payroll ${payrollId} successfully deleted and removed from UI`);
       toast.success('Payroll record deleted successfully');
     } catch (error) {
       console.error('Error in handleDeletePayroll:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Detailed error:', errorMessage);
-      toast.error(`Error deleting payroll record: ${errorMessage}`);
+      
+      // Provide specific error messages
+      let errorMessage = 'Error deleting payroll record';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('locked')) {
+          errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
+        } else if (error.message.includes('not exist')) {
+          errorMessage = 'Payroll record not found or already deleted.';
+          // Remove from UI if it doesn't exist in database
+          setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
+        } else if (error.message.includes('not properly deleted')) {
+          errorMessage = 'Record deletion failed. Please refresh the page and try again.';
+        } else {
+          errorMessage = `Deletion failed: ${error.message}`;
+        }
+      }
+      
+      console.error('Detailed deletion error:', {
+        payrollId,
+        userRole: user?.role,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      toast.error(errorMessage);
     }
   };
 

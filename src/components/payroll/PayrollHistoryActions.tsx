@@ -92,23 +92,41 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
         isLocked: payroll.isLocked 
       });
       
-      // Call the delete service function
+      // Call the delete service function with improved error handling
       await deletePayrollRecord(payroll.id);
       
-      console.log(`Payroll record ${payroll.id} deleted successfully from Supabase`);
+      console.log(`Payroll record ${payroll.id} deleted successfully`);
       
-      // Update the parent component's state
+      // Update the parent component's state immediately
       onDelete(payroll.id);
       
       toast.success(`Payroll for ${payroll.month} ${payroll.year} has been deleted successfully`);
     } catch (error) {
       console.error('Error deleting payroll record:', error);
-      console.error('Error details:', {
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to delete payroll record.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('locked')) {
+          errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
+        } else if (error.message.includes('not exist')) {
+          errorMessage = 'Payroll record not found or already deleted.';
+        } else if (error.message.includes('not properly deleted')) {
+          errorMessage = 'Record deletion failed. Please try again or contact support.';
+        } else {
+          errorMessage = `Deletion failed: ${error.message}`;
+        }
+      }
+      
+      console.error('Detailed error:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         payrollId: payroll.id,
-        userRole: user?.role
+        userRole: user?.role,
+        isLocked: payroll.isLocked
       });
-      toast.error('Failed to delete payroll record. Please check console for details.');
+      
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }
@@ -164,7 +182,7 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
               <AlertDialogTitle>Delete Payroll Record</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete the payroll for {payroll.month} {payroll.year} (Employee: {payroll.employeeId})? 
-                This action cannot be undone and will permanently remove this payroll record from Supabase.
+                This action cannot be undone and will permanently remove this payroll record from the database.
                 {isLocked && (
                   <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
                     <strong>Warning:</strong> This payroll is currently locked. You must unlock it first before deletion.
