@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AttendanceRecord {
@@ -52,35 +51,29 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
   }
 };
 
-export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<AttendanceRecord[]> => {
+export const getEmployeeAttendanceRecords = async (employeeId: string, startDate?: string, endDate?: string): Promise<AttendanceRecord[]> => {
   try {
-    console.log('Fetching attendance records for employee:', employeeId);
-    
-    const { data, error } = await supabase
+    let query = supabase
       .from('attendance')
       .select('*')
       .eq('employee_id', employeeId)
       .order('date', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('date', startDate);
+    }
+    if (endDate) {
+      query = query.lte('date', endDate);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching employee attendance records:', error);
       throw error;
     }
 
-    return data?.map(record => ({
-      id: record.id,
-      employeeId: record.employee_id,
-      date: record.date,
-      checkIn: record.check_in,
-      checkOut: record.check_out,
-      breakStart: record.break_start,
-      breakEnd: record.break_end,
-      hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
-      status: record.status as AttendanceRecord['status'],
-      location: record.location,
-      clockInLocation: record.clock_in_location,
-      clockOutLocation: record.clock_out_location
-    })) || [];
+    return data || [];
   } catch (error) {
     console.error('Error in getEmployeeAttendanceRecords:', error);
     throw error;
@@ -98,8 +91,25 @@ export interface ClockInOutStatus {
 // Simple in-memory storage for clock status (in production, this should be in a database)
 const clockStatusMap = new Map<string, ClockInOutStatus>();
 
-export const getClockInOutStatus = (employeeId: string): ClockInOutStatus | undefined => {
-  return clockStatusMap.get(employeeId);
+export const getClockInOutStatus = async (employeeId: string, date: string): Promise<ClockInOutStatus | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('date', date)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error fetching clock in/out status:', error);
+      throw error;
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error('Error in getClockInOutStatus:', error);
+    return null;
+  }
 };
 
 export const updateClockInOut = async (employeeId: string, action: 'in' | 'out'): Promise<void> => {

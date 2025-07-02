@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
@@ -14,7 +15,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         employee_page_access(*),
         certificates(*)
       `)
-      .is('resign_date', null) // Only get active employees
+      .is('resign_date', null)
       .order('name');
 
     if (error) {
@@ -75,7 +76,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         certificates(*)
       `)
       .eq('type', 'Casual')
-      .is('resign_date', null) // Only get active casual employees
+      .is('resign_date', null)
       .order('name');
 
     if (error) {
@@ -105,7 +106,7 @@ export const getFullTimeEmployees = async (): Promise<EmployeeProfile[]> => {
         certificates(*)
       `)
       .eq('type', 'Full-Time')
-      .is('resign_date', null) // Only get active full-time employees
+      .is('resign_date', null)
       .order('name');
 
     if (error) {
@@ -155,7 +156,7 @@ const transformEmployeeData = (employeeData: any): EmployeeProfile => {
     address: employeeData.address,
     position: employeeData.position,
     department: employeeData.department,
-    branch: employeeData.department || 'Main Office', // Use department as branch or default
+    branch: employeeData.department || 'Main Office',
     type: employeeData.type,
     residencyStatus: employeeData.residency_status,
     baseSalary: employeeData.base_salary,
