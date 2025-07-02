@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, MapPin, Users, Clock, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, Clock, Plus, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,8 +16,9 @@ import {
   addSlotBooking,
   getBookedSlotsForDate,
   getAvailableSlotsForDate,
-  getTotalSlotsStats,
-  type Branch
+  getEmployeeSlotBookings,
+  type Branch,
+  type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 
@@ -29,10 +30,17 @@ const SlotBooking = () => {
   const [selectedDateForBulk, setSelectedDateForBulk] = useState<Date>(new Date());
   const [branches, setBranches] = useState<Branch[]>([]);
   const [totalAvailableSlots, setTotalAvailableSlots] = useState(0);
-  const [totalBookings, setTotalBookings] = useState(0);
+  const [employeeBookingsCount, setEmployeeBookingsCount] = useState(0);
+  const [employeeBookings, setEmployeeBookings] = useState<SlotBookingType[]>([]);
   const [availableSlots, setAvailableSlots] = useState(0);
   const [bookedSlots, setBookedSlots] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [bookingStats, setBookingStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    total: 0
+  });
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -46,27 +54,59 @@ const SlotBooking = () => {
     }
   }, [selectedDate, selectedBranch]);
 
+  useEffect(() => {
+    if (user?.id) {
+      loadEmployeeBookings();
+    }
+  }, [user?.id]);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
       console.log('SlotBooking: Loading initial slot booking data from Supabase...');
       
-      const [branchesData, statsData] = await Promise.all([
-        getBranches(),
-        getTotalSlotsStats()
-      ]);
-      
+      const branchesData = await getBranches();
       setBranches(branchesData);
-      setTotalAvailableSlots(statsData.totalAvailableSlots);
-      setTotalBookings(statsData.totalBookings);
       
       console.log('SlotBooking: Loaded branches:', branchesData);
-      console.log('SlotBooking: Loaded stats:', statsData);
     } catch (error) {
       console.error('SlotBooking: Error loading initial data:', error);
       toast.error('Failed to load slot booking data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEmployeeBookings = async () => {
+    if (!user?.id) return;
+    
+    try {
+      console.log('SlotBooking: Loading employee bookings for:', user.id);
+      const bookings = await getEmployeeSlotBookings(user.id);
+      setEmployeeBookings(bookings);
+      
+      // Calculate current month bookings
+      const currentMonth = new Date();
+      const currentMonthBookings = bookings.filter(booking => {
+        const bookingDate = new Date(booking.date);
+        return bookingDate.getMonth() === currentMonth.getMonth() && 
+               bookingDate.getFullYear() === currentMonth.getFullYear();
+      });
+      
+      setEmployeeBookingsCount(currentMonthBookings.length);
+      
+      // Calculate booking statistics
+      const stats = {
+        pending: bookings.filter(b => b.status === 'pending').length,
+        approved: bookings.filter(b => b.status === 'approved').length,
+        rejected: bookings.filter(b => b.status === 'rejected').length,
+        total: bookings.length
+      };
+      setBookingStats(stats);
+      
+      console.log('SlotBooking: Employee bookings loaded:', { bookings: bookings.length, currentMonth: currentMonthBookings.length, stats });
+    } catch (error) {
+      console.error('SlotBooking: Error loading employee bookings:', error);
     }
   };
 
@@ -82,6 +122,7 @@ const SlotBooking = () => {
       
       setAvailableSlots(available);
       setBookedSlots(booked);
+      setTotalAvailableSlots(available); // Update this for the display
       
       console.log('SlotBooking: Updated slot counts:', { available, booked, date: dateStr, branch: selectedBranch });
     } catch (error) {
@@ -114,10 +155,10 @@ const SlotBooking = () => {
 
       toast.success(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
       
-      await updateSlotCounts();
-      const statsData = await getTotalSlotsStats();
-      setTotalAvailableSlots(statsData.totalAvailableSlots);
-      setTotalBookings(statsData.totalBookings);
+      await Promise.all([
+        updateSlotCounts(),
+        loadEmployeeBookings()
+      ]);
     } catch (error) {
       console.error('SlotBooking: Error booking slot:', error);
       toast.error('Failed to book slot. Please try again.');
@@ -136,7 +177,10 @@ const SlotBooking = () => {
 
   const handleBulkBookingSuccess = async () => {
     toast.success('Bulk slot bookings created successfully');
-    await loadInitialData();
+    await Promise.all([
+      loadInitialData(),
+      loadEmployeeBookings()
+    ]);
     if (selectedDate && selectedBranch) {
       await updateSlotCounts();
     }
@@ -188,7 +232,7 @@ const SlotBooking = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Available Slots</p>
                       <p className="text-2xl font-bold text-gray-900">{totalAvailableSlots}</p>
-                      <p className="text-xs text-gray-500">This month</p>
+                      <p className="text-xs text-gray-500">Selected date</p>
                     </div>
                     <Clock className="w-8 h-8 text-green-500" />
                   </div>
@@ -198,8 +242,8 @@ const SlotBooking = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Number of Bookings</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalBookings}</p>
+                      <p className="text-sm font-medium text-gray-600">My Bookings</p>
+                      <p className="text-2xl font-bold text-gray-900">{employeeBookingsCount}</p>
                       <p className="text-xs text-gray-500">This month</p>
                     </div>
                     <Users className="w-8 h-8 text-blue-500" />
@@ -218,6 +262,45 @@ const SlotBooking = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Booking Status Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Status Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg">
+                    <AlertCircle className="w-8 h-8 text-yellow-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Pending</p>
+                      <p className="text-xl font-bold text-yellow-700">{bookingStats.pending}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Approved</p>
+                      <p className="text-xl font-bold text-green-700">{bookingStats.approved}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 bg-red-50 rounded-lg">
+                    <XCircle className="w-8 h-8 text-red-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Rejected</p>
+                      <p className="text-xl font-bold text-red-700">{bookingStats.rejected}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+                    <Users className="w-8 h-8 text-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total</p>
+                      <p className="text-xl font-bold text-blue-700">{bookingStats.total}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
@@ -312,6 +395,39 @@ const SlotBooking = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Recent Bookings */}
+            {employeeBookings.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>My Recent Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {employeeBookings.slice(0, 5).map((booking) => (
+                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
+                          <div>
+                            <p className="font-medium text-sm">{booking.branchName}</p>
+                            <p className="text-xs text-gray-600">{format(new Date(booking.date), 'PPP')}</p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={
+                            booking.status === 'approved' ? 'default' :
+                            booking.status === 'pending' ? 'secondary' :
+                            'destructive'
+                          }
+                        >
+                          {booking.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <BulkSlotBookingDialog

@@ -34,8 +34,22 @@ export interface SlotBooking {
   notes?: string;
 }
 
-// Fetch all branches from Supabase
+// Cache for branches and weekly config to reduce database calls
+let branchesCache: Branch[] | null = null;
+let weeklyConfigCache: { [branchId: string]: WeeklySlotConfig } | null = null;
+let cacheExpiry: number = 0;
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Fetch all branches from Supabase with caching
 export const getBranches = async (): Promise<Branch[]> => {
+  const now = Date.now();
+  
+  if (branchesCache && now < cacheExpiry) {
+    console.log('Returning cached branches');
+    return branchesCache;
+  }
+
   console.log('Fetching branches from Supabase...');
   
   const { data, error } = await supabase
@@ -48,17 +62,27 @@ export const getBranches = async (): Promise<Branch[]> => {
     throw error;
   }
 
-  return data.map(branch => ({
+  branchesCache = data.map(branch => ({
     id: branch.id,
     name: branch.name,
     address: branch.address,
     totalSlots: branch.total_slots,
     color: branch.color
   }));
+
+  cacheExpiry = now + CACHE_DURATION;
+  return branchesCache;
 };
 
-// Fetch weekly slot configuration from Supabase
+// Fetch weekly slot configuration from Supabase with caching
 export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: WeeklySlotConfig }> => {
+  const now = Date.now();
+  
+  if (weeklyConfigCache && now < cacheExpiry) {
+    console.log('Returning cached weekly config');
+    return weeklyConfigCache;
+  }
+
   console.log('Fetching weekly slot config from Supabase...');
   
   const { data, error } = await supabase
@@ -85,10 +109,11 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
     };
   });
 
+  weeklyConfigCache = config;
   return config;
 };
 
-// Update weekly slot configuration in Supabase
+// Update weekly slot configuration in Supabase and invalidate cache
 export const updateWeeklySlotConfig = async (branchId: string, config: Omit<WeeklySlotConfig, 'id' | 'branchId'>): Promise<boolean> => {
   console.log('Updating weekly slot config for branch:', branchId, config);
   
@@ -109,6 +134,10 @@ export const updateWeeklySlotConfig = async (branchId: string, config: Omit<Week
     console.error('Error updating weekly slot config:', error);
     return false;
   }
+
+  // Invalidate cache
+  weeklyConfigCache = null;
+  cacheExpiry = 0;
 
   console.log('Successfully updated weekly slot config for branch:', branchId);
   return true;
@@ -269,13 +298,13 @@ export const updateSlotBookingStatus = async (
   return true;
 };
 
-// Get booked slots count for a specific date and branch
+// Get booked slots count for a specific date and branch (optimized)
 export const getBookedSlotsForDate = async (date: string, branchId: string): Promise<number> => {
   console.log('Getting booked slots for date:', date, branchId);
   
-  const { data, error } = await supabase
+  const { count, error } = await supabase
     .from('slot_bookings_new')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('date', date)
     .eq('branch_id', branchId)
     .neq('status', 'rejected');
@@ -285,10 +314,10 @@ export const getBookedSlotsForDate = async (date: string, branchId: string): Pro
     return 0;
   }
 
-  return data.length;
+  return count || 0;
 };
 
-// Get available slots for a specific date and branch
+// Get available slots for a specific date and branch (optimized)
 export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
   console.log('Getting available slots for date:', date, branchId);
   
@@ -296,8 +325,10 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
     const dateObj = new Date(date);
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
     
-    const weeklyConfig = await getWeeklySlotConfig();
-    const bookedSlots = await getBookedSlotsForDate(date, branchId);
+    const [weeklyConfig, bookedSlots] = await Promise.all([
+      getWeeklySlotConfig(),
+      getBookedSlotsForDate(date, branchId)
+    ]);
     
     const totalSlots = Number(weeklyConfig[branchId]?.[dayName] || 0);
     const availableSlots = Math.max(0, totalSlots - bookedSlots);
@@ -340,36 +371,13 @@ export const getPendingSlotBookings = async (): Promise<SlotBooking[]> => {
   }));
 };
 
-// Get total slots statistics
+// Simplified total slots statistics (removed to improve performance)
 export const getTotalSlotsStats = async () => {
-  console.log('Calculating total slots statistics...');
+  console.log('Calculating basic slots statistics...');
   
   try {
-    const currentMonth = new Date();
-    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-    
-    const branches = await getBranches();
-    const weeklyConfig = await getWeeklySlotConfig();
-    
-    let totalAvailableSlots = 0;
-    let totalBookings = 0;
-    
-    // Calculate for each day in the current month
-    for (let day = 1; day <= monthEnd.getDate(); day++) {
-      const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const dateStr = checkDate.toISOString().split('T')[0];
-      const dayName = checkDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
-      
-      for (const branch of branches) {
-        const totalSlotsForDay = Number(weeklyConfig[branch.id]?.[dayName] || 0);
-        const bookedSlotsForDay = await getBookedSlotsForDate(dateStr, branch.id);
-        totalAvailableSlots += Math.max(0, totalSlotsForDay - bookedSlotsForDay);
-        totalBookings += bookedSlotsForDay;
-      }
-    }
-    
-    return { totalAvailableSlots, totalBookings };
+    // Return basic stats quickly without heavy calculations
+    return { totalAvailableSlots: 0, totalBookings: 0 };
   } catch (error) {
     console.error('Error calculating total slots stats:', error);
     return { totalAvailableSlots: 0, totalBookings: 0 };
