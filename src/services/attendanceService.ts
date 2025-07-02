@@ -1,326 +1,304 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
+import { getAllSlotBookings } from './slotBookingService';
+import { getEmployeeById } from './employeeService';
 
 export interface AttendanceRecord {
   id: number;
   employeeId: string;
   date: string;
-  checkIn?: string;
-  checkOut?: string;
-  breakStart?: string;
-  breakEnd?: string;
-  hoursWorked?: number;
-  status: 'Present' | 'Absent' | 'Late' | 'On Leave' | 'Half Day' | 'Medical Leave' | 'Annual Leave';
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  hoursWorked: number | null;
   location?: string;
   clockInLocation?: string;
   clockOutLocation?: string;
 }
 
-export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
-  try {
-    console.log('Fetching attendance records from Supabase...');
-    
-    const { data, error } = await supabase
-      .from('attendance')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching attendance records:', error);
-      throw error;
-    }
-
-    console.log('Attendance records fetched successfully:', data?.length || 0, 'records');
-
-    return data?.map(record => ({
-      id: record.id,
-      employeeId: record.employee_id,
-      date: record.date,
-      checkIn: record.check_in,
-      checkOut: record.check_out,
-      breakStart: record.break_start,
-      breakEnd: record.break_end,
-      hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
-      status: record.status as AttendanceRecord['status'],
-      location: record.location,
-      clockInLocation: record.clock_in_location,
-      clockOutLocation: record.clock_out_location
-    })) || [];
-  } catch (error) {
-    console.error('Error in getAttendanceRecords:', error);
-    throw error;
-  }
-};
-
-export const getEmployeeAttendanceRecords = async (employeeId: string, startDate?: string, endDate?: string): Promise<AttendanceRecord[]> => {
-  try {
-    let query = supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .order('date', { ascending: false });
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching employee attendance records:', error);
-      throw error;
-    }
-
-    return data?.map(record => ({
-      id: record.id,
-      employeeId: record.employee_id,
-      date: record.date,
-      checkIn: record.check_in,
-      checkOut: record.check_out,
-      breakStart: record.break_start,
-      breakEnd: record.break_end,
-      hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
-      status: record.status as AttendanceRecord['status'],
-      location: record.location,
-      clockInLocation: record.clock_in_location,
-      clockOutLocation: record.clock_out_location
-    })) || [];
-  } catch (error) {
-    console.error('Error in getEmployeeAttendanceRecords:', error);
-    throw error;
-  }
-};
-
-// Clock in/out functionality
-export interface ClockInOutStatus {
+export interface ClockInOutRecord {
+  employeeId: string;
   status: 'clocked-in' | 'clocked-out';
   clockIn?: string;
   clockOut?: string;
   location?: string;
 }
 
-// Simple in-memory storage for clock status (in production, this should be in a database)
-const clockStatusMap = new Map<string, ClockInOutStatus>();
+// Mock clock status storage (in production, this would be in database)
+const clockStatusStorage: { [key: string]: ClockInOutRecord } = {};
 
-export const getClockInOutStatus = async (employeeId: string, date: string): Promise<ClockInOutStatus | null> => {
+export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
+  console.log('Fetching attendance records from Supabase...');
+  
+  const { data: records, error } = await supabase
+    .from('attendance')
+    .select(`
+      *,
+      employees:employee_id(name)
+    `)
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching attendance records:', error);
+    throw error;
+  }
+
+  return records.map(record => ({
+    id: record.id,
+    employeeId: record.employee_id,
+    employee: (record.employees as any)?.name || 'Unknown',
+    date: record.date,
+    checkIn: record.check_in,
+    checkOut: record.check_out,
+    status: record.status,
+    hoursWorked: record.hours_worked || null,
+    location: record.location || 'Office',
+    clockInLocation: record.clock_in_location || undefined,
+    clockOutLocation: record.clock_out_location || undefined
+  }));
+};
+
+export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<AttendanceRecord[]> => {
+  console.log('Fetching attendance records for employee:', employeeId);
+  
+  const { data: records, error } = await supabase
+    .from('attendance')
+    .select(`
+      *,
+      employees:employee_id(name)
+    `)
+    .eq('employee_id', employeeId)
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching employee attendance records:', error);
+    throw error;
+  }
+
+  return records.map(record => ({
+    id: record.id,
+    employeeId: record.employee_id,
+    employee: (record.employees as any)?.name || 'Unknown',
+    date: record.date,
+    checkIn: record.check_in,
+    checkOut: record.check_out,
+    status: record.status,
+    hoursWorked: record.hours_worked || null,
+    location: record.location || 'Office',
+    clockInLocation: record.clock_in_location || undefined,
+    clockOutLocation: record.clock_out_location || undefined
+  }));
+};
+
+export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 'employee'>): Promise<void> => {
+  console.log('Adding attendance record:', record);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .insert({
+      employee_id: record.employeeId,
+      date: record.date,
+      check_in: record.checkIn,
+      check_out: record.checkOut,
+      status: record.status,
+      hours_worked: record.hoursWorked,
+      location: record.location,
+      clock_in_location: record.clockInLocation,
+      clock_out_location: record.clockOutLocation
+    });
+
+  if (error) {
+    console.error('Error adding attendance record:', error);
+    throw error;
+  }
+};
+
+export const updateAttendanceRecord = async (id: number, updates: Partial<AttendanceRecord>): Promise<void> => {
+  console.log('Updating attendance record:', id, updates);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .update({
+      employee_id: updates.employeeId,
+      date: updates.date,
+      check_in: updates.checkIn,
+      check_out: updates.checkOut,
+      status: updates.status,
+      hours_worked: updates.hoursWorked,
+      location: updates.location,
+      clock_in_location: updates.clockInLocation,
+      clock_out_location: updates.clockOutLocation
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating attendance record:', error);
+    throw error;
+  }
+};
+
+export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | undefined => {
+  return clockStatusStorage[employeeId];
+};
+
+export const updateClockInOut = async (employeeId: string, action: 'in' | 'out', location?: string) => {
+  const currentDate = new Date().toISOString().split('T')[0];
+  const currentTime = new Date().toLocaleTimeString('en-SG', { 
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
   try {
-    const { data, error } = await supabase
+    // Check if employee is casual and validate slot booking for clock in
+    if (action === 'in') {
+      const employeeData = await getEmployeeById(employeeId);
+      
+      if (employeeData && employeeData.type === 'Casual') {
+        console.log('Checking slot booking for casual employee:', employeeId);
+        
+        // Get all slot bookings from Supabase
+        const allSlotBookings = await getAllSlotBookings();
+        
+        // Find approved slot booking for this employee and date
+        const hasApprovedSlot = allSlotBookings.some(booking => 
+          booking.employeeId === employeeId && 
+          booking.date === currentDate && 
+          booking.status === 'approved'
+        );
+        
+        console.log('Has approved slot for today:', hasApprovedSlot);
+        
+        if (!hasApprovedSlot) {
+          throw new Error('Casual employees can only clock in with an approved slot booking for today. Please ensure you have booked and got approval for a slot before attempting to clock in.');
+        }
+      }
+    }
+
+    // Check if there's an existing record for today
+    const { data: existingRecord, error: fetchError } = await supabase
       .from('attendance')
       .select('*')
       .eq('employee_id', employeeId)
-      .eq('date', date)
+      .eq('date', currentDate)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
-      console.error('Error fetching clock in/out status:', error);
-      throw error;
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
     }
 
-    if (data) {
-      return {
-        status: data.check_out ? 'clocked-out' : 'clocked-in',
-        clockIn: data.check_in,
-        clockOut: data.check_out,
-        location: data.clock_in_location || data.location
-      };
-    }
+    let status = 'Present';
+    let hoursWorked = null;
 
-    return null;
-  } catch (error) {
-    console.error('Error in getClockInOutStatus:', error);
-    return null;
-  }
-};
-
-export const updateClockInOut = async (employeeId: string, action: 'in' | 'out'): Promise<void> => {
-  try {
-    const currentTime = new Date().toLocaleTimeString('en-SG', { 
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    const today = new Date().toISOString().split('T')[0];
-    
-    if (action === 'in') {
-      // Check if already clocked in today
-      const existingStatus = clockStatusMap.get(employeeId);
-      if (existingStatus?.status === 'clocked-in') {
-        throw new Error('Already clocked in');
+    // Get attendance settings for the location/branch
+    if (location) {
+      try {
+        const setting = await getAttendanceSettingByBranch(location);
+        if (setting && action === 'in') {
+          // Check if arrival is late based on settings
+          if (isLateArrival(currentTime, dayOfWeek, setting)) {
+            status = 'Late';
+          }
+        }
+      } catch (error) {
+        console.log('No specific settings found for location:', location);
+        // Fall back to default logic
+        const checkInTime = new Date(`2000-01-01T${currentTime}`);
+        const nineAM = new Date(`2000-01-01T09:00`);
+        const graceEnd = new Date(`2000-01-01T09:15`); // Default 15 minutes grace
+        
+        if (checkInTime > graceEnd) {
+          status = 'Late';
+        }
       }
+    }
+
+    if (existingRecord) {
+      // Update existing record
+      const updateData: any = {};
       
-      // Set clock in status
-      clockStatusMap.set(employeeId, {
-        status: 'clocked-in',
-        clockIn: currentTime,
-        location: 'Main Office' // Default location
-      });
-      
-      // Create or update attendance record
-      const { data: existingRecord } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .eq('date', today)
-        .single();
-      
-      if (existingRecord) {
-        await supabase
-          .from('attendance')
-          .update({
-            check_in: currentTime,
-            status: 'Present',
-            clock_in_location: 'Main Office'
-          })
-          .eq('id', existingRecord.id);
+      if (action === 'in') {
+        updateData.check_in = currentTime;
+        updateData.clock_in_location = location;
+        updateData.status = status;
       } else {
-        await supabase
-          .from('attendance')
-          .insert({
-            employee_id: employeeId,
-            date: today,
-            check_in: currentTime,
-            status: 'Present',
-            location: 'Main Office',
-            clock_in_location: 'Main Office'
-          });
+        updateData.check_out = currentTime;
+        updateData.clock_out_location = location;
+        
+        // Calculate hours worked
+        if (existingRecord.check_in) {
+          const checkInTime = new Date(`2000-01-01T${existingRecord.check_in}`);
+          const checkOutTime = new Date(`2000-01-01T${currentTime}`);
+          hoursWorked = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+          updateData.hours_worked = Math.max(0, hoursWorked);
+        }
       }
-    } else {
-      // Clock out
-      const existingStatus = clockStatusMap.get(employeeId);
-      if (existingStatus?.status !== 'clocked-in') {
-        throw new Error('Not clocked in');
-      }
-      
-      // Calculate hours worked
-      const checkInTime = new Date(`2000-01-01T${existingStatus.clockIn}`);
-      const checkOutTime = new Date(`2000-01-01T${currentTime}`);
-      const hoursWorked = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-      
-      // Update clock status
-      clockStatusMap.set(employeeId, {
-        status: 'clocked-out',
-        clockIn: existingStatus.clockIn,
-        clockOut: currentTime,
-        location: existingStatus.location
-      });
-      
-      // Update attendance record
-      await supabase
+
+      const { error: updateError } = await supabase
         .from('attendance')
-        .update({
-          check_out: currentTime,
-          hours_worked: hoursWorked,
-          clock_out_location: 'Main Office'
-        })
-        .eq('employee_id', employeeId)
-        .eq('date', today);
+        .update(updateData)
+        .eq('id', existingRecord.id);
+
+      if (updateError) throw updateError;
+    } else {
+      // Create new record
+      const insertData: any = {
+        employee_id: employeeId,
+        date: currentDate,
+        status: status,
+        location: location
+      };
+
+      if (action === 'in') {
+        insertData.check_in = currentTime;
+        insertData.clock_in_location = location;
+      } else {
+        insertData.check_out = currentTime;
+        insertData.clock_out_location = location;
+      }
+
+      const { error: insertError } = await supabase
+        .from('attendance')
+        .insert(insertData);
+
+      if (insertError) throw insertError;
     }
+
+    // Update localStorage for UI synchronization
+    const clockData = {
+      status: action === 'in' ? 'clocked-in' : 'clocked-out',
+      clockIn: action === 'in' ? currentTime : (existingRecord?.check_in || undefined),
+      clockOut: action === 'out' ? currentTime : undefined,
+      location: location
+    };
+
+    localStorage.setItem(`clockStatus_${employeeId}`, JSON.stringify(clockData));
+
   } catch (error) {
-    console.error('Error in updateClockInOut:', error);
+    console.error('Error updating clock in/out:', error);
     throw error;
   }
 };
 
-export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id'>): Promise<AttendanceRecord | null> => {
-  try {
-    console.log('Adding attendance record:', record);
-    
-    const { data, error } = await supabase
-      .from('attendance')
-      .insert({
-        employee_id: record.employeeId,
-        date: record.date,
-        check_in: record.checkIn,
-        check_out: record.checkOut,
-        break_start: record.breakStart,
-        break_end: record.breakEnd,
-        hours_worked: record.hoursWorked,
-        status: record.status,
-        location: record.location,
-        clock_in_location: record.clockInLocation,
-        clock_out_location: record.clockOutLocation
-      })
-      .select()
-      .single();
+export const updateAttendanceStatus = async (
+  employeeId: string, 
+  date: string, 
+  status: 'Present' | 'Absent' | 'Half Day' | 'Late'
+): Promise<void> => {
+  console.log('Updating attendance status:', employeeId, date, status);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .upsert({
+      employee_id: employeeId,
+      date,
+      status,
+      hours_worked: status === 'Present' ? 8 : status === 'Half Day' ? 4 : 0
+    });
 
-    if (error) {
-      console.error('Error adding attendance record:', error);
-      throw error;
-    }
-
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      employeeId: data.employee_id,
-      date: data.date,
-      checkIn: data.check_in,
-      checkOut: data.check_out,
-      breakStart: data.break_start,
-      breakEnd: data.break_end,
-      hoursWorked: data.hours_worked ? Number(data.hours_worked) : undefined,
-      status: data.status as AttendanceRecord['status'],
-      location: data.location,
-      clockInLocation: data.clock_in_location,
-      clockOutLocation: data.clock_out_location
-    };
-  } catch (error) {
-    console.error('Error in addAttendanceRecord:', error);
-    throw error;
-  }
-};
-
-export const updateAttendanceRecord = async (id: number, record: Partial<AttendanceRecord>): Promise<AttendanceRecord | null> => {
-  try {
-    console.log('Updating attendance record:', id, record);
-    
-    const updateData: any = {};
-    if (record.employeeId) updateData.employee_id = record.employeeId;
-    if (record.date) updateData.date = record.date;
-    if (record.checkIn !== undefined) updateData.check_in = record.checkIn;
-    if (record.checkOut !== undefined) updateData.check_out = record.checkOut;
-    if (record.breakStart !== undefined) updateData.break_start = record.breakStart;
-    if (record.breakEnd !== undefined) updateData.break_end = record.breakEnd;  
-    if (record.hoursWorked !== undefined) updateData.hours_worked = record.hoursWorked;
-    if (record.status) updateData.status = record.status;
-    if (record.location !== undefined) updateData.location = record.location;
-    if (record.clockInLocation !== undefined) updateData.clock_in_location = record.clockInLocation;
-    if (record.clockOutLocation !== undefined) updateData.clock_out_location = record.clockOutLocation;
-
-    const { data, error } = await supabase
-      .from('attendance')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating attendance record:', error);
-      throw error;
-    }
-
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      employeeId: data.employee_id,
-      date: data.date,
-      checkIn: data.check_in,
-      checkOut: data.check_out,
-      breakStart: data.break_start,
-      breakEnd: data.break_end,
-      hoursWorked: data.hours_worked ? Number(data.hours_worked) : undefined,
-      status: data.status as AttendanceRecord['status'],
-      location: data.location,
-      clockInLocation: data.clock_in_location,
-      clockOutLocation: data.clock_out_location
-    };
-  } catch (error) {
-    console.error('Error in updateAttendanceRecord:', error);
+  if (error) {
+    console.error('Error updating attendance status:', error);
     throw error;
   }
 };

@@ -38,190 +38,80 @@ export interface SlotBooking {
 export const getBranches = async (): Promise<Branch[]> => {
   console.log('Fetching branches from Supabase...');
   
-  try {
-    const { data, error } = await supabase
-      .from('branches')
-      .select('*')
-      .order('name');
+  const { data, error } = await supabase
+    .from('branches')
+    .select('*')
+    .order('name');
 
-    if (error) {
-      console.error('Error fetching branches:', error);
-      throw error;
-    }
-
-    if (!data || data.length === 0) {
-      console.log('No branches found, creating default branch...');
-      // Create default branch if none exists
-      const { data: newBranch, error: createError } = await supabase
-        .from('branches')
-        .insert({
-          id: 'headquarters',
-          name: 'Headquarters',
-          address: 'Main Office',
-          total_slots: 10,
-          color: 'bg-blue-500'
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating default branch:', createError);
-        throw createError;
-      }
-
-      return newBranch ? [transformBranchData(newBranch)] : [];
-    }
-
-    return data.map(transformBranchData);
-  } catch (error) {
-    console.error('Error in getBranches:', error);
+  if (error) {
+    console.error('Error fetching branches:', error);
     throw error;
   }
-};
 
-const transformBranchData = (branch: any): Branch => ({
-  id: branch.id,
-  name: branch.name,
-  address: branch.address,
-  totalSlots: branch.total_slots,
-  color: branch.color
-});
+  return data.map(branch => ({
+    id: branch.id,
+    name: branch.name,
+    address: branch.address,
+    totalSlots: branch.total_slots,
+    color: branch.color
+  }));
+};
 
 // Fetch weekly slot configuration from Supabase
 export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: WeeklySlotConfig }> => {
   console.log('Fetching weekly slot config from Supabase...');
   
-  try {
-    const { data, error } = await supabase
-      .from('weekly_slot_config')
-      .select('*');
+  const { data, error } = await supabase
+    .from('weekly_slot_config')
+    .select('*');
 
-    if (error) {
-      console.error('Error fetching weekly slot config:', error);
-      throw error;
-    }
-
-    if (!data || data.length === 0) {
-      console.log('No weekly slot config found, creating default config...');
-      // Create default config for headquarters if none exists
-      const { data: newConfig, error: createError } = await supabase
-        .from('weekly_slot_config')
-        .insert({
-          branch_id: 'headquarters',
-          monday: 5,
-          tuesday: 5,
-          wednesday: 5,
-          thursday: 5,
-          friday: 5,
-          saturday: 3,
-          sunday: 2
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating default weekly config:', createError);
-        throw createError;
-      }
-
-      if (newConfig) {
-        return {
-          headquarters: {
-            id: newConfig.id,
-            branchId: newConfig.branch_id,
-            monday: newConfig.monday,
-            tuesday: newConfig.tuesday,
-            wednesday: newConfig.wednesday,
-            thursday: newConfig.thursday,
-            friday: newConfig.friday,
-            saturday: newConfig.saturday,
-            sunday: newConfig.sunday
-          }
-        };
-      }
-    }
-
-    const config: { [branchId: string]: WeeklySlotConfig } = {};
-    data.forEach(item => {
-      config[item.branch_id] = {
-        id: item.id,
-        branchId: item.branch_id,
-        monday: item.monday,
-        tuesday: item.tuesday,
-        wednesday: item.wednesday,
-        thursday: item.thursday,
-        friday: item.friday,
-        saturday: item.saturday,
-        sunday: item.sunday
-      };
-    });
-
-    console.log('Weekly slot config loaded:', config);
-    return config;
-  } catch (error) {
-    console.error('Error in getWeeklySlotConfig:', error);
+  if (error) {
+    console.error('Error fetching weekly slot config:', error);
     throw error;
   }
+
+  const config: { [branchId: string]: WeeklySlotConfig } = {};
+  data.forEach(item => {
+    config[item.branch_id] = {
+      id: item.id,
+      branchId: item.branch_id,
+      monday: item.monday,
+      tuesday: item.tuesday,
+      wednesday: item.wednesday,
+      thursday: item.thursday,
+      friday: item.friday,
+      saturday: item.saturday,
+      sunday: item.sunday
+    };
+  });
+
+  return config;
 };
 
 // Update weekly slot configuration in Supabase
 export const updateWeeklySlotConfig = async (branchId: string, config: Omit<WeeklySlotConfig, 'id' | 'branchId'>): Promise<boolean> => {
   console.log('Updating weekly slot config for branch:', branchId, config);
   
-  try {
-    // First check if config exists for this branch
-    const { data: existingConfig } = await supabase
-      .from('weekly_slot_config')
-      .select('id')
-      .eq('branch_id', branchId)
-      .single();
+  const { error } = await supabase
+    .from('weekly_slot_config')
+    .update({
+      monday: config.monday,
+      tuesday: config.tuesday,
+      wednesday: config.wednesday,
+      thursday: config.thursday,
+      friday: config.friday,
+      saturday: config.saturday,
+      sunday: config.sunday
+    })
+    .eq('branch_id', branchId);
 
-    if (existingConfig) {
-      // Update existing config
-      const { error } = await supabase
-        .from('weekly_slot_config')
-        .update({
-          monday: config.monday,
-          tuesday: config.tuesday,
-          wednesday: config.wednesday,
-          thursday: config.thursday,
-          friday: config.friday,
-          saturday: config.saturday,
-          sunday: config.sunday
-        })
-        .eq('branch_id', branchId);
-
-      if (error) {
-        console.error('Error updating weekly slot config:', error);
-        return false;
-      }
-    } else {
-      // Insert new config
-      const { error } = await supabase
-        .from('weekly_slot_config')
-        .insert({
-          branch_id: branchId,
-          monday: config.monday,
-          tuesday: config.tuesday,
-          wednesday: config.wednesday,
-          thursday: config.thursday,
-          friday: config.friday,
-          saturday: config.saturday,
-          sunday: config.sunday
-        });
-
-      if (error) {
-        console.error('Error inserting weekly slot config:', error);
-        return false;
-      }
-    }
-
-    console.log('Successfully updated weekly slot config for branch:', branchId);
-    return true;
-  } catch (error) {
-    console.error('Error in updateWeeklySlotConfig:', error);
+  if (error) {
+    console.error('Error updating weekly slot config:', error);
     return false;
   }
+
+  console.log('Successfully updated weekly slot config for branch:', branchId);
+  return true;
 };
 
 // Fetch all slot bookings from Supabase
