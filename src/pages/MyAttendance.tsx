@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
-import { getAttendanceSettings, type AttendanceSetting } from '@/services/attendanceSettingsService';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 
@@ -41,7 +40,6 @@ const MyAttendance = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-  const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [employeeType, setEmployeeType] = useState<string>('');
@@ -50,7 +48,6 @@ const MyAttendance = () => {
   useEffect(() => {
     fetchAttendanceData();
     checkClockStatus();
-    fetchAttendanceSettings();
     fetchEmployeeData();
     checkSlotBooking();
   }, [user?.id]);
@@ -87,15 +84,6 @@ const MyAttendance = () => {
     } catch (error) {
       console.error('Error checking slot booking:', error);
       setHasApprovedSlot(false);
-    }
-  };
-
-  const fetchAttendanceSettings = async () => {
-    try {
-      const settings = await getAttendanceSettings();
-      setAttendanceSettings(settings);
-    } catch (error) {
-      console.error('Error fetching attendance settings:', error);
     }
   };
 
@@ -176,47 +164,6 @@ const MyAttendance = () => {
     }
   };
 
-  const getCurrentWorkingHours = () => {
-    const today = new Date();
-    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const mainBranch = attendanceSettings.find(setting => setting.branch_name === 'Main Branch');
-    
-    if (mainBranch) {
-      const startKey = `${dayOfWeek}_start` as keyof AttendanceSetting;
-      const endKey = `${dayOfWeek}_end` as keyof AttendanceSetting;
-      const startTime = mainBranch[startKey] as string;
-      const endTime = mainBranch[endKey] as string;
-      
-      if (startTime && endTime) {
-        return `${startTime} - ${endTime}`;
-      }
-    }
-    
-    return '09:00 - 18:00'; // Default
-  };
-
-  const getGracePeriod = () => {
-    const mainBranch = attendanceSettings.find(setting => setting.branch_name === 'Main Branch');
-    return mainBranch?.grace_period_minutes || 15; // Default 15 minutes
-  };
-
-  const calculateHours = (checkIn: string, checkOut: string) => {
-    if (!checkIn || !checkOut) return 0;
-    
-    const checkInTime = new Date(`2000-01-01T${checkIn}`);
-    const checkOutTime = new Date(`2000-01-01T${checkOut}`);
-    const totalMinutes = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60);
-    
-    return Math.max(0, totalMinutes / 60);
-  };
-
-  const determineStatus = (checkIn: string) => {
-    const checkInTime = new Date(`2000-01-01T${checkIn}`);
-    const nineAM = new Date(`2000-01-01T09:00`);
-    
-    return checkInTime > nineAM ? 'Late' : 'Present';
-  };
-
   const exportAttendance = () => {
     toast("Attendance report exported to CSV");
   };
@@ -286,10 +233,6 @@ const MyAttendance = () => {
                 <CardTitle>Time Tracking</CardTitle>
                 <CardDescription>
                   Clock in and out for your work day (must be within 100m of branch)
-                  <br />
-                  <span className="text-sm text-gray-500">
-                    Working Hours: {getCurrentWorkingHours()} | Grace Period: {getGracePeriod()} minutes
-                  </span>
                   {employeeType === 'Casual' && (
                     <>
                       <br />

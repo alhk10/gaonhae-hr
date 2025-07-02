@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Lock, Unlock, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { deletePayrollRecord } from '@/services/payrollService';
+import { deletePayrollRecord, updatePayrollLockStatus } from '@/services/payrollService';
 
 interface PayrollRecord {
   id: string;
@@ -32,25 +32,52 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
   const { user } = useAuth();
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const isSuperAdmin = user?.role === 'superadmin';
   const isLocked = payroll.isLocked;
   const isCurrentPeriod = payroll.status === 'Current';
 
-  const handleLock = () => {
-    onLock(payroll.id);
-    toast.success(`Payroll for ${payroll.period} has been locked`);
+  const handleLock = async () => {
+    setIsLocking(true);
+    try {
+      console.log(`Locking payroll record: ${payroll.id}`);
+      await updatePayrollLockStatus(payroll.id, true);
+      onLock(payroll.id);
+      toast.success(`Payroll for ${payroll.period} has been locked`);
+    } catch (error) {
+      console.error('Error locking payroll record:', error);
+      toast.error('Failed to lock payroll record. Please try again.');
+    } finally {
+      setIsLocking(false);
+    }
   };
 
-  const handleUnlock = () => {
-    onUnlock(payroll.id);
-    setShowUnlockDialog(false);
-    toast.success(`Payroll for ${payroll.period} has been unlocked`);
+  const handleUnlock = async () => {
+    setIsUnlocking(true);
+    try {
+      console.log(`Unlocking payroll record: ${payroll.id}`);
+      await updatePayrollLockStatus(payroll.id, false);
+      onUnlock(payroll.id);
+      setShowUnlockDialog(false);
+      toast.success(`Payroll for ${payroll.period} has been unlocked`);
+    } catch (error) {
+      console.error('Error unlocking payroll record:', error);
+      toast.error('Failed to unlock payroll record. Please try again.');
+    } finally {
+      setIsUnlocking(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!isSuperAdmin) {
       toast.error('Only super administrators can delete payroll records.');
+      return;
+    }
+    
+    if (isLocked) {
+      toast.error('Cannot delete locked payroll records. Please unlock first.');
       return;
     }
     
@@ -78,20 +105,22 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
               variant="outline"
               size="sm"
               onClick={handleLock}
+              disabled={isLocking}
               className="flex items-center space-x-1"
             >
               <Lock className="w-4 h-4" />
-              <span>Lock</span>
+              <span>{isLocking ? 'Locking...' : 'Lock'}</span>
             </Button>
           ) : (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowUnlockDialog(true)}
+              disabled={isUnlocking}
               className="flex items-center space-x-1 bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
             >
               <Unlock className="w-4 h-4" />
-              <span>Unlock</span>
+              <span>{isUnlocking ? 'Unlocking...' : 'Unlock'}</span>
             </Button>
           )}
         </>
@@ -144,11 +173,19 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUnlockDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowUnlockDialog(false)}
+              disabled={isUnlocking}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUnlock} className="bg-orange-600 hover:bg-orange-700">
-              Unlock Payroll
+            <Button 
+              onClick={handleUnlock} 
+              disabled={isUnlocking}
+              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+            >
+              {isUnlocking ? 'Unlocking...' : 'Unlock Payroll'}
             </Button>
           </DialogFooter>
         </DialogContent>
