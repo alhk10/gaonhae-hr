@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeClaims, createClaim } from '@/services/claimsService';
 import { getEmployees } from '@/services/employeeService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Claim {
   id: number;
@@ -36,6 +36,7 @@ interface ClaimType {
 
 const SubmitClaim = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
@@ -237,242 +238,253 @@ const SubmitClaim = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading...</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-8 overflow-auto">
-          <div className="max-w-7xl mx-auto space-y-8">
-            <div className="flex items-center justify-end">
-              <Button 
-                onClick={handleSubmitClaim} 
-                disabled={isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                size="lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-5 h-5 mr-2" />
-                    Submit Claim
-                  </>
-                )}
-              </Button>
-            </div>
+    <ResponsiveLayout>
+      <div className={`space-y-4 md:space-y-8 ${isMobile ? 'px-1' : 'max-w-7xl mx-auto'}`}>
+        <div className="flex items-center justify-end">
+          <Button 
+            onClick={handleSubmitClaim} 
+            disabled={isSubmitting}
+            className={`bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3 text-lg font-semibold'}`}
+            size={isMobile ? "default" : "lg"}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Submitting...
+              </>
+            ) : (
+              <>
+                <FileText className="w-5 h-5 mr-2" />
+                Submit Claim
+              </>
+            )}
+          </Button>
+        </div>
 
-            <Tabs defaultValue="submit" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="submit">Submit Claim</TabsTrigger>
-                <TabsTrigger value="history">Claim History</TabsTrigger>
-              </TabsList>
+        <Tabs defaultValue="submit" className="w-full">
+          <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'mb-4' : 'mb-6'}`}>
+            <TabsTrigger value="submit" className={isMobile ? 'text-sm' : ''}>Submit Claim</TabsTrigger>
+            <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Claim History</TabsTrigger>
+          </TabsList>
 
-              <TabsContent value="submit" className="space-y-6">
-                <Card className="shadow-lg border-0 bg-white">
-                  <CardContent className="p-8 space-y-6">
-                    {/* Basic Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Claim Type *
-                        </Label>
-                        <select 
-                          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          value={formData.type}
-                          onChange={(e) => handleInputChange('type', e.target.value)}
-                        >
-                          {getAvailableClaimTypes().map((claimType) => (
-                            <option key={claimType.id} value={claimType.name}>
-                              {getClaimTypeIcon(claimType.name)} {claimType.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700">
-                          Amount (S$) *
-                        </Label>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          className="p-3 text-lg border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          placeholder="0.00"
-                          value={formData.amount}
-                          onChange={(e) => handleInputChange('amount', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700">GST Amount (S$)</Label>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          className="p-3 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          placeholder="0.00"
-                          value={formData.gstAmount}
-                          onChange={(e) => handleInputChange('gstAmount', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          Date of Expense *
-                        </Label>
-                        <Input 
-                          type="date" 
-                          className="p-3 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          value={formData.date}
-                          onChange={(e) => handleInputChange('date', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        Vendor/Merchant
-                      </Label>
-                      <Input 
-                        type="text" 
-                        className="p-3 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                        placeholder="Enter vendor name"
-                        value={formData.vendor}
-                        onChange={(e) => handleInputChange('vendor', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Description *</Label>
-                      <Textarea 
-                        rows={4} 
-                        className="p-3 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
-                        placeholder="Describe the expense"
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                      />
-                    </div>
-
-                    {/* Receipt Upload Section */}
-                    <ReceiptUpload 
-                      onFileUpload={setUploadedFile}
-                      uploadedFile={uploadedFile}
-                      isRequired={true}
+          <TabsContent value="submit" className={`space-y-4 md:space-y-6`}>
+            <Card className="shadow-lg border-0 bg-white">
+              <CardContent className={`space-y-4 md:space-y-6 ${isMobile ? 'p-4' : 'p-8'}`}>
+                {/* Basic Information */}
+                <div className={`grid gap-4 md:gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                  <div className="space-y-2">
+                    <Label className={`font-semibold text-gray-700 flex items-center gap-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                      <FileText className="w-4 h-4" />
+                      Claim Type *
+                    </Label>
+                    <select 
+                      className={`w-full border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isMobile ? 'p-2 text-sm' : 'p-3'}`}
+                      value={formData.type}
+                      onChange={(e) => handleInputChange('type', e.target.value)}
+                    >
+                      {getAvailableClaimTypes().map((claimType) => (
+                        <option key={claimType.id} value={claimType.name}>
+                          {getClaimTypeIcon(claimType.name)} {claimType.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={`font-semibold text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                      Amount (S$) *
+                    </Label>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      className={`border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isMobile ? 'p-2 text-sm' : 'p-3 text-lg'}`}
+                      placeholder="0.00"
+                      value={formData.amount}
+                      onChange={(e) => handleInputChange('amount', e.target.value)}
                     />
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                  </div>
+                </div>
 
-              <TabsContent value="history" className="space-y-6">
-                <Card className="shadow-lg border-0 bg-white">
-                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-                    <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
-                      <History className="w-5 h-5 text-green-600" />
-                      Claim History
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {claims.length > 0 ? (
-                      <div className="space-y-6">
-                        {/* Summary Statistics */}
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="text-center p-4 bg-blue-50 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">
-                              {claims.filter(c => c.status === 'Pending').length}
-                            </div>
-                            <div className="text-xs text-blue-600 font-medium">Pending</div>
-                          </div>
-                          <div className="text-center p-4 bg-green-50 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">
-                              {claims.filter(c => c.status === 'Approved').length}
-                            </div>
-                            <div className="text-xs text-green-600 font-medium">Approved</div>
-                          </div>
-                          <div className="text-center p-4 bg-red-50 rounded-lg">
-                            <div className="text-2xl font-bold text-red-600">
-                              {claims.filter(c => c.status === 'Rejected').length}
-                            </div>
-                            <div className="text-xs text-red-600 font-medium">Rejected</div>
-                          </div>
+                <div className={`grid gap-4 md:gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                  <div className="space-y-2">
+                    <Label className={`font-semibold text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>GST Amount (S$)</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      className={`border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isMobile ? 'p-2 text-sm' : 'p-3'}`}
+                      placeholder="0.00"
+                      value={formData.gstAmount}
+                      onChange={(e) => handleInputChange('gstAmount', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={`font-semibold text-gray-700 flex items-center gap-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                      <Calendar className="w-4 h-4" />
+                      Date of Expense *
+                    </Label>
+                    <Input 
+                      type="date" 
+                      className={`border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isMobile ? 'p-2 text-sm' : 'p-3'}`}
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className={`font-semibold text-gray-700 flex items-center gap-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                    <User className="w-4 h-4" />
+                    Vendor/Merchant
+                  </Label>
+                  <Input 
+                    type="text" 
+                    className={`border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${isMobile ? 'p-2 text-sm' : 'p-3'}`}
+                    placeholder="Enter vendor name"
+                    value={formData.vendor}
+                    onChange={(e) => handleInputChange('vendor', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className={`font-semibold text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>Description *</Label>
+                  <Textarea 
+                    rows={isMobile ? 3 : 4} 
+                    className={`border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${isMobile ? 'p-2 text-sm' : 'p-3'}`}
+                    placeholder="Describe the expense"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                  />
+                </div>
+
+                {/* Receipt Upload Section */}
+                <ReceiptUpload 
+                  onFileUpload={setUploadedFile}
+                  uploadedFile={uploadedFile}
+                  isRequired={true}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history" className={`space-y-4 md:space-y-6`}>
+            <Card className="shadow-lg border-0 bg-white">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+                <CardTitle className={`text-gray-800 flex items-center gap-2 ${isMobile ? 'text-lg' : 'text-xl'}`}>
+                  <History className="w-5 h-5 text-green-600" />
+                  Claim History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+                {claims.length > 0 ? (
+                  <div className={`space-y-4 md:space-y-6`}>
+                    {/* Summary Statistics */}
+                    <div className={`grid gap-3 ${isMobile ? 'grid-cols-3' : 'grid-cols-3'}`}>
+                      <div className={`text-center bg-blue-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                        <div className={`font-bold text-blue-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                          {claims.filter(c => c.status === 'Pending').length}
                         </div>
-                        
-                        {/* Recent Claims Table */}
-                        <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-100">
-                          <Table>
-                            <TableHeader className="bg-gray-50">
-                              <TableRow>
-                                <TableHead className="text-xs font-semibold">Type</TableHead>
-                                <TableHead className="text-xs font-semibold">Amount</TableHead>
-                                <TableHead className="text-xs font-semibold">Status</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {claims.slice(0, 8).map((claim) => (
-                                <TableRow key={claim.id} className="hover:bg-gray-50">
-                                  <TableCell className="font-medium text-sm">{claim.type}</TableCell>
-                                  <TableCell className="text-sm">{formatAmount(claim.amount)}</TableCell>
-                                  <TableCell>
-                                    <Badge 
-                                      variant={getStatusBadgeVariant(claim.status)}
-                                      className="text-xs"
-                                    >
-                                      {claim.status}
-                                    </Badge>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                        <div className={`text-blue-600 font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>Pending</div>
+                      </div>
+                      <div className={`text-center bg-green-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                        <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                          {claims.filter(c => c.status === 'Approved').length}
                         </div>
-                        
-                        {claims.length > 8 && (
-                          <div className="text-center">
-                            <Button variant="outline" size="sm" className="text-blue-600">
-                              View All Claims
-                            </Button>
+                        <div className={`text-green-600 font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>Approved</div>
+                      </div>
+                      <div className={`text-center bg-red-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                        <div className={`font-bold text-red-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                          {claims.filter(c => c.status === 'Rejected').length}
+                        </div>
+                        <div className={`text-red-600 font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>Rejected</div>
+                      </div>
+                    </div>
+                    
+                    {/* Recent Claims */}
+                    {isMobile ? (
+                      // Mobile: Card-based layout
+                      <div className="space-y-3">
+                        {claims.slice(0, 8).map((claim) => (
+                          <div key={claim.id} className="bg-gray-50 rounded-lg p-3 border">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-medium text-sm">{claim.type}</span>
+                              <Badge 
+                                variant={getStatusBadgeVariant(claim.status)}
+                                className="text-xs"
+                              >
+                                {claim.status}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {formatAmount(claim.amount)}
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-gray-500">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                          <FileText className="w-8 h-8 text-gray-300" />
-                        </div>
-                        <p className="font-medium mb-1">No claims submitted yet</p>
-                        <p className="text-sm">Your claim history will appear here</p>
+                      // Desktop: Table layout
+                      <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-100">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <TableHead className="text-xs font-semibold">Type</TableHead>
+                              <TableHead className="text-xs font-semibold">Amount</TableHead>
+                              <TableHead className="text-xs font-semibold">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {claims.slice(0, 8).map((claim) => (
+                              <TableRow key={claim.id} className="hover:bg-gray-50">
+                                <TableCell className="font-medium text-sm">{claim.type}</TableCell>
+                                <TableCell className="text-sm">{formatAmount(claim.amount)}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={getStatusBadgeVariant(claim.status)}
+                                    className="text-xs"
+                                  >
+                                    {claim.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </main>
+                    
+                    {claims.length > 8 && (
+                      <div className="text-center">
+                        <Button variant="outline" size="sm" className="text-blue-600">
+                          View All Claims
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`text-center text-gray-500 ${isMobile ? 'py-8' : 'py-12'}`}>
+                    <div className={`mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center ${isMobile ? 'w-12 h-12' : 'w-16 h-16'}`}>
+                      <FileText className={`text-gray-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                    </div>
+                    <p className={`font-medium mb-1 ${isMobile ? 'text-sm' : ''}`}>No claims submitted yet</p>
+                    <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>Your claim history will appear here</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
+    </ResponsiveLayout>
   );
 };
 
