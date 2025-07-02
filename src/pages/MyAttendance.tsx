@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar, Filter, Download, MapPin, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Clock, Calendar, MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
+import { isWithinBranchRange } from '@/services/geolocationService';
 
 interface AttendanceRecord {
   id: number;
@@ -21,7 +23,6 @@ interface AttendanceRecord {
   date: string;
   check_in: string | null;
   check_out: string | null;
-  status: string;
   hours_worked: number | null;
   location?: string;
   clock_in_location?: string;
@@ -38,18 +39,22 @@ interface ClockInOutRecord {
 const MyAttendance = () => {
   const { user } = useAuth();
   const [dateFilter, setDateFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM format
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [employeeType, setEmployeeType] = useState<string>('');
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
+  const [nearestBranch, setNearestBranch] = useState<string>('');
+  const [locationCheckPassed, setLocationCheckPassed] = useState<boolean>(false);
 
   useEffect(() => {
     fetchAttendanceData();
     fetchEmployeeData();
     checkSlotBooking();
-  }, [user?.id]);
+    checkLocationOnLoad();
+  }, [user?.id, monthFilter]);
 
   useEffect(() => {
     // Check clock status after attendance data is loaded
@@ -57,6 +62,17 @@ const MyAttendance = () => {
       checkClockStatus();
     }
   }, [attendanceData, user?.id]);
+
+  const checkLocationOnLoad = async () => {
+    try {
+      const locationCheck = await isWithinBranchRange(100);
+      setLocationCheckPassed(locationCheck.withinRange);
+      setNearestBranch(locationCheck.nearestBranch || '');
+    } catch (error) {
+      console.error('Location check failed:', error);
+      setLocationCheckPassed(false);
+    }
+  };
 
   const fetchEmployeeData = async () => {
     if (!user?.id) return;
@@ -100,20 +116,29 @@ const MyAttendance = () => {
         .from('attendance')
         .select('*')
         .eq('employee_id', user?.id || 'EMP001')
+        .gte('date', `${monthFilter}-01`)
+        .lt('date', `${getNextMonth(monthFilter)}-01`)
         .order('date', { ascending: false });
 
       if (error) {
         console.error('Error fetching attendance:', error);
-        toast("Error loading attendance data. Please try again.");
+        toast.error("Error loading attendance data. Please try again.");
       } else {
         setAttendanceData(data || []);
       }
     } catch (error) {
       console.error('Error fetching attendance data:', error);
-      toast("Error loading attendance data. Please try again.");
+      toast.error("Error loading attendance data. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getNextMonth = (yearMonth: string) => {
+    const [year, month] = yearMonth.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
   };
 
   const checkClockStatus = async () => {
@@ -177,13 +202,32 @@ const MyAttendance = () => {
       return;
     }
 
+    // Check location before allowing clock action
+    if (!locationCheckPassed) {
+      try {
+        const locationCheck = await isWithinBranchRange(100);
+        if (!locationCheck.withinRange) {
+          toast.error(
+            `You must be within 100m of a branch to clock in/out. ` +
+            `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
+          );
+          return;
+        }
+        setLocationCheckPassed(true);
+        setNearestBranch(locationCheck.nearestBranch || '');
+      } catch (error) {
+        toast.error("Location access is required to clock in/out. Please enable location services.");
+        return;
+      }
+    }
+
     setIsClockingInOut(true);
     
     try {
       const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
       const action = isCurrentlyClockedIn ? 'out' : 'in';
       
-      await updateClockInOut(user.id, action);
+      await updateClockInOut(user.id, action, nearestBranch);
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -202,7 +246,7 @@ const MyAttendance = () => {
       if (action === 'out') {
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        toast.success(`Clocked in at ${currentTime}`);
+        toast.success(`Clocked in at ${currentTime} at ${nearestBranch}`);
       }
       
     } catch (error) {
@@ -214,17 +258,12 @@ const MyAttendance = () => {
     }
   };
 
-  const exportAttendance = () => {
-    toast("Attendance report exported to CSV");
-  };
-
-  // Calculate statistics
+  // Calculate monthly statistics
   const presentDays = attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
   const totalHours = attendanceData.reduce((sum, record) => sum + (record.hours_worked || 0), 0);
-  const avgHours = presentDays > 0 ? totalHours / presentDays : 0;
 
   const isClockedIn = clockStatus?.status === 'clocked-in';
-  const canClockIn = employeeType !== 'Casual' || hasApprovedSlot;
+  const canClockIn = (employeeType !== 'Casual' || hasApprovedSlot) && locationCheckPassed;
 
   if (loading) {
     return (
@@ -284,7 +323,12 @@ const MyAttendance = () => {
                         )}
                       </>
                     ) : !canClockIn ? (
-                      'Slot booking required'
+                      !locationCheckPassed ? 'Location required' : 'Slot booking required'
+                    ) : nearestBranch ? (
+                      <>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {nearestBranch}
+                      </>
                     ) : (
                       'Within 100m of branch'
                     )}
@@ -292,6 +336,25 @@ const MyAttendance = () => {
                 </div>
               </Button>
             </div>
+
+            {/* Location Warning */}
+            {!locationCheckPassed && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-800">
+                        Location Access Required
+                      </p>
+                      <p className="text-sm text-orange-700">
+                        You must be within 100m of a branch and enable location to clock in.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Casual Employee Slot Booking Warning */}
             {employeeType === 'Casual' && !hasApprovedSlot && (
@@ -313,10 +376,10 @@ const MyAttendance = () => {
             )}
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Days Present</CardTitle>
+                  <CardTitle className="text-sm font-medium">Days Present This Month</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">{presentDays}</p>
@@ -324,18 +387,10 @@ const MyAttendance = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Hours This Month</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Average Hours</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{avgHours.toFixed(1)}h</p>
                 </CardContent>
               </Card>
               <Card>
@@ -358,14 +413,26 @@ const MyAttendance = () => {
                     <Calendar className="w-5 h-5" />
                     <span>Attendance Records</span>
                   </CardTitle>
-                  <Button variant="outline" onClick={exportAttendance}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={new Date().toISOString().slice(0, 7)}>
+                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                      <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7)}>
+                        {new Date(new Date().setMonth(new Date().getMonth() - 1)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                      <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString().slice(0, 7)}>
+                        {new Date(new Date().setMonth(new Date().getMonth() - 2)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input
                     type="date"
                     value={dateFilter}
@@ -374,7 +441,6 @@ const MyAttendance = () => {
                     placeholder="Filter by date"
                   />
                   <Button variant="outline" onClick={() => setDateFilter('')}>
-                    <Filter className="w-4 h-4 mr-2" />
                     Clear Filter
                   </Button>
                 </div>
@@ -387,7 +453,6 @@ const MyAttendance = () => {
                       <TableHead>Clock Out</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Hours</TableHead>
-                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -408,20 +473,11 @@ const MyAttendance = () => {
                           </div>
                         </TableCell>
                         <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={record.status === 'Present' ? 'default' : 
-                                   record.status === 'Late' ? 'secondary' : 
-                                   'outline'}
-                          >
-                            {record.status}
-                          </Badge>
-                        </TableCell>
                       </TableRow>
                     ))}
                     {filteredData.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
                           No attendance records found for the selected date.
                         </TableCell>
                       </TableRow>
