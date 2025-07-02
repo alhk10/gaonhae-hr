@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,70 +15,171 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ClockInOutRecord {
+  status: 'clocked-in' | 'clocked-out';
+  clockIn?: string;
+  clockOut?: string;
+  location?: string;
+}
+
+interface AttendanceRecord {
+  id: number;
+  employee_id: string;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  status: string;
+  hours_worked: number | null;
+  location?: string;
+  clock_in_location?: string;
+  clock_out_location?: string;
+}
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clockTime, setClockTime] = useState<string | null>(null);
-  const [clockLocation, setClockLocation] = useState<string | null>(null);
+  const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
 
-  // Query for real-time clock status with more aggressive refresh settings
-  const { data: clockStatus, refetch: refetchClockStatus } = useQuery({
-    queryKey: ['clock-status', user?.id],
-    queryFn: () => getClockInOutStatus(user?.id || ''),
-    enabled: !!user?.id,
-    refetchInterval: 2000, // More frequent updates - every 2 seconds
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache the data
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchOnReconnect: true, // Refetch when reconnecting
-  });
-
-  // Update local state when clock status changes with better logging
-  useEffect(() => {
-    console.log('EmployeeDashboard: Clock status update received:', {
-      clockStatus,
-      timestamp: new Date().toISOString()
-    });
+  // Fetch attendance data directly without React Query to avoid caching issues
+  const fetchAttendanceData = async () => {
+    if (!user?.id) return;
     
-    if (clockStatus) {
-      const isCurrentlyClockedIn = clockStatus.status === 'clocked-in';
-      console.log('EmployeeDashboard: Processing clock status:', {
-        status: clockStatus.status,
-        isCurrentlyClockedIn,
-        clockInTime: clockStatus.clockIn,
-        location: clockStatus.location
-      });
-      
-      // Force state update even if values appear the same
-      setIsClockedIn(isCurrentlyClockedIn);
-      
-      if (isCurrentlyClockedIn) {
-        setClockTime(clockStatus.clockIn || null);
-        setClockLocation(clockStatus.location || null);
-      } else {
-        setClockTime(null);
-        setClockLocation(null);
-      }
-    } else {
-      console.log('EmployeeDashboard: No clock status found, resetting to clocked out');
-      setIsClockedIn(false);
-      setClockTime(null);
-      setClockLocation(null);
-    }
-  }, [clockStatus]);
+    try {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user.id)
+        .order('date', { ascending: false });
 
-  // Try to fetch employee data from Supabase first, then fallback to local data
-  const { data: supabaseEmployee, error: supabaseError } = useQuery({
-    queryKey: ['current-employee', user?.id],
-    queryFn: () => getEmployeeById(user?.id || ''),
+      if (error) {
+        console.error('Error fetching attendance:', error);
+      } else {
+        setAttendanceData(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+    }
+  };
+
+  // Check clock status using the same logic as My Attendance page
+  const checkClockStatus = async () => {
+    if (!user?.id) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      // Check clock status from Supabase
+      const supabaseStatus = await getClockInOutStatus(user.id);
+      console.log('Dashboard: Supabase clock status:', supabaseStatus);
+      
+      // Check today's attendance record from database
+      const todayRecord = attendanceData.find(record => record.date === today);
+      console.log('Dashboard: Today attendance record:', todayRecord);
+      
+      let currentStatus: ClockInOutRecord | undefined;
+      
+      if (supabaseStatus) {
+        // Use Supabase clock status if available
+        currentStatus = {
+          status: supabaseStatus.status,
+          clockIn: supabaseStatus.clockIn,
+          clockOut: supabaseStatus.clockOut,
+          location: supabaseStatus.location
+        };
+      } else if (todayRecord) {
+        // Fall back to attendance record
+        if (todayRecord.check_in && !todayRecord.check_out) {
+          // Clocked in but not out
+          currentStatus = {
+            status: 'clocked-in',
+            clockIn: todayRecord.check_in,
+            location: todayRecord.clock_in_location
+          };
+        } else if (todayRecord.check_in && todayRecord.check_out) {
+          // Fully clocked out
+          currentStatus = {
+            status: 'clocked-out',
+            clockIn: todayRecord.check_in,
+            clockOut: todayRecord.check_out,
+            location: todayRecord.clock_out_location
+          };
+        }
+      }
+      
+      console.log('Dashboard: Final clock status:', currentStatus);
+      setClockStatus(currentStatus);
+    } catch (error) {
+      console.error('Error checking clock status:', error);
+    }
+  };
+
+  // Fetch data on component mount and when user changes
+  useEffect(() => {
+    fetchAttendanceData();
+    fetchEmployeeData();
+    checkSlotBooking();
+  }, [user?.id]);
+
+  // Check clock status after attendance data is loaded
+  useEffect(() => {
+    if (attendanceData.length >= 0) {
+      checkClockStatus();
+    }
+  }, [attendanceData, user?.id]);
+
+  const fetchEmployeeData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const employee = await getEmployeeById(user.id);
+      if (employee) {
+        setEmployeeData(employee);
+        console.log('Dashboard: Employee type:', employee.type);
+      }
+    } catch (error) {
+      console.error('Error fetching employee data:', error);
+      // Fallback to local data
+      const localEmployee = getLocalEmployeeById(user.id);
+      if (localEmployee) {
+        setEmployeeData(localEmployee);
+      }
+    }
+  };
+
+  const checkSlotBooking = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const allSlotBookings = await getEmployeeSlotBookings(user.id);
+      
+      const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
+        booking.employeeId === user.id && 
+        booking.date === today && 
+        booking.status === 'approved'
+      );
+      
+      setHasApprovedSlot(approvedSlot);
+      console.log('Dashboard: Has approved slot for today:', approvedSlot);
+    } catch (error) {
+      console.error('Error checking slot booking:', error);
+      setHasApprovedSlot(false);
+    }
+  };
+
+  // Fetch employee-specific data using React Query
+  const { data: employeeClaims = [], error: claimsError } = useQuery({
+    queryKey: ['employee-claims', user?.id],
+    queryFn: () => getEmployeeClaims(user?.id || ''),
     enabled: !!user?.id,
-    retry: 1,
+    retry: 3,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -85,15 +187,6 @@ const EmployeeDashboard = () => {
   const { data: allLeaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
     queryFn: getAllLeaveRequests,
-  });
-
-  // Fetch employee slot bookings from Supabase
-  const { data: employeeSlotBookings = [] } = useQuery({
-    queryKey: ['employee-slot-bookings', user?.id],
-    queryFn: () => getEmployeeSlotBookings(user?.id || ''),
-    enabled: !!user?.id,
-    retry: 1,
-    staleTime: 5 * 60 * 1000,
   });
 
   // Calculate leave balance for current employee (only for full-time employees)
@@ -116,62 +209,9 @@ const EmployeeDashboard = () => {
 
   const leaveBalance = calculateLeaveBalance();
 
-  // Update employee data when query resolves or falls back to local data
-  useEffect(() => {
-    console.log('EmployeeDashboard: Loading employee data for user:', user);
-    
-    if (supabaseEmployee) {
-      console.log('EmployeeDashboard: Using Supabase employee data:', supabaseEmployee);
-      setEmployeeData(supabaseEmployee);
-    } else if (supabaseError) {
-      console.log('EmployeeDashboard: Supabase error, falling back to local data for:', user?.id);
-      const localEmployee = getLocalEmployeeById(user?.id || '');
-      if (localEmployee) {
-        console.log('EmployeeDashboard: Using local employee data:', localEmployee);
-        setEmployeeData(localEmployee);
-      } else {
-        console.log('EmployeeDashboard: No employee data found in local or Supabase');
-        setEmployeeData(null);
-      }
-    }
-  }, [supabaseEmployee, supabaseError, user?.id]);
-
-  // Check slot booking for casual employees using Supabase data
-  useEffect(() => {
-    if (user?.id && employeeData?.type === 'Casual') {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const approvedSlot = employeeSlotBookings.some((booking: SlotBooking) => 
-        booking.employeeId === user.id && 
-        booking.date === today && 
-        booking.status === 'approved'
-      );
-      
-      setHasApprovedSlot(approvedSlot);
-      console.log('Dashboard: Has approved slot for today:', approvedSlot);
-    }
-  }, [user?.id, employeeData, employeeSlotBookings]);
-
-  // Fetch employee-specific data
-  const { data: employeeClaims = [], error: claimsError } = useQuery({
-    queryKey: ['employee-claims', user?.id],
-    queryFn: () => getEmployeeClaims(user?.id || ''),
-    enabled: !!user?.id,
-    retry: 3,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: attendanceRecords = [], error: attendanceError } = useQuery({
-    queryKey: ['employee-attendance', user?.id],
-    queryFn: () => getEmployeeAttendanceRecords(user?.id || ''),
-    enabled: !!user?.id,
-    retry: 3,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Calculate real stats
+  // Calculate statistics
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
-  const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hoursWorked || 0), 0);
+  const hoursThisMonth = attendanceData.reduce((total, record) => total + (record.hours_worked || 0), 0);
   
   // Calculate days until 2nd of next month
   const getDaysUntilNextPayroll = () => {
@@ -182,10 +222,8 @@ const EmployeeDashboard = () => {
     
     let nextPayrollDate;
     if (currentDay <= 2) {
-      // If today is 1st or 2nd, next payroll is this month's 2nd
       nextPayrollDate = new Date(currentYear, currentMonth, 2);
     } else {
-      // Otherwise, next payroll is next month's 2nd
       nextPayrollDate = new Date(currentYear, currentMonth + 1, 2);
     }
     
@@ -214,11 +252,12 @@ const EmployeeDashboard = () => {
     setIsClockingInOut(true);
     
     try {
-      const action = isClockedIn ? 'out' : 'in';
-      console.log('EmployeeDashboard: Starting clock', action, 'operation for user:', user.id);
+      const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
+      const action = isCurrentlyClockedIn ? 'out' : 'in';
+      console.log('Dashboard: Starting clock', action, 'operation for user:', user.id);
       
       await updateClockInOut(user.id, action);
-      console.log('EmployeeDashboard: Clock', action, 'operation completed');
+      console.log('Dashboard: Clock', action, 'operation completed');
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -226,40 +265,24 @@ const EmployeeDashboard = () => {
         minute: '2-digit'
       });
       
-      // Immediately update local state for instant UI feedback
-      const newClockedInState = action === 'in';
-      console.log('EmployeeDashboard: Updating local state - isClockedIn:', newClockedInState);
+      // Refresh attendance data first
+      await fetchAttendanceData();
       
-      setIsClockedIn(newClockedInState);
+      // Then update clock status after a short delay
+      setTimeout(() => {
+        checkClockStatus();
+      }, 500);
       
       if (action === 'out') {
-        setClockTime(null);
-        setClockLocation(null);
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        setClockTime(currentTime);
         toast.success(`Clocked in at ${currentTime}`);
       }
       
-      // Force multiple refetches to ensure consistency
-      console.log('EmployeeDashboard: Forcing immediate refetch of clock status');
-      await refetchClockStatus();
-      
-      // Additional refetch after a short delay to catch any database lag
-      setTimeout(async () => {
-        console.log('EmployeeDashboard: Secondary refetch of clock status');
-        await refetchClockStatus();
-        queryClient.invalidateQueries({ queryKey: ['employee-attendance', user.id] });
-      }, 1000);
-      
     } catch (error) {
-      console.error('EmployeeDashboard: Clock in/out error:', error);
+      console.error('Dashboard: Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
       toast.error(errorMessage);
-      
-      // Revert local state on error and force refetch
-      console.log('EmployeeDashboard: Reverting state due to error');
-      await refetchClockStatus();
     } finally {
       setIsClockingInOut(false);
     }
@@ -282,31 +305,26 @@ const EmployeeDashboard = () => {
 
   const displayName = employeeData?.name || user?.name || 'Employee';
   const canClockIn = employeeData?.type !== 'Casual' || hasApprovedSlot;
+  const isClockedIn = clockStatus?.status === 'clocked-in';
 
-  // Debug logging with more details
-  console.log('EmployeeDashboard: Current render state:', {
+  // Debug logging
+  console.log('Dashboard: Current render state:', {
     user,
     employeeData,
     employeeClaims: employeeClaims.length,
-    attendanceRecords: attendanceRecords.length,
+    attendanceRecords: attendanceData.length,
     pendingClaims,
     hoursThisMonth,
     isClockedIn,
-    clockTime,
-    clockLocation,
-    leaveBalance,
+    clockStatus,
     hasApprovedSlot,
     canClockIn,
-    clockStatus,
     isClockingInOut,
     renderTimestamp: new Date().toISOString()
   });
 
   if (claimsError) {
-    console.error('EmployeeDashboard: Error loading claims:', claimsError);
-  }
-  if (attendanceError) {
-    console.error('EmployeeDashboard: Error loading attendance:', attendanceError);
+    console.error('Dashboard: Error loading claims:', claimsError);
   }
 
   return (
@@ -372,13 +390,13 @@ const EmployeeDashboard = () => {
                     {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
                   <div className="text-sm opacity-80 flex items-center">
-                    {isClockedIn && clockTime ? (
+                    {isClockedIn && clockStatus?.clockIn ? (
                       <>
-                        Clocked in at {clockTime}
-                        {clockLocation && (
+                        Clocked in at {clockStatus.clockIn}
+                        {clockStatus.location && (
                           <>
                             <MapPin className="w-3 h-3 mx-1" />
-                            {clockLocation}
+                            {clockStatus.location}
                           </>
                         )}
                       </>
