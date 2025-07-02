@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
 import { getAllSlotBookings } from './slotBookingService';
@@ -23,9 +24,6 @@ export interface ClockInOutRecord {
   clockOut?: string;
   location?: string;
 }
-
-// Mock clock status storage (in production, this would be in database)
-const clockStatusStorage: { [key: string]: ClockInOutRecord } = {};
 
 export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
   console.log('Fetching attendance records from Supabase...');
@@ -137,8 +135,30 @@ export const updateAttendanceRecord = async (id: number, updates: Partial<Attend
   }
 };
 
-export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | undefined => {
-  return clockStatusStorage[employeeId];
+export const getClockInOutStatus = async (employeeId: string): Promise<ClockInOutRecord | undefined> => {
+  try {
+    const { data, error } = await supabase
+      .from('clock_status')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('date', new Date().toISOString().split('T')[0])
+      .single();
+
+    if (error || !data) {
+      return undefined;
+    }
+
+    return {
+      employeeId: data.employee_id,
+      status: data.status as 'clocked-in' | 'clocked-out',
+      clockIn: data.clock_in_time || undefined,
+      clockOut: data.clock_out_time || undefined,
+      location: data.location || undefined
+    };
+  } catch (error) {
+    console.error('Error fetching clock status:', error);
+    return undefined;
+  }
 };
 
 export const updateClockInOut = async (employeeId: string, action: 'in' | 'out', location?: string) => {
@@ -265,15 +285,27 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
       if (insertError) throw insertError;
     }
 
-    // Update localStorage for UI synchronization
-    const clockData = {
+    // Update clock status in Supabase
+    const clockStatusData = {
+      employee_id: employeeId,
       status: action === 'in' ? 'clocked-in' : 'clocked-out',
-      clockIn: action === 'in' ? currentTime : (existingRecord?.check_in || undefined),
-      clockOut: action === 'out' ? currentTime : undefined,
+      date: currentDate,
       location: location
     };
 
-    localStorage.setItem(`clockStatus_${employeeId}`, JSON.stringify(clockData));
+    if (action === 'in') {
+      clockStatusData.clock_in_time = currentTime;
+    } else {
+      clockStatusData.clock_out_time = currentTime;
+    }
+
+    const { error: clockError } = await supabase
+      .from('clock_status')
+      .upsert(clockStatusData);
+
+    if (clockError) {
+      console.error('Error updating clock status:', clockError);
+    }
 
   } catch (error) {
     console.error('Error updating clock in/out:', error);

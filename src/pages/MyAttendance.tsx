@@ -11,7 +11,7 @@ import { Clock, Calendar, Filter, Download, MapPin, AlertCircle } from 'lucide-r
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { updateClockInOut } from '@/services/attendanceService';
+import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 
@@ -116,54 +116,55 @@ const MyAttendance = () => {
     }
   };
 
-  const checkClockStatus = () => {
+  const checkClockStatus = async () => {
     if (!user?.id) return;
 
     const today = new Date().toISOString().split('T')[0];
     
-    // First check localStorage
-    const localStorageStatus = localStorage.getItem(`clockStatus_${user.id}`);
-    console.log('Local storage clock status:', localStorageStatus);
-    
-    // Check today's attendance record from database
-    const todayRecord = attendanceData.find(record => record.date === today);
-    console.log('Today attendance record:', todayRecord);
-    
-    let currentStatus: ClockInOutRecord | undefined;
-    
-    if (todayRecord) {
-      // Determine status based on database record
-      if (todayRecord.check_in && !todayRecord.check_out) {
-        // Clocked in but not out
+    try {
+      // Check clock status from Supabase
+      const supabaseStatus = await getClockInOutStatus(user.id);
+      console.log('Supabase clock status:', supabaseStatus);
+      
+      // Check today's attendance record from database
+      const todayRecord = attendanceData.find(record => record.date === today);
+      console.log('Today attendance record:', todayRecord);
+      
+      let currentStatus: ClockInOutRecord | undefined;
+      
+      if (supabaseStatus) {
+        // Use Supabase clock status if available
         currentStatus = {
-          status: 'clocked-in',
-          clockIn: todayRecord.check_in,
-          location: todayRecord.clock_in_location
+          status: supabaseStatus.status,
+          clockIn: supabaseStatus.clockIn,
+          clockOut: supabaseStatus.clockOut,
+          location: supabaseStatus.location
         };
-      } else if (todayRecord.check_in && todayRecord.check_out) {
-        // Fully clocked out
-        currentStatus = {
-          status: 'clocked-out',
-          clockIn: todayRecord.check_in,
-          clockOut: todayRecord.check_out,
-          location: todayRecord.clock_out_location
-        };
+      } else if (todayRecord) {
+        // Fall back to attendance record
+        if (todayRecord.check_in && !todayRecord.check_out) {
+          // Clocked in but not out
+          currentStatus = {
+            status: 'clocked-in',
+            clockIn: todayRecord.check_in,
+            location: todayRecord.clock_in_location
+          };
+        } else if (todayRecord.check_in && todayRecord.check_out) {
+          // Fully clocked out
+          currentStatus = {
+            status: 'clocked-out',
+            clockIn: todayRecord.check_in,
+            clockOut: todayRecord.check_out,
+            location: todayRecord.clock_out_location
+          };
+        }
       }
+      
+      console.log('Final clock status:', currentStatus);
+      setClockStatus(currentStatus);
+    } catch (error) {
+      console.error('Error checking clock status:', error);
     }
-    
-    // If localStorage has data but database doesn't match, sync localStorage
-    if (localStorageStatus && currentStatus) {
-      const localData = JSON.parse(localStorageStatus);
-      if (localData.status !== currentStatus.status) {
-        localStorage.setItem(`clockStatus_${user.id}`, JSON.stringify(currentStatus));
-      }
-    } else if (currentStatus) {
-      // Update localStorage with database state
-      localStorage.setItem(`clockStatus_${user.id}`, JSON.stringify(currentStatus));
-    }
-    
-    console.log('Final clock status:', currentStatus);
-    setClockStatus(currentStatus);
   };
 
   const filteredData = attendanceData.filter(record => {

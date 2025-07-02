@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -20,40 +21,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const initializeAuth = () => {
+    // Check if user is already logged in from Supabase sessions
+    const initializeAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('currentUser');
-        const storedSession = localStorage.getItem('userSession');
-        
-        if (storedUser && storedSession) {
-          const userData = JSON.parse(storedUser);
-          const sessionData = JSON.parse(storedSession);
+        // Check for active sessions in Supabase
+        const { data: sessions, error } = await supabase
+          .from('user_sessions')
+          .select('*')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('AuthContext: Error checking sessions:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        if (sessions && sessions.length > 0) {
+          const sessionData = sessions[0];
+          console.log('AuthContext: Loading stored user session:', sessionData.session_data);
+          setUser(sessionData.session_data as User);
           
-          // Verify session is still valid (within 24 hours)
-          const sessionTime = new Date(sessionData.timestamp);
-          const currentTime = new Date();
-          const timeDiff = currentTime.getTime() - sessionTime.getTime();
-          const hoursDiff = timeDiff / (1000 * 3600);
+          // Check if password change is required
+          const { data: passwordData } = await supabase
+            .from('user_passwords')
+            .select('requires_change')
+            .eq('email', sessionData.email)
+            .single();
           
-          if (hoursDiff < 24) {
-            console.log('AuthContext: Loading stored user session:', userData);
-            setUser(userData);
-            
-            // Check if password change is required
-            const passwordChangeRequired = localStorage.getItem('requiresPasswordChange');
-            setRequiresPasswordChange(passwordChangeRequired === 'true');
-          } else {
-            // Session expired, clear storage
-            console.log('AuthContext: Session expired, clearing storage');
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('userSession');
-            localStorage.removeItem('requiresPasswordChange');
-          }
+          setRequiresPasswordChange(passwordData?.requires_change || false);
         }
       } catch (error) {
-        console.error('AuthContext: Error parsing stored user:', error);
-        localStorage.clear();
+        console.error('AuthContext: Error initializing auth:', error);
       } finally {
         setIsLoading(false);
       }
@@ -62,24 +62,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  const saveUserSession = (userData: User, password?: string) => {
+  const saveUserSession = async (userData: User, password?: string) => {
     try {
-      // Save user data
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      
-      // Save session with timestamp
-      const sessionData = {
-        timestamp: new Date().toISOString(),
-        userId: userData.id,
-        email: userData.email
-      };
-      localStorage.setItem('userSession', JSON.stringify(sessionData));
-      
-      // Save encrypted password (in real app, this should be handled server-side)
+      // Save user session to Supabase
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour session
+
+      const { error: sessionError } = await supabase
+        .from('user_sessions')
+        .upsert({
+          user_id: userData.id,
+          email: userData.email,
+          session_data: userData,
+          expires_at: expiresAt.toISOString()
+        });
+
+      if (sessionError) {
+        console.error('AuthContext: Error saving session:', sessionError);
+        return;
+      }
+
+      // Save password if provided and not default
       if (password && password !== 'password') {
-        const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
-        userPasswords[userData.email] = btoa(password); // Basic encoding (not secure, for demo only)
-        localStorage.setItem('userPasswords', JSON.stringify(userPasswords));
+        const { error: passwordError } = await supabase
+          .from('user_passwords')
+          .upsert({
+            email: userData.email,
+            password_hash: btoa(password), // Basic encoding (not secure, for demo only)
+            requires_change: false
+          });
+
+        if (passwordError) {
+          console.error('AuthContext: Error saving password:', passwordError);
+        }
       }
       
       console.log('AuthContext: User session saved successfully');
@@ -92,10 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthContext: Attempting login with:', email);
     
     // Check stored passwords first
-    const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
-    const storedPassword = userPasswords[email];
-    
-    if (storedPassword && atob(storedPassword) === password) {
+    const { data: passwordData } = await supabase
+      .from('user_passwords')
+      .select('password_hash, requires_change')
+      .eq('email', email)
+      .single();
+
+    if (passwordData && atob(passwordData.password_hash) === password) {
       console.log('AuthContext: Using stored password for login');
     } else if (password !== 'password') {
       // If not default password and no stored password matches
@@ -125,15 +143,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const foundUser = systemUsers[email];
       
       setUser(foundUser);
-      saveUserSession(foundUser, password);
+      await saveUserSession(foundUser, password);
       
-      if (password === 'password' && !storedPassword) {
+      if (password === 'password' && !passwordData) {
         console.log('AuthContext: Setting password change requirement');
-        localStorage.setItem('requiresPasswordChange', 'true');
+        await supabase
+          .from('user_passwords')
+          .upsert({
+            email: foundUser.email,
+            password_hash: btoa(password),
+            requires_change: true
+          });
         setRequiresPasswordChange(true);
       } else {
         console.log('AuthContext: No password change required');
-        setRequiresPasswordChange(false);
+        setRequiresPasswordChange(passwordData?.requires_change || false);
       }
       
       return true;
@@ -161,15 +185,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         setUser(userRecord);
-        saveUserSession(userRecord, password);
+        await saveUserSession(userRecord, password);
         
-        if (password === 'password' && !storedPassword) {
+        if (password === 'password' && !passwordData) {
           console.log('AuthContext: Setting password change requirement for employee');
-          localStorage.setItem('requiresPasswordChange', 'true');
+          await supabase
+            .from('user_passwords')
+            .upsert({
+              email: userRecord.email,
+              password_hash: btoa(password),
+              requires_change: true
+            });
           setRequiresPasswordChange(true);
         } else {
           console.log('AuthContext: No password change required for employee');
-          setRequiresPasswordChange(false);
+          setRequiresPasswordChange(passwordData?.requires_change || false);
         }
         
         return true;
@@ -195,17 +225,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      // Save new password
-      const userPasswords = JSON.parse(localStorage.getItem('userPasswords') || '{}');
-      userPasswords[user.email] = btoa(newPassword);
-      localStorage.setItem('userPasswords', JSON.stringify(userPasswords));
+      // Save new password to Supabase
+      const { error } = await supabase
+        .from('user_passwords')
+        .upsert({
+          email: user.email,
+          password_hash: btoa(newPassword),
+          requires_change: false
+        });
+
+      if (error) {
+        console.error('AuthContext: Error updating password:', error);
+        return false;
+      }
       
       // Clear password change requirement
-      localStorage.removeItem('requiresPasswordChange');
       setRequiresPasswordChange(false);
       
-      // Update session with new password
-      saveUserSession(user, newPassword);
+      // Update session
+      await saveUserSession(user, newPassword);
       
       console.log('AuthContext: Password updated successfully');
       return true;
@@ -215,13 +253,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log('AuthContext: Logging out user:', user);
+    
+    if (user?.email) {
+      // Remove session from Supabase
+      await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('email', user.email);
+    }
+    
     setUser(null);
     setRequiresPasswordChange(false);
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('userSession');
-    localStorage.removeItem('requiresPasswordChange');
   };
 
   // Debug log current user state

@@ -334,6 +334,42 @@ export type Database = {
           },
         ]
       }
+      clock_status: {
+        Row: {
+          clock_in_time: string | null
+          clock_out_time: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          location: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          clock_in_time?: string | null
+          clock_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          location?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          clock_in_time?: string | null
+          clock_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          location?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deductions: {
         Row: {
           amount: number
@@ -759,6 +795,87 @@ export type Database = {
           description?: string | null
           id?: number
           name?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_passwords: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          password_hash: string
+          requires_change: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          password_hash: string
+          requires_change?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          password_hash?: string
+          requires_change?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          session_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          session_data: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          session_data?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
