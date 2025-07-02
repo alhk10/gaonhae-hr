@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin, KeyRound } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
+import { getEmployees, getActiveEmployeeCount, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
@@ -53,6 +53,12 @@ const Employees = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: activeEmployeeCount = 0 } = useQuery({
+    queryKey: ['activeEmployeeCount'],
+    queryFn: getActiveEmployeeCount,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
       const newEmployee = await createEmployee(employeeData);
@@ -67,6 +73,7 @@ const Employees = () => {
     onSuccess: () => {
       console.log('Employee added successfully with access permissions');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
       toast("Employee added successfully");
       setShowAddForm(false);
       setPaymentType('Monthly');
@@ -99,6 +106,7 @@ const Employees = () => {
     onSuccess: () => {
       console.log('Employee deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
       toast("Employee removed successfully");
     },
     onError: (error) => {
@@ -254,7 +262,7 @@ const Employees = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <span className="text-lg md:text-xl">Active Employees ({employees.length})</span>
+                  <span className="text-lg md:text-xl">Active Employees ({activeEmployeeCount})</span>
                   <div className="flex items-center space-x-2 w-full sm:w-auto">
                     <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <Input
@@ -415,7 +423,10 @@ const Employees = () => {
           open={showModuleSettings}
           onOpenChange={setShowModuleSettings}
           employees={employees}
-          onEmployeesUpdate={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
+          onEmployeesUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
+          }}
         />
       )}
 

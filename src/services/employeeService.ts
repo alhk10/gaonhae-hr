@@ -1,599 +1,335 @@
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
+import type { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching employees with permissions from database...');
-  
-  const { data: employees, error } = await supabase
-    .from('employees')
-    .select(`
-      *,
-      allowances (*),
-      deductions (*),
-      admin_access (*),
-      certificates (*)
-    `)
-    .order('name');
+  try {
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances(*),
+        deductions(*),
+        admin_access(*),
+        employee_page_access(*),
+        certificates(*)
+      `)
+      .is('resign_date', null) // Only get active employees
+      .order('name');
 
-  if (error) {
-    console.error('EmployeeService: Error fetching employees:', error);
+    if (error) {
+      console.error('Error fetching employees:', error);
+      throw error;
+    }
+
+    return employees?.map(transformEmployeeData) || [];
+  } catch (error) {
+    console.error('Error in getEmployees:', error);
     throw error;
   }
-
-  if (!employees || employees.length === 0) {
-    console.log('EmployeeService: No employees found in database');
-    return [];
-  }
-
-  // Fetch page access permissions for all employees
-  const employeeIds = employees.map(emp => emp.id);
-  const { data: pageAccessData, error: pageAccessError } = await supabase
-    .from('employee_page_access')
-    .select('*')
-    .in('employee_id', employeeIds);
-
-  if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
-  }
-
-  console.log('EmployeeService: Fetched employees with permissions:', employees.length);
-
-  return employees.map(emp => {
-    const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
-    
-    console.log(`EmployeeService: Processing employee ${emp.name}:`, {
-      adminAccess: emp.admin_access?.[0],
-      pageAccess: pageAccess
-    });
-    
-    return {
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric || '',
-      dateOfBirth: emp.date_of_birth,
-      residencyStatus: emp.residency_status,
-      type: emp.type as 'Full-Time' | 'Casual',
-      baseSalary: emp.base_salary || undefined,
-      hourlyRate: emp.hourly_rate || undefined,
-      dailyRate: emp.daily_rate || undefined,
-      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-      dailyWeekendRate: emp.daily_weekend_rate || undefined,
-      paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
-      bankName: emp.bank_name || '',
-      bankAccount: emp.bank_account || '',
-      branch: emp.department || 'Main Office',
-      department: emp.department || '',
-      position: emp.position || '',
-      phone: emp.phone || '',
-      address: emp.address || '',
-      email: emp.email || '',
-      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
-      resignDate: emp.resign_date || undefined,
-      allowances: emp.allowances?.map(a => ({
-        id: String(a.id),
-        name: a.name,
-        amount: Number(a.amount),
-        type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      deductions: emp.deductions?.map(d => ({
-        id: String(d.id),
-        name: d.name,
-        amount: Number(d.amount),
-        type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      certificates: emp.certificates?.map(cert => ({
-        id: cert.id,
-        name: cert.name,
-        fileName: cert.file_name,
-        uploadDate: cert.upload_date,
-        fileSize: cert.file_size,
-        fileType: cert.file_type
-      })) || [],
-      adminAccess: emp.admin_access?.[0] ? {
-        employees: emp.admin_access[0].employees || false,
-        payroll: emp.admin_access[0].payroll || false,
-        leaveManagement: emp.admin_access[0].leave_management || false,
-        claims: emp.admin_access[0].claims || false,
-        attendance: emp.admin_access[0].attendance || false,
-        slotBooking: emp.admin_access[0].slot_booking || false,
-        reports: emp.admin_access[0].reports || false
-      } : {
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      pageAccess: pageAccess ? {
-        profile: pageAccess.profile !== false, // Default to true if not explicitly false
-        applyLeave: pageAccess.apply_leave !== false,
-        submitClaim: pageAccess.submit_claim !== false,
-        payslips: pageAccess.payslips !== false,
-        myAttendance: pageAccess.my_attendance !== false,
-        slotBookingEmployee: pageAccess.slot_booking_employee !== false
-      } : {
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      }
-    };
-  });
 };
 
-export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching casual employees from Supabase...');
-  
-  const { data: employees, error } = await supabase
-    .from('employees')
-    .select(`
-      *,
-      allowances (*),
-      deductions (*),
-      admin_access (*),
-      certificates (*)
-    `)
-    .eq('type', 'Casual')
-    .is('resign_date', null); // Only get active casual employees
+export const getAllEmployees = async (): Promise<EmployeeProfile[]> => {
+  try {
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances(*),
+        deductions(*),
+        admin_access(*),
+        employee_page_access(*),
+        certificates(*)
+      `)
+      .order('name');
 
-  if (error) {
-    console.error('EmployeeService: Error fetching casual employees:', error);
+    if (error) {
+      console.error('Error fetching all employees:', error);
+      throw error;
+    }
+
+    return employees?.map(transformEmployeeData) || [];
+  } catch (error) {
+    console.error('Error in getAllEmployees:', error);
     throw error;
   }
-
-  console.log('EmployeeService: Fetched casual employees:', employees);
-
-  // Fetch page access permissions for casual employees
-  const employeeIds = employees?.map(emp => emp.id) || [];
-  const { data: pageAccessData, error: pageAccessError } = await supabase
-    .from('employee_page_access')
-    .select('*')
-    .in('employee_id', employeeIds);
-
-  if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
-  }
-
-  return employees?.map(emp => {
-    const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
-    
-    return {
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric || '',
-      dateOfBirth: emp.date_of_birth,
-      residencyStatus: emp.residency_status,
-      type: emp.type as 'Full-Time' | 'Casual',
-      baseSalary: emp.base_salary || undefined,
-      hourlyRate: emp.hourly_rate || undefined,
-      dailyRate: emp.daily_rate || undefined,
-      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-      dailyWeekendRate: emp.daily_weekend_rate || undefined,
-      paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
-      bankName: emp.bank_name || '',
-      bankAccount: emp.bank_account || '',
-      branch: emp.department || 'Main Office', // Map department to branch for consistency
-      department: emp.department || '', // Keep original department field
-      position: emp.position || '',
-      phone: emp.phone || '',
-      address: emp.address || '',
-      email: emp.email || '',
-      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
-      resignDate: emp.resign_date || undefined,
-      allowances: emp.allowances?.map(a => ({
-        id: String(a.id),
-        name: a.name,
-        amount: Number(a.amount),
-        type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      deductions: emp.deductions?.map(d => ({
-        id: String(d.id),
-        name: d.name,
-        amount: Number(d.amount),
-        type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      certificates: emp.certificates?.map(cert => ({
-        id: cert.id,
-        name: cert.name,
-        fileName: cert.file_name,
-        uploadDate: cert.upload_date,
-        fileSize: cert.file_size,
-        fileType: cert.file_type
-      })) || [],
-      adminAccess: emp.admin_access?.length > 0 ? {
-        employees: emp.admin_access[0]?.employees || false,
-        payroll: emp.admin_access[0]?.payroll || false,
-        leaveManagement: emp.admin_access[0]?.leave_management || false,
-        claims: emp.admin_access[0]?.claims || false,
-        attendance: emp.admin_access[0]?.attendance || false,
-        slotBooking: emp.admin_access[0]?.slot_booking || false,
-        reports: emp.admin_access[0]?.reports || false
-      } : {
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      pageAccess: pageAccess ? {
-        profile: pageAccess.profile || false,
-        applyLeave: pageAccess.apply_leave || false,
-        submitClaim: pageAccess.submit_claim || false,
-        payslips: pageAccess.payslips || false,
-        myAttendance: pageAccess.my_attendance || false,
-        slotBookingEmployee: pageAccess.slot_booking_employee || false
-      } : {
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      }
-    };
-  }) || [];
 };
 
-export const getEmployeeById = async (id: string): Promise<EmployeeProfile | null> => {
-  console.log('EmployeeService: Fetching employee by ID from Supabase:', id);
-  
-  const { data: employee, error } = await supabase
-    .from('employees')
-    .select(`
-      *,
-      allowances (*),
-      deductions (*),
-      admin_access (*),
-      certificates (*)
-    `)
-    .eq('id', id)
-    .maybeSingle();
+export const getActiveEmployeeCount = async (): Promise<number> => {
+  try {
+    const { count, error } = await supabase
+      .from('employees')
+      .select('*', { count: 'exact', head: true })
+      .is('resign_date', null);
 
-  if (error) {
-    console.error('EmployeeService: Error fetching employee by ID:', error);
-    throw error;
+    if (error) {
+      console.error('Error getting active employee count:', error);
+      throw error;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error in getActiveEmployeeCount:', error);
+    return 0;
   }
+};
 
-  if (!employee) {
-    console.log('EmployeeService: No employee found with ID:', id);
-    return null;
-  }
-
-  console.log('EmployeeService: Found employee:', employee.name, employee.email);
-
-  // Fetch page access permissions for the employee
-  const { data: pageAccess, error: pageAccessError } = await supabase
-    .from('employee_page_access')
-    .select('*')
-    .eq('employee_id', id)
-    .maybeSingle();
-
-  if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
-  }
-
+const transformEmployeeData = (employeeData: any): EmployeeProfile => {
   return {
-    id: employee.id,
-    name: employee.name,
-    nric: employee.nric || '',
-    dateOfBirth: employee.date_of_birth,
-    residencyStatus: employee.residency_status,
-    type: employee.type as 'Full-Time' | 'Casual',
-    baseSalary: employee.base_salary || undefined,
-    hourlyRate: employee.hourly_rate || undefined,
-    dailyRate: employee.daily_rate || undefined,
-    dailyWeekdayRate: employee.daily_weekday_rate || undefined,
-    dailyWeekendRate: employee.daily_weekend_rate || undefined,
-    paymentType: employee.payment_type as 'Monthly' | 'Hourly' | 'Daily',
-    bankName: employee.bank_name || '',
-    bankAccount: employee.bank_account || '',
-    branch: employee.department || 'Main Office', // Map department to branch for consistency
-    department: employee.department || '', // Keep original department field
-    position: employee.position || '',
-    phone: employee.phone || '',
-    address: employee.address || '',
-    email: employee.email || '',
-    joinDate: employee.join_date || (employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined),
-    resignDate: employee.resign_date || undefined,
-    allowances: employee.allowances?.map(a => ({
-      id: String(a.id),
+    id: employeeData.id,
+    name: employeeData.name,
+    email: employeeData.email,
+    phone: employeeData.phone,
+    nric: employeeData.nric,
+    dateOfBirth: employeeData.date_of_birth,
+    address: employeeData.address,
+    position: employeeData.position,
+    department: employeeData.department,
+    branch: employeeData.branch,
+    type: employeeData.type,
+    residencyStatus: employeeData.residency_status,
+    baseSalary: employeeData.base_salary,
+    hourlyRate: employeeData.hourly_rate,
+    dailyRate: employeeData.daily_rate,
+    dailyWeekdayRate: employeeData.daily_weekday_rate,
+    dailyWeekendRate: employeeData.daily_weekend_rate,
+    paymentType: employeeData.payment_type,
+    bankName: employeeData.bank_name,
+    bankAccount: employeeData.bank_account,
+    joinDate: employeeData.join_date,
+    resignDate: employeeData.resign_date,
+    allowances: employeeData.allowances?.map((a: any) => ({
+      id: a.id.toString(),
       name: a.name,
       amount: Number(a.amount),
-      type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: a.type || 'Fixed'
     })) || [],
-    deductions: employee.deductions?.map(d => ({
-      id: String(d.id),
+    deductions: employeeData.deductions?.map((d: any) => ({
+      id: d.id.toString(),
       name: d.name,
       amount: Number(d.amount),
-      type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
+      type: d.type || 'Fixed'
     })) || [],
-    certificates: employee.certificates?.map(cert => ({
-      id: cert.id,
-      name: cert.name,
-      fileName: cert.file_name,
-      uploadDate: cert.upload_date,
-      fileSize: cert.file_size,
-      fileType: cert.file_type
+    certificates: employeeData.certificates?.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      fileName: c.file_name,
+      fileType: c.file_type,
+      fileSize: c.file_size,
+      uploadDate: c.upload_date
     })) || [],
-    adminAccess: employee.admin_access?.length > 0 ? {
-      employees: employee.admin_access[0]?.employees || false,
-      payroll: employee.admin_access[0]?.payroll || false,
-      leaveManagement: employee.admin_access[0]?.leave_management || false,
-      claims: employee.admin_access[0]?.claims || false,
-      attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false,
-      reports: employee.admin_access[0]?.reports || false
-    } : {
-      employees: false,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: false,
-      slotBooking: false,
-      reports: false
+    adminAccess: {
+      employees: employeeData.admin_access?.[0]?.employees || false,
+      payroll: employeeData.admin_access?.[0]?.payroll || false,
+      leaveManagement: employeeData.admin_access?.[0]?.leave_management || false,
+      claims: employeeData.admin_access?.[0]?.claims || false,
+      attendance: employeeData.admin_access?.[0]?.attendance || false,
+      slotBooking: employeeData.admin_access?.[0]?.slot_booking || false,
+      reports: employeeData.admin_access?.[0]?.reports || false
     },
-    pageAccess: pageAccess ? {
-      profile: pageAccess.profile || false,
-      applyLeave: pageAccess.apply_leave || false,
-      submitClaim: pageAccess.submit_claim || false,
-      payslips: pageAccess.payslips || false,
-      myAttendance: pageAccess.my_attendance || false,
-      slotBookingEmployee: pageAccess.slot_booking_employee || false
-    } : {
-      profile: true,
-      applyLeave: true,
-      submitClaim: true,
-      payslips: true,
-      myAttendance: true,
-      slotBookingEmployee: true
+    pageAccess: {
+      profile: employeeData.employee_page_access?.[0]?.profile !== false,
+      applyLeave: employeeData.employee_page_access?.[0]?.apply_leave !== false,
+      submitClaim: employeeData.employee_page_access?.[0]?.submit_claim !== false,
+      payslips: employeeData.employee_page_access?.[0]?.payslips !== false,
+      myAttendance: employeeData.employee_page_access?.[0]?.my_attendance !== false,
+      slotBookingEmployee: employeeData.employee_page_access?.[0]?.slot_booking_employee !== false
     }
   };
 };
 
-export const createEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Creating employee with data:', employeeData);
-  
+export const getEmployeeById = async (id: string): Promise<EmployeeProfile | null> => {
   try {
-    // Validate required fields
-    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
-    const missingFields = requiredFields.filter(field => !employeeData[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    const { data: employee, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances(*),
+        deductions(*),
+        admin_access(*),
+        employee_page_access(*),
+        certificates(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching employee by ID:', error);
+      return null;
     }
 
-    // Generate employee ID
+    return employee ? transformEmployeeData(employee) : null;
+  } catch (error) {
+    console.error('Error in getEmployeeById:', error);
+    return null;
+  }
+};
+
+export const createEmployee = async (employeeData: Partial<EmployeeProfile>): Promise<EmployeeProfile | null> => {
+  try {
     const employeeId = `EMP${Date.now()}`;
-    
-    console.log('EmployeeService: Inserting employee with ID:', employeeId);
     
     const { data: employee, error } = await supabase
       .from('employees')
-      .insert([{
+      .insert({
         id: employeeId,
         name: employeeData.name,
+        email: employeeData.email,
+        phone: employeeData.phone,
         nric: employeeData.nric,
         date_of_birth: employeeData.dateOfBirth,
-        residency_status: employeeData.residencyStatus,
+        address: employeeData.address,
+        position: employeeData.position,
+        department: employeeData.department,
+        branch: employeeData.branch,
         type: employeeData.type,
+        residency_status: employeeData.residencyStatus,
         base_salary: employeeData.baseSalary,
         hourly_rate: employeeData.hourlyRate,
         daily_rate: employeeData.dailyRate,
         daily_weekday_rate: employeeData.dailyWeekdayRate,
         daily_weekend_rate: employeeData.dailyWeekendRate,
-        payment_type: employeeData.paymentType || 'Monthly',
+        payment_type: employeeData.paymentType,
         bank_name: employeeData.bankName,
         bank_account: employeeData.bankAccount,
-        department: employeeData.branch || employeeData.department || '', // Store as department in DB
-        position: employeeData.position || '',
-        phone: employeeData.phone || '',
-        address: employeeData.address || '',
-        email: employeeData.email,
-        join_date: employeeData.joinDate || null
-      }])
+        join_date: employeeData.joinDate,
+      })
       .select()
       .single();
 
     if (error) {
-      console.error('EmployeeService: Supabase error creating employee:', error);
+      console.error('Error creating employee:', error);
       throw error;
     }
 
-    console.log('EmployeeService: Employee created successfully:', employee);
-    return employee;
+    return employee ? transformEmployeeData(employee) : null;
   } catch (error) {
-    console.error('EmployeeService: Error in createEmployee:', error);
+    console.error('Error in createEmployee:', error);
     throw error;
   }
 };
 
-export const addEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Adding employee (alias for createEmployee):', employeeData);
-  return await createEmployee(employeeData);
-};
+export const updateEmployee = async (id: string, employeeData: Partial<EmployeeProfile>): Promise<EmployeeProfile | null> => {
+  try {
+    const { data: employee, error } = await supabase
+      .from('employees')
+      .update({
+        name: employeeData.name,
+        email: employeeData.email,
+        phone: employeeData.phone,
+        nric: employeeData.nric,
+        date_of_birth: employeeData.dateOfBirth,
+        address: employeeData.address,
+        position: employeeData.position,
+        department: employeeData.department,
+        branch: employeeData.branch,
+        type: employeeData.type,
+        residency_status: employeeData.residencyStatus,
+        base_salary: employeeData.baseSalary,
+        hourly_rate: employeeData.hourlyRate,
+        daily_rate: employeeData.dailyRate,
+        daily_weekday_rate: employeeData.dailyWeekdayRate,
+        daily_weekend_rate: employeeData.dailyWeekendRate,
+        payment_type: employeeData.paymentType,
+        bank_name: employeeData.bankName,
+        bank_account: employeeData.bankAccount,
+        join_date: employeeData.joinDate,
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-export const updateEmployee = async (id: string, employeeData: any) => {
-  console.log('EmployeeService: Updating employee in Supabase:', id, employeeData);
-  
-  // Ensure proper number conversion and null handling for salary fields
-  const updateData = {
-    name: employeeData.name,
-    nric: employeeData.nric,
-    date_of_birth: employeeData.dateOfBirth,
-    residency_status: employeeData.residencyStatus,
-    type: employeeData.type,
-    base_salary: employeeData.baseSalary !== null && employeeData.baseSalary !== undefined ? Number(employeeData.baseSalary) : null,
-    hourly_rate: employeeData.hourlyRate !== null && employeeData.hourlyRate !== undefined ? Number(employeeData.hourlyRate) : null,
-    daily_rate: employeeData.dailyRate !== null && employeeData.dailyRate !== undefined ? Number(employeeData.dailyRate) : null,
-    daily_weekday_rate: employeeData.dailyWeekdayRate !== null && employeeData.dailyWeekdayRate !== undefined ? Number(employeeData.dailyWeekdayRate) : null,
-    daily_weekend_rate: employeeData.dailyWeekendRate !== null && employeeData.dailyWeekendRate !== undefined ? Number(employeeData.dailyWeekendRate) : null,
-    payment_type: employeeData.paymentType,
-    bank_name: employeeData.bankName,
-    bank_account: employeeData.bankAccount,
-    department: employeeData.branch || employeeData.department, // Store as department in DB
-    position: employeeData.position,
-    phone: employeeData.phone,
-    address: employeeData.address,
-    email: employeeData.email,
-    join_date: employeeData.joinDate || null
-  };
+    if (error) {
+      console.error('Error updating employee:', error);
+      throw error;
+    }
 
-  console.log('EmployeeService: Processed update data for Supabase:', updateData);
-
-  const { data: employee, error } = await supabase
-    .from('employees')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('EmployeeService: Error updating employee:', error);
-    throw error;
-  }
-
-  console.log('EmployeeService: Employee updated successfully:', employee);
-  return employee;
-};
-
-// Updated deleteEmployee to use soft delete instead of hard delete
-export const deleteEmployee = async (id: string) => {
-  console.log('EmployeeService: Soft deleting employee (setting resign date) in Supabase:', id);
-  
-  const today = new Date().toISOString().split('T')[0];
-  
-  const { error } = await supabase
-    .from('employees')
-    .update({ resign_date: today })
-    .eq('id', id);
-
-  if (error) {
-    console.error('EmployeeService: Error soft deleting employee:', error);
-    throw error;
-  }
-
-  console.log('EmployeeService: Employee soft deleted successfully (resign date set)');
-};
-
-export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
-  console.log('EmployeeService: Updating employee resign date in Supabase:', id, resignDate);
-  
-  const { error } = await supabase
-    .from('employees')
-    .update({ resign_date: resignDate || null })
-    .eq('id', id);
-
-  if (error) {
-    console.error('EmployeeService: Error updating resign date:', error);
+    return employee ? transformEmployeeData(employee) : null;
+  } catch (error) {
+    console.error('Error in updateEmployee:', error);
     throw error;
   }
 };
 
-export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess: AdminAccessPermissions) => {
-  console.log('EmployeeService: Updating employee admin access in Supabase:', employeeId, adminAccess);
-  
-  // First, check if admin access record exists
-  const { data: existingAccess, error: fetchError } = await supabase
-    .from('admin_access')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error('EmployeeService: Error fetching admin access:', fetchError);
-    throw fetchError;
-  }
-
-  const accessData = {
-    employee_id: employeeId,
-    employees: adminAccess.employees,
-    payroll: adminAccess.payroll,
-    leave_management: adminAccess.leaveManagement,
-    claims: adminAccess.claims,
-    attendance: adminAccess.attendance,
-    slot_booking: adminAccess.slotBooking,
-    reports: adminAccess.reports
-  };
-
-  if (existingAccess) {
-    // Update existing record
-    const { error } = await supabase
+export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess: AdminAccessPermissions): Promise<void> => {
+  try {
+    const { error: deleteError } = await supabase
       .from('admin_access')
-      .update(accessData)
+      .delete()
       .eq('employee_id', employeeId);
 
-    if (error) {
-      console.error('EmployeeService: Error updating admin access:', error);
-      throw error;
+    if (deleteError) {
+      console.error('Error deleting existing admin access:', deleteError);
     }
-  } else {
-    // Create new record
-    const { error } = await supabase
+
+    const { error: insertError } = await supabase
       .from('admin_access')
-      .insert([accessData]);
+      .insert({
+        employee_id: employeeId,
+        employees: adminAccess.employees,
+        payroll: adminAccess.payroll,
+        leave_management: adminAccess.leaveManagement,
+        claims: adminAccess.claims,
+        attendance: adminAccess.attendance,
+        slot_booking: adminAccess.slotBooking,
+        reports: adminAccess.reports
+      });
 
-    if (error) {
-      console.error('EmployeeService: Error creating admin access:', error);
-      throw error;
+    if (insertError) {
+      console.error('Error inserting admin access:', insertError);
+      throw insertError;
     }
+  } catch (error) {
+    console.error('Error in updateEmployeeAdminAccess:', error);
+    throw error;
   }
-
-  console.log('EmployeeService: Admin access updated successfully');
 };
 
-export const updateEmployeePageAccess = async (employeeId: string, pageAccess: EmployeePageAccessPermissions) => {
-  console.log('EmployeeService: Updating employee page access in Supabase:', employeeId, pageAccess);
-  
-  // First, check if page access record exists
-  const { data: existingAccess, error: fetchError } = await supabase
-    .from('employee_page_access')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error('EmployeeService: Error fetching page access:', fetchError);
-    throw fetchError;
-  }
-
-  const accessData = {
-    employee_id: employeeId,
-    profile: pageAccess.profile,
-    apply_leave: pageAccess.applyLeave,
-    submit_claim: pageAccess.submitClaim,
-    payslips: pageAccess.payslips,
-    my_attendance: pageAccess.myAttendance,
-    slot_booking_employee: pageAccess.slotBookingEmployee
-  };
-
-  if (existingAccess) {
-    // Update existing record
-    const { error } = await supabase
+export const updateEmployeePageAccess = async (employeeId: string, pageAccess: EmployeePageAccessPermissions): Promise<void> => {
+  try {
+    const { error: deleteError } = await supabase
       .from('employee_page_access')
-      .update(accessData)
+      .delete()
       .eq('employee_id', employeeId);
 
-    if (error) {
-      console.error('EmployeeService: Error updating page access:', error);
-      throw error;
+    if (deleteError) {
+      console.error('Error deleting existing page access:', deleteError);
     }
-  } else {
-    // Create new record
-    const { error } = await supabase
+
+    const { error: insertError } = await supabase
       .from('employee_page_access')
-      .insert([accessData]);
+      .insert({
+        employee_id: employeeId,
+        profile: pageAccess.profile,
+        apply_leave: pageAccess.applyLeave,
+        submit_claim: pageAccess.submitClaim,
+        payslips: pageAccess.payslips,
+        my_attendance: pageAccess.myAttendance,
+        slot_booking_employee: pageAccess.slotBookingEmployee
+      });
+
+    if (insertError) {
+      console.error('Error inserting page access:', insertError);
+      throw insertError;
+    }
+  } catch (error) {
+    console.error('Error in updateEmployeePageAccess:', error);
+    throw error;
+  }
+};
+
+export const deleteEmployee = async (employeeId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('employees')
+      .update({ resign_date: new Date().toISOString().split('T')[0] })
+      .eq('id', employeeId);
 
     if (error) {
-      console.error('EmployeeService: Error creating page access:', error);
+      console.error('Error setting resign date for employee:', error);
       throw error;
     }
+  } catch (error) {
+    console.error('Error in deleteEmployee:', error);
+    throw error;
   }
-
-  console.log('EmployeeService: Page access updated successfully');
 };

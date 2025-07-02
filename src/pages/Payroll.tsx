@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { getEmployees } from '@/services/employeeService';
+import { getAllEmployees } from '@/services/employeeService';
 import { savePayrollRecord, getEmployeePayrollData } from '@/services/payrollService';
 
 const Payroll = () => {
@@ -51,8 +51,10 @@ const Payroll = () => {
   const openBulkAddDialog = async () => {
     setLoadingEmployees(true);
     try {
-      const employees = await getEmployees();
-      setAvailableEmployees(employees);
+      const employees = await getAllEmployees(); // Use getAllEmployees to include both active and resigned
+      // Filter to only show active employees (those without resign_date)
+      const activeEmployees = employees.filter(emp => !emp.resignDate);
+      setAvailableEmployees(activeEmployees);
       setIsBulkAddOpen(true);
     } catch (error) {
       console.error('Error loading employees:', error);
@@ -511,7 +513,7 @@ const Payroll = () => {
           <DialogHeader>
             <DialogTitle>Add Employees to Payroll</DialogTitle>
             <DialogDescription>
-              Select employees to add to the payroll for {format(payrollDate, 'MMMM yyyy')}
+              Select active employees to add to the payroll for {format(payrollDate, 'MMMM yyyy')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -533,6 +535,11 @@ const Payroll = () => {
                   </label>
                 </div>
               ))}
+              {availableEmployees.length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">No active employees found</p>
+                </div>
+              )}
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-gray-600">
