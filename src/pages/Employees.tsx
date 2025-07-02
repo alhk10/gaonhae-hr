@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Search, Plus, UserCheck, UserX, Building2, Phone, Mail, Calendar, MapPin, Eye } from 'lucide-react';
+import { Users, Search, Plus, UserCheck, UserX, Building2, Phone, Mail, Calendar, MapPin, Eye, Database } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, getFullTimeEmployees, getCasualEmployees, getActiveEmployeeCount } from '@/services/employeeService';
 import { getBranches } from '@/services/settingsService';
+import { seedEmployeeData } from '@/utils/seedEmployeeData';
 import type { EmployeeProfile } from '@/types/employee';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -21,26 +22,35 @@ const Employees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
+  const [isSeeding, setIsSeeding] = useState(false);
 
   // Fetch data from Supabase
-  const { data: allEmployees = [], isLoading: isLoadingAll } = useQuery({
+  const { data: allEmployees = [], isLoading: isLoadingAll, error: allError, refetch: refetchAll } = useQuery({
     queryKey: ['employees', 'all'],
     queryFn: getEmployees,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const { data: fullTimeEmployees = [], isLoading: isLoadingFullTime } = useQuery({
+  const { data: fullTimeEmployees = [], isLoading: isLoadingFullTime, error: fullTimeError, refetch: refetchFullTime } = useQuery({
     queryKey: ['employees', 'full-time'],
     queryFn: getFullTimeEmployees,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const { data: casualEmployees = [], isLoading: isLoadingCasual } = useQuery({
+  const { data: casualEmployees = [], isLoading: isLoadingCasual, error: casualError, refetch: refetchCasual } = useQuery({
     queryKey: ['employees', 'casual'],
     queryFn: getCasualEmployees,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const { data: activeEmployeeCount = 0 } = useQuery({
+  const { data: activeEmployeeCount = 0, refetch: refetchCount } = useQuery({
     queryKey: ['employees', 'count'],
     queryFn: getActiveEmployeeCount,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const branches = getBranches();
@@ -51,6 +61,24 @@ const Employees = () => {
 
   const handleViewEmployee = (employeeId: string) => {
     navigate(`/employees/${employeeId}`);
+  };
+
+  const handleSeedData = async () => {
+    setIsSeeding(true);
+    try {
+      await seedEmployeeData();
+      toast.success("Sample employee data added successfully!");
+      // Refetch all data
+      refetchAll();
+      refetchFullTime();
+      refetchCasual();
+      refetchCount();
+    } catch (error) {
+      console.error('Error seeding data:', error);
+      toast.error("Failed to add sample data. Please try again.");
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   const getEmployeesToDisplay = () => {
@@ -90,6 +118,7 @@ const Employees = () => {
 
   const employeesToDisplay = getEmployeesToDisplay();
   const isLoading = isLoadingAll || isLoadingFullTime || isLoadingCasual;
+  const hasErrors = allError || fullTimeError || casualError;
 
   if (isLoading) {
     return (
@@ -110,6 +139,43 @@ const Employees = () => {
     );
   }
 
+  if (hasErrors) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="text-red-500 mb-4">
+                  <Users className="w-16 h-16 mx-auto mb-2" />
+                  <p className="text-lg font-medium">Error Loading Employees</p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    There was an issue fetching employee data from the database.
+                  </p>
+                </div>
+                <div className="space-x-4">
+                  <Button onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSeedData}
+                    disabled={isSeeding}
+                  >
+                    <Database className="w-4 h-4 mr-2" />
+                    {isSeeding ? 'Adding Sample Data...' : 'Add Sample Data'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -122,13 +188,25 @@ const Employees = () => {
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900">Employee Management</h2>
                 <p className="text-sm md:text-base text-gray-600">Manage your workforce and employee information</p>
               </div>
-              <Button 
-                className="flex items-center space-x-2 w-full sm:w-auto" 
-                onClick={handleAddEmployee}
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Employee</span>
-              </Button>
+              <div className="flex gap-2">
+                {(allEmployees.length === 0 && !isLoading) && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSeedData}
+                    disabled={isSeeding}
+                  >
+                    <Database className="w-4 h-4 mr-2" />
+                    {isSeeding ? 'Adding...' : 'Add Sample Data'}
+                  </Button>
+                )}
+                <Button 
+                  className="flex items-center space-x-2 w-full sm:w-auto" 
+                  onClick={handleAddEmployee}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Employee</span>
+                </Button>
+              </div>
             </div>
 
             {/* Employee Statistics */}
@@ -295,7 +373,28 @@ const Employees = () => {
                         </Card>
                       ))}
                       
-                      {employeesToDisplay.length === 0 && (
+                      {employeesToDisplay.length === 0 && allEmployees.length === 0 && (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                          <p className="text-gray-500 mb-4">No employees found in the system</p>
+                          <div className="space-x-4">
+                            <Button onClick={handleAddEmployee}>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add First Employee
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={handleSeedData}
+                              disabled={isSeeding}
+                            >
+                              <Database className="w-4 h-4 mr-2" />
+                              {isSeeding ? 'Adding Sample Data...' : 'Add Sample Data'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {employeesToDisplay.length === 0 && allEmployees.length > 0 && (
                         <div className="text-center py-8">
                           <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                           <p className="text-gray-500">
@@ -304,15 +403,6 @@ const Employees = () => {
                               : 'No employees found'
                             }
                           </p>
-                          {!searchTerm && selectedBranch === 'all' && (
-                            <Button 
-                              className="mt-4" 
-                              onClick={handleAddEmployee}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add First Employee
-                            </Button>
-                          )}
                         </div>
                       )}
                     </div>
