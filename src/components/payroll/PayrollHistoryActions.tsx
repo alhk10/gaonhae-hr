@@ -82,51 +82,68 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
     }
     
     setIsDeleting(true);
+    
     try {
-      console.log(`Super admin ${user?.name} attempting to delete payroll record: ${payroll.id}`);
-      console.log('Payroll record details:', { 
-        id: payroll.id, 
-        employeeId: payroll.employeeId, 
-        month: payroll.month, 
+      console.log(`🚀 Super admin ${user?.name} initiating delete for payroll:`, {
+        id: payroll.id,
+        employeeId: payroll.employeeId,
+        month: payroll.month,
         year: payroll.year,
-        isLocked: payroll.isLocked 
+        isLocked: payroll.isLocked
       });
+
+      // Show loading toast
+      const loadingToast = toast.loading('Deleting payroll record...');
       
-      // Call the delete service function with improved error handling
+      // Perform deletion
       await deletePayrollRecord(payroll.id);
       
-      console.log(`Payroll record ${payroll.id} deleted successfully`);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
       
-      // Update the parent component's state immediately
+      console.log(`✅ Payroll record ${payroll.id} deleted successfully`);
+      
+      // Update parent component state immediately
       onDelete(payroll.id);
       
+      // Show success message
       toast.success(`Payroll for ${payroll.month} ${payroll.year} has been deleted successfully`);
-    } catch (error) {
-      console.error('Error deleting payroll record:', error);
       
-      // Provide more specific error messages
+    } catch (error) {
+      console.error('💥 Error in handleDelete:', error);
+      
+      // Provide user-friendly error messages
       let errorMessage = 'Failed to delete payroll record.';
       
       if (error instanceof Error) {
-        if (error.message.includes('locked')) {
+        const errorMsg = error.message.toLowerCase();
+        
+        if (errorMsg.includes('locked')) {
           errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
-        } else if (error.message.includes('not exist')) {
-          errorMessage = 'Payroll record not found or already deleted.';
-        } else if (error.message.includes('not properly deleted')) {
-          errorMessage = 'Record deletion failed. Please try again or contact support.';
+        } else if (errorMsg.includes('not found') || errorMsg.includes('already deleted')) {
+          errorMessage = 'Payroll record not found. It may have been already deleted.';
+          // Remove from UI since it doesn't exist
+          onDelete(payroll.id);
+        } else if (errorMsg.includes('not properly deleted')) {
+          errorMessage = 'Delete operation failed. Please refresh the page and try again.';
+        } else if (errorMsg.includes('verify') || errorMsg.includes('verification')) {
+          errorMessage = 'Record deleted but verification failed. Please refresh the page.';
+          // Assume success and remove from UI
+          onDelete(payroll.id);
         } else {
           errorMessage = `Deletion failed: ${error.message}`;
         }
       }
       
-      console.error('Detailed error:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
+      console.error('🔍 Deletion error details:', {
         payrollId: payroll.id,
         userRole: user?.role,
-        isLocked: payroll.isLocked
+        isLocked: payroll.isLocked,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       
       toast.error(errorMessage);
+      
     } finally {
       setIsDeleting(false);
     }
@@ -170,7 +187,7 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
             <Button
               variant="outline"
               size="sm"
-              disabled={isLocked || isDeleting}
+              disabled={isDeleting}
               className="flex items-center space-x-1 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />
@@ -181,8 +198,8 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Payroll Record</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete the payroll for {payroll.month} {payroll.year} (Employee: {payroll.employeeId})? 
-                This action cannot be undone and will permanently remove this payroll record from the database.
+                Are you sure you want to delete the payroll for {payroll.month} {payroll.year}? 
+                This action cannot be undone and will permanently remove this payroll record from Supabase.
                 {isLocked && (
                   <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
                     <strong>Warning:</strong> This payroll is currently locked. You must unlock it first before deletion.

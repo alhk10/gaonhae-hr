@@ -124,51 +124,84 @@ const PaymentSummary = () => {
     }
     
     try {
-      console.log(`Super admin ${user?.name} deleting payroll record: ${payrollId}`);
+      console.log(`🚀 Super admin ${user?.name} attempting to delete payroll record: ${payrollId}`);
       
-      // Find the record to check if it's locked
+      // Find the record to get details for logging
       const recordToDelete = payrollHistory.find(p => p.id === payrollId);
-      if (recordToDelete?.isLocked) {
-        toast.error('Cannot delete locked payroll record. Please unlock it first.');
-        return;
+      if (recordToDelete) {
+        console.log('📋 Payroll record details:', { 
+          id: recordToDelete.id, 
+          employeeId: recordToDelete.employeeId, 
+          month: recordToDelete.month, 
+          year: recordToDelete.year,
+          isLocked: recordToDelete.isLocked 
+        });
+        
+        // Check if locked before attempting deletion
+        if (recordToDelete.isLocked) {
+          toast.error('Cannot delete locked payroll record. Please unlock it first.');
+          return;
+        }
       }
+      
+      // Show loading state
+      const loadingToast = toast.loading('Deleting payroll record from Supabase...');
       
       // Delete from Supabase
       await deletePayrollRecord(payrollId);
       
-      // Update local state to remove the deleted record immediately
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      // Update local state immediately to remove the deleted record
       setPayrollHistory(prev => {
         const updated = prev.filter(p => p.id !== payrollId);
-        console.log(`Updated payroll history after deletion. Records count: ${updated.length}`);
+        console.log(`✅ Updated payroll history after deletion. Records count: ${prev.length} -> ${updated.length}`);
         return updated;
       });
       
-      console.log(`Payroll ${payrollId} successfully deleted and removed from UI`);
-      toast.success('Payroll record deleted successfully');
-    } catch (error) {
-      console.error('Error in handleDeletePayroll:', error);
+      console.log(`🎉 Payroll ${payrollId} successfully deleted and removed from UI`);
+      toast.success('Payroll record deleted successfully from Supabase');
       
-      // Provide specific error messages
-      let errorMessage = 'Error deleting payroll record';
+    } catch (error) {
+      console.error('💥 Error in handleDeletePayroll:', error);
+      
+      // Provide specific error messages based on error type
+      let errorMessage = 'Error deleting payroll record from Supabase';
+      let shouldRemoveFromUI = false;
       
       if (error instanceof Error) {
-        if (error.message.includes('locked')) {
+        const errorMsg = error.message.toLowerCase();
+        
+        if (errorMsg.includes('locked')) {
           errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
-        } else if (error.message.includes('not exist')) {
-          errorMessage = 'Payroll record not found or already deleted.';
-          // Remove from UI if it doesn't exist in database
-          setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
-        } else if (error.message.includes('not properly deleted')) {
-          errorMessage = 'Record deletion failed. Please refresh the page and try again.';
+        } else if (errorMsg.includes('not found') || errorMsg.includes('already deleted')) {
+          errorMessage = 'Payroll record not found in Supabase. Removing from display.';
+          shouldRemoveFromUI = true;
+        } else if (errorMsg.includes('not properly deleted')) {
+          errorMessage = 'Record deletion may have failed. Please refresh the page and check.';
+        } else if (errorMsg.includes('verify') || errorMsg.includes('verification')) {
+          errorMessage = 'Record deleted but verification failed. Removing from display.';
+          shouldRemoveFromUI = true;
         } else {
           errorMessage = `Deletion failed: ${error.message}`;
         }
       }
       
-      console.error('Detailed deletion error:', {
+      // Remove from UI if the record doesn't exist in database
+      if (shouldRemoveFromUI) {
+        setPayrollHistory(prev => {
+          const updated = prev.filter(p => p.id !== payrollId);
+          console.log(`🧹 Cleaned up UI after database inconsistency. Records count: ${prev.length} -> ${updated.length}`);
+          return updated;
+        });
+      }
+      
+      console.error('🔍 Detailed deletion error:', {
         payrollId,
         userRole: user?.role,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        removedFromUI: shouldRemoveFromUI
       });
       
       toast.error(errorMessage);
