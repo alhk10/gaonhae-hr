@@ -50,7 +50,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
   const loadBranches = async () => {
     try {
       console.log('Loading branches for edit dialog...');
-      const branchData = getBranches();
+      const branchData = await getBranches();
       console.log('Loaded branches:', branchData);
       setBranches(branchData);
     } catch (error) {

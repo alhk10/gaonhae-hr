@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .upsert({
           user_id: userData.id,
           email: userData.email,
-          session_data: userData,
+          session_data: userData as any,
           expires_at: expiresAt.toISOString()
         });
 

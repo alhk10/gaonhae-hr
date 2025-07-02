@@ -286,7 +286,7 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
     }
 
     // Update clock status in Supabase
-    const clockStatusData = {
+    const clockStatusData: any = {
       employee_id: employeeId,
       status: action === 'in' ? 'clocked-in' : 'clocked-out',
       date: currentDate,

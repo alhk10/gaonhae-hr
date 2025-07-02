@@ -61,7 +61,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     try {
       setLoadingBranches(true);
       console.log('BulkAttendanceDialog: Loading branches from settings service...');
-      const branchData = getBranches();
+      const branchData = await getBranches();
       console.log('BulkAttendanceDialog: Loaded branches:', branchData);
       setBranches(branchData);
       

@@ -40,7 +40,7 @@ export const saveBranches = async (branches: Branch[]): Promise<void> => {
       .from('system_settings')
       .upsert({
         setting_key: 'system_branches',
-        setting_value: branches
+        setting_value: branches as any
       });
 
     if (error) {
