@@ -16,6 +16,7 @@ import {
   addSlotBooking,
   getEmployeeSlotBookings,
   getBranchSlotBookings,
+  updateBranchColors,
   type Branch,
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
@@ -69,10 +70,13 @@ const SlotBooking = () => {
       setLoading(true);
       console.log('SlotBooking: Loading initial slot booking data from Supabase...');
       
+      // Update branch colors first to ensure they match the new scheme
+      await updateBranchColors();
+      
       const branchesData = await getBranches();
       setBranches(branchesData);
       
-      console.log('SlotBooking: Loaded branches:', branchesData);
+      console.log('SlotBooking: Loaded branches with colors:', branchesData);
     } catch (error) {
       console.error('SlotBooking: Error loading initial data:', error);
       toast.error('Failed to load slot booking data');
@@ -249,20 +253,9 @@ const SlotBooking = () => {
     ]);
   };
 
-  // Helper function to convert Tailwind class to actual color
-  const getBranchColorStyle = (colorClass: string) => {
-    const colorMap: { [key: string]: string } = {
-      'bg-blue-500': '#3b82f6',
-      'bg-green-500': '#10b981',
-      'bg-red-500': '#ef4444',
-      'bg-yellow-500': '#f59e0b',
-      'bg-purple-500': '#8b5cf6',
-      'bg-pink-500': '#ec4899',
-      'bg-indigo-500': '#6366f1',
-      'bg-cyan-500': '#06b6d4'
-    };
-    
-    return colorMap[colorClass] || '#3b82f6';
+  // Helper function to get branch color style
+  const getBranchColorStyle = (color: string) => {
+    return color || '#3b82f6'; // Default to blue if no color
   };
 
   if (loading) {
@@ -375,7 +368,8 @@ const SlotBooking = () => {
                         booked: {
                           backgroundColor: '#fee2e2',
                           color: '#dc2626',
-                          textDecoration: 'line-through'
+                          textDecoration: 'line-through',
+                          fontWeight: 'bold'
                         }
                       }}
                     />
@@ -384,7 +378,13 @@ const SlotBooking = () => {
 
                 {/* Selected dates display */}
                 {selectedDates.length > 0 && (
-                  <div className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} style={{ backgroundColor: `${getBranchColorStyle(currentBranch?.color || 'bg-blue-500')}20` }}>
+                  <div 
+                    className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} 
+                    style={{ 
+                      backgroundColor: `${getBranchColorStyle(currentBranch?.color || '#3b82f6')}20`,
+                      border: `1px solid ${getBranchColorStyle(currentBranch?.color || '#3b82f6')}40`
+                    }}
+                  >
                     <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
                       Selected Dates ({selectedDates.length}):
                     </h3>
@@ -395,7 +395,7 @@ const SlotBooking = () => {
                           variant="secondary" 
                           className={isMobile ? 'text-xs' : 'text-sm'}
                           style={{ 
-                            backgroundColor: getBranchColorStyle(currentBranch?.color || 'bg-blue-500'),
+                            backgroundColor: getBranchColorStyle(currentBranch?.color || '#3b82f6'),
                             color: 'white'
                           }}
                         >
@@ -408,7 +408,13 @@ const SlotBooking = () => {
 
                 {/* Branch info */}
                 {currentBranch && (
-                  <div className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} style={{ backgroundColor: `${getBranchColorStyle(currentBranch.color)}20` }}>
+                  <div 
+                    className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} 
+                    style={{ 
+                      backgroundColor: `${getBranchColorStyle(currentBranch.color)}20`,
+                      border: `1px solid ${getBranchColorStyle(currentBranch.color)}40`
+                    }}
+                  >
                     <div className="flex items-start space-x-3">
                       <div 
                         className="w-4 h-4 rounded-full mt-1" 
@@ -419,7 +425,7 @@ const SlotBooking = () => {
                         <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
                         <div className="mt-2 text-xs text-gray-500">
                           <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#fee2e2' }}></span>
-                          Crossed out dates are already booked
+                          Crossed out dates are already booked and approved
                         </div>
                       </div>
                     </div>
@@ -432,7 +438,7 @@ const SlotBooking = () => {
                     onClick={handleBookSlots} 
                     className="w-full"
                     disabled={selectedDates.length === 0 || !currentBranch || isBooking}
-                    style={{ backgroundColor: getBranchColorStyle(currentBranch?.color || 'bg-blue-500') }}
+                    style={{ backgroundColor: getBranchColorStyle(currentBranch?.color || '#3b82f6') }}
                   >
                     {isBooking ? 'Booking...' : `Book ${selectedDates.length > 0 ? selectedDates.length : ''} Slot${selectedDates.length !== 1 ? 's' : ''}`}
                   </Button>
@@ -470,12 +476,20 @@ const SlotBooking = () => {
                   <div className="space-y-3">
                     {filteredBookings.map((booking) => {
                       const bookingBranch = branches.find(b => b.id === booking.branchId);
+                      const branchColor = getBranchColorStyle(bookingBranch?.color || '#6b7280');
                       return (
-                        <div key={booking.id} className={`flex items-center justify-between rounded-lg ${isMobile ? 'p-3' : 'p-3'}`} style={{ backgroundColor: `${getBranchColorStyle(bookingBranch?.color || 'bg-gray-500')}10` }}>
+                        <div 
+                          key={booking.id} 
+                          className={`flex items-center justify-between rounded-lg ${isMobile ? 'p-3' : 'p-3'}`} 
+                          style={{ 
+                            backgroundColor: `${branchColor}10`,
+                            border: `1px solid ${branchColor}30`
+                          }}
+                        >
                           <div className="flex items-center space-x-3">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: getBranchColorStyle(bookingBranch?.color || 'bg-gray-500') }}
+                              style={{ backgroundColor: branchColor }}
                             ></div>
                             <div>
                               <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
@@ -490,7 +504,7 @@ const SlotBooking = () => {
                             }
                             className={isMobile ? 'text-xs' : 'text-xs'}
                             style={booking.status === 'approved' ? { 
-                              backgroundColor: getBranchColorStyle(bookingBranch?.color || 'bg-blue-500'),
+                              backgroundColor: branchColor,
                               color: 'white'
                             } : {}}
                           >
