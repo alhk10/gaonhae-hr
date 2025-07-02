@@ -11,7 +11,7 @@ import { Clock, Calendar, Filter, Download, MapPin, AlertCircle } from 'lucide-r
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
+import { updateClockInOut } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 
@@ -47,10 +47,16 @@ const MyAttendance = () => {
 
   useEffect(() => {
     fetchAttendanceData();
-    checkClockStatus();
     fetchEmployeeData();
     checkSlotBooking();
   }, [user?.id]);
+
+  useEffect(() => {
+    // Check clock status after attendance data is loaded
+    if (attendanceData.length >= 0) {
+      checkClockStatus();
+    }
+  }, [attendanceData, user?.id]);
 
   const fetchEmployeeData = async () => {
     if (!user?.id) return;
@@ -111,10 +117,53 @@ const MyAttendance = () => {
   };
 
   const checkClockStatus = () => {
-    if (user?.id) {
-      const status = getClockInOutStatus(user.id);
-      setClockStatus(status);
+    if (!user?.id) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // First check localStorage
+    const localStorageStatus = localStorage.getItem(`clockStatus_${user.id}`);
+    console.log('Local storage clock status:', localStorageStatus);
+    
+    // Check today's attendance record from database
+    const todayRecord = attendanceData.find(record => record.date === today);
+    console.log('Today attendance record:', todayRecord);
+    
+    let currentStatus: ClockInOutRecord | undefined;
+    
+    if (todayRecord) {
+      // Determine status based on database record
+      if (todayRecord.check_in && !todayRecord.check_out) {
+        // Clocked in but not out
+        currentStatus = {
+          status: 'clocked-in',
+          clockIn: todayRecord.check_in,
+          location: todayRecord.clock_in_location
+        };
+      } else if (todayRecord.check_in && todayRecord.check_out) {
+        // Fully clocked out
+        currentStatus = {
+          status: 'clocked-out',
+          clockIn: todayRecord.check_in,
+          clockOut: todayRecord.check_out,
+          location: todayRecord.clock_out_location
+        };
+      }
     }
+    
+    // If localStorage has data but database doesn't match, sync localStorage
+    if (localStorageStatus && currentStatus) {
+      const localData = JSON.parse(localStorageStatus);
+      if (localData.status !== currentStatus.status) {
+        localStorage.setItem(`clockStatus_${user.id}`, JSON.stringify(currentStatus));
+      }
+    } else if (currentStatus) {
+      // Update localStorage with database state
+      localStorage.setItem(`clockStatus_${user.id}`, JSON.stringify(currentStatus));
+    }
+    
+    console.log('Final clock status:', currentStatus);
+    setClockStatus(currentStatus);
   };
 
   const filteredData = attendanceData.filter(record => {
@@ -141,20 +190,20 @@ const MyAttendance = () => {
         minute: '2-digit'
       });
       
-      // Update local state
-      checkClockStatus();
+      // Refresh attendance data first
+      await fetchAttendanceData();
       
-      const newStatus = getClockInOutStatus(user.id);
-      const locationText = newStatus?.location ? ` at ${newStatus.location}` : '';
+      // Then update clock status
+      setTimeout(() => {
+        checkClockStatus();
+      }, 500);
       
       if (action === 'out') {
-        toast.success(`Clocked out at ${currentTime}${locationText}`);
+        toast.success(`Clocked out at ${currentTime}`);
       } else {
-        toast.success(`Clocked in at ${currentTime}${locationText}`);
+        toast.success(`Clocked in at ${currentTime}`);
       }
       
-      // Refresh attendance data
-      fetchAttendanceData();
     } catch (error) {
       console.error('Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error processing clock in/out. Please try again.';
