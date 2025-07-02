@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,15 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, MapPin, Users, Clock, Plus, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar as CalendarIcon, MapPin, Users, Plus, CheckCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getBranches,
   addSlotBooking,
-  getBookedSlotsForDate,
-  getAvailableSlotsForDate,
   getEmployeeSlotBookings,
   type Branch,
   type SlotBooking as SlotBookingType
@@ -24,37 +24,23 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const SlotBooking = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [selectedDateForBulk, setSelectedDateForBulk] = useState<Date>(new Date());
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [totalAvailableSlots, setTotalAvailableSlots] = useState(0);
-  const [employeeBookingsCount, setEmployeeBookingsCount] = useState(0);
+  const [approvedBookingsCount, setApprovedBookingsCount] = useState(0);
   const [employeeBookings, setEmployeeBookings] = useState<SlotBookingType[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<SlotBookingType[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [availableSlots, setAvailableSlots] = useState(0);
-  const [bookedSlots, setBookedSlots] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [bookingStats, setBookingStats] = useState({
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    total: 0
-  });
+  const [isBooking, setIsBooking] = useState(false);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
   useEffect(() => {
     loadInitialData();
   }, []);
-
-  useEffect(() => {
-    if (selectedDate && selectedBranch) {
-      updateSlotCounts();
-    }
-  }, [selectedDate, selectedBranch]);
 
   useEffect(() => {
     if (user?.id) {
@@ -65,6 +51,10 @@ const SlotBooking = () => {
   useEffect(() => {
     filterBookingsByMonth();
   }, [employeeBookings, selectedMonth]);
+
+  useEffect(() => {
+    calculateApprovedBookings();
+  }, [employeeBookings]);
 
   const loadInitialData = async () => {
     try {
@@ -91,29 +81,23 @@ const SlotBooking = () => {
       const bookings = await getEmployeeSlotBookings(user.id);
       setEmployeeBookings(bookings);
       
-      // Calculate current month bookings
-      const currentMonth = new Date();
-      const currentMonthBookings = bookings.filter(booking => {
-        const bookingDate = new Date(booking.date);
-        return bookingDate.getMonth() === currentMonth.getMonth() && 
-               bookingDate.getFullYear() === currentMonth.getFullYear();
-      });
-      
-      setEmployeeBookingsCount(currentMonthBookings.length);
-      
-      // Calculate booking statistics
-      const stats = {
-        pending: bookings.filter(b => b.status === 'pending').length,
-        approved: bookings.filter(b => b.status === 'approved').length,
-        rejected: bookings.filter(b => b.status === 'rejected').length,
-        total: bookings.length
-      };
-      setBookingStats(stats);
-      
-      console.log('SlotBooking: Employee bookings loaded:', { bookings: bookings.length, currentMonth: currentMonthBookings.length, stats });
+      console.log('SlotBooking: Employee bookings loaded:', bookings.length);
     } catch (error) {
       console.error('SlotBooking: Error loading employee bookings:', error);
     }
+  };
+
+  const calculateApprovedBookings = () => {
+    const currentMonth = new Date();
+    const approvedThisMonth = employeeBookings.filter(booking => {
+      const bookingDate = new Date(booking.date);
+      return booking.status === 'approved' &&
+             bookingDate.getMonth() === currentMonth.getMonth() && 
+             bookingDate.getFullYear() === currentMonth.getFullYear();
+    });
+    
+    setApprovedBookingsCount(approvedThisMonth.length);
+    console.log('SlotBooking: Approved bookings this month:', approvedThisMonth.length);
   };
 
   const filterBookingsByMonth = () => {
@@ -145,68 +129,64 @@ const SlotBooking = () => {
     return options;
   };
 
-  const updateSlotCounts = async () => {
-    if (!selectedDate || !selectedBranch) return;
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
     
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const [available, booked] = await Promise.all([
-        getAvailableSlotsForDate(dateStr, selectedBranch),
-        getBookedSlotsForDate(dateStr, selectedBranch)
-      ]);
-      
-      setAvailableSlots(available);
-      setBookedSlots(booked);
-      setTotalAvailableSlots(available); // Update this for the display
-      
-      console.log('SlotBooking: Updated slot counts:', { available, booked, date: dateStr, branch: selectedBranch });
-    } catch (error) {
-      console.error('SlotBooking: Error updating slot counts:', error);
+    // For non-employee users, show bulk dialog
+    if (user?.role !== 'employee') {
+      setSelectedDateForBulk(date);
+      setIsBulkDialogOpen(true);
+      return;
     }
+
+    // For employees, handle multiple date selection
+    setSelectedDates(prevDates => {
+      const dateString = format(date, 'yyyy-MM-dd');
+      const existingIndex = prevDates.findIndex(d => format(d, 'yyyy-MM-dd') === dateString);
+      
+      if (existingIndex > -1) {
+        // Remove date if already selected
+        return prevDates.filter((_, index) => index !== existingIndex);
+      } else {
+        // Add date to selection
+        return [...prevDates, date];
+      }
+    });
   };
 
-  const handleBookSlot = async () => {
-    if (!selectedDate || !currentBranch) {
-      toast.error("Please select a date and branch");
+  const handleBookSlots = async () => {
+    if (selectedDates.length === 0 || !currentBranch) {
+      toast.error("Please select at least one date and a branch");
       return;
     }
 
-    if (availableSlots <= 0) {
-      toast.error("No slots available for this date");
-      return;
-    }
-
+    setIsBooking(true);
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      
-      const newBookingId = await addSlotBooking({
-        employeeId: user?.id || 'CAS001',
-        employeeName: user?.name || 'Current User',
-        branchId: selectedBranch,
-        branchName: currentBranch.name,
-        date: dateStr,
-        status: 'pending'
+      const bookingPromises = selectedDates.map(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        return addSlotBooking({
+          employeeId: user?.id || 'CAS001',
+          employeeName: user?.name || 'Current User',
+          branchId: selectedBranch,
+          branchName: currentBranch.name,
+          date: dateStr,
+          status: 'pending'
+        });
       });
 
-      toast.success(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
+      const bookingIds = await Promise.all(bookingPromises);
       
-      await Promise.all([
-        updateSlotCounts(),
-        loadEmployeeBookings()
-      ]);
+      toast.success(`Successfully booked ${selectedDates.length} slot${selectedDates.length > 1 ? 's' : ''} at ${currentBranch.name}`);
+      console.log('SlotBooking: Created bookings:', bookingIds);
+      
+      // Clear selected dates and reload bookings
+      setSelectedDates([]);
+      await loadEmployeeBookings();
     } catch (error) {
-      console.error('SlotBooking: Error booking slot:', error);
-      toast.error('Failed to book slot. Please try again.');
-    }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      if (user?.role !== 'employee') {
-        setSelectedDateForBulk(date);
-        setIsBulkDialogOpen(true);
-      }
+      console.error('SlotBooking: Error booking slots:', error);
+      toast.error('Failed to book slots. Please try again.');
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -216,9 +196,6 @@ const SlotBooking = () => {
       loadInitialData(),
       loadEmployeeBookings()
     ]);
-    if (selectedDate && selectedBranch) {
-      await updateSlotCounts();
-    }
   };
 
   const today = new Date();
@@ -250,235 +227,181 @@ const SlotBooking = () => {
           )}
         </div>
 
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+        {/* Single stats widget - My Approved Bookings */}
+        <div className="grid gap-6 grid-cols-1">
           <Card>
             <CardContent className={isMobile ? 'p-4' : 'p-6'}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Available Slots</p>
-                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{totalAvailableSlots}</p>
-                  <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>Selected date</p>
-                </div>
-                <Clock className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Bookings</p>
-                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{employeeBookingsCount}</p>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Approved Bookings</p>
+                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{approvedBookingsCount}</p>
                   <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
                 </div>
-                <Users className={`text-blue-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Total Branches</p>
-                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{branches.length}</p>
-                </div>
-                <MapPin className={`text-purple-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Booking Status Panel */}
-        <Card>
-          <CardHeader>
-            <CardTitle className={isMobile ? 'text-lg' : ''}>Booking Status Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
-              <div className={`flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
-                <AlertCircle className={`text-yellow-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending</p>
-                  <p className={`font-bold text-yellow-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.pending}</p>
-                </div>
-              </div>
-              <div className={`flex items-center space-x-3 p-3 bg-green-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
-                <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Approved</p>
-                  <p className={`font-bold text-green-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.approved}</p>
-                </div>
-              </div>
-              <div className={`flex items-center space-x-3 p-3 bg-red-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
-                <XCircle className={`text-red-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Rejected</p>
-                  <p className={`font-bold text-red-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.rejected}</p>
-                </div>
-              </div>
-              <div className={`flex items-center space-x-3 p-3 bg-blue-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
-                <Users className={`text-blue-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Total</p>
-                  <p className={`font-bold text-blue-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.total}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs for main content */}
+        <Tabs defaultValue="booking" className="w-full">
+          <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
+            <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>
+            <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Booking History</TabsTrigger>
+          </TabsList>
 
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-2'}`}>
-          <Card className={isMobile ? '' : 'min-w-0'}>
-            <CardHeader>
-              <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
-                <CalendarIcon className="w-5 h-5" />
-                <span>Select Date & Branch</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Branch</label>
-                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
-                          <span>{branch.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Select Date</label>
-                <div className="flex justify-center w-full">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    className="rounded-md border w-full max-w-none"
-                    disabled={(date) => date < today}
-                  />
+          <TabsContent value="booking" className="mt-6">
+            <Card className={isMobile ? '' : 'min-w-0'}>
+              <CardHeader>
+                <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
+                  <CalendarIcon className="w-5 h-5" />
+                  <span>Select Date & Branch</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Branch</label>
+                  <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                            <span>{branch.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                
+                <div>
+                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                    Select Date{selectedDates.length > 0 ? 's' : ''} 
+                    {selectedDates.length > 0 && (
+                      <span className="text-blue-600 ml-2">
+                        ({selectedDates.length} selected)
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex justify-center w-full">
+                    <Calendar
+                      mode="multiple"
+                      selected={selectedDates}
+                      onSelect={(dates) => {
+                        if (user?.role !== 'employee') return;
+                        setSelectedDates(dates || []);
+                      }}
+                      className="rounded-md border w-full max-w-none"
+                      disabled={(date) => date < today}
+                    />
+                  </div>
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className={isMobile ? 'text-lg' : ''}>Booking Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {currentBranch && (
-                <div className={`bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
-                  <div className="flex items-start space-x-3">
-                    <div className={`w-4 h-4 rounded-full ${currentBranch.color} mt-1`}></div>
-                    <div className="flex-1">
-                      <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
-                      <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
-                      <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                        Total daily slots: {currentBranch.totalSlots}
-                      </p>
+                {/* Selected dates display */}
+                {selectedDates.length > 0 && (
+                  <div className={`bg-blue-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                    <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
+                      Selected Dates ({selectedDates.length}):
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDates.map((date, index) => (
+                        <Badge key={index} variant="secondary" className={isMobile ? 'text-xs' : 'text-sm'}>
+                          {format(date, 'MMM dd, yyyy')}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {selectedDate && (
-                <div className={`bg-blue-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
-                  <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
-                    Selected Date: {format(selectedDate, 'PPP')}
-                  </h3>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Available slots:</span>
-                    <Badge variant="secondary">
-                      {availableSlots} remaining
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Booked slots:</span>
-                    <Badge variant="outline">
-                      {bookedSlots} booked
-                    </Badge>
-                  </div>
-                </div>
-              )}
-
-              {user?.role === 'employee' && (
-                <Button 
-                  onClick={handleBookSlot} 
-                  className="w-full"
-                  disabled={!selectedDate || !currentBranch || availableSlots <= 0}
-                >
-                  Book Slot
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Booking History */}
-        <Card>
-          <CardHeader>
-            <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
-              <CardTitle className={isMobile ? 'text-lg' : ''}>Booking History</CardTitle>
-              <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
-                <label htmlFor="month-filter" className={`font-medium text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                  Filter by Month:
-                </label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className={isMobile ? 'flex-1' : 'w-40'}>
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getMonthOptions().map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {filteredBookings.length > 0 ? (
-              <div className="space-y-3">
-                {filteredBookings.map((booking) => (
-                  <div key={booking.id} className={`flex items-center justify-between bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-3'}`}>
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
-                      <div>
-                        <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
-                        <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                {/* Branch info */}
+                {currentBranch && (
+                  <div className={`bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                    <div className="flex items-start space-x-3">
+                      <div className={`w-4 h-4 rounded-full ${currentBranch.color} mt-1`}></div>
+                      <div className="flex-1">
+                        <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
+                        <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
                       </div>
                     </div>
-                    <Badge 
-                      variant={
-                        booking.status === 'approved' ? 'default' :
-                        booking.status === 'pending' ? 'secondary' :
-                        'destructive'
-                      }
-                      className={isMobile ? 'text-xs' : 'text-xs'}
-                    >
-                      {booking.status}
-                    </Badge>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
-                <p className={isMobile ? 'text-sm' : ''}>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                )}
+
+                {/* Book button - only for employees */}
+                {user?.role === 'employee' && (
+                  <Button 
+                    onClick={handleBookSlots} 
+                    className="w-full"
+                    disabled={selectedDates.length === 0 || !currentBranch || isBooking}
+                  >
+                    {isBooking ? 'Booking...' : `Book ${selectedDates.length > 0 ? selectedDates.length : ''} Slot${selectedDates.length !== 1 ? 's' : ''}`}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
+                  <CardTitle className={isMobile ? 'text-lg' : ''}>Booking History</CardTitle>
+                  <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
+                    <label htmlFor="month-filter" className={`font-medium text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                      Filter by Month:
+                    </label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className={isMobile ? 'flex-1' : 'w-40'}>
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMonthOptions().map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredBookings.length > 0 ? (
+                  <div className="space-y-3">
+                    {filteredBookings.map((booking) => (
+                      <div key={booking.id} className={`flex items-center justify-between bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-3'}`}>
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
+                          <div>
+                            <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
+                            <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={
+                            booking.status === 'approved' ? 'default' :
+                            booking.status === 'pending' ? 'secondary' :
+                            'destructive'
+                          }
+                          className={isMobile ? 'text-xs' : 'text-xs'}
+                        >
+                          {booking.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
+                    <p className={isMobile ? 'text-sm' : ''}>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <BulkSlotBookingDialog
