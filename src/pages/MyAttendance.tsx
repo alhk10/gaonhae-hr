@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar, Filter, Download, MapPin, Settings, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, Filter, Download, MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -335,33 +336,6 @@ const MyAttendance = () => {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Working Hours Information */}
-            {attendanceSettings.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Settings className="w-5 h-5" />
-                    <span>Branch Working Hours</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {attendanceSettings.map((setting) => (
-                      <div key={setting.id} className="p-4 border rounded-lg">
-                        <h4 className="font-medium text-sm text-gray-900 mb-2">{setting.branch_name}</h4>
-                        <div className="space-y-1 text-xs text-gray-600">
-                          <p>Mon-Fri: {setting.monday_start || 'N/A'} - {setting.monday_end || 'N/A'}</p>
-                          <p>Saturday: {setting.saturday_start || 'N/A'} - {setting.saturday_end || 'N/A'}</p>
-                          <p>Sunday: {setting.sunday_start || 'N/A'} - {setting.sunday_end || 'N/A'}</p>
-                          <p className="text-blue-600">Grace: {setting.grace_period_minutes}min</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
