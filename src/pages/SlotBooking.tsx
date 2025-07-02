@@ -327,8 +327,8 @@ const SlotBooking = () => {
           </CardContent>
         </Card>
 
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
-          <Card>
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-2'}`}>
+          <Card className={isMobile ? '' : 'min-w-0'}>
             <CardHeader>
               <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
                 <CalendarIcon className="w-5 h-5" />
@@ -357,13 +357,15 @@ const SlotBooking = () => {
               
               <div>
                 <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Select Date</label>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  className="rounded-md border"
-                  disabled={(date) => date < today}
-                />
+                <div className="flex justify-center w-full">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    className="rounded-md border w-full max-w-none"
+                    disabled={(date) => date < today}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
