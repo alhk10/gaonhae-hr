@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AttendanceRecord {
@@ -73,7 +74,20 @@ export const getEmployeeAttendanceRecords = async (employeeId: string, startDate
       throw error;
     }
 
-    return data || [];
+    return data?.map(record => ({
+      id: record.id,
+      employeeId: record.employee_id,
+      date: record.date,
+      checkIn: record.check_in,
+      checkOut: record.check_out,
+      breakStart: record.break_start,
+      breakEnd: record.break_end,
+      hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
+      status: record.status as AttendanceRecord['status'],
+      location: record.location,
+      clockInLocation: record.clock_in_location,
+      clockOutLocation: record.clock_out_location
+    })) || [];
   } catch (error) {
     console.error('Error in getEmployeeAttendanceRecords:', error);
     throw error;
@@ -105,7 +119,16 @@ export const getClockInOutStatus = async (employeeId: string, date: string): Pro
       throw error;
     }
 
-    return data || null;
+    if (data) {
+      return {
+        status: data.check_out ? 'clocked-out' : 'clocked-in',
+        clockIn: data.check_in,
+        clockOut: data.check_out,
+        location: data.clock_in_location || data.location
+      };
+    }
+
+    return null;
   } catch (error) {
     console.error('Error in getClockInOutStatus:', error);
     return null;

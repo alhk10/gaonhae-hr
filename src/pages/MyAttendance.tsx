@@ -110,10 +110,17 @@ const MyAttendance = () => {
     }
   };
 
-  const checkClockStatus = () => {
+  const checkClockStatus = async () => {
     if (user?.id) {
-      const status = getClockInOutStatus(user.id);
-      setClockStatus(status);
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const status = await getClockInOutStatus(user.id, today);
+        if (status) {
+          setClockStatus(status);
+        }
+      } catch (error) {
+        console.error('Failed to check clock status:', error);
+      }
     }
   };
 
@@ -142,9 +149,10 @@ const MyAttendance = () => {
       });
       
       // Update local state
-      checkClockStatus();
+      await checkClockStatus();
       
-      const newStatus = getClockInOutStatus(user.id);
+      const today = new Date().toISOString().split('T')[0];
+      const newStatus = await getClockInOutStatus(user.id, today);
       const locationText = newStatus?.location ? ` at ${newStatus.location}` : '';
       
       if (action === 'out') {
