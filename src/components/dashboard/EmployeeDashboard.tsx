@@ -26,21 +26,34 @@ const EmployeeDashboard = () => {
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
 
-  // Query for real-time clock status
+  // Query for real-time clock status with shorter intervals for immediate updates
   const { data: clockStatus, refetch: refetchClockStatus } = useQuery({
     queryKey: ['clock-status', user?.id],
     queryFn: () => getClockInOutStatus(user?.id || ''),
     enabled: !!user?.id,
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 0, // Always consider data stale to ensure fresh data
+    refetchInterval: 5000, // Refetch every 5 seconds for more responsive updates
+    staleTime: 0,
+    gcTime: 0, // Don't cache the data
   });
 
   // Update local state when clock status changes
   useEffect(() => {
+    console.log('EmployeeDashboard: Clock status from DB:', clockStatus);
+    
     if (clockStatus) {
-      console.log('EmployeeDashboard: Clock status updated:', clockStatus);
-      setIsClockedIn(clockStatus.status === 'clocked-in');
-      setClockTime(clockStatus.clockIn || clockStatus.clockOut || null);
+      const isCurrentlyClockedIn = clockStatus.status === 'clocked-in';
+      console.log('EmployeeDashboard: Setting isClockedIn to:', isCurrentlyClockedIn);
+      
+      setIsClockedIn(isCurrentlyClockedIn);
+      
+      if (isCurrentlyClockedIn) {
+        // User is clocked in, show clock in time
+        setClockTime(clockStatus.clockIn || null);
+      } else {
+        // User is clocked out, clear the time
+        setClockTime(null);
+      }
+      
       setClockLocation(clockStatus.location || null);
     } else {
       console.log('EmployeeDashboard: No clock status found, setting to clocked out');
@@ -74,9 +87,9 @@ const EmployeeDashboard = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Calculate leave balance for current employee
+  // Calculate leave balance for current employee (only for full-time employees)
   const calculateLeaveBalance = () => {
-    if (!user?.id) return { remaining: 0 };
+    if (!user?.id || employeeData?.type === 'Casual') return { remaining: 0 };
     
     const currentYear = new Date().getFullYear();
     const employeeLeaves = allLeaveRequests.filter(leave => 
@@ -172,8 +185,12 @@ const EmployeeDashboard = () => {
     return diffDays;
   };
 
+  // Personal stats - filter out leave balance for casual employees
   const personalStats = [
-    { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' },
+    // Only show leave balance for full-time employees
+    ...(employeeData?.type !== 'Casual' ? [
+      { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' }
+    ] : []),
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
     { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
     { title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' },
@@ -189,9 +206,10 @@ const EmployeeDashboard = () => {
     
     try {
       const action = isClockedIn ? 'out' : 'in';
-      console.log('EmployeeDashboard: Starting clock', action, 'operation');
+      console.log('EmployeeDashboard: Starting clock', action, 'operation for user:', user.id);
       
       await updateClockInOut(user.id, action);
+      console.log('EmployeeDashboard: Clock', action, 'operation completed');
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -200,30 +218,34 @@ const EmployeeDashboard = () => {
       });
       
       // Immediately update local state for instant UI feedback
+      const newClockedInState = action === 'in';
+      console.log('EmployeeDashboard: Updating local state - isClockedIn:', newClockedInState);
+      
+      setIsClockedIn(newClockedInState);
+      
       if (action === 'out') {
-        setIsClockedIn(false);
         setClockTime(null);
         setClockLocation(null);
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        setIsClockedIn(true);
         setClockTime(currentTime);
         toast.success(`Clocked in at ${currentTime}`);
       }
       
-      // Refetch clock status to ensure database consistency
-      console.log('EmployeeDashboard: Refetching clock status after', action);
-      await refetchClockStatus();
-      
-      // Invalidate related queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['employee-attendance', user.id] });
+      // Force refetch to ensure database consistency
+      console.log('EmployeeDashboard: Forcing refetch of clock status');
+      setTimeout(async () => {
+        await refetchClockStatus();
+        queryClient.invalidateQueries({ queryKey: ['employee-attendance', user.id] });
+      }, 1000); // Small delay to ensure database update is complete
       
     } catch (error) {
-      console.error('Clock in/out error:', error);
+      console.error('EmployeeDashboard: Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
       toast.error(errorMessage);
       
       // Revert local state on error
+      console.log('EmployeeDashboard: Reverting state due to error');
       await refetchClockStatus();
     } finally {
       setIsClockingInOut(false);
