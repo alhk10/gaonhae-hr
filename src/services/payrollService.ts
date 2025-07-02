@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployeeById } from './employeeService';
 import { getEmployeeClaims } from './claimsService';
@@ -112,8 +113,8 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
       employee_id: employeeId,
       month,
       year,
-      payroll_data: payrollData as any, // Type cast to avoid Json type issues
-      is_locked: false, // Default to unlocked
+      payroll_data: payrollData as any,
+      is_locked: false,
       updated_at: new Date().toISOString()
     });
 
