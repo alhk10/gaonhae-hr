@@ -13,7 +13,9 @@ import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   getBranches, 
-  saveBranches, 
+  saveBranch,
+  updateBranch,
+  deleteBranch,
   Branch
 } from '@/services/settingsService';
 
@@ -54,6 +56,9 @@ const Settings = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('Settings: Loading all data from Supabase...');
+      
+      // Load branches from the new service
       const branchData = await getBranches();
       setBranches(branchData);
       
@@ -65,9 +70,10 @@ const Settings = () => {
 
       if (allowancesError) {
         console.error('Error loading system allowances:', allowancesError);
-        toast("Error loading allowances");
+        toast.error("Error loading allowances");
       } else {
         setAllowances(allowancesData || []);
+        console.log('Settings: Loaded allowances:', allowancesData?.length);
       }
 
       // Load system deductions from Supabase
@@ -78,53 +84,86 @@ const Settings = () => {
 
       if (deductionsError) {
         console.error('Error loading system deductions:', deductionsError);
-        toast("Error loading deductions");
+        toast.error("Error loading deductions");
       } else {
         setDeductions(deductionsData || []);
+        console.log('Settings: Loaded deductions:', deductionsData?.length);
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast("Error loading data");
+      toast.error("Error loading data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddBranch = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddBranch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const newBranch: Branch = {
-      id: Date.now(),
-      name: formData.get('name') as string,
-      address: formData.get('address') as string
-    };
-    const updatedBranches = [...branches, newBranch];
-    setBranches(updatedBranches);
-    saveBranches(updatedBranches);
-    setIsAddBranchOpen(false);
-    toast("Branch added successfully");
+    
+    try {
+      const newBranchData = {
+        name: formData.get('name') as string,
+        address: formData.get('address') as string,
+        color: 'bg-blue-500',
+        total_slots: 10
+      };
+
+      const branchId = await saveBranch(newBranchData);
+      
+      // Refresh the branches list
+      const updatedBranches = await getBranches();
+      setBranches(updatedBranches);
+      
+      setIsAddBranchOpen(false);
+      toast.success("Branch added successfully");
+    } catch (error) {
+      console.error('Error adding branch:', error);
+      toast.error("Error adding branch");
+    }
   };
 
-  const handleEditBranch = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEditBranch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!editingBranch) return;
+
     const formData = new FormData(e.target as HTMLFormElement);
-    const updatedBranches = branches.map(branch => 
-      branch.id === editingBranch?.id 
-        ? { ...branch, name: formData.get('name') as string, address: formData.get('address') as string }
-        : branch
-    );
-    setBranches(updatedBranches);
-    saveBranches(updatedBranches);
-    setIsEditBranchOpen(false);
-    setEditingBranch(null);
-    toast("Branch updated successfully");
+    
+    try {
+      const updatedBranch: Branch = {
+        ...editingBranch,
+        name: formData.get('name') as string,
+        address: formData.get('address') as string
+      };
+
+      await updateBranch(updatedBranch);
+      
+      // Refresh the branches list
+      const updatedBranches = await getBranches();
+      setBranches(updatedBranches);
+      
+      setIsEditBranchOpen(false);
+      setEditingBranch(null);
+      toast.success("Branch updated successfully");
+    } catch (error) {
+      console.error('Error updating branch:', error);
+      toast.error("Error updating branch");
+    }
   };
 
-  const handleDeleteBranch = (id: number) => {
-    const updatedBranches = branches.filter(branch => branch.id !== id);
-    setBranches(updatedBranches);
-    saveBranches(updatedBranches);
-    toast("Branch deleted successfully");
+  const handleDeleteBranch = async (branchId: string) => {
+    try {
+      await deleteBranch(branchId);
+      
+      // Refresh the branches list
+      const updatedBranches = await getBranches();
+      setBranches(updatedBranches);
+      
+      toast.success("Branch deleted successfully");
+    } catch (error) {
+      console.error('Error deleting branch:', error);
+      toast.error("Error deleting branch");
+    }
   };
 
   const openEditBranch = (branch: Branch) => {
