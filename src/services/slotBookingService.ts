@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Branch {
@@ -21,6 +20,18 @@ export interface SlotBooking {
   approvedBy?: string;
   approvedOn?: string;
   notes?: string;
+}
+
+export interface WeeklySlotConfig {
+  id?: string;
+  branchId?: string;
+  monday: number;
+  tuesday: number;
+  wednesday: number;
+  thursday: number;
+  friday: number;
+  saturday: number;
+  sunday: number;
 }
 
 // Color mapping for branches
@@ -93,6 +104,108 @@ export const updateBranchColors = async (): Promise<void> => {
   } catch (error) {
     console.error('SlotBookingService: Error in updateBranchColors:', error);
     throw error;
+  }
+};
+
+export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: WeeklySlotConfig }> => {
+  try {
+    console.log('SlotBookingService: Fetching weekly slot config from Supabase...');
+    
+    const { data, error } = await supabase
+      .from('weekly_slot_config')
+      .select('*');
+
+    if (error) {
+      console.error('SlotBookingService: Error fetching weekly slot config:', error);
+      throw error;
+    }
+
+    const config: { [branchId: string]: WeeklySlotConfig } = {};
+    data.forEach(row => {
+      config[row.branch_id] = {
+        id: row.id,
+        branchId: row.branch_id,
+        monday: row.monday,
+        tuesday: row.tuesday,
+        wednesday: row.wednesday,
+        thursday: row.thursday,
+        friday: row.friday,
+        saturday: row.saturday,
+        sunday: row.sunday
+      };
+    });
+
+    return config;
+  } catch (error) {
+    console.error('SlotBookingService: Error in getWeeklySlotConfig:', error);
+    throw error;
+  }
+};
+
+export const updateWeeklySlotConfig = async (branchId: string, config: Omit<WeeklySlotConfig, 'id' | 'branchId'>): Promise<boolean> => {
+  try {
+    console.log('SlotBookingService: Updating weekly slot config for branch:', branchId);
+    
+    const { error } = await supabase
+      .from('weekly_slot_config')
+      .upsert({
+        branch_id: branchId,
+        monday: config.monday,
+        tuesday: config.tuesday,
+        wednesday: config.wednesday,
+        thursday: config.thursday,
+        friday: config.friday,
+        saturday: config.saturday,
+        sunday: config.sunday
+      });
+
+    if (error) {
+      console.error('SlotBookingService: Error updating weekly slot config:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('SlotBookingService: Error in updateWeeklySlotConfig:', error);
+    return false;
+  }
+};
+
+export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
+  try {
+    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
+    
+    // Get total slots for the day
+    const weeklyConfig = await getWeeklySlotConfig();
+    const totalSlots = weeklyConfig[branchId]?.[dayOfWeek] || 0;
+    
+    // Get booked slots for the date
+    const bookedSlots = await getBookedSlotsForDate(date, branchId);
+    
+    return Math.max(0, totalSlots - bookedSlots);
+  } catch (error) {
+    console.error('SlotBookingService: Error in getAvailableSlotsForDate:', error);
+    return 0;
+  }
+};
+
+export const getBookedSlotsForDate = async (date: string, branchId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .select('id')
+      .eq('date', date)
+      .eq('branch_id', branchId);
+
+    if (error) {
+      console.error('SlotBookingService: Error fetching booked slots:', error);
+      return 0;
+    }
+
+    return data.length;
+  } catch (error) {
+    console.error('SlotBookingService: Error in getBookedSlotsForDate:', error);
+    return 0;
   }
 };
 
@@ -246,7 +359,7 @@ export const updateSlotBookingStatus = async (
   status: 'approved' | 'rejected', 
   approvedBy: string,
   notes?: string
-): Promise<void> => {
+): Promise<boolean> => {
   try {
     console.log('SlotBookingService: Updating slot booking status:', bookingId, status);
     
@@ -267,12 +380,13 @@ export const updateSlotBookingStatus = async (
 
     if (error) {
       console.error('SlotBookingService: Error updating booking status:', error);
-      throw error;
+      return false;
     }
 
     console.log('SlotBookingService: Successfully updated booking status:', bookingId);
+    return true;
   } catch (error) {
     console.error('SlotBookingService: Error in updateSlotBookingStatus:', error);
-    throw error;
+    return false;
   }
 };
