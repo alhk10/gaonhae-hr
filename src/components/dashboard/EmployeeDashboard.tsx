@@ -221,8 +221,6 @@ const EmployeeDashboard = () => {
   };
 
   const displayName = employeeData?.name || user?.name || 'Employee';
-  const displayDepartment = employeeData?.branch || user?.department || 'Not specified';
-  const displayEmployeeId = employeeData?.id || user?.id || user?.employeeId || 'Not specified';
   const canClockIn = employeeData?.type !== 'Casual' || hasApprovedSlot;
 
   // Debug logging
@@ -252,10 +250,6 @@ const EmployeeDashboard = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}</h2>
-        <p className="text-gray-600">Employee ID: {displayEmployeeId} • {displayDepartment}</p>
-        {employeeData?.position && (
-          <p className="text-gray-600">Position: {employeeData.position}</p>
-        )}
       </div>
 
       {/* Casual Employee Slot Booking Warning */}
