@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -131,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('AuthContext: Password updated in database successfully');
       
-      // Clear password change requirement
+      // Clear password change requirement immediately
       setRequiresPasswordChange(false);
       
       // Update session with new password info

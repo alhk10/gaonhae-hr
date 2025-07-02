@@ -65,10 +65,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
         setNewPassword('');
         setConfirmPassword('');
         
-        // Close modal after successful update
-        if (onClose) {
-          onClose();
-        }
+        // The AuthContext will automatically clear requiresPasswordChange
+        // which will cause the Index component to re-render and show the dashboard
+        console.log('PasswordChangeModal: Password change completed, modal should close automatically');
+        
       } else {
         console.error('PasswordChangeModal: Password update failed');
         toast({
