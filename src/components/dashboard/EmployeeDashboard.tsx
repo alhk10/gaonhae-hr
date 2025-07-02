@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +15,7 @@ import { EmployeeProfile } from '@/types/employee';
 import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
+import { isWithinBranchRange } from '@/services/geolocationService';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -46,8 +46,33 @@ const EmployeeDashboard = () => {
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
+  const [nearestBranch, setNearestBranch] = useState<string>('');
+  const [locationCheckPassed, setLocationCheckPassed] = useState<boolean>(false);
 
-  // Fetch attendance data directly without React Query to avoid caching issues
+  useEffect(() => {
+    fetchAttendanceData();
+    fetchEmployeeData();
+    checkSlotBooking();
+    checkLocationOnLoad();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (attendanceData.length >= 0) {
+      checkClockStatus();
+    }
+  }, [attendanceData, user?.id]);
+
+  const checkLocationOnLoad = async () => {
+    try {
+      const locationCheck = await isWithinBranchRange(100);
+      setLocationCheckPassed(locationCheck.withinRange);
+      setNearestBranch(locationCheck.nearestBranch || '');
+    } catch (error) {
+      console.error('Location check failed:', error);
+      setLocationCheckPassed(false);
+    }
+  };
+
   const fetchAttendanceData = async () => {
     if (!user?.id) return;
     
@@ -68,25 +93,21 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Check clock status using the same logic as My Attendance page
   const checkClockStatus = async () => {
     if (!user?.id) return;
 
     const today = new Date().toISOString().split('T')[0];
     
     try {
-      // Check clock status from Supabase
       const supabaseStatus = await getClockInOutStatus(user.id);
       console.log('Dashboard: Supabase clock status:', supabaseStatus);
       
-      // Check today's attendance record from database
       const todayRecord = attendanceData.find(record => record.date === today);
       console.log('Dashboard: Today attendance record:', todayRecord);
       
       let currentStatus: ClockInOutRecord | undefined;
       
       if (supabaseStatus) {
-        // Use Supabase clock status if available
         currentStatus = {
           status: supabaseStatus.status,
           clockIn: supabaseStatus.clockIn,
@@ -94,20 +115,16 @@ const EmployeeDashboard = () => {
           location: supabaseStatus.location
         };
       } else if (todayRecord) {
-        // Fall back to attendance record
         if (todayRecord.check_in && !todayRecord.check_out) {
-          // Clocked in but not out
           currentStatus = {
             status: 'clocked-in',
             clockIn: todayRecord.check_in,
             location: todayRecord.clock_in_location
           };
         } else if (todayRecord.check_in && todayRecord.check_out) {
-          // Fully clocked out
           currentStatus = {
             status: 'clocked-out',
             clockIn: todayRecord.check_in,
-            clockOut: todayRecord.check_out,
             location: todayRecord.clock_out_location
           };
         }
@@ -120,20 +137,6 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Fetch data on component mount and when user changes
-  useEffect(() => {
-    fetchAttendanceData();
-    fetchEmployeeData();
-    checkSlotBooking();
-  }, [user?.id]);
-
-  // Check clock status after attendance data is loaded
-  useEffect(() => {
-    if (attendanceData.length >= 0) {
-      checkClockStatus();
-    }
-  }, [attendanceData, user?.id]);
-
   const fetchEmployeeData = async () => {
     if (!user?.id) return;
     
@@ -145,7 +148,6 @@ const EmployeeDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
-      // Fallback to local data
       const localEmployee = getLocalEmployeeById(user.id);
       if (localEmployee) {
         setEmployeeData(localEmployee);
@@ -174,7 +176,6 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Fetch employee-specific data using React Query
   const { data: employeeClaims = [], error: claimsError } = useQuery({
     queryKey: ['employee-claims', user?.id],
     queryFn: () => getEmployeeClaims(user?.id || ''),
@@ -183,13 +184,11 @@ const EmployeeDashboard = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch leave requests for current employee
   const { data: allLeaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
     queryFn: getAllLeaveRequests,
   });
 
-  // Calculate leave balance for current employee (only for full-time employees)
   const calculateLeaveBalance = () => {
     if (!user?.id || employeeData?.type === 'Casual') return { remaining: 0 };
     
@@ -209,11 +208,9 @@ const EmployeeDashboard = () => {
 
   const leaveBalance = calculateLeaveBalance();
 
-  // Calculate statistics
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
   const hoursThisMonth = attendanceData.reduce((total, record) => total + (record.hours_worked || 0), 0);
   
-  // Calculate days until 2nd of next month
   const getDaysUntilNextPayroll = () => {
     const today = new Date();
     const currentMonth = today.getMonth();
@@ -232,9 +229,7 @@ const EmployeeDashboard = () => {
     return diffDays;
   };
 
-  // Personal stats - filter out leave balance for casual employees
   const personalStats = [
-    // Only show leave balance for full-time employees
     ...(employeeData?.type !== 'Casual' ? [
       { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' }
     ] : []),
@@ -245,8 +240,27 @@ const EmployeeDashboard = () => {
 
   const handleClockInOut = async () => {
     if (!user?.id) {
-      toast.error('User not authenticated');
+      toast.error("User authentication required");
       return;
+    }
+
+    // Check location before allowing clock action
+    if (!locationCheckPassed) {
+      try {
+        const locationCheck = await isWithinBranchRange(100);
+        if (!locationCheck.withinRange) {
+          toast.error(
+            `You must be within 100m of a branch to clock in/out. ` +
+            `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
+          );
+          return;
+        }
+        setLocationCheckPassed(true);
+        setNearestBranch(locationCheck.nearestBranch || '');
+      } catch (error) {
+        toast.error("Location access is required to clock in/out. Please enable location services.");
+        return;
+      }
     }
 
     setIsClockingInOut(true);
@@ -254,10 +268,8 @@ const EmployeeDashboard = () => {
     try {
       const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
       const action = isCurrentlyClockedIn ? 'out' : 'in';
-      console.log('Dashboard: Starting clock', action, 'operation for user:', user.id);
       
-      await updateClockInOut(user.id, action);
-      console.log('Dashboard: Clock', action, 'operation completed');
+      await updateClockInOut(user.id, action, nearestBranch);
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -268,7 +280,7 @@ const EmployeeDashboard = () => {
       // Refresh attendance data first
       await fetchAttendanceData();
       
-      // Then update clock status after a short delay
+      // Then update clock status
       setTimeout(() => {
         checkClockStatus();
       }, 500);
@@ -276,12 +288,12 @@ const EmployeeDashboard = () => {
       if (action === 'out') {
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        toast.success(`Clocked in at ${currentTime}`);
+        toast.success(`Clocked in at ${currentTime} at ${nearestBranch}`);
       }
       
     } catch (error) {
-      console.error('Dashboard: Clock in/out error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
+      console.error('Clock in/out error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error processing clock in/out. Please try again.';
       toast.error(errorMessage);
     } finally {
       setIsClockingInOut(false);
@@ -304,10 +316,9 @@ const EmployeeDashboard = () => {
   };
 
   const displayName = employeeData?.name || user?.name || 'Employee';
-  const canClockIn = employeeData?.type !== 'Casual' || hasApprovedSlot;
+  const canClockIn = (employeeData?.type !== 'Casual' || hasApprovedSlot) && locationCheckPassed;
   const isClockedIn = clockStatus?.status === 'clocked-in';
 
-  // Debug logging
   console.log('Dashboard: Current render state:', {
     user,
     employeeData,
@@ -320,6 +331,8 @@ const EmployeeDashboard = () => {
     hasApprovedSlot,
     canClockIn,
     isClockingInOut,
+    locationCheckPassed,
+    nearestBranch,
     renderTimestamp: new Date().toISOString()
   });
 
@@ -332,6 +345,25 @@ const EmployeeDashboard = () => {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}</h2>
       </div>
+
+      {/* Location Warning */}
+      {!locationCheckPassed && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  Location Access Required
+                </p>
+                <p className="text-sm text-orange-700">
+                  You must be within 100m of a branch and enable location to clock in.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Casual Employee Slot Booking Warning */}
       {employeeData?.type === 'Casual' && !hasApprovedSlot && (
@@ -377,19 +409,19 @@ const EmployeeDashboard = () => {
             <div className="grid grid-cols-1 gap-3">
               <Button 
                 className={`justify-start h-auto p-4 ${
-                  isClockedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 
-                  canClockIn ? 'bg-green-600 hover:bg-green-700 text-white' : 
-                  'bg-gray-400 cursor-not-allowed text-white'
+                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+                  'bg-gray-400 cursor-not-allowed'
                 }`}
                 onClick={handleClockInOut}
                 disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
               >
                 <Clock className="w-5 h-5 mr-3" />
                 <div className="text-left flex-1">
-                  <p className="font-medium">
+                  <p className="font-medium text-white">
                     {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
-                  <div className="text-sm opacity-80 flex items-center">
+                  <div className="text-sm text-white/80 flex items-center">
                     {isClockedIn && clockStatus?.clockIn ? (
                       <>
                         Clocked in at {clockStatus.clockIn}
@@ -401,15 +433,19 @@ const EmployeeDashboard = () => {
                         )}
                       </>
                     ) : !canClockIn ? (
-                      'Approved slot booking required'
+                      !locationCheckPassed ? 'Location required' : 'Slot booking required'
+                    ) : nearestBranch ? (
+                      <>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {nearestBranch}
+                      </>
                     ) : (
-                      'Must be within 100m of branch'
+                      'Within 100m of branch'
                     )}
                   </div>
                 </div>
               </Button>
               
-              {/* Only show Apply Leave button for full-time employees */}
               {employeeData?.type !== 'Casual' && (
                 <Button 
                   className="justify-start h-auto p-4" 
