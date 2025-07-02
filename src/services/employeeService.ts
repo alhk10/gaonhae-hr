@@ -54,6 +54,62 @@ export const getAllEmployees = async (): Promise<EmployeeProfile[]> => {
   }
 };
 
+export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
+  try {
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances(*),
+        deductions(*),
+        admin_access(*),
+        employee_page_access(*),
+        certificates(*)
+      `)
+      .eq('type', 'Casual')
+      .is('resign_date', null) // Only get active casual employees
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching casual employees:', error);
+      throw error;
+    }
+
+    return employees?.map(transformEmployeeData) || [];
+  } catch (error) {
+    console.error('Error in getCasualEmployees:', error);
+    throw error;
+  }
+};
+
+export const getFullTimeEmployees = async (): Promise<EmployeeProfile[]> => {
+  try {
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances(*),
+        deductions(*),
+        admin_access(*),
+        employee_page_access(*),
+        certificates(*)
+      `)
+      .eq('type', 'Full-Time')
+      .is('resign_date', null) // Only get active full-time employees
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching full-time employees:', error);
+      throw error;
+    }
+
+    return employees?.map(transformEmployeeData) || [];
+  } catch (error) {
+    console.error('Error in getFullTimeEmployees:', error);
+    throw error;
+  }
+};
+
 export const getActiveEmployeeCount = async (): Promise<number> => {
   try {
     const { count, error } = await supabase

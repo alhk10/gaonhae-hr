@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/sonner';
 import { getCasualEmployees } from '@/services/employeeService';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQuery } from '@tanstack/react-query';
+import type { EmployeeProfile } from '@/types/employee';
 
 const CasualEmployees = () => {
   const isMobile = useIsMobile();
@@ -21,7 +22,7 @@ const CasualEmployees = () => {
 
   if (error) {
     console.error('Error loading casual employees:', error);
-    toast('Error loading casual employees');
+    toast.error('Error loading casual employees');
   }
 
   const handleAddCasualWorker = () => {
@@ -131,7 +132,7 @@ const CasualEmployees = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {casualWorkers.map((worker, index) => {
+                  {casualWorkers.map((worker: EmployeeProfile, index: number) => {
                     const statuses = ['available', 'working', 'unavailable'];
                     const status = statuses[index % statuses.length];
                     

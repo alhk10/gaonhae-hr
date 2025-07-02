@@ -1,194 +1,95 @@
+
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin, KeyRound } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, Search, Plus, UserCheck, UserX, Building2, Phone, Mail, Calendar, MapPin, Eye } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getEmployees, getActiveEmployeeCount, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
+import { getEmployees, getFullTimeEmployees, getCasualEmployees, getActiveEmployeeCount } from '@/services/employeeService';
+import { getBranches } from '@/services/settingsService';
+import type { EmployeeProfile } from '@/types/employee';
 import { useNavigate } from 'react-router-dom';
-import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
-import AdminAccessManager from '@/components/employee/AdminAccessManager';
-import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
-import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 const Employees = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showModuleSettings, setShowModuleSettings] = useState(false);
-  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
-  const [paymentType, setPaymentType] = useState('Monthly');
-  
-  const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
-    employees: false,
-    payroll: false,
-    leaveManagement: false,
-    claims: false,
-    attendance: false,
-    slotBooking: false,
-    reports: false
-  });
-  const [newEmployeePageAccess, setNewEmployeePageAccess] = useState<EmployeePageAccessPermissions>({
-    profile: true,
-    applyLeave: true,
-    submitClaim: true,
-    payslips: true,
-    myAttendance: true,
-    slotBookingEmployee: true
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Fetch data from Supabase
+  const { data: allEmployees = [], isLoading: isLoadingAll } = useQuery({
+    queryKey: ['employees', 'all'],
+    queryFn: getEmployees,
   });
 
-  const { data: employees = [], isLoading, error } = useQuery({
-    queryKey: ['employees'],
-    queryFn: getEmployees,
-    staleTime: 5 * 60 * 1000,
+  const { data: fullTimeEmployees = [], isLoading: isLoadingFullTime } = useQuery({
+    queryKey: ['employees', 'full-time'],
+    queryFn: getFullTimeEmployees,
+  });
+
+  const { data: casualEmployees = [], isLoading: isLoadingCasual } = useQuery({
+    queryKey: ['employees', 'casual'],
+    queryFn: getCasualEmployees,
   });
 
   const { data: activeEmployeeCount = 0 } = useQuery({
-    queryKey: ['activeEmployeeCount'],
+    queryKey: ['employees', 'count'],
     queryFn: getActiveEmployeeCount,
-    staleTime: 5 * 60 * 1000,
   });
 
-  const addEmployeeMutation = useMutation({
-    mutationFn: async (employeeData: any) => {
-      const newEmployee = await createEmployee(employeeData);
-      
-      if (newEmployee && newEmployee.id) {
-        await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
-        await updateEmployeePageAccess(newEmployee.id, newEmployeePageAccess);
-      }
-      
-      return newEmployee;
-    },
-    onSuccess: () => {
-      console.log('Employee added successfully with access permissions');
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
-      toast("Employee added successfully");
-      setShowAddForm(false);
-      setPaymentType('Monthly');
-      setNewEmployeeAdminAccess({
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      });
-      setNewEmployeePageAccess({
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      });
-    },
-    onError: (error) => {
-      console.error('Error adding employee:', error);
-      toast("Error adding employee. Please try again.");
-    }
-  });
+  const branches = getBranches();
 
-  const deleteEmployeeMutation = useMutation({
-    mutationFn: deleteEmployee,
-    onSuccess: () => {
-      console.log('Employee deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
-      toast("Employee removed successfully");
-    },
-    onError: (error) => {
-      console.error('Error deleting employee:', error);
-      toast("Error removing employee. Please try again.");
-    }
-  });
-
-  const handleDeleteEmployee = (employeeId: string, employeeName: string) => {
-    if (window.confirm(`Are you sure you want to remove ${employeeName}? This will set their resign date to today.`)) {
-      deleteEmployeeMutation.mutate(employeeId);
-    }
+  const handleAddEmployee = () => {
+    navigate('/employees/new');
   };
 
-  const handleResetPassword = (employeeName: string, employeeEmail: string) => {
-    console.log('Opening reset password dialog for:', employeeName, employeeEmail);
-    setSelectedEmployee({ name: employeeName, email: employeeEmail });
-    setShowResetPasswordDialog(true);
+  const handleViewEmployee = (employeeId: string) => {
+    navigate(`/employees/${employeeId}`);
   };
 
-  const handleAddEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Add employee form submitted');
+  const getEmployeesToDisplay = () => {
+    let employees: EmployeeProfile[] = [];
     
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount', 'joinDate'];
-    const missingFields = requiredFields.filter(field => !formData.get(field));
-    
-    if (missingFields.length > 0) {
-      toast(`Please fill in required fields: ${missingFields.join(', ')}`);
-      return;
+    switch (activeTab) {
+      case 'full-time':
+        employees = fullTimeEmployees;
+        break;
+      case 'casual':
+        employees = casualEmployees;
+        break;
+      default:
+        employees = allEmployees;
+        break;
     }
 
-    try {
-      const newEmployee = {
-        name: formData.get('name') as string,
-        email: formData.get('email') as string,
-        phone: formData.get('phone') as string || '',
-        nric: formData.get('nric') as string,
-        dateOfBirth: formData.get('dateOfBirth') as string,
-        address: formData.get('address') as string || '',
-        position: formData.get('position') as string || '',
-        branch: formData.get('branch') as string || '',
-        type: formData.get('type') as string,
-        residencyStatus: formData.get('residencyStatus') as string,
-        bankName: formData.get('bankName') as string,
-        bankAccount: formData.get('bankAccount') as string,
-        paymentType: formData.get('paymentType') as string || 'Monthly',
-        baseSalary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
-        hourlyRate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
-        dailyWeekdayRate: formData.get('dailyWeekdayRate') ? parseFloat(formData.get('dailyWeekdayRate') as string) : null,
-        dailyWeekendRate: formData.get('dailyWeekendRate') ? parseFloat(formData.get('dailyWeekendRate') as string) : null,
-        joinDate: formData.get('joinDate') as string,
-      };
-
-      console.log('Creating employee with data:', newEmployee);
-      console.log('Admin access permissions:', newEmployeeAdminAccess);
-      console.log('Page access permissions:', newEmployeePageAccess);
-      await addEmployeeMutation.mutateAsync(newEmployee);
-    } catch (error) {
-      console.error('Failed to add employee:', error);
+    // Filter by search term
+    if (searchTerm) {
+      employees = employees.filter(emp => 
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.position?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
+
+    // Filter by branch
+    if (selectedBranch !== 'all') {
+      employees = employees.filter(emp => 
+        emp.branch === selectedBranch || emp.department === selectedBranch
+      );
+    }
+
+    return employees;
   };
 
-  const handleAdminAccessChange = (permissions: AdminAccessPermissions) => {
-    console.log('Admin access permissions changed:', permissions);
-    setNewEmployeeAdminAccess(permissions);
-  };
-
-  const handlePageAccessChange = (permissions: EmployeePageAccessPermissions) => {
-    console.log('Page access permissions changed:', permissions);
-    setNewEmployeePageAccess(permissions);
-  };
-
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const isSuperAdmin = user?.role === 'superadmin';
+  const employeesToDisplay = getEmployeesToDisplay();
+  const isLoading = isLoadingAll || isLoadingFullTime || isLoadingCasual;
 
   if (isLoading) {
     return (
@@ -199,25 +100,9 @@ const Employees = () => {
           <main className="flex-1 p-3 md:p-6 overflow-auto">
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Loading employees...</p>
               </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-3 md:p-6 overflow-auto">
-            <div className="text-center">
-              <p className="text-red-600">Error loading employees. Please try again.</p>
             </div>
           </main>
         </div>
@@ -235,418 +120,209 @@ const Employees = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900">Employee Management</h2>
-                <p className="text-sm md:text-base text-gray-600">Manage your workforce efficiently</p>
+                <p className="text-sm md:text-base text-gray-600">Manage your workforce and employee information</p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowModuleSettings(true)}
-                  className="w-full sm:w-auto"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Module Settings
-                </Button>
-                <Button 
-                  onClick={() => {
-                    console.log('Add Employee button clicked');
-                    setShowAddForm(true);
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Employee
-                </Button>
-              </div>
+              <Button 
+                className="flex items-center space-x-2 w-full sm:w-auto" 
+                onClick={handleAddEmployee}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Employee</span>
+              </Button>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <span className="text-lg md:text-xl">Active Employees ({activeEmployeeCount})</span>
-                  <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <Input
-                      placeholder="Search employees..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full sm:w-64"
-                    />
+            {/* Employee Statistics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <Card>
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Active</p>
+                      <p className="text-2xl font-bold text-gray-900">{activeEmployeeCount}</p>
+                    </div>
+                    <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
                   </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Mobile Card Layout */}
-                {isMobile ? (
-                  <div className="space-y-4">
-                    {filteredEmployees.map((employee) => (
-                      <Card key={employee.id} className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold text-lg">{employee.name}</h3>
-                              <p className="text-sm text-gray-600">{employee.position || 'Not specified'}</p>
-                            </div>
-                            <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
-                              {employee.type}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 gap-2 text-sm text-gray-600">
-                            {employee.email && (
-                              <div className="flex items-center space-x-2">
-                                <Mail className="w-4 h-4" />
-                                <span className="break-all">{employee.email}</span>
-                              </div>
-                            )}
-                            {employee.phone && (
-                              <div className="flex items-center space-x-2">
-                                <Phone className="w-4 h-4" />
-                                <span>{employee.phone}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>Joined: {employee.joinDate}</span>
-                            </div>
-                            {employee.branch && (
-                              <div className="flex items-center space-x-2">
-                                <MapPin className="w-4 h-4" />
-                                <span>{employee.branch}</span>
-                              </div>
-                            )}
-                          </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Full-Time</p>
+                      <p className="text-2xl font-bold text-gray-900">{fullTimeEmployees.length}</p>
+                    </div>
+                    <UserCheck className="w-6 h-6 md:w-8 md:h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Casual</p>
+                      <p className="text-2xl font-bold text-gray-900">{casualEmployees.length}</p>
+                    </div>
+                    <UserX className="w-6 h-6 md:w-8 md:h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Departments</p>
+                      <p className="text-2xl font-bold text-gray-900">{branches.length}</p>
+                    </div>
+                    <Building2 className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                          <div className="flex space-x-2 pt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/employees/${employee.id}`)}
-                              className="flex-1"
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                            {isSuperAdmin && employee.email && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResetPassword(employee.name, employee.email)}
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Reset password to default"
-                              >
-                                <KeyRound className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {isSuperAdmin && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteEmployee(employee.id, employee.name)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  /* Desktop Table Layout */
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-3 font-medium text-gray-600">Name</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Position</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Type</th>
-                          <th className="text-left p-3 font-medium text-gray-600">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredEmployees.map((employee) => (
-                          <tr key={employee.id} className="border-b hover:bg-gray-50">
-                            <td className="p-3 font-medium">{employee.name}</td>
-                            <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
-                            <td className="p-3">
-                              <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
-                                {employee.type}
-                              </Badge>
-                            </td>
-                            <td className="p-3">
-                              <div className="flex space-x-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => navigate(`/employees/${employee.id}`)}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                {isSuperAdmin && employee.email && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleResetPassword(employee.name, employee.email)}
-                                    className="text-blue-600 hover:text-blue-700"
-                                    title="Reset password to default"
-                                  >
-                                    <KeyRound className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                {isSuperAdmin && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDeleteEmployee(employee.id, employee.name)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                )}
+            {/* Search and Filter */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search employees by name, ID, email, or position..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <select
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+              >
+                <option value="all">All Branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.name}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Employee Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="all">All Employees ({allEmployees.length})</TabsTrigger>
+                <TabsTrigger value="full-time">Full-Time ({fullTimeEmployees.length})</TabsTrigger>
+                <TabsTrigger value="casual">Casual ({casualEmployees.length})</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg md:text-xl">
+                      {activeTab === 'all' ? 'All Employees' : 
+                       activeTab === 'full-time' ? 'Full-Time Employees' : 
+                       'Casual Employees'}
+                    </CardTitle>
+                    <CardDescription>
+                      {employeesToDisplay.length} employee(s) found
+                      {searchTerm && ` matching "${searchTerm}"`}
+                      {selectedBranch !== 'all' && ` in ${selectedBranch}`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {employeesToDisplay.map((employee) => (
+                        <Card key={employee.id} className="p-4 hover:shadow-md transition-shadow">
+                          <div className="space-y-3">
+                            {/* Header with name and type */}
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3">
+                                  <h3 className="font-medium text-gray-900 text-lg">{employee.name}</h3>
+                                  <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
+                                    {employee.type}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-600">{employee.id}</p>
+                                <p className="text-sm text-gray-600">{employee.position}</p>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleViewEmployee(employee.id)}
+                                className="w-full sm:w-auto"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </Button>
+                            </div>
+
+                            {/* Contact and employment details */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600">
+                              {employee.email && (
+                                <div className="flex items-center space-x-2">
+                                  <Mail className="w-4 h-4 flex-shrink-0" />
+                                  <span className="break-all">{employee.email}</span>
+                                </div>
+                              )}
+                              {employee.phone && (
+                                <div className="flex items-center space-x-2">
+                                  <Phone className="w-4 h-4 flex-shrink-0" />
+                                  <span>{employee.phone}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="w-4 h-4 flex-shrink-0" />
+                                <span>{employee.branch || employee.department || 'Not specified'}</span>
+                              </div>
+                              {employee.joinDate && (
+                                <div className="flex items-center space-x-2">
+                                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                                  <span>Joined: {format(new Date(employee.joinDate), 'MMM dd, yyyy')}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Salary information */}
+                            <div className="text-sm">
+                              {employee.type === 'Full-Time' && employee.baseSalary && (
+                                <span className="font-medium">Base Salary: <span className="text-green-600">S${employee.baseSalary.toLocaleString()}/month</span></span>
+                              )}
+                              {employee.type === 'Casual' && employee.hourlyRate && (
+                                <span className="font-medium">Hourly Rate: <span className="text-green-600">S${employee.hourlyRate}/hr</span></span>
+                              )}
+                              {employee.paymentType === 'Daily' && employee.dailyWeekdayRate && (
+                                <span className="font-medium">Daily Rate: <span className="text-green-600">S${employee.dailyWeekdayRate}/day (weekday)</span></span>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                      
+                      {employeesToDisplay.length === 0 && (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                          <p className="text-gray-500">
+                            {searchTerm || selectedBranch !== 'all' 
+                              ? 'No employees found matching your criteria' 
+                              : 'No employees found'
+                            }
+                          </p>
+                          {!searchTerm && selectedBranch === 'all' && (
+                            <Button 
+                              className="mt-4" 
+                              onClick={handleAddEmployee}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add First Employee
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>
-
-      {showModuleSettings && (
-        <EmployeeModuleSettings
-          open={showModuleSettings}
-          onOpenChange={setShowModuleSettings}
-          employees={employees}
-          onEmployeesUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ['employees'] });
-            queryClient.invalidateQueries({ queryKey: ['activeEmployeeCount'] });
-          }}
-        />
-      )}
-
-      {showResetPasswordDialog && selectedEmployee && (
-        <ResetPasswordDialog
-          open={showResetPasswordDialog}
-          onClose={() => {
-            setShowResetPasswordDialog(false);
-            setSelectedEmployee(null);
-          }}
-          employeeName={selectedEmployee.name}
-          employeeEmail={selectedEmployee.email}
-        />
-      )}
-
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4 md:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Add New Employee</h2>
-                  <p className="text-sm md:text-base text-gray-600">Fill out the employee information</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    console.log('Closing add employee form');
-                    setShowAddForm(false);
-                    setPaymentType('Monthly');
-                    setNewEmployeeAdminAccess({
-                      employees: false,
-                      payroll: false,
-                      leaveManagement: false,
-                      claims: false,
-                      attendance: false,
-                      slotBooking: false,
-                      reports: false
-                    });
-                    setNewEmployeePageAccess({
-                      profile: true,
-                      applyLeave: true,
-                      submitClaim: true,
-                      payslips: true,
-                      myAttendance: true,
-                      slotBookingEmployee: true
-                    });
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-
-            <div className="p-4 md:p-6">
-              <form onSubmit={handleAddEmployee} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-                    <Input name="name" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                    <Input name="email" type="email" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <Input name="phone" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
-                    <Input name="nric" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
-                    <Input name="dateOfBirth" type="date" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
-                    <Input name="joinDate" type="date" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                    <Input name="position" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-                    <Input name="branch" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
-                    <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                      <option value="">Select Type</option>
-                      <option value="Full-Time">Full-Time</option>
-                      <option value="Casual">Casual</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
-                    <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                      <option value="">Select Status</option>
-                      <option value="Citizen">Citizen</option>
-                      <option value="PR">Permanent Resident</option>
-                      <option value="Work Permit">Work Permit</option>
-                      <option value="S Pass">S Pass</option>
-                      <option value="Employment Pass">Employment Pass</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
-                    <Input name="bankName" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
-                    <Input name="bankAccount" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
-                    <select 
-                      name="paymentType" 
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                      value={paymentType}
-                      onChange={(e) => setPaymentType(e.target.value)}
-                    >
-                      <option value="Monthly">Monthly</option>
-                      <option value="Hourly">Hourly</option>
-                      <option value="Daily">Daily</option>
-                    </select>
-                  </div>
-
-                  {paymentType === 'Monthly' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
-                      <Input name="baseSalary" type="number" step="0.01" />
-                    </div>
-                  )}
-
-                  {paymentType === 'Hourly' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
-                      <Input name="hourlyRate" type="number" step="0.01" />
-                    </div>
-                  )}
-
-                  {paymentType === 'Daily' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
-                        <Input name="dailyWeekdayRate" type="number" step="0.01" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
-                        <Input name="dailyWeekendRate" type="number" step="0.01" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                  <textarea 
-                    name="address"
-                    rows={3} 
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Enter full address..."
-                  ></textarea>
-                </div>
-
-                <div className="border-t pt-6">
-                  <AdminAccessManager
-                    adminAccess={newEmployeeAdminAccess}
-                    pageAccess={newEmployeePageAccess}
-                    onAdminAccessChange={handleAdminAccessChange}
-                    onPageAccessChange={handlePageAccessChange}
-                    isEditing={true}
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                  <Button 
-                    type="submit" 
-                    className="flex-1"
-                    disabled={addEmployeeMutation.isPending}
-                  >
-                    {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
-                  </Button>
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setPaymentType('Monthly');
-                      setNewEmployeeAdminAccess({
-                        employees: false,
-                        payroll: false,
-                        leaveManagement: false,
-                        claims: false,
-                        attendance: false,
-                        slotBooking: false,
-                        reports: false
-                      });
-                      setNewEmployeePageAccess({
-                        profile: true,
-                        applyLeave: true,
-                        submitClaim: true,
-                        payslips: true,
-                        myAttendance: true,
-                        slotBookingEmployee: true
-                      });
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

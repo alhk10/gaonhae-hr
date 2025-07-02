@@ -147,13 +147,25 @@ const EmployeeDetails = () => {
         return;
       }
       
-      // Convert string values to numbers with proper null handling
-      const updateData = {
-        ...formData,
-        baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : null,
-        hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : null,
-        dailyWeekdayRate: formData.dailyWeekdayRate && formData.dailyWeekdayRate.trim() !== '' ? Number(formData.dailyWeekdayRate) : null,
-        dailyWeekendRate: formData.dailyWeekendRate && formData.dailyWeekendRate.trim() !== '' ? Number(formData.dailyWeekendRate) : null,
+      // Convert string values to numbers with proper null handling and type casting
+      const updateData: Partial<EmployeeProfile> = {
+        name: formData.name,
+        nric: formData.nric,
+        dateOfBirth: formData.dateOfBirth,
+        residencyStatus: formData.residencyStatus,
+        type: formData.type as 'Full-Time' | 'Casual',
+        paymentType: formData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
+        bankName: formData.bankName,
+        bankAccount: formData.bankAccount,
+        branch: formData.branch,
+        position: formData.position,
+        phone: formData.phone,
+        address: formData.address,
+        email: formData.email,
+        baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : undefined,
+        hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : undefined,
+        dailyWeekdayRate: formData.dailyWeekdayRate && formData.dailyWeekdayRate.trim() !== '' ? Number(formData.dailyWeekdayRate) : undefined,
+        dailyWeekendRate: formData.dailyWeekendRate && formData.dailyWeekendRate.trim() !== '' ? Number(formData.dailyWeekendRate) : undefined,
       };
 
       console.log('Processed update data with converted numbers:', updateData);
@@ -163,12 +175,6 @@ const EmployeeDetails = () => {
       const updatedEmployee: EmployeeProfile = {
         ...employee,
         ...updateData,
-        type: updateData.type as 'Full-Time' | 'Casual',
-        paymentType: updateData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
-        baseSalary: updateData.baseSalary || undefined,
-        hourlyRate: updateData.hourlyRate || undefined,
-        dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
-        dailyWeekendRate: updateData.dailyWeekendRate || undefined,
       };
       
       console.log('Final updated employee object:', updatedEmployee);
