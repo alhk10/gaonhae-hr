@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -6,7 +7,6 @@ import { supabase } from '@/integrations/supabase/client';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
   requiresPasswordChange: boolean;
@@ -21,22 +21,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in from Supabase sessions or OAuth
+    // Check if user is already logged in from Supabase sessions
     const initializeAuth = async () => {
       try {
         console.log('AuthContext: Initializing authentication...');
         
-        // First check for Supabase Auth sessions (OAuth users)
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          console.log('AuthContext: Found Supabase OAuth session:', session.user);
-          await handleOAuthUser(session.user);
-          setIsLoading(false);
-          return;
-        }
-
-        // Then check for custom sessions in database (password users)
+        // Check for active sessions in Supabase
         const { data: sessions, error } = await supabase
           .from('user_sessions')
           .select('*')
@@ -54,16 +44,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const sessionData = sessions[0];
           console.log('AuthContext: Loading stored user session:', sessionData.session_data);
           
+          // Properly cast the session data to User type
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Only check password change requirement for password-based logins
+          // Only check password change requirement if using default password
           const { data: passwordData } = await supabase
             .from('user_passwords')
             .select('requires_change')
             .eq('email', sessionData.email)
             .single();
           
+          // Only set password change requirement if it's explicitly true
           const needsPasswordChange = passwordData?.requires_change === true;
           console.log('AuthContext: Password change required on init:', needsPasswordChange);
           setRequiresPasswordChange(needsPasswordChange);
@@ -77,107 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Set up OAuth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state changed:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          await handleOAuthUser(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setRequiresPasswordChange(false);
-        }
-      }
-    );
-
     initializeAuth();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
-
-  const handleOAuthUser = async (oauthUser: any) => {
-    try {
-      console.log('AuthContext: Processing OAuth user:', oauthUser);
-      
-      // Define system admin users that can use OAuth
-      const systemUsers: { [key: string]: User } = {
-        'alhk10@gmail.com': {
-          id: 'ADMIN001',
-          name: 'System Administrator',
-          email: 'alhk10@gmail.com',
-          role: 'superadmin'
-        },
-        'manager@company.sg': {
-          id: 'MANAGER001', 
-          name: 'Department Manager',
-          email: 'manager@company.sg',
-          role: 'manager'
-        },
-      };
-
-      // Check if OAuth user is a system admin
-      if (systemUsers[oauthUser.email]) {
-        console.log('AuthContext: OAuth system user login:', systemUsers[oauthUser.email]);
-        setUser(systemUsers[oauthUser.email]);
-        setRequiresPasswordChange(false); // OAuth users don't need password changes
-        return;
-      }
-
-      // Check if OAuth user matches an employee
-      const employees = await getEmployees();
-      const employee = employees.find(emp => emp.email === oauthUser.email);
-      
-      if (employee) {
-        console.log('AuthContext: OAuth employee found:', employee);
-        
-        const userRecord: User = {
-          id: employee.id,
-          name: employee.name,
-          email: employee.email,
-          role: 'employee',
-          department: employee.branch,
-          employeeId: employee.id
-        };
-        
-        setUser(userRecord);
-        setRequiresPasswordChange(false); // OAuth users don't need password changes
-      } else {
-        console.log('AuthContext: OAuth user not found in system:', oauthUser.email);
-        // Sign out the OAuth user if they're not in our system
-        await supabase.auth.signOut();
-      }
-    } catch (error) {
-      console.error('AuthContext: Error handling OAuth user:', error);
-      await supabase.auth.signOut();
-    }
-  };
-
-  const loginWithGoogle = async (): Promise<boolean> => {
-    try {
-      console.log('AuthContext: Starting Google OAuth login');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (error) {
-        console.error('AuthContext: Google OAuth error:', error);
-        return false;
-      }
-
-      console.log('AuthContext: Google OAuth initiated successfully');
-      return true;
-    } catch (error) {
-      console.error('AuthContext: Google OAuth exception:', error);
-      return false;
-    }
-  };
 
   const saveUserSession = async (userData: User, password?: string) => {
     try {
@@ -393,11 +286,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     console.log('AuthContext: Logging out user:', user);
     
-    // Sign out from Supabase Auth (for OAuth users)
-    await supabase.auth.signOut();
-    
     if (user?.email) {
-      // Remove custom session from database (for password users)
+      // Remove session from Supabase
       await supabase
         .from('user_sessions')
         .delete()
@@ -421,7 +311,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ 
       user, 
       login, 
-      loginWithGoogle,
       logout, 
       isLoading, 
       requiresPasswordChange, 
