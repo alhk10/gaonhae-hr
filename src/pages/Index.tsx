@@ -12,6 +12,8 @@ import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 const Index = () => {
   const { user, requiresPasswordChange, isLoading } = useAuth();
 
+  console.log('Index: Rendering with state:', { user: !!user, requiresPasswordChange, isLoading });
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -21,14 +23,20 @@ const Index = () => {
     );
   }
 
+  // If no user, show login form
   if (!user) {
+    console.log('Index: No user found, showing login form');
     return <LoginForm />;
   }
 
-  // Show password change modal if required
+  // If user exists but requires password change, show password change modal
   if (requiresPasswordChange) {
+    console.log('Index: User requires password change, showing modal');
     return <PasswordChangeModal open={true} />;
   }
+
+  // User is authenticated and no password change required, show dashboard
+  console.log('Index: User authenticated, showing dashboard for role:', user.role);
 
   const renderDashboard = () => {
     switch (user.role) {

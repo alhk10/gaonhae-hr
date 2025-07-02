@@ -89,14 +89,14 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
     }
   };
 
-  // Handle dialog open/close - allow closing only if it's not a required password change
+  // Handle dialog open/close - prevent closing if it's a required password change
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // If this is not a required password change (has onClose handler), allow closing
-      if (onClose && !requiresPasswordChange) {
+      // Only allow closing if it's not a required password change
+      if (!requiresPasswordChange && onClose) {
         onClose();
       }
-      // If it's a required password change, don't allow closing via X button
+      // If it's a required password change, don't allow closing
     }
   };
 

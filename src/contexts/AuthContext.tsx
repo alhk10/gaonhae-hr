@@ -24,6 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if user is already logged in from Supabase sessions
     const initializeAuth = async () => {
       try {
+        console.log('AuthContext: Initializing authentication...');
+        
         // Check for active sessions in Supabase
         const { data: sessions, error } = await supabase
           .from('user_sessions')
@@ -41,20 +43,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessions && sessions.length > 0) {
           const sessionData = sessions[0];
           console.log('AuthContext: Loading stored user session:', sessionData.session_data);
+          
           // Properly cast the session data to User type
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Check if password change is required - only check once on initialization
+          // Check password change requirement ONLY during initialization
           const { data: passwordData } = await supabase
             .from('user_passwords')
             .select('requires_change')
             .eq('email', sessionData.email)
             .single();
           
-          const needsPasswordChange = passwordData?.requires_change || false;
+          // Only set password change requirement if it's explicitly true
+          const needsPasswordChange = passwordData?.requires_change === true;
           console.log('AuthContext: Password change required on init:', needsPasswordChange);
           setRequiresPasswordChange(needsPasswordChange);
+        } else {
+          console.log('AuthContext: No active session found');
         }
       } catch (error) {
         console.error('AuthContext: Error initializing auth:', error);
@@ -92,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('user_passwords')
           .upsert({
             email: userData.email,
-            password_hash: btoa(password + userData.email), // Include email for better uniqueness
+            password_hash: btoa(password + userData.email),
             requires_change: false
           });
 
@@ -117,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       // Save new password to Supabase with proper encoding
-      const passwordHash = btoa(newPassword + user.email); // Include email for better uniqueness
+      const passwordHash = btoa(newPassword + user.email);
       
       const { error } = await supabase
         .from('user_passwords')
@@ -158,20 +164,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('email', email)
       .single();
 
+    let passwordValid = false;
+    let needsPasswordChange = false;
+
     if (passwordData) {
       const storedHash = passwordData.password_hash;
-      const testHash = btoa(password + email); // Match the encoding used in updatePassword
+      const testHash = btoa(password + email);
       
       if (storedHash === testHash || storedHash === btoa(password)) {
         console.log('AuthContext: Using stored password for login');
+        passwordValid = true;
+        needsPasswordChange = passwordData.requires_change === true;
       } else if (password !== 'password') {
         console.log('AuthContext: Invalid password');
         return false;
       }
-    } else if (password !== 'password') {
-      // If no stored password and not default password
+    }
+    
+    // If no stored password, only allow default password
+    if (!passwordValid && password !== 'password') {
       console.log('AuthContext: Invalid password - no stored password found');
       return false;
+    }
+    
+    // If using default password and no stored password, require change
+    if (password === 'password' && !passwordData) {
+      needsPasswordChange = true;
     }
     
     // Define system admin users
@@ -198,8 +216,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(foundUser);
       await saveUserSession(foundUser, password);
       
-      // Only set password change requirement if using default password AND no custom password exists
-      if (password === 'password' && !passwordData) {
+      // Set password change requirement based on analysis above
+      if (needsPasswordChange) {
         console.log('AuthContext: Setting password change requirement for system user');
         await supabase
           .from('user_passwords')
@@ -208,11 +226,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             password_hash: btoa(password),
             requires_change: true
           });
-        setRequiresPasswordChange(true);
-      } else {
-        console.log('AuthContext: No password change required for system user');
-        setRequiresPasswordChange(passwordData?.requires_change === true);
       }
+      
+      setRequiresPasswordChange(needsPasswordChange);
+      console.log('AuthContext: Password change required:', needsPasswordChange);
       
       return true;
     }
@@ -241,8 +258,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userRecord);
         await saveUserSession(userRecord, password);
         
-        // Only set password change requirement if using default password AND no custom password exists
-        if (password === 'password' && !passwordData) {
+        // Set password change requirement based on analysis above
+        if (needsPasswordChange) {
           console.log('AuthContext: Setting password change requirement for employee');
           await supabase
             .from('user_passwords')
@@ -251,17 +268,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               password_hash: btoa(password),
               requires_change: true
             });
-          setRequiresPasswordChange(true);
-        } else {
-          console.log('AuthContext: No password change required for employee');
-          setRequiresPasswordChange(passwordData?.requires_change === true);
         }
+        
+        setRequiresPasswordChange(needsPasswordChange);
+        console.log('AuthContext: Password change required:', needsPasswordChange);
         
         return true;
       }
       
       console.log('AuthContext: No matching employee found for email:', email);
-      console.log('AuthContext: Available employee emails:', employees.map(emp => emp.email).filter(Boolean));
       
     } catch (error) {
       console.error('AuthContext: Error loading employees:', error);
