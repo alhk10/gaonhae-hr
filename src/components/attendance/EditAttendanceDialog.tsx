@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
 import { updateAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
-import { getBranches } from '@/services/settingsService';
+import { getBranches, type Branch } from '@/services/settingsService';
 
 interface EditAttendanceDialogProps {
   isOpen: boolean;
@@ -23,7 +22,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
   onSuccess
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [branches, setBranches] = useState<Array<{id: number; name: string; address: string}>>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [formData, setFormData] = useState({
     date: '',
     checkIn: '',
