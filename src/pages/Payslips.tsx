@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
+import PageAccessGuard from '@/components/auth/PageAccessGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Calendar, FileText } from 'lucide-react';
@@ -16,7 +17,7 @@ interface PayslipDisplayData extends PayrollData {
   month: string;
 }
 
-const Payslips = () => {
+const PayslipsContent = () => {
   const { user } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [payslips, setPayslips] = useState<PayslipDisplayData[]>([]);
@@ -143,18 +144,10 @@ const Payslips = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading payslip data...</p>
-              </div>
-            </div>
-          </main>
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading payslip data...</p>
         </div>
       </div>
     );
@@ -162,36 +155,20 @@ const Payslips = () => {
 
   if (!user?.employeeId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center">
-              <p className="text-red-600">No employee ID found for current user</p>
-              <p className="text-sm text-gray-500 mt-2">Please contact your administrator</p>
-            </div>
-          </main>
-        </div>
+      <div className="text-center">
+        <p className="text-red-600">No employee ID found for current user</p>
+        <p className="text-sm text-gray-500 mt-2">Please contact your administrator</p>
       </div>
     );
   }
 
   if (!currentEmployee) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center space-y-4">
-              <p className="text-red-600">Employee record not found</p>
-              <p className="text-sm text-gray-500">
-                Employee ID: {user.employeeId} could not be found in the system
-              </p>
-            </div>
-          </main>
-        </div>
+      <div className="text-center space-y-4">
+        <p className="text-red-600">Employee record not found</p>
+        <p className="text-sm text-gray-500">
+          Employee ID: {user.employeeId} could not be found in the system
+        </p>
       </div>
     );
   }
@@ -199,34 +176,26 @@ const Payslips = () => {
   // Show message if no payslips are found
   if (payslips.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-                <p className="text-gray-600">View and download your payslips</p>
-              </div>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center space-y-4">
-                    <FileText className="w-16 h-16 text-gray-400 mx-auto" />
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">No Payslips Found</h3>
-                      <p className="text-gray-500">
-                        No payroll records have been generated for your account yet.
-                        Please contact your administrator if you believe this is an error.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
+          <p className="text-gray-600">View and download your payslips</p>
         </div>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto" />
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">No Payslips Found</h3>
+                <p className="text-gray-500">
+                  No payroll records have been generated for your account yet.
+                  Please contact your administrator if you believe this is an error.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -235,91 +204,99 @@ const Payslips = () => {
   const totalCPFYear = payslips.reduce((sum, payslip) => sum + payslip.totalCPF, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-              <p className="text-gray-600">View and download your payslips</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
-                      <p className="text-2xl font-bold text-gray-900">S${totalEarningsYear.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Including claims: S${(payslips.reduce((sum, p) => sum + p.approvedClaims, 0)).toLocaleString()}
-                      </p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">CPF Contributions (Year)</p>
-                      <p className="text-2xl font-bold text-gray-900">S${totalCPFYear.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Employee + Employer CPF
-                      </p>
-                    </div>
-                    <Calendar className="w-8 h-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips as PDF</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {payslips.map((payslip, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{payslip.month}</p>
-                        <p className="text-sm text-gray-600">
-                          Net: S${payslip.netSalary.toLocaleString()} • 
-                          Gross: S${(payslip.grossSalary + payslip.approvedClaims).toLocaleString()} • 
-                          CPF: S${payslip.totalCPF.toLocaleString()}
-                          {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Base: S${payslip.baseSalary.toLocaleString()} • 
-                          Allowances: S${payslip.totalAllowances.toLocaleString()} • 
-                          Deductions: S${payslip.totalDeductions.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => handleDownloadPayslipPDF(payslip.month)}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Download PDF
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
+        <p className="text-gray-600">View and download your payslips</p>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
+                <p className="text-2xl font-bold text-gray-900">S${totalEarningsYear.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Including claims: S${(payslips.reduce((sum, p) => sum + p.approvedClaims, 0)).toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">CPF Contributions (Year)</p>
+                <p className="text-2xl font-bold text-gray-900">S${totalCPFYear.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Employee + Employer CPF
+                </p>
+              </div>
+              <Calendar className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Payslips</CardTitle>
+          <CardDescription>Download your monthly payslips as PDF</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {payslips.map((payslip, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">{payslip.month}</p>
+                  <p className="text-sm text-gray-600">
+                    Net: S${payslip.netSalary.toLocaleString()} • 
+                    Gross: S${(payslip.grossSalary + payslip.approvedClaims).toLocaleString()} • 
+                    CPF: S${payslip.totalCPF.toLocaleString()}
+                    {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Base: S${payslip.baseSalary.toLocaleString()} • 
+                    Allowances: S${payslip.totalAllowances.toLocaleString()} • 
+                    Deductions: S${payslip.totalDeductions.toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => handleDownloadPayslipPDF(payslip.month)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
+  );
+};
+
+const Payslips = () => {
+  return (
+    <PageAccessGuard requiredPermission="payslips">
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex h-[calc(100vh-73px)]">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-auto">
+            <PayslipsContent />
+          </main>
+        </div>
+      </div>
+    </PageAccessGuard>
   );
 };
 

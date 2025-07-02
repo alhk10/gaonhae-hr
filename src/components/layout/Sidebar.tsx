@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,7 +54,7 @@ const Sidebar = () => {
           
           if (employee) {
             setCurrentEmployee(employee);
-            console.log('Sidebar: Current employee loaded with admin access:', employee.adminAccess);
+            console.log('Sidebar: Current employee loaded with page access:', employee.pageAccess);
           } else {
             console.log('Sidebar: Employee not found for email:', user.email);
             setCurrentEmployee(null);
@@ -120,22 +121,43 @@ const Sidebar = () => {
       return managerItems;
     }
 
-    // For employees, start with basic employee items including personal functions
+    // For employees, check page access permissions
     console.log('Sidebar: Building employee menu items');
     let employeeItems: MenuItem[] = [
       ...baseItems,
-      { icon: UserCheck, label: 'Profile', path: '/profile' },
-      { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
-      { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
-      { icon: DollarSign, label: 'Payslips', path: '/payslips' },
-      { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
-      { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
     ];
 
     // If still loading employee data, return basic items
     if (isLoading) {
       console.log('Sidebar: Still loading employee data, returning basic items');
       return employeeItems;
+    }
+
+    // Check page access permissions and add allowed items
+    if (currentEmployee?.pageAccess) {
+      const pageAccess = currentEmployee.pageAccess;
+      console.log('Sidebar: Employee page access permissions:', pageAccess);
+      
+      if (pageAccess.profile) {
+        employeeItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });
+      }
+      if (pageAccess.applyLeave) {
+        employeeItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
+      }
+      if (pageAccess.submitClaim) {
+        employeeItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
+      }
+      if (pageAccess.payslips) {
+        employeeItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
+      }
+      if (pageAccess.myAttendance) {
+        employeeItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
+      }
+      if (pageAccess.slotBookingEmployee) {
+        employeeItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
+      }
+    } else {
+      console.log('Sidebar: No page access permissions found for employee');
     }
 
     // Check if employee has admin access permissions and add admin menu items
