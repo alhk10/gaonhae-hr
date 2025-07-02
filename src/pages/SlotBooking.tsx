@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,9 +19,11 @@ import {
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const SlotBooking = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
@@ -225,277 +226,266 @@ const SlotBooking = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
+    <ResponsiveLayout>
+      <div className={`space-y-6 ${isMobile ? 'space-y-4' : ''}`}>
+        <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
+          <div>
+            <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Slot Booking</h2>
+          </div>
+          
+          {user?.role !== 'employee' && (
+            <Button onClick={() => setIsBulkDialogOpen(true)} className={isMobile ? 'w-full' : ''}>
+              <Plus className="w-4 h-4 mr-2" />
+              Bulk Booking
+            </Button>
+          )}
+        </div>
+
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+          <Card>
+            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Available Slots</p>
+                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{totalAvailableSlots}</p>
+                  <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>Selected date</p>
+                </div>
+                <Clock className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Bookings</p>
+                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{employeeBookingsCount}</p>
+                  <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
+                </div>
+                <Users className={`text-blue-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Total Branches</p>
+                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{branches.length}</p>
+                </div>
+                <MapPin className={`text-purple-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Booking Status Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle className={isMobile ? 'text-lg' : ''}>Booking Status Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
+              <div className={`flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
+                <AlertCircle className={`text-yellow-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending</p>
+                  <p className={`font-bold text-yellow-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.pending}</p>
+                </div>
+              </div>
+              <div className={`flex items-center space-x-3 p-3 bg-green-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
+                <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Approved</p>
+                  <p className={`font-bold text-green-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.approved}</p>
+                </div>
+              </div>
+              <div className={`flex items-center space-x-3 p-3 bg-red-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
+                <XCircle className={`text-red-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Rejected</p>
+                  <p className={`font-bold text-red-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.rejected}</p>
+                </div>
+              </div>
+              <div className={`flex items-center space-x-3 p-3 bg-blue-50 rounded-lg ${isMobile ? 'flex-col space-x-0 space-y-2 text-center' : ''}`}>
+                <Users className={`text-blue-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                <div>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Total</p>
+                  <p className={`font-bold text-blue-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>{bookingStats.total}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
+          <Card>
+            <CardHeader>
+              <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
+                <CalendarIcon className="w-5 h-5" />
+                <span>Select Date & Branch</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Slot Booking</h2>
+                <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Branch</label>
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                          <span>{branch.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
-              {user?.role !== 'employee' && (
-                <Button onClick={() => setIsBulkDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Bulk Booking
+              <div>
+                <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Select Date</label>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  className="rounded-md border"
+                  disabled={(date) => date < today}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className={isMobile ? 'text-lg' : ''}>Booking Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {currentBranch && (
+                <div className={`bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                  <div className="flex items-start space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${currentBranch.color} mt-1`}></div>
+                    <div className="flex-1">
+                      <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
+                      <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
+                      <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        Total daily slots: {currentBranch.totalSlots}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedDate && (
+                <div className={`bg-blue-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                  <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
+                    Selected Date: {format(selectedDate, 'PPP')}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Available slots:</span>
+                    <Badge variant="secondary">
+                      {availableSlots} remaining
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Booked slots:</span>
+                    <Badge variant="outline">
+                      {bookedSlots} booked
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {user?.role === 'employee' && (
+                <Button 
+                  onClick={handleBookSlot} 
+                  className="w-full"
+                  disabled={!selectedDate || !currentBranch || availableSlots <= 0}
+                >
+                  Book Slot
                 </Button>
               )}
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Available Slots</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalAvailableSlots}</p>
-                      <p className="text-xs text-gray-500">Selected date</p>
-                    </div>
-                    <Clock className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">My Bookings</p>
-                      <p className="text-2xl font-bold text-gray-900">{employeeBookingsCount}</p>
-                      <p className="text-xs text-gray-500">This month</p>
-                    </div>
-                    <Users className="w-8 h-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Branches</p>
-                      <p className="text-2xl font-bold text-gray-900">{branches.length}</p>
-                    </div>
-                    <MapPin className="w-8 h-8 text-purple-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Booking Status Panel */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Booking Status Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg">
-                    <AlertCircle className="w-8 h-8 text-yellow-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Pending</p>
-                      <p className="text-xl font-bold text-yellow-700">{bookingStats.pending}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                    <CheckCircle className="w-8 h-8 text-green-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Approved</p>
-                      <p className="text-xl font-bold text-green-700">{bookingStats.approved}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 bg-red-50 rounded-lg">
-                    <XCircle className="w-8 h-8 text-red-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Rejected</p>
-                      <p className="text-xl font-bold text-red-700">{bookingStats.rejected}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                    <Users className="w-8 h-8 text-blue-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total</p>
-                      <p className="text-xl font-bold text-blue-700">{bookingStats.total}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CalendarIcon className="w-5 h-5" />
-                    <span>Select Date & Branch</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
-                              <span>{branch.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      className="rounded-md border"
-                      disabled={(date) => date < today}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Booking Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentBranch && (
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-start space-x-3">
-                        <div className={`w-4 h-4 rounded-full ${currentBranch.color} mt-1`}></div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{currentBranch.name}</h3>
-                          <p className="text-sm text-gray-600">{currentBranch.address}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Total daily slots: {currentBranch.totalSlots}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedDate && (
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h3 className="font-medium text-gray-900 mb-2">
-                        Selected Date: {format(selectedDate, 'PPP')}
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Available slots:</span>
-                        <Badge variant="secondary">
-                          {availableSlots} remaining
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">Booked slots:</span>
-                        <Badge variant="outline">
-                          {bookedSlots} booked
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-
-                  {user?.role === 'employee' && (
-                    <Button 
-                      onClick={handleBookSlot} 
-                      className="w-full"
-                      disabled={!selectedDate || !currentBranch || availableSlots <= 0}
-                    >
-                      Book Slot
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Booking History */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Booking History</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <label htmlFor="month-filter" className="text-sm font-medium text-gray-700">
-                      Filter by Month:
-                    </label>
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Select month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getMonthOptions().map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {filteredBookings.length > 0 ? (
-                  <div className="space-y-3">
-                    {filteredBookings.map((booking) => (
-                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
-                          <div>
-                            <p className="font-medium text-sm">{booking.branchName}</p>
-                            <p className="text-xs text-gray-600">{format(new Date(booking.date), 'PPP')}</p>
-                          </div>
-                        </div>
-                        <Badge 
-                          variant={
-                            booking.status === 'approved' ? 'default' :
-                            booking.status === 'pending' ? 'secondary' :
-                            'destructive'
-                          }
-                        >
-                          {booking.status}
-                        </Badge>
-                      </div>
+        {/* Booking History */}
+        <Card>
+          <CardHeader>
+            <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
+              <CardTitle className={isMobile ? 'text-lg' : ''}>Booking History</CardTitle>
+              <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
+                <label htmlFor="month-filter" className={`font-medium text-gray-700 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                  Filter by Month:
+                </label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className={isMobile ? 'flex-1' : 'w-40'}>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredBookings.length > 0 ? (
+              <div className="space-y-3">
+                {filteredBookings.map((booking) => (
+                  <div key={booking.id} className={`flex items-center justify-between bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-3'}`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
+                      <div>
+                        <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
+                        <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                      </div>
+                    </div>
+                    <Badge 
+                      variant={
+                        booking.status === 'approved' ? 'default' :
+                        booking.status === 'pending' ? 'secondary' :
+                        'destructive'
+                      }
+                      className={isMobile ? 'text-xs' : 'text-xs'}
+                    >
+                      {booking.status}
+                    </Badge>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <BulkSlotBookingDialog
-            isOpen={isBulkDialogOpen}
-            onClose={() => setIsBulkDialogOpen(false)}
-            selectedDate={selectedDateForBulk}
-            onSuccess={handleBulkBookingSuccess}
-          />
-        </main>
+                ))}
+              </div>
+            ) : (
+              <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
+                <p className={isMobile ? 'text-sm' : ''}>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+
+      <BulkSlotBookingDialog
+        isOpen={isBulkDialogOpen}
+        onClose={() => setIsBulkDialogOpen(false)}
+        selectedDate={selectedDateForBulk}
+        onSuccess={handleBulkBookingSuccess}
+      />
+    </ResponsiveLayout>
   );
 };
 

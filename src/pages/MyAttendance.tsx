@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,6 +14,7 @@ import { updateClockInOut, getClockInOutStatus } from '@/services/attendanceServ
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 import { isWithinBranchRange } from '@/services/geolocationService';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AttendanceRecord {
   id: number;
@@ -38,6 +37,7 @@ interface ClockInOutRecord {
 
 const MyAttendance = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [dateFilter, setDateFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM format
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
@@ -267,229 +267,247 @@ const MyAttendance = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading attendance data...</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading attendance data...</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            {/* Header with Clock In/Out Button */}
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">My Attendance</h2>
-              </div>
-              
-              <Button 
-                className={`h-auto p-4 ${
-                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
-                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
-                  'bg-gray-400 cursor-not-allowed'
-                }`}
-                onClick={handleClockInOut}
-                disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
-              >
-                <Clock className="w-5 h-5 mr-3" />
-                <div className="text-left">
-                  <p className="font-medium text-white">
-                    {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
-                  </p>
-                  <div className="text-sm text-white/80 flex items-center">
-                    {isClockedIn && clockStatus?.clockIn ? (
+    <ResponsiveLayout>
+      <div className={`space-y-6 ${isMobile ? 'space-y-4' : ''}`}>
+        {/* Header with Clock In/Out Button */}
+        <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
+          <div>
+            <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>My Attendance</h2>
+          </div>
+          
+          <Button 
+            className={`h-auto ${isMobile ? 'w-full p-3' : 'p-4'} ${
+              isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+              canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+              'bg-gray-400 cursor-not-allowed'
+            }`}
+            onClick={handleClockInOut}
+            disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
+          >
+            <Clock className="w-5 h-5 mr-3" />
+            <div className="text-left">
+              <p className="font-medium text-white">
+                {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
+              </p>
+              <div className="text-sm text-white/80 flex items-center">
+                {isClockedIn && clockStatus?.clockIn ? (
+                  <>
+                    {clockStatus.clockIn}
+                    {clockStatus.location && (
                       <>
-                        {clockStatus.clockIn}
-                        {clockStatus.location && (
-                          <>
-                            <MapPin className="w-3 h-3 mx-1" />
-                            {clockStatus.location}
-                          </>
-                        )}
+                        <MapPin className="w-3 h-3 mx-1" />
+                        {clockStatus.location}
                       </>
-                    ) : !canClockIn ? (
-                      !locationCheckPassed ? 'Location required' : 'Slot booking required'
-                    ) : nearestBranch ? (
-                      <>
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {nearestBranch}
-                      </>
-                    ) : (
-                      'Within 100m of branch'
                     )}
-                  </div>
+                  </>
+                ) : !canClockIn ? (
+                  !locationCheckPassed ? 'Location required' : 'Slot booking required'
+                ) : nearestBranch ? (
+                  <>
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {nearestBranch}
+                  </>
+                ) : (
+                  'Within 100m of branch'
+                )}
+              </div>
+            </div>
+          </Button>
+        </div>
+
+        {/* Location Warning */}
+        {!locationCheckPassed && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className={isMobile ? 'p-3' : 'p-4'}>
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-orange-600" />
+                <div>
+                  <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : ''}`}>
+                    Location Access Required
+                  </p>
+                  <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    You must be within 100m of a branch and enable location to clock in.
+                  </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Casual Employee Slot Booking Warning */}
+        {employeeType === 'Casual' && !hasApprovedSlot && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className={isMobile ? 'p-3' : 'p-4'}>
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-orange-600" />
+                <div>
+                  <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : ''}`}>
+                    Slot Booking Required
+                  </p>
+                  <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    Casual employees need approved slot booking to clock in.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Statistics Cards */}
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>Days Present This Month</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`font-bold text-green-600 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{presentDays}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>Total Hours This Month</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`font-bold ${isMobile ? 'text-xl' : 'text-2xl'}`}>{totalHours.toFixed(1)}h</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>Attendance Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`font-bold text-green-600 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+                {attendanceData.length > 0 ? ((presentDays / attendanceData.length) * 100).toFixed(1) : '0'}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Attendance Records */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
+                <Calendar className="w-5 h-5" />
+                <span>Attendance Records</span>
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`flex gap-4 mb-6 ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'}`}>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className={isMobile ? 'w-full' : 'w-48'}>
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={new Date().toISOString().slice(0, 7)}>
+                    {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                  <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7)}>
+                    {new Date(new Date().setMonth(new Date().getMonth() - 1)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                  <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString().slice(0, 7)}>
+                    {new Date(new Date().setMonth(new Date().getMonth() - 2)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className={isMobile ? 'w-full' : 'w-40'}
+                placeholder="Filter by date"
+              />
+              <Button variant="outline" onClick={() => setDateFilter('')} className={isMobile ? 'w-full' : ''}>
+                Clear Filter
               </Button>
             </div>
 
-            {/* Location Warning */}
-            {!locationCheckPassed && (
-              <Card className="border-orange-200 bg-orange-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <AlertCircle className="w-5 h-5 text-orange-600" />
-                    <div>
-                      <p className="text-sm font-medium text-orange-800">
-                        Location Access Required
-                      </p>
-                      <p className="text-sm text-orange-700">
-                        You must be within 100m of a branch and enable location to clock in.
-                      </p>
+            {isMobile ? (
+              // Mobile: Card-based layout
+              <div className="space-y-3">
+                {filteredData.map((record) => (
+                  <div key={record.id} className="bg-gray-50 rounded-lg p-3 border">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-medium text-sm">{record.date}</span>
+                      <span className="text-xs text-gray-600">{record.hours_worked?.toFixed(1) || '0.0'}h</span>
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <div>In: {record.check_in || '-'}</div>
+                      <div>Out: {record.check_out || '-'}</div>
+                      {(record.clock_in_location || record.location) && (
+                        <div className="flex items-center">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          {record.clock_in_location || record.location}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Casual Employee Slot Booking Warning */}
-            {employeeType === 'Casual' && !hasApprovedSlot && (
-              <Card className="border-orange-200 bg-orange-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <AlertCircle className="w-5 h-5 text-orange-600" />
-                    <div>
-                      <p className="text-sm font-medium text-orange-800">
-                        Slot Booking Required
-                      </p>
-                      <p className="text-sm text-orange-700">
-                        Casual employees need approved slot booking to clock in.
-                      </p>
-                    </div>
+                ))}
+                {filteredData.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    <p className="text-sm">No attendance records found for the selected date.</p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Days Present This Month</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">{presentDays}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Total Hours This Month</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">
-                    {attendanceData.length > 0 ? ((presentDays / attendanceData.length) * 100).toFixed(1) : '0'}%
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Attendance Records */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5" />
-                    <span>Attendance Records</span>
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={new Date().toISOString().slice(0, 7)}>
-                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                      <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7)}>
-                        {new Date(new Date().setMonth(new Date().getMonth() - 1)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                      <SelectItem value={new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString().slice(0, 7)}>
-                        {new Date(new Date().setMonth(new Date().getMonth() - 2)).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-40"
-                    placeholder="Filter by date"
-                  />
-                  <Button variant="outline" onClick={() => setDateFilter('')}>
-                    Clear Filter
-                  </Button>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Clock In</TableHead>
-                      <TableHead>Clock Out</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Hours</TableHead>
+                )}
+              </div>
+            ) : (
+              // Desktop: Table layout
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Clock In</TableHead>
+                    <TableHead>Clock Out</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Hours</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredData.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">{record.date}</TableCell>
+                      <TableCell>{record.check_in || '-'}</TableCell>
+                      <TableCell>{record.check_out || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {record.clock_in_location && (
+                            <>
+                              <MapPin className="w-3 h-3 mr-1" />
+                              {record.clock_in_location}
+                            </>
+                          )}
+                          {!record.clock_in_location && (record.location || '-')}
+                        </div>
+                      </TableCell>
+                      <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">{record.date}</TableCell>
-                        <TableCell>{record.check_in || '-'}</TableCell>
-                        <TableCell>{record.check_out || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            {record.clock_in_location && (
-                              <>
-                                <MapPin className="w-3 h-3 mr-1" />
-                                {record.clock_in_location}
-                              </>
-                            )}
-                            {!record.clock_in_location && (record.location || '-')}
-                          </div>
-                        </TableCell>
-                        <TableCell>{record.hours_worked?.toFixed(1) || '0.0'}h</TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredData.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
-                          No attendance records found for the selected date.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+                  ))}
+                  {filteredData.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                        No attendance records found for the selected date.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </ResponsiveLayout>
   );
 };
 
