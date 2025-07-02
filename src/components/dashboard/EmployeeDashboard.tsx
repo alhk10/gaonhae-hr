@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +64,7 @@ const EmployeeDashboard = () => {
       .filter(leave => leave.type === 'Annual Leave')
       .reduce((total, leave) => total + leave.days, 0);
     
-    return { remaining: 21 - annualLeaveUsed }; // Standard 21 days annual leave
+    return { remaining: 21 - annualLeaveUsed };
   };
 
   const leaveBalance = calculateLeaveBalance();
@@ -139,11 +138,32 @@ const EmployeeDashboard = () => {
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
   const hoursThisMonth = attendanceRecords.reduce((total, record) => total + (record.hoursWorked || 0), 0);
   
+  // Calculate days until 2nd of next month
+  const getDaysUntilNextPayroll = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+    
+    let nextPayrollDate;
+    if (currentDay <= 2) {
+      // If today is 1st or 2nd, next payroll is this month's 2nd
+      nextPayrollDate = new Date(currentYear, currentMonth, 2);
+    } else {
+      // Otherwise, next payroll is next month's 2nd
+      nextPayrollDate = new Date(currentYear, currentMonth + 1, 2);
+    }
+    
+    const diffTime = nextPayrollDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const personalStats = [
     { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' },
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
     { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
-    { title: 'Next Payroll', value: '3 days', icon: DollarSign, color: 'bg-purple-500' },
+    { title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' },
   ];
 
   const handleClockInOut = async () => {
@@ -245,12 +265,9 @@ const EmployeeDashboard = () => {
             <div className="flex items-center space-x-3">
               <AlertCircle className="w-5 h-5 text-orange-600" />
               <div>
-                <p className="text-sm font-medium text-orange-800">
-                  Slot Booking Required
-                </p>
+                <p className="text-sm font-medium text-orange-800">Slot Booking Required</p>
                 <p className="text-sm text-orange-700">
-                  As a casual employee, you need an approved slot booking for today to clock in. 
-                  Please book a slot and wait for approval before attempting to clock in.
+                  Casual employees need approved slot booking to clock in.
                 </p>
               </div>
             </div>
@@ -280,7 +297,6 @@ const EmployeeDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common HR tasks</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3">
@@ -325,8 +341,7 @@ const EmployeeDashboard = () => {
               >
                 <Calendar className="w-5 h-5 mr-3" />
                 <div className="text-left">
-                  <p className="font-medium">Apply for Leave</p>
-                  <p className="text-sm text-gray-500">Submit new leave request</p>
+                  <p className="font-medium">Apply Leave</p>
                 </div>
               </Button>
               
@@ -338,7 +353,6 @@ const EmployeeDashboard = () => {
                 <FileText className="w-5 h-5 mr-3" />
                 <div className="text-left">
                   <p className="font-medium">Submit Claim</p>
-                  <p className="text-sm text-gray-500">Medical, transport, or other claims</p>
                 </div>
               </Button>
               
@@ -350,7 +364,6 @@ const EmployeeDashboard = () => {
                 <Clock className="w-5 h-5 mr-3" />
                 <div className="text-left">
                   <p className="font-medium">View Payslip</p>
-                  <p className="text-sm text-gray-500">Download latest payslip</p>
                 </div>
               </Button>
             </div>
@@ -360,7 +373,6 @@ const EmployeeDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest HR transactions</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -385,32 +397,6 @@ const EmployeeDashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Employee Profile Summary */}
-      {employeeData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Summary</CardTitle>
-            <CardDescription>Your employment details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Employment Type</p>
-                <p className="text-lg text-gray-900">{employeeData.type}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Payment Type</p>
-                <p className="text-lg text-gray-900">{employeeData.paymentType || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Bank</p>
-                <p className="text-lg text-gray-900">{employeeData.bankName || 'Not specified'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
