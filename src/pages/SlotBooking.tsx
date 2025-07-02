@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -32,6 +31,8 @@ const SlotBooking = () => {
   const [totalAvailableSlots, setTotalAvailableSlots] = useState(0);
   const [employeeBookingsCount, setEmployeeBookingsCount] = useState(0);
   const [employeeBookings, setEmployeeBookings] = useState<SlotBookingType[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<SlotBookingType[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [availableSlots, setAvailableSlots] = useState(0);
   const [bookedSlots, setBookedSlots] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,10 @@ const SlotBooking = () => {
       loadEmployeeBookings();
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    filterBookingsByMonth();
+  }, [employeeBookings, selectedMonth]);
 
   const loadInitialData = async () => {
     try {
@@ -108,6 +113,35 @@ const SlotBooking = () => {
     } catch (error) {
       console.error('SlotBooking: Error loading employee bookings:', error);
     }
+  };
+
+  const filterBookingsByMonth = () => {
+    if (!selectedMonth) {
+      setFilteredBookings(employeeBookings);
+      return;
+    }
+
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const filtered = employeeBookings.filter(booking => {
+      const bookingDate = new Date(booking.date);
+      return bookingDate.getFullYear() === year && bookingDate.getMonth() === month - 1;
+    });
+    
+    setFilteredBookings(filtered);
+  };
+
+  const getMonthOptions = () => {
+    const options = [];
+    const currentDate = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const value = format(date, 'yyyy-MM');
+      const label = format(date, 'MMMM yyyy');
+      options.push({ value, label });
+    }
+    
+    return options;
   };
 
   const updateSlotCounts = async () => {
@@ -396,15 +430,34 @@ const SlotBooking = () => {
               </Card>
             </div>
 
-            {/* Recent Bookings */}
-            {employeeBookings.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>My Recent Bookings</CardTitle>
-                </CardHeader>
-                <CardContent>
+            {/* Booking History */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Booking History</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="month-filter" className="text-sm font-medium text-gray-700">
+                      Filter by Month:
+                    </label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMonthOptions().map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredBookings.length > 0 ? (
                   <div className="space-y-3">
-                    {employeeBookings.slice(0, 5).map((booking) => (
+                    {filteredBookings.map((booking) => (
                       <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
@@ -425,9 +478,13 @@ const SlotBooking = () => {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <BulkSlotBookingDialog
