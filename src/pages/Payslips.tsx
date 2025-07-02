@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Calendar, FileText, RefreshCw } from 'lucide-react';
+import { DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
@@ -21,7 +21,6 @@ const Payslips = () => {
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [payslips, setPayslips] = useState<PayslipDisplayData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   
   const loadEmployeeData = async () => {
     try {
@@ -109,51 +108,6 @@ const Payslips = () => {
     initializeData();
   }, [user?.employeeId]);
 
-  const handleRefreshData = async () => {
-    setRefreshing(true);
-    
-    try {
-      console.log('Refreshing payroll data from Supabase...');
-      
-      if (!user?.employeeId) {
-        toast.error('No employee ID found');
-        return;
-      }
-
-      // Force regenerate payroll data for all months
-      const months = [
-        'December 2024',
-        'November 2024', 
-        'October 2024',
-        'September 2024'
-      ];
-      
-      const refreshedPayslips: PayslipDisplayData[] = [];
-      
-      for (const month of months) {
-        console.log(`Refreshing payroll data for ${month}`);
-        const freshPayrollData = await getEmployeePayrollData(user.employeeId);
-        
-        // Save/update the payroll record in Supabase
-        await savePayrollRecord(user.employeeId, month, freshPayrollData);
-        
-        refreshedPayslips.push({
-          month,
-          ...freshPayrollData
-        });
-      }
-      
-      setPayslips(refreshedPayslips);
-      console.log('Payroll data refreshed successfully:', refreshedPayslips);
-      toast.success("Payroll data refreshed from Supabase");
-    } catch (error) {
-      console.error('Error refreshing payroll data:', error);
-      toast.error("Error refreshing payroll data");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const handleDownloadPayslipPDF = (month: string) => {
     try {
       console.log('Starting PDF download for month:', month);
@@ -218,7 +172,7 @@ const Payslips = () => {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading payslip data from Supabase...</p>
+                <p className="mt-4 text-gray-600">Loading payslip data...</p>
               </div>
             </div>
           </main>
@@ -252,14 +206,10 @@ const Payslips = () => {
           <Sidebar />
           <main className="flex-1 p-6 overflow-auto">
             <div className="text-center space-y-4">
-              <p className="text-red-600">Employee record not found in Supabase</p>
+              <p className="text-red-600">Employee record not found</p>
               <p className="text-sm text-gray-500">
                 Employee ID: {user.employeeId} could not be found in the system
               </p>
-              <Button onClick={handleRefreshData} variant="outline">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Loading from Supabase
-              </Button>
             </div>
           </main>
         </div>
@@ -277,23 +227,9 @@ const Payslips = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-                <p className="text-gray-600">View and download your payslips with live data from Supabase</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Employee: {currentEmployee?.name} ({currentEmployee?.id})
-                </p>
-              </div>
-              <Button 
-                onClick={handleRefreshData} 
-                variant="outline" 
-                disabled={refreshing}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh Data
-              </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
+              <p className="text-gray-600">View and download your payslips</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -330,7 +266,7 @@ const Payslips = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Payslips</CardTitle>
-                <CardDescription>Download your monthly payslips as PDF (Data synced with Supabase)</CardDescription>
+                <CardDescription>Download your monthly payslips as PDF</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
