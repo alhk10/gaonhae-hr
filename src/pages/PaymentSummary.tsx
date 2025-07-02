@@ -452,7 +452,7 @@ const PaymentSummary = () => {
                       {payrollHistory.map((payroll) => (
                         <TableRow key={payroll.id}>
                           <TableCell className="font-medium">{payroll.employeeId}</TableCell>
-                          <TableCell>{payroll.month} {payroll.year}</TableCell>
+                          <TableCell>{payroll.month}</TableCell>
                           <TableCell className="font-bold">
                             S${payroll.payrollData?.netSalary?.toLocaleString() || '0'}
                           </TableCell>
@@ -486,7 +486,7 @@ const PaymentSummary = () => {
                               <PayrollHistoryActions
                                 payroll={{
                                   ...payroll,
-                                  period: `${payroll.month} ${payroll.year}`,
+                                  period: payroll.month,
                                   status: payroll.month === 'December 2024' ? 'Current' : 'Completed',
                                   totalAmount: payroll.payrollData?.netSalary || 0,
                                   employeeCount: 1,
