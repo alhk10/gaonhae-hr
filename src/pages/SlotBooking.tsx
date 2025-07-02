@@ -15,6 +15,7 @@ import {
   getBranches,
   addSlotBooking,
   getEmployeeSlotBookings,
+  getBranchSlotBookings,
   type Branch,
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
@@ -33,6 +34,7 @@ const SlotBooking = () => {
   const [employeeBookings, setEmployeeBookings] = useState<SlotBookingType[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<SlotBookingType[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [approvedBookingDates, setApprovedBookingDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
 
@@ -47,6 +49,12 @@ const SlotBooking = () => {
       loadEmployeeBookings();
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (selectedBranch) {
+      loadApprovedBookingDates();
+    }
+  }, [selectedBranch]);
 
   useEffect(() => {
     filterBookingsByMonth();
@@ -84,6 +92,27 @@ const SlotBooking = () => {
       console.log('SlotBooking: Employee bookings loaded:', bookings.length);
     } catch (error) {
       console.error('SlotBooking: Error loading employee bookings:', error);
+    }
+  };
+
+  const loadApprovedBookingDates = async () => {
+    if (!selectedBranch) return;
+    
+    try {
+      console.log('SlotBooking: Loading approved bookings for branch:', selectedBranch);
+      const branchBookings = await getBranchSlotBookings(selectedBranch);
+      
+      // Filter approved bookings and create a set of dates
+      const approvedDates = new Set(
+        branchBookings
+          .filter(booking => booking.status === 'approved')
+          .map(booking => booking.date)
+      );
+      
+      setApprovedBookingDates(approvedDates);
+      console.log('SlotBooking: Approved booking dates loaded:', approvedDates.size);
+    } catch (error) {
+      console.error('SlotBooking: Error loading approved booking dates:', error);
     }
   };
 
@@ -129,8 +158,26 @@ const SlotBooking = () => {
     return options;
   };
 
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Disable past dates
+    if (date < today) return true;
+    
+    // Disable dates with approved bookings for the selected branch
+    const dateString = format(date, 'yyyy-MM-dd');
+    return approvedBookingDates.has(dateString);
+  };
+
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
+    
+    // Check if date is disabled
+    if (isDateDisabled(date)) {
+      toast.error("This date is not available for booking");
+      return;
+    }
     
     // For non-employee users, show bulk dialog
     if (user?.role !== 'employee') {
@@ -181,7 +228,10 @@ const SlotBooking = () => {
       
       // Clear selected dates and reload bookings
       setSelectedDates([]);
-      await loadEmployeeBookings();
+      await Promise.all([
+        loadEmployeeBookings(),
+        loadApprovedBookingDates()
+      ]);
     } catch (error) {
       console.error('SlotBooking: Error booking slots:', error);
       toast.error('Failed to book slots. Please try again.');
@@ -194,12 +244,26 @@ const SlotBooking = () => {
     toast.success('Bulk slot bookings created successfully');
     await Promise.all([
       loadInitialData(),
-      loadEmployeeBookings()
+      loadEmployeeBookings(),
+      loadApprovedBookingDates()
     ]);
   };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Helper function to convert Tailwind class to actual color
+  const getBranchColorStyle = (colorClass: string) => {
+    const colorMap: { [key: string]: string } = {
+      'bg-blue-500': '#3b82f6',
+      'bg-green-500': '#10b981',
+      'bg-red-500': '#ef4444',
+      'bg-yellow-500': '#f59e0b',
+      'bg-purple-500': '#8b5cf6',
+      'bg-pink-500': '#ec4899',
+      'bg-indigo-500': '#6366f1',
+      'bg-cyan-500': '#06b6d4'
+    };
+    
+    return colorMap[colorClass] || '#3b82f6';
+  };
 
   if (loading) {
     return (
@@ -269,7 +333,10 @@ const SlotBooking = () => {
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: getBranchColorStyle(branch.color) }}
+                            ></div>
                             <span>{branch.name}</span>
                           </div>
                         </SelectItem>
@@ -295,21 +362,43 @@ const SlotBooking = () => {
                         if (user?.role !== 'employee') return;
                         setSelectedDates(dates || []);
                       }}
+                      onDayClick={handleDateSelect}
                       className="rounded-md border w-full max-w-none"
-                      disabled={(date) => date < today}
+                      disabled={isDateDisabled}
+                      modifiers={{
+                        booked: (date) => {
+                          const dateString = format(date, 'yyyy-MM-dd');
+                          return approvedBookingDates.has(dateString);
+                        }
+                      }}
+                      modifiersStyles={{
+                        booked: {
+                          backgroundColor: '#fee2e2',
+                          color: '#dc2626',
+                          textDecoration: 'line-through'
+                        }
+                      }}
                     />
                   </div>
                 </div>
 
                 {/* Selected dates display */}
                 {selectedDates.length > 0 && (
-                  <div className={`bg-blue-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                  <div className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} style={{ backgroundColor: `${getBranchColorStyle(currentBranch?.color || 'bg-blue-500')}20` }}>
                     <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
                       Selected Dates ({selectedDates.length}):
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedDates.map((date, index) => (
-                        <Badge key={index} variant="secondary" className={isMobile ? 'text-xs' : 'text-sm'}>
+                        <Badge 
+                          key={index} 
+                          variant="secondary" 
+                          className={isMobile ? 'text-xs' : 'text-sm'}
+                          style={{ 
+                            backgroundColor: getBranchColorStyle(currentBranch?.color || 'bg-blue-500'),
+                            color: 'white'
+                          }}
+                        >
                           {format(date, 'MMM dd, yyyy')}
                         </Badge>
                       ))}
@@ -319,12 +408,19 @@ const SlotBooking = () => {
 
                 {/* Branch info */}
                 {currentBranch && (
-                  <div className={`bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                  <div className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} style={{ backgroundColor: `${getBranchColorStyle(currentBranch.color)}20` }}>
                     <div className="flex items-start space-x-3">
-                      <div className={`w-4 h-4 rounded-full ${currentBranch.color} mt-1`}></div>
+                      <div 
+                        className="w-4 h-4 rounded-full mt-1" 
+                        style={{ backgroundColor: getBranchColorStyle(currentBranch.color) }}
+                      ></div>
                       <div className="flex-1">
                         <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
                         <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
+                        <div className="mt-2 text-xs text-gray-500">
+                          <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#fee2e2' }}></span>
+                          Crossed out dates are already booked
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -336,6 +432,7 @@ const SlotBooking = () => {
                     onClick={handleBookSlots} 
                     className="w-full"
                     disabled={selectedDates.length === 0 || !currentBranch || isBooking}
+                    style={{ backgroundColor: getBranchColorStyle(currentBranch?.color || 'bg-blue-500') }}
                   >
                     {isBooking ? 'Booking...' : `Book ${selectedDates.length > 0 ? selectedDates.length : ''} Slot${selectedDates.length !== 1 ? 's' : ''}`}
                   </Button>
@@ -371,27 +468,37 @@ const SlotBooking = () => {
               <CardContent>
                 {filteredBookings.length > 0 ? (
                   <div className="space-y-3">
-                    {filteredBookings.map((booking) => (
-                      <div key={booking.id} className={`flex items-center justify-between bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-3'}`}>
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${branches.find(b => b.id === booking.branchId)?.color || 'bg-gray-500'}`}></div>
-                          <div>
-                            <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
-                            <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                    {filteredBookings.map((booking) => {
+                      const bookingBranch = branches.find(b => b.id === booking.branchId);
+                      return (
+                        <div key={booking.id} className={`flex items-center justify-between rounded-lg ${isMobile ? 'p-3' : 'p-3'}`} style={{ backgroundColor: `${getBranchColorStyle(bookingBranch?.color || 'bg-gray-500')}10` }}>
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: getBranchColorStyle(bookingBranch?.color || 'bg-gray-500') }}
+                            ></div>
+                            <div>
+                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
+                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                            </div>
                           </div>
+                          <Badge 
+                            variant={
+                              booking.status === 'approved' ? 'default' :
+                              booking.status === 'pending' ? 'secondary' :
+                              'destructive'
+                            }
+                            className={isMobile ? 'text-xs' : 'text-xs'}
+                            style={booking.status === 'approved' ? { 
+                              backgroundColor: getBranchColorStyle(bookingBranch?.color || 'bg-blue-500'),
+                              color: 'white'
+                            } : {}}
+                          >
+                            {booking.status}
+                          </Badge>
                         </div>
-                        <Badge 
-                          variant={
-                            booking.status === 'approved' ? 'default' :
-                            booking.status === 'pending' ? 'secondary' :
-                            'destructive'
-                          }
-                          className={isMobile ? 'text-xs' : 'text-xs'}
-                        >
-                          {booking.status}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
