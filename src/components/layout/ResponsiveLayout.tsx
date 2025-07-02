@@ -12,11 +12,11 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
-      <div className={`flex ${isMobile ? 'h-[calc(100vh-73px)]' : 'h-[calc(100vh-73px)]'}`}>
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className={`flex-1 p-3 md:p-6 overflow-auto ${isMobile ? 'px-2' : ''}`}>
+        <main className={`flex-1 overflow-auto ${isMobile ? 'p-2' : 'p-3 md:p-6'}`}>
           {children}
         </main>
       </div>
