@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Upload, History, FileText, DollarSign, Calendar, User, AlertTriangle } from 'lucide-react';
+import { History, FileText, DollarSign, Calendar, User } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeClaims, createClaim } from '@/services/claimsService';
 import { getEmployees } from '@/services/employeeService';
+import ReceiptUpload from '@/components/claim/ReceiptUpload';
 
 interface Claim {
   id: number;
@@ -39,6 +40,7 @@ const SubmitClaim = () => {
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     type: '',
     amount: '',
@@ -48,7 +50,7 @@ const SubmitClaim = () => {
     description: ''
   });
 
-  // Load claim types from localStorage (same as Claims Management)
+  // Load claim types from localStorage
   useEffect(() => {
     const loadClaimTypes = () => {
       try {
@@ -57,12 +59,17 @@ const SubmitClaim = () => {
           const parsedTypes = JSON.parse(stored);
           console.log('Loaded claim types:', parsedTypes);
           setClaimTypes(parsedTypes);
-          // Set default type to first available type
+          // Set default type to first available type (excluding Medical for casual employees)
           if (parsedTypes.length > 0 && !formData.type) {
-            setFormData(prev => ({ ...prev, type: parsedTypes[0].name }));
+            const availableTypes = parsedTypes.filter((type: ClaimType) => 
+              currentEmployee?.type === 'Full-Time' || type.name !== 'Medical'
+            );
+            if (availableTypes.length > 0) {
+              setFormData(prev => ({ ...prev, type: availableTypes[0].name }));
+            }
           }
         } else {
-          // Default claim types (same as Claims Management)
+          // Default claim types
           const defaultTypes: ClaimType[] = [
             { id: 'medical', name: 'Medical', limit: 1000, coPay: 0 },
             { id: 'transport', name: 'Transport', limit: 500, coPay: 0 },
@@ -71,7 +78,12 @@ const SubmitClaim = () => {
           ];
           console.log('Setting default claim types:', defaultTypes);
           setClaimTypes(defaultTypes);
-          setFormData(prev => ({ ...prev, type: 'Medical' }));
+          // Set default type based on employee type
+          if (currentEmployee?.type === 'Full-Time') {
+            setFormData(prev => ({ ...prev, type: 'Medical' }));
+          } else {
+            setFormData(prev => ({ ...prev, type: 'Transport' }));
+          }
           localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
         }
       } catch (error) {
@@ -80,8 +92,10 @@ const SubmitClaim = () => {
       }
     };
 
-    loadClaimTypes();
-  }, []);
+    if (currentEmployee) {
+      loadClaimTypes();
+    }
+  }, [currentEmployee]);
 
   // Load current employee and their claims
   useEffect(() => {
@@ -132,9 +146,8 @@ const SubmitClaim = () => {
       return;
     }
 
-    // Check if medical claim and employee type
-    if (formData.type === 'Medical' && currentEmployee.type !== 'Full-Time') {
-      toast("Medical claims are only available for full-time employees");
+    if (!uploadedFile) {
+      toast("Please upload a receipt");
       return;
     }
 
@@ -167,6 +180,7 @@ const SubmitClaim = () => {
         vendor: '',
         description: ''
       }));
+      setUploadedFile(null);
 
       toast("Claim submitted successfully");
     } catch (error) {
@@ -211,21 +225,13 @@ const SubmitClaim = () => {
     }
   };
 
-  const getClaimTypeInfo = (typeName: string) => {
-    const claimType = claimTypes.find(type => type.name === typeName);
-    if (!claimType) return null;
+  const getAvailableClaimTypes = () => {
+    if (!currentEmployee) return claimTypes;
     
-    const limitText = claimType.limit ? `Limit: S$${claimType.limit}/year` : 'No limit';
-    const coPayText = claimType.coPay > 0 ? `Co-pay: ${claimType.coPay}%` : 'No co-pay';
-    
-    return { limitText, coPayText };
-  };
-
-  const isClaimTypeAvailable = (typeName: string) => {
-    if (typeName === 'Medical' && currentEmployee?.type !== 'Full-Time') {
-      return false;
-    }
-    return true;
+    // Filter out Medical claims for casual employees
+    return claimTypes.filter(type => 
+      currentEmployee.type === 'Full-Time' || type.name !== 'Medical'
+    );
   };
 
   if (isLoading) {
@@ -263,7 +269,7 @@ const SubmitClaim = () => {
                   </div>
                   Submit Claim
                 </h1>
-                <p className="text-gray-600">Submit your expense claims quickly and track their status</p>
+                <p className="text-gray-600">Submit your expense claims</p>
               </div>
               <Button 
                 onClick={handleSubmitClaim} 
@@ -294,24 +300,8 @@ const SubmitClaim = () => {
                       <DollarSign className="w-5 h-5 text-blue-600" />
                       Expense Claim Form
                     </CardTitle>
-                    <CardDescription className="text-gray-600">
-                      Fill out the details for your expense claim
-                    </CardDescription>
                   </CardHeader>
                   <CardContent className="p-8 space-y-6">
-                    {/* Employee Type Warning */}
-                    {currentEmployee?.type !== 'Full-Time' && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-yellow-800">Employee Type: {currentEmployee?.type}</h4>
-                          <p className="text-sm text-yellow-700 mt-1">
-                            Medical claims are only available for full-time employees.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Basic Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -324,26 +314,12 @@ const SubmitClaim = () => {
                           value={formData.type}
                           onChange={(e) => handleInputChange('type', e.target.value)}
                         >
-                          {claimTypes.map((claimType) => (
-                            <option 
-                              key={claimType.id} 
-                              value={claimType.name}
-                              disabled={!isClaimTypeAvailable(claimType.name)}
-                            >
+                          {getAvailableClaimTypes().map((claimType) => (
+                            <option key={claimType.id} value={claimType.name}>
                               {getClaimTypeIcon(claimType.name)} {claimType.name}
-                              {!isClaimTypeAvailable(claimType.name) ? ' (Not Available)' : ''}
                             </option>
                           ))}
                         </select>
-                        {formData.type && getClaimTypeInfo(formData.type) && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            <p>{getClaimTypeInfo(formData.type)?.limitText}</p>
-                            <p>{getClaimTypeInfo(formData.type)?.coPayText}</p>
-                            {formData.type === 'Medical' && currentEmployee?.type !== 'Full-Time' && (
-                              <p className="text-red-600 font-medium">⚠️ Only available for full-time employees</p>
-                            )}
-                          </div>
-                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -406,25 +382,18 @@ const SubmitClaim = () => {
                       <Textarea 
                         rows={4} 
                         className="p-3 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
-                        placeholder="Describe the expense in detail..."
+                        placeholder="Describe the expense"
                         value={formData.description}
                         onChange={(e) => handleInputChange('description', e.target.value)}
                       />
                     </div>
 
                     {/* Receipt Upload Section */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Receipt Upload</Label>
-                      <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors duration-200">
-                        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <p className="text-gray-600 mb-2">Upload receipt or supporting documents</p>
-                        <p className="text-sm text-gray-500 mb-4">Drag and drop files here or click to browse</p>
-                        <Button variant="outline" size="sm" className="bg-white hover:bg-gray-50">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Choose Files
-                        </Button>
-                      </div>
-                    </div>
+                    <ReceiptUpload 
+                      onFileUpload={setUploadedFile}
+                      uploadedFile={uploadedFile}
+                      isRequired={true}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -437,9 +406,6 @@ const SubmitClaim = () => {
                       <History className="w-5 h-5 text-green-600" />
                       Claim History
                     </CardTitle>
-                    <CardDescription className="text-gray-600">
-                      Your recent expense claims
-                    </CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     {claims.length > 0 ? (
