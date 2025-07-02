@@ -140,11 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('AuthContext: Password updated in database successfully');
       
-      // Clear password change requirement immediately
-      console.log('AuthContext: Clearing password change requirement');
-      setRequiresPasswordChange(false);
-      
-      // Update session with new password info
+      // Update session with new password info - this will persist the change
       await saveUserSession(user, newPassword);
       
       console.log('AuthContext: Password update completed successfully');
