@@ -186,19 +186,67 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
 };
 
 export const deletePayrollRecord = async (recordId: string): Promise<void> => {
-  console.log('Deleting payroll record from Supabase:', recordId);
+  console.log('Attempting to delete payroll record from Supabase:', recordId);
   
-  const { error } = await supabase
-    .from('payroll_records')
-    .delete()
-    .eq('id', recordId);
+  try {
+    // First, let's check if the record exists
+    const { data: existingRecord, error: fetchError } = await supabase
+      .from('payroll_records')
+      .select('id, employee_id, month, year, is_locked')
+      .eq('id', recordId)
+      .single();
 
-  if (error) {
-    console.error('Error deleting payroll record from Supabase:', error);
+    if (fetchError) {
+      console.error('Error fetching payroll record before deletion:', fetchError);
+      throw new Error(`Failed to find payroll record: ${fetchError.message}`);
+    }
+
+    if (!existingRecord) {
+      console.error('Payroll record not found:', recordId);
+      throw new Error('Payroll record not found');
+    }
+
+    console.log('Found existing record:', existingRecord);
+
+    // Check if record is locked
+    if (existingRecord.is_locked) {
+      console.error('Cannot delete locked payroll record:', recordId);
+      throw new Error('Cannot delete locked payroll record. Please unlock it first.');
+    }
+
+    // Perform the deletion
+    const { error: deleteError } = await supabase
+      .from('payroll_records')
+      .delete()
+      .eq('id', recordId);
+
+    if (deleteError) {
+      console.error('Error deleting payroll record from Supabase:', deleteError);
+      throw new Error(`Failed to delete payroll record: ${deleteError.message}`);
+    }
+    
+    console.log('Payroll record deleted successfully from Supabase:', recordId);
+    
+    // Verify deletion
+    const { data: verifyRecord, error: verifyError } = await supabase
+      .from('payroll_records')
+      .select('id')
+      .eq('id', recordId)
+      .maybeSingle();
+
+    if (verifyError) {
+      console.error('Error verifying deletion:', verifyError);
+    } else if (verifyRecord) {
+      console.error('Record still exists after deletion attempt:', recordId);
+      throw new Error('Record was not properly deleted');
+    } else {
+      console.log('Deletion verified - record no longer exists:', recordId);
+    }
+
+  } catch (error) {
+    console.error('Delete operation failed:', error);
     throw error;
   }
-  
-  console.log('Payroll record deleted successfully from Supabase');
 };
 
 export const updatePayrollLockStatus = async (recordId: string, isLocked: boolean): Promise<void> => {

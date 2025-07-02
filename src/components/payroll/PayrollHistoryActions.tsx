@@ -83,13 +83,32 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
     
     setIsDeleting(true);
     try {
-      console.log(`Deleting payroll record: ${payroll.id}`);
+      console.log(`Super admin ${user?.name} attempting to delete payroll record: ${payroll.id}`);
+      console.log('Payroll record details:', { 
+        id: payroll.id, 
+        employeeId: payroll.employeeId, 
+        month: payroll.month, 
+        year: payroll.year,
+        isLocked: payroll.isLocked 
+      });
+      
+      // Call the delete service function
       await deletePayrollRecord(payroll.id);
+      
+      console.log(`Payroll record ${payroll.id} deleted successfully from Supabase`);
+      
+      // Update the parent component's state
       onDelete(payroll.id);
+      
       toast.success(`Payroll for ${payroll.month} ${payroll.year} has been deleted successfully`);
     } catch (error) {
       console.error('Error deleting payroll record:', error);
-      toast.error('Failed to delete payroll record. Please try again.');
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        payrollId: payroll.id,
+        userRole: user?.role
+      });
+      toast.error('Failed to delete payroll record. Please check console for details.');
     } finally {
       setIsDeleting(false);
     }
@@ -146,13 +165,18 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
               <AlertDialogDescription>
                 Are you sure you want to delete the payroll for {payroll.month} {payroll.year} (Employee: {payroll.employeeId})? 
                 This action cannot be undone and will permanently remove this payroll record from Supabase.
+                {isLocked && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                    <strong>Warning:</strong> This payroll is currently locked. You must unlock it first before deletion.
+                  </div>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
-                disabled={isDeleting}
+                disabled={isDeleting || isLocked}
                 className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Payroll'}

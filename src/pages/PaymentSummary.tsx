@@ -126,17 +126,30 @@ const PaymentSummary = () => {
     try {
       console.log(`Super admin ${user?.name} deleting payroll record: ${payrollId}`);
       
+      // Find the record to check if it's locked
+      const recordToDelete = payrollHistory.find(p => p.id === payrollId);
+      if (recordToDelete?.isLocked) {
+        toast.error('Cannot delete locked payroll record. Please unlock it first.');
+        return;
+      }
+      
       // Delete from Supabase
       await deletePayrollRecord(payrollId);
       
       // Update local state to remove the deleted record
-      setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
+      setPayrollHistory(prev => {
+        const updated = prev.filter(p => p.id !== payrollId);
+        console.log(`Updated payroll history after deletion. Records count: ${updated.length}`);
+        return updated;
+      });
       
       console.log(`Payroll ${payrollId} successfully deleted from Supabase and UI state`);
       toast.success('Payroll record deleted successfully');
     } catch (error) {
       console.error('Error in handleDeletePayroll:', error);
-      toast.error('Error deleting payroll record');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Detailed error:', errorMessage);
+      toast.error(`Error deleting payroll record: ${errorMessage}`);
     }
   };
 
@@ -316,6 +329,7 @@ const PaymentSummary = () => {
                     <h3 className="font-medium text-amber-900">Super Administrator Access</h3>
                     <p className="text-sm text-amber-700 mt-1">
                       You have elevated privileges to delete payroll records. All data is synchronized with Supabase.
+                      Make sure records are unlocked before attempting deletion.
                     </p>
                   </div>
                 </div>
