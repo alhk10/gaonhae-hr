@@ -65,9 +65,11 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
         setNewPassword('');
         setConfirmPassword('');
         
-        // The AuthContext will automatically clear requiresPasswordChange
-        // which will cause the Index component to re-render and show the dashboard
-        console.log('PasswordChangeModal: Password change completed, modal should close automatically');
+        // Close modal after successful update
+        console.log('PasswordChangeModal: Password change completed, closing modal');
+        if (onClose && !requiresPasswordChange) {
+          onClose();
+        }
         
       } else {
         console.error('PasswordChangeModal: Password update failed');
@@ -91,12 +93,17 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
 
   // Handle dialog open/close - prevent closing if it's a required password change
   const handleOpenChange = (newOpen: boolean) => {
+    console.log('PasswordChangeModal: handleOpenChange called with:', newOpen);
+    console.log('PasswordChangeModal: requiresPasswordChange:', requiresPasswordChange);
+    
     if (!newOpen) {
       // Only allow closing if it's not a required password change
       if (!requiresPasswordChange && onClose) {
+        console.log('PasswordChangeModal: Closing modal via onClose');
         onClose();
+      } else {
+        console.log('PasswordChangeModal: Preventing modal close - password change required');
       }
-      // If it's a required password change, don't allow closing
     }
   };
 

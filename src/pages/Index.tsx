@@ -12,10 +12,16 @@ import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 const Index = () => {
   const { user, requiresPasswordChange, isLoading } = useAuth();
 
-  console.log('Index: Rendering with state:', { user: !!user, requiresPasswordChange, isLoading });
+  console.log('Index: Rendering with state:', { 
+    user: !!user, 
+    userEmail: user?.email,
+    requiresPasswordChange, 
+    isLoading 
+  });
 
   // Show loading state while checking authentication
   if (isLoading) {
+    console.log('Index: Showing loading state');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
@@ -32,7 +38,11 @@ const Index = () => {
   // If user exists but requires password change, show password change modal
   if (requiresPasswordChange) {
     console.log('Index: User requires password change, showing modal');
-    return <PasswordChangeModal open={true} />;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <PasswordChangeModal open={true} />
+      </div>
+    );
   }
 
   // User is authenticated and no password change required, show dashboard
@@ -47,7 +57,7 @@ const Index = () => {
       case 'employee':
         return <EmployeeDashboard />;
       default:
-        return <div>Invalid user role</div>;
+        return <div>Invalid user role: {user.role}</div>;
     }
   };
 

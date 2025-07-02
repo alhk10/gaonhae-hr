@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Check password change requirement ONLY during initialization
+          // Only check password change requirement if using default password
           const { data: passwordData } = await supabase
             .from('user_passwords')
             .select('requires_change')
@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePassword = async (newPassword: string): Promise<boolean> => {
-    console.log('AuthContext: Updating password for user:', user?.email);
+    console.log('AuthContext: Starting password update for user:', user?.email);
     
     if (!user?.email) {
       console.error('AuthContext: No user email found');
@@ -140,13 +140,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('AuthContext: Password updated in database successfully');
       
-      // Clear password change requirement immediately and permanently
+      // Clear password change requirement immediately
+      console.log('AuthContext: Clearing password change requirement');
       setRequiresPasswordChange(false);
       
       // Update session with new password info
       await saveUserSession(user, newPassword);
       
-      console.log('AuthContext: Password updated and session refreshed successfully');
+      console.log('AuthContext: Password update completed successfully');
       return true;
     } catch (error) {
       console.error('AuthContext: Error updating password:', error);
