@@ -66,8 +66,7 @@ const EmployeeProfileForm = () => {
 
       setSaving(true);
       
-      const updatedEmployee: EmployeeProfile = {
-        ...employee,
+      const updatedEmployeeData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -76,8 +75,14 @@ const EmployeeProfileForm = () => {
         bankAccount: formData.bankAccount
       };
 
-      await updateEmployee(updatedEmployee);
-      setEmployee(updatedEmployee);
+      await updateEmployee(employee.id, updatedEmployeeData);
+      
+      // Update local state with the new data
+      setEmployee({
+        ...employee,
+        ...updatedEmployeeData
+      });
+      
       toast('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
