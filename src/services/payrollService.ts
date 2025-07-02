@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployeeById } from './employeeService';
 import { getEmployeeClaims } from './claimsService';
@@ -26,6 +25,7 @@ export interface PayrollRecord {
   payrollData: PayrollData;
   createdAt: string;
   updatedAt: string;
+  isLocked?: boolean;
 }
 
 export const getEmployeePayrollData = async (employeeId: string): Promise<PayrollData> => {
@@ -113,6 +113,7 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
       month,
       year,
       payroll_data: payrollData as any, // Type cast to avoid Json type issues
+      is_locked: false, // Default to unlocked
       updated_at: new Date().toISOString()
     });
 
@@ -146,7 +147,8 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     year: record.year,
     payrollData: record.payroll_data as PayrollData,
     createdAt: record.created_at,
-    updatedAt: record.updated_at
+    updatedAt: record.updated_at,
+    isLocked: record.is_locked || false
   })) || [];
 
   console.log('Fetched payroll records from Supabase:', formattedRecords);
@@ -174,7 +176,8 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
     year: record.year,
     payrollData: record.payroll_data as PayrollData,
     createdAt: record.created_at,
-    updatedAt: record.updated_at
+    updatedAt: record.updated_at,
+    isLocked: record.is_locked || false
   })) || [];
 
   console.log('Fetched all payroll records from Supabase:', formattedRecords);
@@ -195,4 +198,20 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
   }
   
   console.log('Payroll record deleted successfully from Supabase');
+};
+
+export const updatePayrollLockStatus = async (recordId: string, isLocked: boolean): Promise<void> => {
+  console.log(`Updating payroll lock status for ${recordId} to ${isLocked}`);
+  
+  const { error } = await supabase
+    .from('payroll_records')
+    .update({ is_locked: isLocked })
+    .eq('id', recordId);
+
+  if (error) {
+    console.error('Error updating payroll lock status:', error);
+    throw error;
+  }
+  
+  console.log('Payroll lock status updated successfully');
 };

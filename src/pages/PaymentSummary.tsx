@@ -16,7 +16,7 @@ import PayrollViewDialog from '@/components/payroll/PayrollViewDialog';
 import PayrollEditDialog from '@/components/payroll/PayrollEditDialog';
 import PayrollHistoryActions from '@/components/payroll/PayrollHistoryActions';
 import { getEmployees } from '@/services/employeeService';
-import { getAllPayrollRecords, savePayrollRecord, getEmployeePayrollData, deletePayrollRecord, type PayrollRecord } from '@/services/payrollService';
+import { getAllPayrollRecords, savePayrollRecord, getEmployeePayrollData, deletePayrollRecord, updatePayrollLockStatus, type PayrollRecord } from '@/services/payrollService';
 
 interface EmployeeOption {
   id: string;
@@ -85,12 +85,14 @@ const PaymentSummary = () => {
 
   const handleLockPayroll = async (payrollId: string) => {
     try {
-      // Update the payroll record in Supabase with locked status
-      // For now, just update local state until lock/unlock is properly implemented
+      console.log(`Locking payroll ${payrollId} by user ${user?.name}`);
+      await updatePayrollLockStatus(payrollId, true);
+      
+      // Update local state
       setPayrollHistory(prev => 
         prev.map(p => p.id === payrollId ? { ...p, isLocked: true } : p)
       );
-      console.log(`Payroll ${payrollId} locked by user ${user?.name}`);
+      
       toast.success('Payroll locked successfully');
     } catch (error) {
       console.error('Error locking payroll:', error);
@@ -100,12 +102,14 @@ const PaymentSummary = () => {
 
   const handleUnlockPayroll = async (payrollId: string) => {
     try {
-      // Update the payroll record in Supabase with unlocked status
-      // For now, just update local state until lock/unlock is properly implemented
+      console.log(`Unlocking payroll ${payrollId} by user ${user?.name}`);
+      await updatePayrollLockStatus(payrollId, false);
+      
+      // Update local state
       setPayrollHistory(prev => 
         prev.map(p => p.id === payrollId ? { ...p, isLocked: false } : p)
       );
-      console.log(`Payroll ${payrollId} unlocked by user ${user?.name}`);
+      
       toast.success('Payroll unlocked successfully');
     } catch (error) {
       console.error('Error unlocking payroll:', error);
@@ -122,14 +126,17 @@ const PaymentSummary = () => {
     try {
       console.log(`Super admin ${user?.name} deleting payroll record: ${payrollId}`);
       
-      // The actual deletion is handled in PayrollHistoryActions component
-      // Here we just update the local state to remove the deleted record
+      // Delete from Supabase
+      await deletePayrollRecord(payrollId);
+      
+      // Update local state to remove the deleted record
       setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
       
-      console.log(`Payroll ${payrollId} successfully removed from UI state`);
+      console.log(`Payroll ${payrollId} successfully deleted from Supabase and UI state`);
+      toast.success('Payroll record deleted successfully');
     } catch (error) {
       console.error('Error in handleDeletePayroll:', error);
-      toast.error('Error processing deletion request');
+      toast.error('Error deleting payroll record');
     }
   };
 
