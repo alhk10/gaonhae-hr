@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,10 +11,13 @@ import {
   BarChart3,
   UserCheck,
   Clock,
-  CalendarClock
+  CalendarClock,
+  Menu,
+  X
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -26,8 +28,10 @@ interface MenuItem {
 const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Debug current user state
   useEffect(() => {
@@ -206,16 +210,65 @@ const Sidebar = () => {
     return location.pathname === path;
   };
 
+  const handleMenuItemClick = () => {
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+  };
+
   console.log('Sidebar: Rendering sidebar with user:', user, 'and menu items:', menuItems);
 
   // Show loading state while auth is loading
   if (!user) {
     return (
-      <div className="w-64 bg-white border-r border-gray-200 h-full">
+      <div className={`${isMobile ? 'hidden' : 'w-64'} bg-white border-r border-gray-200 h-full`}>
         <div className="p-6">
           <div className="text-center text-gray-500">Loading...</div>
         </div>
       </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="fixed top-4 left-4 z-50 md:hidden bg-white border shadow-sm"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+
+        {/* Mobile Sidebar Overlay */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setMobileMenuOpen(false)} />
+            <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg">
+              <div className="p-6 pt-16">
+                <nav className="space-y-1">
+                  {menuItems.map((item) => (
+                    <Button
+                      key={item.label}
+                      variant={isActive(item.path) ? "default" : "ghost"}
+                      className={`w-full justify-start ${isActive(item.path) ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                      asChild
+                      onClick={handleMenuItemClick}
+                    >
+                      <Link to={item.path}>
+                        <item.icon className="mr-3 h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </Button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

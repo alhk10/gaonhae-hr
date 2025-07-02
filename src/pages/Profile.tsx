@@ -1,17 +1,21 @@
 
 import React from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
 import PageAccessGuard from '@/components/auth/PageAccessGuard';
 import EmployeeProfileForm from '@/components/employee/EmployeeProfileForm';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ProfileContent = () => {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
+        <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>My Profile</h2>
       </div>
-      <EmployeeProfileForm />
+      <div className={isMobile ? 'px-1' : ''}>
+        <EmployeeProfileForm />
+      </div>
     </div>
   );
 };
@@ -19,15 +23,9 @@ const ProfileContent = () => {
 const Profile = () => {
   return (
     <PageAccessGuard requiredPermission="profile">
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <ProfileContent />
-          </main>
-        </div>
-      </div>
+      <ResponsiveLayout>
+        <ProfileContent />
+      </ResponsiveLayout>
     </PageAccessGuard>
   );
 };

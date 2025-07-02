@@ -16,6 +16,7 @@ import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
 import { isWithinBranchRange } from '@/services/geolocationService';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -41,6 +42,7 @@ const EmployeeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
@@ -244,7 +246,6 @@ const EmployeeDashboard = () => {
       return;
     }
 
-    // Check location before allowing clock action
     if (!locationCheckPassed) {
       try {
         const locationCheck = await isWithinBranchRange(100);
@@ -277,10 +278,8 @@ const EmployeeDashboard = () => {
         minute: '2-digit'
       });
       
-      // Refresh attendance data first
       await fetchAttendanceData();
       
-      // Then update clock status
       setTimeout(() => {
         checkClockStatus();
       }, 500);
@@ -341,22 +340,24 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}</h2>
+        <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+          Welcome back, {isMobile ? displayName.split(' ')[0] : displayName}
+        </h2>
       </div>
 
       {/* Location Warning */}
       {!locationCheckPassed && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
             <div className="flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <AlertCircle className={`text-orange-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               <div>
-                <p className="text-sm font-medium text-orange-800">
+                <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : 'text-sm'}`}>
                   Location Access Required
                 </p>
-                <p className="text-sm text-orange-700">
+                <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   You must be within 100m of a branch and enable location to clock in.
                 </p>
               </div>
@@ -368,12 +369,12 @@ const EmployeeDashboard = () => {
       {/* Casual Employee Slot Booking Warning */}
       {employeeData?.type === 'Casual' && !hasApprovedSlot && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
             <div className="flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <AlertCircle className={`text-orange-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               <div>
-                <p className="text-sm font-medium text-orange-800">Slot Booking Required</p>
-                <p className="text-sm text-orange-700">
+                <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : 'text-sm'}`}>Slot Booking Required</p>
+                <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   Casual employees need approved slot booking to clock in.
                 </p>
               </div>
@@ -382,17 +383,17 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid gap-3 md:gap-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
         {personalStats.map((stat) => (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{stat.title}</p>
+                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{stat.value}</p>
                 </div>
-                <div className={`${stat.color} p-3 rounded-lg`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+                <div className={`${stat.color} p-2 md:p-3 rounded-lg`}>
+                  <stat.icon className={`text-white ${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
                 </div>
               </div>
             </CardContent>
@@ -400,15 +401,15 @@ const EmployeeDashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid gap-4 md:gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
         <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+          <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+            <CardTitle className={isMobile ? 'text-lg' : ''}>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-3">
+          <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
+            <div className={`grid grid-cols-1 gap-2 md:gap-3`}>
               <Button 
-                className={`justify-start h-auto p-4 ${
+                className={`justify-start h-auto p-3 md:p-4 ${
                   isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
                   canClockIn ? 'bg-green-600 hover:bg-green-700' : 
                   'bg-gray-400 cursor-not-allowed'
@@ -416,18 +417,18 @@ const EmployeeDashboard = () => {
                 onClick={handleClockInOut}
                 disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
               >
-                <Clock className="w-5 h-5 mr-3" />
+                <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left flex-1">
-                  <p className="font-medium text-white">
+                  <p className={`font-medium text-white ${isMobile ? 'text-sm' : ''}`}>
                     {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
-                  <div className="text-sm text-white/80 flex items-center">
+                  <div className={`text-white/80 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
                     {isClockedIn && clockStatus?.clockIn ? (
                       <>
                         Clocked in at {clockStatus.clockIn}
                         {clockStatus.location && (
                           <>
-                            <MapPin className="w-3 h-3 mx-1" />
+                            <MapPin className={`mx-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
                             {clockStatus.location}
                           </>
                         )}
@@ -436,7 +437,7 @@ const EmployeeDashboard = () => {
                       !locationCheckPassed ? 'Location required' : 'Slot booking required'
                     ) : nearestBranch ? (
                       <>
-                        <MapPin className="w-3 h-3 mr-1" />
+                        <MapPin className={`mr-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
                         {nearestBranch}
                       </>
                     ) : (
@@ -448,36 +449,36 @@ const EmployeeDashboard = () => {
               
               {employeeData?.type !== 'Casual' && (
                 <Button 
-                  className="justify-start h-auto p-4" 
+                  className={`justify-start h-auto p-3 md:p-4`} 
                   variant="outline"
                   onClick={handleApplyLeave}
                 >
-                  <Calendar className="w-5 h-5 mr-3" />
+                  <Calendar className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <div className="text-left">
-                    <p className="font-medium">Apply Leave</p>
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Apply Leave</p>
                   </div>
                 </Button>
               )}
               
               <Button 
-                className="justify-start h-auto p-4" 
+                className={`justify-start h-auto p-3 md:p-4`} 
                 variant="outline"
                 onClick={handleSubmitClaim}
               >
-                <FileText className="w-5 h-5 mr-3" />
+                <FileText className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left">
-                  <p className="font-medium">Submit Claim</p>
+                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Submit Claim</p>
                 </div>
               </Button>
               
               <Button 
-                className="justify-start h-auto p-4" 
+                className={`justify-start h-auto p-3 md:p-4`} 
                 variant="outline"
                 onClick={handleViewPayslip}
               >
-                <Clock className="w-5 h-5 mr-3" />
+                <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left">
-                  <p className="font-medium">View Payslip</p>
+                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Payslip</p>
                 </div>
               </Button>
             </div>
@@ -485,27 +486,27 @@ const EmployeeDashboard = () => {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+          <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+            <CardTitle className={isMobile ? 'text-lg' : ''}>Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
+            <div className={`space-y-3 md:space-y-4`}>
               {employeeClaims.slice(0, 3).map((claim) => (
-                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={claim.id} className={`flex items-center justify-between p-2 md:p-3 bg-gray-50 rounded-lg`}>
                   <div>
-                    <p className="font-medium text-gray-900">{claim.type}</p>
-                    <p className="text-sm text-gray-600">S${claim.amount} • {claim.date}</p>
+                    <p className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{claim.type}</p>
+                    <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>S${claim.amount} • {claim.date}</p>
                   </div>
                   <Badge variant={
                     claim.status === 'Approved' ? 'default' : 
                     claim.status === 'Pending' ? 'secondary' : 'outline'
-                  }>
+                  } className={isMobile ? 'text-xs px-2 py-0.5' : ''}>
                     {claim.status}
                   </Badge>
                 </div>
               ))}
               {employeeClaims.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                <p className={`text-gray-500 text-center py-4 ${isMobile ? 'text-sm' : 'text-sm'}`}>No recent activity</p>
               )}
             </div>
           </CardContent>
