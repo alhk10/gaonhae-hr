@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Clock, DollarSign, MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords, updateClockInOut, getClockInOutStatus } from '@/services/attendanceService';
 import { getEmployeeById } from '@/services/employeeService';
@@ -18,12 +18,37 @@ import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookin
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockTime, setClockTime] = useState<string | null>(null);
   const [clockLocation, setClockLocation] = useState<string | null>(null);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
+
+  // Query for real-time clock status
+  const { data: clockStatus, refetch: refetchClockStatus } = useQuery({
+    queryKey: ['clock-status', user?.id],
+    queryFn: () => getClockInOutStatus(user?.id || ''),
+    enabled: !!user?.id,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 0, // Always consider data stale to ensure fresh data
+  });
+
+  // Update local state when clock status changes
+  useEffect(() => {
+    if (clockStatus) {
+      console.log('EmployeeDashboard: Clock status updated:', clockStatus);
+      setIsClockedIn(clockStatus.status === 'clocked-in');
+      setClockTime(clockStatus.clockIn || clockStatus.clockOut || null);
+      setClockLocation(clockStatus.location || null);
+    } else {
+      console.log('EmployeeDashboard: No clock status found, setting to clocked out');
+      setIsClockedIn(false);
+      setClockTime(null);
+      setClockLocation(null);
+    }
+  }, [clockStatus]);
 
   // Try to fetch employee data from Supabase first, then fallback to local data
   const { data: supabaseEmployee, error: supabaseError } = useQuery({
@@ -88,22 +113,6 @@ const EmployeeDashboard = () => {
       }
     }
   }, [supabaseEmployee, supabaseError, user?.id]);
-
-  // Check clock-in status on load
-  useEffect(() => {
-    const checkClockStatus = async () => {
-      if (user?.id) {
-        const clockStatus = await getClockInOutStatus(user.id);
-        if (clockStatus) {
-          setIsClockedIn(clockStatus.status === 'clocked-in');
-          setClockTime(clockStatus.clockIn || null);
-          setClockLocation(clockStatus.location || null);
-        }
-      }
-    };
-    
-    checkClockStatus();
-  }, [user?.id]);
 
   // Check slot booking for casual employees using Supabase data
   useEffect(() => {
@@ -180,6 +189,8 @@ const EmployeeDashboard = () => {
     
     try {
       const action = isClockedIn ? 'out' : 'in';
+      console.log('EmployeeDashboard: Starting clock', action, 'operation');
+      
       await updateClockInOut(user.id, action);
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
@@ -188,22 +199,32 @@ const EmployeeDashboard = () => {
         minute: '2-digit'
       });
       
+      // Immediately update local state for instant UI feedback
       if (action === 'out') {
         setIsClockedIn(false);
         setClockTime(null);
         setClockLocation(null);
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        const clockStatus = await getClockInOutStatus(user.id);
         setIsClockedIn(true);
         setClockTime(currentTime);
-        setClockLocation(clockStatus?.location || null);
-        toast.success(`Clocked in at ${currentTime}${clockStatus?.location ? ` at ${clockStatus.location}` : ''}`);
+        toast.success(`Clocked in at ${currentTime}`);
       }
+      
+      // Refetch clock status to ensure database consistency
+      console.log('EmployeeDashboard: Refetching clock status after', action);
+      await refetchClockStatus();
+      
+      // Invalidate related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['employee-attendance', user.id] });
+      
     } catch (error) {
       console.error('Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
       toast.error(errorMessage);
+      
+      // Revert local state on error
+      await refetchClockStatus();
     } finally {
       setIsClockingInOut(false);
     }
@@ -240,7 +261,8 @@ const EmployeeDashboard = () => {
     clockLocation,
     leaveBalance,
     hasApprovedSlot,
-    canClockIn
+    canClockIn,
+    clockStatus
   });
 
   if (claimsError) {
