@@ -44,7 +44,7 @@ const EmployeeProfileForm = () => {
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
-        toast.error('Failed to load profile data');
+        toast('Failed to load profile data', { type: 'error' });
       } finally {
         setLoading(false);
       }
@@ -78,10 +78,10 @@ const EmployeeProfileForm = () => {
 
       await updateEmployee(updatedEmployee);
       setEmployee(updatedEmployee);
-      toast.success('Profile updated successfully');
+      toast('Profile updated successfully', { type: 'success' });
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast('Failed to update profile', { type: 'error' });
     } finally {
       setSaving(false);
     }
