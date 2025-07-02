@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, DollarSign, Calendar, User } from 'lucide-react';
+import { History, FileText, Calendar, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeClaims, createClaim } from '@/services/claimsService';
@@ -260,17 +261,7 @@ const SubmitClaim = () => {
         <Sidebar />
         <main className="flex-1 p-8 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header Section */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <FileText className="w-6 h-6 text-blue-600" />
-                  </div>
-                  Submit Claim
-                </h1>
-                <p className="text-gray-600">Submit your expense claims</p>
-              </div>
+            <div className="flex items-center justify-end">
               <Button 
                 onClick={handleSubmitClaim} 
                 disabled={isSubmitting}
@@ -291,16 +282,14 @@ const SubmitClaim = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              {/* Expense Claim Form */}
-              <div className="xl:col-span-2">
+            <Tabs defaultValue="submit" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="submit">Submit Claim</TabsTrigger>
+                <TabsTrigger value="history">Claim History</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="submit" className="space-y-6">
                 <Card className="shadow-lg border-0 bg-white">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-                    <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
-                      Expense Claim Form
-                    </CardTitle>
-                  </CardHeader>
                   <CardContent className="p-8 space-y-6">
                     {/* Basic Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -322,8 +311,7 @@ const SubmitClaim = () => {
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" />
+                        <Label className="text-sm font-semibold text-gray-700">
                           Amount (S$) *
                         </Label>
                         <Input 
@@ -396,11 +384,10 @@ const SubmitClaim = () => {
                     />
                   </CardContent>
                 </Card>
-              </div>
+              </TabsContent>
 
-              {/* Claim History Sidebar */}
-              <div className="xl:col-span-1">
-                <Card className="shadow-lg border-0 bg-white sticky top-6">
+              <TabsContent value="history" className="space-y-6">
+                <Card className="shadow-lg border-0 bg-white">
                   <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
                     <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
                       <History className="w-5 h-5 text-green-600" />
@@ -480,8 +467,8 @@ const SubmitClaim = () => {
                     )}
                   </CardContent>
                 </Card>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>
