@@ -258,8 +258,8 @@ const MyAttendance = () => {
     }
   };
 
-  // Calculate monthly statistics
-  const presentDays = attendanceData.filter(record => record.status === 'Present' || record.status === 'Late').length;
+  // Calculate monthly statistics based on actual database fields
+  const presentDays = attendanceData.filter(record => record.check_in !== null).length;
   const totalHours = attendanceData.reduce((sum, record) => sum + (record.hours_worked || 0), 0);
 
   const isClockedIn = clockStatus?.status === 'clocked-in';
