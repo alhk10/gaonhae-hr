@@ -6,39 +6,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
 import { DollarSign, FileText, Check, X, Trash2 } from 'lucide-react';
 import { getClaims, updateClaimStatus, type Claim } from '@/services/claimsService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 const Claims = () => {
   const { user } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [filteredClaims, setFilteredClaims] = useState<Claim[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalAmount: 0,
     approvedAmount: 0,
     pendingAmount: 0,
+    rejectedAmount: 0,
     totalClaims: 0,
     approvedClaims: 0,
-    pendingClaims: 0
+    pendingClaims: 0,
+    rejectedClaims: 0
   });
 
   useEffect(() => {
     loadClaims();
   }, []);
 
+  useEffect(() => {
+    filterClaimsByMonth();
+  }, [claims, selectedMonth]);
+
   const loadClaims = async () => {
     try {
       setLoading(true);
       const allClaims = await getClaims();
       
-      // Filter out rejected claims - only show pending and approved
-      const visibleClaims = allClaims.filter(claim => claim.status !== 'Rejected');
-      setClaims(visibleClaims);
+      // Show ALL claims including rejected ones
+      setClaims(allClaims);
       
-      // Calculate stats - only for approved claims this month
+      // Calculate comprehensive stats
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
       
@@ -50,25 +59,59 @@ const Claims = () => {
       });
       
       const approvedAmount = approvedThisMonth.reduce((sum, claim) => sum + claim.amount, 0);
-      const pendingAmount = visibleClaims.filter(c => c.status === 'Pending').reduce((sum, claim) => sum + claim.amount, 0);
+      const pendingAmount = allClaims.filter(c => c.status === 'Pending').reduce((sum, claim) => sum + claim.amount, 0);
+      const rejectedAmount = allClaims.filter(c => c.status === 'Rejected').reduce((sum, claim) => sum + claim.amount, 0);
       
       setStats({
-        totalAmount: approvedAmount, // Only show approved amount this month
+        totalAmount: approvedAmount, // Keep showing approved amount this month for the main stat
         approvedAmount,
         pendingAmount,
-        totalClaims: visibleClaims.length,
-        approvedClaims: visibleClaims.filter(c => c.status === 'Approved').length,
-        pendingClaims: visibleClaims.filter(c => c.status === 'Pending').length
+        rejectedAmount,
+        totalClaims: allClaims.length,
+        approvedClaims: allClaims.filter(c => c.status === 'Approved').length,
+        pendingClaims: allClaims.filter(c => c.status === 'Pending').length,
+        rejectedClaims: allClaims.filter(c => c.status === 'Rejected').length
       });
       
-      console.log('Loaded visible claims (excluding rejected):', visibleClaims);
-      console.log('Approved claims this month:', approvedThisMonth);
+      console.log('Loaded all claims (including rejected):', allClaims);
     } catch (error) {
       console.error('Error loading claims:', error);
       toast('Error loading claims');
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterClaimsByMonth = () => {
+    if (!selectedMonth) {
+      setFilteredClaims(claims);
+      return;
+    }
+
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const filtered = claims.filter(claim => {
+      const claimDate = new Date(claim.date);
+      return claimDate.getFullYear() === year && claimDate.getMonth() === month - 1;
+    });
+    
+    setFilteredClaims(filtered);
+  };
+
+  const getMonthOptions = () => {
+    const options = [];
+    const currentDate = new Date();
+    
+    // Add "All Months" option
+    options.push({ value: '', label: 'All Months' });
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const value = format(date, 'yyyy-MM');
+      const label = format(date, 'MMMM yyyy');
+      options.push({ value, label });
+    }
+    
+    return options;
   };
 
   const handleApprove = async (claimId: number) => {
@@ -201,14 +244,74 @@ const Claims = () => {
               </Card>
             </div>
 
+            {/* Additional Stats Row for Rejected Claims */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <X className="w-8 h-8 text-red-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-red-600">Rejected Claims</p>
+                      <p className="text-2xl font-bold text-red-900">{stats.rejectedClaims}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <DollarSign className="w-8 h-8 text-yellow-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-yellow-600">Pending Amount</p>
+                      <p className="text-2xl font-bold text-yellow-900">S${stats.pendingAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <DollarSign className="w-8 h-8 text-red-600" />
+                    <div className="ml-4">
+                      <p className="text-sm text-red-600">Rejected Amount</p>
+                      <p className="text-2xl font-bold text-red-900">S${stats.rejectedAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Claims Table */}
             <Card>
               <CardHeader>
-                <CardTitle>All Claims (Excluding Rejected)</CardTitle>
-                <CardDescription>Review and manage employee expense claims. Rejected claims are hidden from this view.</CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>All Claims (Including Rejected)</CardTitle>
+                    <CardDescription>Review and manage all employee expense claims with month filtering.</CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="month-filter" className="text-sm font-medium text-gray-700">
+                      Filter by Month:
+                    </label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMonthOptions().map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                {claims.length > 0 ? (
+                {filteredClaims.length > 0 ? (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -223,7 +326,7 @@ const Claims = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {claims.map((claim) => (
+                        {filteredClaims.map((claim) => (
                           <TableRow key={claim.id}>
                             <TableCell className="font-medium">{claim.employee}</TableCell>
                             <TableCell>{claim.type}</TableCell>
@@ -282,7 +385,12 @@ const Claims = () => {
                 ) : (
                   <div className="text-center py-12 text-gray-500">
                     <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">No claims found</p>
+                    <p className="text-lg">
+                      {selectedMonth ? 
+                        `No claims found for ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}` : 
+                        'No claims found'
+                      }
+                    </p>
                     <p className="text-sm">Claims will appear here once submitted by employees</p>
                   </div>
                 )}
