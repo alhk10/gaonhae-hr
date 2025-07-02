@@ -202,9 +202,45 @@ const MyAttendance = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Attendance</h2>
-              <p className="text-gray-600">View your attendance records and clock in/out</p>
+            {/* Header with Clock In/Out Button */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">My Attendance</h2>
+              </div>
+              
+              <Button 
+                className={`h-auto p-4 ${
+                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+                  'bg-gray-400 cursor-not-allowed'
+                }`}
+                onClick={handleClockInOut}
+                disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
+              >
+                <Clock className="w-5 h-5 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium text-white">
+                    {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                  </p>
+                  <div className="text-sm text-white/80 flex items-center">
+                    {isClockedIn && clockStatus?.clockIn ? (
+                      <>
+                        {clockStatus.clockIn}
+                        {clockStatus.location && (
+                          <>
+                            <MapPin className="w-3 h-3 mx-1" />
+                            {clockStatus.location}
+                          </>
+                        )}
+                      </>
+                    ) : !canClockIn ? (
+                      'Slot booking required'
+                    ) : (
+                      'Within 100m of branch'
+                    )}
+                  </div>
+                </div>
+              </Button>
             </div>
 
             {/* Casual Employee Slot Booking Warning */}
@@ -218,8 +254,7 @@ const MyAttendance = () => {
                         Slot Booking Required
                       </p>
                       <p className="text-sm text-orange-700">
-                        As a casual employee, you need an approved slot booking for today to clock in. 
-                        Please book a slot and wait for approval before attempting to clock in.
+                        Casual employees need approved slot booking to clock in.
                       </p>
                     </div>
                   </div>
@@ -227,97 +262,40 @@ const MyAttendance = () => {
               </Card>
             )}
 
-            {/* Clock In/Out Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Time Tracking</CardTitle>
-                <CardDescription>
-                  Clock in and out for your work day (must be within 100m of branch)
-                  {employeeType === 'Casual' && (
-                    <>
-                      <br />
-                      <span className="text-sm text-orange-600">
-                        Casual employees require approved slot booking to clock in
-                      </span>
-                    </>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  className={`w-full sm:w-auto h-auto p-6 ${
-                    isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
-                    canClockIn ? 'bg-green-600 hover:bg-green-700' : 
-                    'bg-gray-400 cursor-not-allowed'
-                  }`}
-                  onClick={handleClockInOut}
-                  disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
-                >
-                  <Clock className="w-6 h-6 mr-3" />
-                  <div className="text-left flex-1">
-                    <p className="text-lg font-medium text-white">
-                      {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
-                    </p>
-                    <div className="text-sm text-white/80 flex items-center">
-                      {isClockedIn && clockStatus?.clockIn ? (
-                        <>
-                          Clocked in at {clockStatus.clockIn}
-                          {clockStatus.location && (
-                            <>
-                              <MapPin className="w-3 h-3 mx-1" />
-                              {clockStatus.location}
-                            </>
-                          )}
-                        </>
-                      ) : !canClockIn ? (
-                        'Approved slot booking required'
-                      ) : (
-                        'Must be within 100m of any branch'
-                      )}
-                    </div>
-                  </div>
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Days Present</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Days Present</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">{presentDays}</p>
-                  <p className="text-sm text-gray-600">This month</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Hours</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
-                  <p className="text-sm text-gray-600">This month</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Average Hours</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Average Hours</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">{avgHours.toFixed(1)}h</p>
-                  <p className="text-sm text-gray-600">Per day</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Attendance Rate</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">
                     {attendanceData.length > 0 ? ((presentDays / attendanceData.length) * 100).toFixed(1) : '0'}%
                   </p>
-                  <p className="text-sm text-gray-600">This month</p>
                 </CardContent>
               </Card>
             </div>
@@ -326,13 +304,10 @@ const MyAttendance = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Calendar className="w-5 h-5" />
-                      <span>Attendance Records</span>
-                    </CardTitle>
-                    <CardDescription>Your personal attendance history</CardDescription>
-                  </div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Calendar className="w-5 h-5" />
+                    <span>Attendance Records</span>
+                  </CardTitle>
                   <Button variant="outline" onClick={exportAttendance}>
                     <Download className="w-4 h-4 mr-2" />
                     Export
