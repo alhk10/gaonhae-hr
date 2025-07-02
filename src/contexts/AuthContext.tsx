@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -122,26 +121,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      // Save new password to Supabase with proper encoding
+      // Step 1: Update password in database with proper error handling
       const passwordHash = btoa(newPassword + user.email);
+      console.log('AuthContext: Updating password in database...');
       
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('user_passwords')
         .upsert({
           email: user.email,
           password_hash: passwordHash,
           requires_change: false
+        }, {
+          onConflict: 'email'
         });
 
-      if (error) {
-        console.error('AuthContext: Error updating password:', error);
+      if (updateError) {
+        console.error('AuthContext: Database update error:', updateError);
         return false;
       }
       
       console.log('AuthContext: Password updated in database successfully');
       
-      // Update session with new password info - this will persist the change
+      // Step 2: Verify the database update actually worked
+      console.log('AuthContext: Verifying database update...');
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('user_passwords')
+        .select('requires_change')
+        .eq('email', user.email)
+        .single();
+
+      if (verifyError) {
+        console.error('AuthContext: Verification error:', verifyError);
+        return false;
+      }
+
+      if (verifyData?.requires_change === true) {
+        console.error('AuthContext: Database update verification failed - requires_change is still true');
+        return false;
+      }
+
+      console.log('AuthContext: Database update verified successfully');
+      
+      // Step 3: Update session with new password info
       await saveUserSession(user, newPassword);
+      
+      // Step 4: Update local state immediately (no page reload needed)
+      console.log('AuthContext: Updating local state - setting requiresPasswordChange to false');
+      setRequiresPasswordChange(false);
       
       console.log('AuthContext: Password update completed successfully');
       return true;

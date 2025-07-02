@@ -58,14 +58,15 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
         console.log('PasswordChangeModal: Password updated successfully');
         toast({
           title: "Password Updated",
-          description: "Your password has been successfully updated. Redirecting...",
+          description: "Your password has been successfully updated.",
         });
         
-        // Force a complete page reload to refresh authentication state
-        console.log('PasswordChangeModal: Forcing page reload to refresh auth state');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Clear form
+        setNewPassword('');
+        setConfirmPassword('');
+        
+        // No need for page reload - the state management will handle modal closing
+        console.log('PasswordChangeModal: Password update completed, modal should close automatically');
         
       } else {
         console.error('PasswordChangeModal: Password update failed');
