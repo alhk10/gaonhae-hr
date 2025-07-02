@@ -18,7 +18,7 @@ const Claims = () => {
   const { user } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [filteredClaims, setFilteredClaims] = useState<Claim[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalAmount: 0,
@@ -83,7 +83,7 @@ const Claims = () => {
   };
 
   const filterClaimsByMonth = () => {
-    if (!selectedMonth) {
+    if (selectedMonth === 'all') {
       setFilteredClaims(claims);
       return;
     }
@@ -101,8 +101,8 @@ const Claims = () => {
     const options = [];
     const currentDate = new Date();
     
-    // Add "All Months" option
-    options.push({ value: '', label: 'All Months' });
+    // Add "All Months" option with a proper value
+    options.push({ value: 'all', label: 'All Months' });
     
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
@@ -386,8 +386,8 @@ const Claims = () => {
                   <div className="text-center py-12 text-gray-500">
                     <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-lg">
-                      {selectedMonth ? 
-                        `No claims found for ${format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}` : 
+                      {selectedMonth !== 'all' ? 
+                        `No claims found for ${getMonthOptions().find(opt => opt.value === selectedMonth)?.label}` : 
                         'No claims found'
                       }
                     </p>
