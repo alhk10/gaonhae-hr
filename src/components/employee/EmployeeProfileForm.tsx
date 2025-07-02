@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,7 +78,6 @@ const EmployeeProfileForm = () => {
 
       await updateEmployee(employee.id, updatedEmployeeData);
       
-      // Update local state with the new data
       setEmployee({
         ...employee,
         ...updatedEmployeeData
@@ -115,7 +115,6 @@ const EmployeeProfileForm = () => {
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
-          <CardDescription>View and update your personal details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +162,6 @@ const EmployeeProfileForm = () => {
       <Card>
         <CardHeader>
           <CardTitle>Employment Details</CardTitle>
-          <CardDescription>Your employment information (read-only)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -190,7 +188,6 @@ const EmployeeProfileForm = () => {
       <Card>
         <CardHeader>
           <CardTitle>Banking Information</CardTitle>
-          <CardDescription>Update your banking details for payroll</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

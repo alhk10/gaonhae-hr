@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import PageAccessGuard from '@/components/auth/PageAccessGuard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
@@ -32,7 +32,6 @@ const PayslipsContent = () => {
 
       console.log('Loading employee data from Supabase for ID:', user.employeeId);
       
-      // Load employee details from Supabase
       const employee = await getEmployeeById(user.employeeId);
       console.log('Loaded employee from Supabase:', employee);
       setCurrentEmployee(employee);
@@ -43,7 +42,6 @@ const PayslipsContent = () => {
         return;
       }
       
-      // Load actual payroll records from Supabase
       console.log('Fetching live payroll records from Supabase...');
       const existingRecords = await getEmployeePayrollRecords(user.employeeId);
       console.log('Live payroll records from Supabase:', existingRecords);
@@ -55,15 +53,12 @@ const PayslipsContent = () => {
         return;
       }
       
-      // Transform payroll records to display format
       const transformedPayslips: PayslipDisplayData[] = existingRecords.map(record => ({
         month: record.month,
         ...record.payrollData
       }));
       
-      // Sort by most recent first (assuming month format is consistent)
       transformedPayslips.sort((a, b) => {
-        // Simple string comparison for month sorting (works for "Month YYYY" format)
         return b.month.localeCompare(a.month);
       });
       
@@ -173,13 +168,11 @@ const PayslipsContent = () => {
     );
   }
 
-  // Show message if no payslips are found
   if (payslips.length === 0) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-          <p className="text-gray-600">View and download your payslips</p>
         </div>
         
         <Card>
@@ -188,10 +181,6 @@ const PayslipsContent = () => {
               <FileText className="w-16 h-16 text-gray-400 mx-auto" />
               <div>
                 <h3 className="text-lg font-medium text-gray-900">No Payslips Found</h3>
-                <p className="text-gray-500">
-                  No payroll records have been generated for your account yet.
-                  Please contact your administrator if you believe this is an error.
-                </p>
               </div>
             </div>
           </CardContent>
@@ -207,7 +196,6 @@ const PayslipsContent = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">My Payslips</h2>
-        <p className="text-gray-600">View and download your payslips</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -244,7 +232,6 @@ const PayslipsContent = () => {
       <Card>
         <CardHeader>
           <CardTitle>Recent Payslips</CardTitle>
-          <CardDescription>Download your monthly payslips as PDF</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

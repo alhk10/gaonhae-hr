@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,7 +76,6 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       console.log('BulkSlotBookingDialog: Loaded branches:', branchesData);
       console.log('BulkSlotBookingDialog: Loaded config:', configData);
       
-      // Filter for casual employees only for slot booking
       const casualEmployees = employeeData.filter(emp => 
         emp.type?.toLowerCase() === 'casual'
       );
@@ -189,9 +188,6 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             <Calendar className="w-5 h-5" />
             <span>Add Bulk Slot Booking</span>
           </DialogTitle>
-          <DialogDescription>
-            Book multiple casual employees for work slots on {format(selectedDate, 'PPP')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-auto">

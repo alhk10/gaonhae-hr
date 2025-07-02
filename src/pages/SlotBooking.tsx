@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -114,7 +114,6 @@ const SlotBooking = () => {
 
       toast.success(`Slot booked for ${format(selectedDate, 'PPP')} at ${currentBranch.name} (Booking ID: ${newBookingId})`);
       
-      // Refresh slot counts and stats
       await updateSlotCounts();
       const statsData = await getTotalSlotsStats();
       setTotalAvailableSlots(statsData.totalAvailableSlots);
@@ -128,7 +127,6 @@ const SlotBooking = () => {
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
-      // For admin users, open bulk booking dialog when clicking on calendar
       if (user?.role !== 'employee') {
         setSelectedDateForBulk(date);
         setIsBulkDialogOpen(true);
@@ -138,7 +136,6 @@ const SlotBooking = () => {
 
   const handleBulkBookingSuccess = async () => {
     toast.success('Bulk slot bookings created successfully');
-    // Refresh data
     await loadInitialData();
     if (selectedDate && selectedBranch) {
       await updateSlotCounts();
@@ -174,7 +171,6 @@ const SlotBooking = () => {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Slot Booking</h2>
-                <p className="text-gray-600">Book daily work slots for casual workers</p>
               </div>
               
               {user?.role !== 'employee' && (
@@ -185,7 +181,6 @@ const SlotBooking = () => {
               )}
             </div>
 
-            {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardContent className="p-6">
@@ -225,19 +220,12 @@ const SlotBooking = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Branch Selection and Calendar */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <CalendarIcon className="w-5 h-5" />
                     <span>Select Date & Branch</span>
                   </CardTitle>
-                  <CardDescription>
-                    {user?.role === 'employee' 
-                      ? 'Choose your preferred work date and branch location'
-                      : 'Click on a date to create bulk bookings for casual employees'
-                    }
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -272,16 +260,9 @@ const SlotBooking = () => {
                 </CardContent>
               </Card>
 
-              {/* Booking Details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Booking Details</CardTitle>
-                  <CardDescription>
-                    {user?.role === 'employee' 
-                      ? 'Confirm your slot booking'
-                      : 'View slot availability information'
-                    }
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {currentBranch && (
