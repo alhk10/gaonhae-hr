@@ -1,19 +1,32 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Calendar, Download, TrendingUp, Eye, Users, Clock, Plus, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DollarSign, Calendar as CalendarIcon, Download, TrendingUp, Eye, Users, Clock, Plus, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { getEmployees } from '@/services/employeeService';
+import { savePayrollRecord, getEmployeePayrollData } from '@/services/payrollService';
 
 const Payroll = () => {
   const navigate = useNavigate();
   const { payrollState, calculatePayrollTotal, setPayrollStatus, isLoading } = usePayroll();
+  const [payrollDate, setPayrollDate] = useState<Date>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [availableEmployees, setAvailableEmployees] = useState<any[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   const handleProcessPayroll = () => {
     if (payrollState.fullTimeEmployees.length === 0 && payrollState.casualEmployees.length === 0) {
@@ -33,6 +46,51 @@ const Payroll = () => {
 
   const handleAddEmployees = () => {
     navigate('/employees');
+  };
+
+  const openBulkAddDialog = async () => {
+    setLoadingEmployees(true);
+    try {
+      const employees = await getEmployees();
+      setAvailableEmployees(employees);
+      setIsBulkAddOpen(true);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      toast.error('Error loading employees');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedEmployees(prev => [...prev, employeeId]);
+    } else {
+      setSelectedEmployees(prev => prev.filter(id => id !== employeeId));
+    }
+  };
+
+  const handleBulkAddEmployees = async () => {
+    if (selectedEmployees.length === 0) {
+      toast.error('Please select at least one employee');
+      return;
+    }
+
+    try {
+      const payrollMonth = format(payrollDate, 'MMMM yyyy');
+      
+      for (const employeeId of selectedEmployees) {
+        const payrollData = await getEmployeePayrollData(employeeId);
+        await savePayrollRecord(employeeId, payrollMonth, payrollData);
+      }
+
+      toast.success(`Added ${selectedEmployees.length} employees to payroll for ${payrollMonth}`);
+      setIsBulkAddOpen(false);
+      setSelectedEmployees([]);
+    } catch (error) {
+      console.error('Error adding employees to payroll:', error);
+      toast.error('Error adding employees to payroll');
+    }
   };
 
   const generatePDF = (month: string) => {
@@ -113,6 +171,14 @@ const Payroll = () => {
     toast(`Downloaded payroll summary for ${month}`);
   };
 
+  // Calculate next processing date (2nd of next month)
+  const getNextProcessingDate = () => {
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 2);
+    const daysUntil = Math.ceil((nextMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -136,6 +202,7 @@ const Payroll = () => {
   const yearlyTotal = currentTotal * 12;
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
   const hasEmployees = totalEmployees > 0;
+  const nextProcessingDays = getNextProcessingDate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -144,35 +211,63 @@ const Payroll = () => {
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
+            {/* Header Section */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
-                <p className="text-gray-600">Process and manage employee payroll</p>
                 <div className="flex items-center space-x-4 mt-2">
                   <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
                     {payrollState.status.charAt(0).toUpperCase() + payrollState.status.slice(1)}
                   </Badge>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Period:</span>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "text-sm",
+                            !payrollDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {payrollDate ? format(payrollDate, 'MMMM yyyy') : <span>Select period</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={payrollDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setPayrollDate(date);
+                              setIsDatePickerOpen(false);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <p className="text-sm text-gray-500">
-                    Period: {payrollState.currentPeriod} | Last Updated: {payrollState.lastUpdated.toLocaleString()}
+                    Last Updated: {payrollState.lastUpdated.toLocaleString()}
                   </p>
                 </div>
               </div>
               <div className="flex space-x-2">
                 <Button 
                   variant="outline"
-                  className="flex items-center space-x-2" 
                   onClick={handleIncrementPlanning}
                 >
-                  <TrendingUp className="w-4 h-4"  />
-                  <span>Increment Planning</span>
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Increment Planning
                 </Button>
                 <Button 
-                  className="flex items-center space-x-2" 
                   onClick={handleProcessPayroll}
                   disabled={!hasEmployees}
                 >
-                  <Calendar className="w-4 h-4" />
-                  <span>Process Payroll</span>
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  Process Payroll
                 </Button>
               </div>
             </div>
@@ -193,6 +288,7 @@ const Payroll = () => {
               </Alert>
             )}
 
+            {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardContent className="p-6">
@@ -201,7 +297,7 @@ const Payroll = () => {
                       <p className="text-sm font-medium text-gray-600">Current Total</p>
                       <p className="text-2xl font-bold text-gray-900">S${currentTotal.toLocaleString()}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {payrollState.currentPeriod}
+                        {format(payrollDate, 'MMMM yyyy')}
                       </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
@@ -230,9 +326,6 @@ const Payroll = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Estimated Yearly</p>
                       <p className="text-2xl font-bold text-gray-900">S${yearlyTotal.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Based on current rates
-                      </p>
                     </div>
                     <DollarSign className="w-8 h-8 text-purple-500" />
                   </div>
@@ -244,10 +337,8 @@ const Payroll = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Next Processing</p>
-                      <p className="text-2xl font-bold text-gray-900">3 days</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Due date
-                      </p>
+                      <p className="text-2xl font-bold text-gray-900">{nextProcessingDays} days</p>
+                      <p className="text-xs text-gray-500 mt-1">2nd of month</p>
                     </div>
                     <Clock className="w-8 h-8 text-orange-500" />
                   </div>
@@ -255,11 +346,24 @@ const Payroll = () => {
               </Card>
             </div>
 
+            {/* Employee Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Full-Time Employees</CardTitle>
-                  <CardDescription>Current payroll breakdown</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Full-Time Employees</CardTitle>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={openBulkAddDialog}
+                      disabled={loadingEmployees}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Bulk Add
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -286,10 +390,9 @@ const Payroll = () => {
                           variant="outline" 
                           size="sm"
                           onClick={handleAddEmployees}
-                          className="flex items-center space-x-2"
                         >
-                          <Plus className="w-4 h-4" />
-                          <span>Add Employees</span>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Employees
                         </Button>
                       </div>
                     )}
@@ -299,8 +402,20 @@ const Payroll = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Casual Employees</CardTitle>
-                  <CardDescription>Payment details</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Casual Employees</CardTitle>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={openBulkAddDialog}
+                      disabled={loadingEmployees}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Bulk Add
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -339,10 +454,9 @@ const Payroll = () => {
                           variant="outline" 
                           size="sm"
                           onClick={handleAddEmployees}
-                          className="flex items-center space-x-2"
                         >
-                          <Plus className="w-4 h-4" />
-                          <span>Add Employees</span>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Employees
                         </Button>
                       </div>
                     )}
@@ -351,41 +465,38 @@ const Payroll = () => {
               </Card>
             </div>
 
+            {/* Payroll Actions */}
             <Card>
               <CardHeader>
                 <CardTitle>Payroll Actions</CardTitle>
-                <CardDescription>Quick actions for payroll management</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Button 
                     variant="outline" 
-                    className="flex items-center space-x-2"
                     onClick={handlePaymentSummary}
                   >
-                    <Eye className="w-4 h-4" />
-                    <span>View Payment Summary</span>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Payment Summary
                   </Button>
                   <Button 
                     variant="outline"
-                    className="flex items-center space-x-2"
-                    onClick={() => generatePDF(payrollState.currentPeriod)}
+                    onClick={() => generatePDF(format(payrollDate, 'MMMM yyyy'))}
                     disabled={!hasEmployees}
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Download Report</span>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Report
                   </Button>
                   <Button 
                     variant="outline"
-                    className="flex items-center space-x-2"
                     onClick={() => {
                       setPayrollStatus('processing');
                       toast('Payroll status updated to processing');
                     }}
                     disabled={!hasEmployees}
                   >
-                    <Calendar className="w-4 h-4" />
-                    <span>Mark as Processing</span>
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    Mark as Processing
                   </Button>
                 </div>
               </CardContent>
@@ -393,6 +504,52 @@ const Payroll = () => {
           </div>
         </main>
       </div>
+
+      {/* Bulk Add Employees Dialog */}
+      <Dialog open={isBulkAddOpen} onOpenChange={setIsBulkAddOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Employees to Payroll</DialogTitle>
+            <DialogDescription>
+              Select employees to add to the payroll for {format(payrollDate, 'MMMM yyyy')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
+              {availableEmployees.map((employee) => (
+                <div key={employee.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={employee.id}
+                    checked={selectedEmployees.includes(employee.id)}
+                    onCheckedChange={(checked) => 
+                      handleEmployeeSelection(employee.id, checked as boolean)
+                    }
+                  />
+                  <label 
+                    htmlFor={employee.id}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                  >
+                    {employee.name} ({employee.type})
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                {selectedEmployees.length} employee(s) selected
+              </p>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => setIsBulkAddOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleBulkAddEmployees}>
+                  Add to Payroll
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
