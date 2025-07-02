@@ -26,37 +26,46 @@ const EmployeeDashboard = () => {
   const [isClockingInOut, setIsClockingInOut] = useState(false);
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
 
-  // Query for real-time clock status with shorter intervals for immediate updates
+  // Query for real-time clock status with more aggressive refresh settings
   const { data: clockStatus, refetch: refetchClockStatus } = useQuery({
     queryKey: ['clock-status', user?.id],
     queryFn: () => getClockInOutStatus(user?.id || ''),
     enabled: !!user?.id,
-    refetchInterval: 5000, // Refetch every 5 seconds for more responsive updates
-    staleTime: 0,
+    refetchInterval: 2000, // More frequent updates - every 2 seconds
+    staleTime: 0, // Always consider data stale
     gcTime: 0, // Don't cache the data
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when reconnecting
   });
 
-  // Update local state when clock status changes
+  // Update local state when clock status changes with better logging
   useEffect(() => {
-    console.log('EmployeeDashboard: Clock status from DB:', clockStatus);
+    console.log('EmployeeDashboard: Clock status update received:', {
+      clockStatus,
+      timestamp: new Date().toISOString()
+    });
     
     if (clockStatus) {
       const isCurrentlyClockedIn = clockStatus.status === 'clocked-in';
-      console.log('EmployeeDashboard: Setting isClockedIn to:', isCurrentlyClockedIn);
+      console.log('EmployeeDashboard: Processing clock status:', {
+        status: clockStatus.status,
+        isCurrentlyClockedIn,
+        clockInTime: clockStatus.clockIn,
+        location: clockStatus.location
+      });
       
+      // Force state update even if values appear the same
       setIsClockedIn(isCurrentlyClockedIn);
       
       if (isCurrentlyClockedIn) {
-        // User is clocked in, show clock in time
         setClockTime(clockStatus.clockIn || null);
+        setClockLocation(clockStatus.location || null);
       } else {
-        // User is clocked out, clear the time
         setClockTime(null);
+        setClockLocation(null);
       }
-      
-      setClockLocation(clockStatus.location || null);
     } else {
-      console.log('EmployeeDashboard: No clock status found, setting to clocked out');
+      console.log('EmployeeDashboard: No clock status found, resetting to clocked out');
       setIsClockedIn(false);
       setClockTime(null);
       setClockLocation(null);
@@ -232,19 +241,23 @@ const EmployeeDashboard = () => {
         toast.success(`Clocked in at ${currentTime}`);
       }
       
-      // Force refetch to ensure database consistency
-      console.log('EmployeeDashboard: Forcing refetch of clock status');
+      // Force multiple refetches to ensure consistency
+      console.log('EmployeeDashboard: Forcing immediate refetch of clock status');
+      await refetchClockStatus();
+      
+      // Additional refetch after a short delay to catch any database lag
       setTimeout(async () => {
+        console.log('EmployeeDashboard: Secondary refetch of clock status');
         await refetchClockStatus();
         queryClient.invalidateQueries({ queryKey: ['employee-attendance', user.id] });
-      }, 1000); // Small delay to ensure database update is complete
+      }, 1000);
       
     } catch (error) {
       console.error('EmployeeDashboard: Clock in/out error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to update clock status';
       toast.error(errorMessage);
       
-      // Revert local state on error
+      // Revert local state on error and force refetch
       console.log('EmployeeDashboard: Reverting state due to error');
       await refetchClockStatus();
     } finally {
@@ -270,8 +283,8 @@ const EmployeeDashboard = () => {
   const displayName = employeeData?.name || user?.name || 'Employee';
   const canClockIn = employeeData?.type !== 'Casual' || hasApprovedSlot;
 
-  // Debug logging
-  console.log('EmployeeDashboard: Current state:', {
+  // Debug logging with more details
+  console.log('EmployeeDashboard: Current render state:', {
     user,
     employeeData,
     employeeClaims: employeeClaims.length,
@@ -284,7 +297,9 @@ const EmployeeDashboard = () => {
     leaveBalance,
     hasApprovedSlot,
     canClockIn,
-    clockStatus
+    clockStatus,
+    isClockingInOut,
+    renderTimestamp: new Date().toISOString()
   });
 
   if (claimsError) {
@@ -344,19 +359,19 @@ const EmployeeDashboard = () => {
             <div className="grid grid-cols-1 gap-3">
               <Button 
                 className={`justify-start h-auto p-4 ${
-                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
-                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
-                  'bg-gray-400 cursor-not-allowed'
+                  isClockedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 
+                  canClockIn ? 'bg-green-600 hover:bg-green-700 text-white' : 
+                  'bg-gray-400 cursor-not-allowed text-white'
                 }`}
                 onClick={handleClockInOut}
                 disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
               >
                 <Clock className="w-5 h-5 mr-3" />
                 <div className="text-left flex-1">
-                  <p className="font-medium text-white">
+                  <p className="font-medium">
                     {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
-                  <div className="text-sm text-white/80 flex items-center">
+                  <div className="text-sm opacity-80 flex items-center">
                     {isClockedIn && clockTime ? (
                       <>
                         Clocked in at {clockTime}
@@ -376,16 +391,19 @@ const EmployeeDashboard = () => {
                 </div>
               </Button>
               
-              <Button 
-                className="justify-start h-auto p-4" 
-                variant="outline"
-                onClick={handleApplyLeave}
-              >
-                <Calendar className="w-5 h-5 mr-3" />
-                <div className="text-left">
-                  <p className="font-medium">Apply Leave</p>
-                </div>
-              </Button>
+              {/* Only show Apply Leave button for full-time employees */}
+              {employeeData?.type !== 'Casual' && (
+                <Button 
+                  className="justify-start h-auto p-4" 
+                  variant="outline"
+                  onClick={handleApplyLeave}
+                >
+                  <Calendar className="w-5 h-5 mr-3" />
+                  <div className="text-left">
+                    <p className="font-medium">Apply Leave</p>
+                  </div>
+                </Button>
+              )}
               
               <Button 
                 className="justify-start h-auto p-4" 
