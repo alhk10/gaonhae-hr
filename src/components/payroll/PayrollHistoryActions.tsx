@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -84,18 +83,17 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
     setIsDeleting(true);
     
     try {
-      console.log(`🚀 Super admin ${user?.name} initiating delete for payroll:`, {
+      console.log(`🚀 Super admin ${user?.name} deleting payroll:`, {
         id: payroll.id,
         employeeId: payroll.employeeId,
         month: payroll.month,
-        year: payroll.year,
-        isLocked: payroll.isLocked
+        year: payroll.year
       });
 
       // Show loading toast
-      const loadingToast = toast.loading('Deleting payroll record...');
+      const loadingToast = toast.loading('Deleting payroll record from Supabase...');
       
-      // Perform deletion
+      // Delete from Supabase
       await deletePayrollRecord(payroll.id);
       
       // Dismiss loading toast
@@ -103,44 +101,24 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
       
       console.log(`✅ Payroll record ${payroll.id} deleted successfully`);
       
-      // Update parent component state immediately
+      // Update UI immediately
       onDelete(payroll.id);
       
       // Show success message
-      toast.success(`Payroll for ${payroll.month} ${payroll.year} has been deleted successfully`);
+      toast.success(`Payroll for ${payroll.month} ${payroll.year} deleted successfully`);
       
     } catch (error) {
-      console.error('💥 Error in handleDelete:', error);
+      console.error('💥 Error deleting payroll:', error);
       
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to delete payroll record.';
+      let errorMessage = 'Failed to delete payroll record';
       
       if (error instanceof Error) {
-        const errorMsg = error.message.toLowerCase();
-        
-        if (errorMsg.includes('locked')) {
+        if (error.message.includes('locked')) {
           errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
-        } else if (errorMsg.includes('not found') || errorMsg.includes('already deleted')) {
-          errorMessage = 'Payroll record not found. It may have been already deleted.';
-          // Remove from UI since it doesn't exist
-          onDelete(payroll.id);
-        } else if (errorMsg.includes('not properly deleted')) {
-          errorMessage = 'Delete operation failed. Please refresh the page and try again.';
-        } else if (errorMsg.includes('verify') || errorMsg.includes('verification')) {
-          errorMessage = 'Record deleted but verification failed. Please refresh the page.';
-          // Assume success and remove from UI
-          onDelete(payroll.id);
         } else {
           errorMessage = `Deletion failed: ${error.message}`;
         }
       }
-      
-      console.error('🔍 Deletion error details:', {
-        payrollId: payroll.id,
-        userRole: user?.role,
-        isLocked: payroll.isLocked,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
       
       toast.error(errorMessage);
       

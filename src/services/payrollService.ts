@@ -188,91 +188,48 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
   console.log('🗑️ Starting deletion process for payroll record:', recordId);
   
   try {
-    // Step 1: Verify record exists and get its current state
-    console.log('📋 Step 1: Checking if record exists...');
+    // Step 1: Check if record exists and is not locked
+    console.log('📋 Step 1: Verifying record exists and is not locked...');
     const { data: existingRecord, error: fetchError } = await supabase
       .from('payroll_records')
-      .select('id, employee_id, month, year, is_locked')
+      .select('id, is_locked, employee_id, month, year')
       .eq('id', recordId)
       .maybeSingle();
 
     if (fetchError) {
-      console.error('❌ Error checking record existence:', fetchError);
-      throw new Error(`Failed to verify record existence: ${fetchError.message}`);
+      console.error('❌ Error fetching record:', fetchError);
+      throw new Error(`Failed to verify record: ${fetchError.message}`);
     }
 
     if (!existingRecord) {
-      console.log('⚠️ Record not found, may have been already deleted:', recordId);
-      // Don't throw error here - consider it already deleted
-      return;
+      console.log('⚠️ Record not found - may have been already deleted');
+      return; // Don't throw error, consider it already deleted
     }
 
-    console.log('✅ Record found:', {
-      id: existingRecord.id,
-      employee_id: existingRecord.employee_id,
-      month: existingRecord.month,
-      year: existingRecord.year,
-      is_locked: existingRecord.is_locked
-    });
-
-    // Step 2: Check if record is locked
     if (existingRecord.is_locked) {
-      console.error('🔒 Cannot delete locked payroll record:', recordId);
+      console.error('🔒 Record is locked, cannot delete');
       throw new Error('Cannot delete locked payroll record. Please unlock it first.');
     }
 
-    // Step 3: Perform the deletion
+    console.log('✅ Record verified and unlocked:', existingRecord);
+
+    // Step 2: Perform the deletion
     console.log('🗑️ Step 2: Performing deletion...');
-    const { error: deleteError, count } = await supabase
+    const { error: deleteError } = await supabase
       .from('payroll_records')
-      .delete({ count: 'exact' })
+      .delete()
       .eq('id', recordId);
 
     if (deleteError) {
-      console.error('❌ Error during deletion:', deleteError);
+      console.error('❌ Deletion failed:', deleteError);
       throw new Error(`Failed to delete payroll record: ${deleteError.message}`);
     }
-    
-    console.log('📊 Delete operation result - affected rows:', count);
-    
-    if (count === 0) {
-      console.warn('⚠️ No rows were deleted, record may not exist:', recordId);
-      // Don't throw error here - record might have been deleted by another process
-      return;
-    }
 
-    // Step 4: Verify deletion was successful
-    console.log('🔍 Step 3: Verifying deletion...');
-    
-    // Wait a bit for database consistency
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    const { data: verifyRecord, error: verifyError } = await supabase
-      .from('payroll_records')
-      .select('id')
-      .eq('id', recordId)
-      .maybeSingle();
-
-    if (verifyError) {
-      console.error('❌ Error during verification:', verifyError);
-      // Don't throw here, deletion might have succeeded
-      console.log('⚠️ Verification failed, but delete operation reported success');
-    } else if (verifyRecord) {
-      console.error('❌ Record still exists after deletion attempt:', recordId);
-      throw new Error('Record was not properly deleted from the database. Please try again.');
-    } else {
-      console.log('✅ Deletion verified successfully - record no longer exists:', recordId);
-    }
+    console.log('✅ Deletion completed successfully for record:', recordId);
 
   } catch (error) {
     console.error('💥 Delete operation failed:', error);
-    
-    // Re-throw with more context
-    if (error instanceof Error) {
-      throw error;
-    } else {
-      throw new Error('An unexpected error occurred during deletion');
-    }
+    throw error;
   }
 };
 
