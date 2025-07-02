@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/sonner';
-import { Calendar, Users, MapPin } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
   getBranches, 
@@ -18,7 +18,7 @@ import {
   type Branch,
   type WeeklySlotConfig
 } from '@/services/slotBookingService';
-import { getEmployees } from '@/services/employeeService';
+import { getCasualEmployees } from '@/services/employeeService';
 
 interface BulkSlotBookingDialogProps {
   isOpen: boolean;
@@ -48,6 +48,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const [availableSlots, setAvailableSlots] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [loadingInitialData, setLoadingInitialData] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,38 +58,52 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    if (selectedBranch && isOpen) {
+    if (selectedBranch && isOpen && branches.length > 0) {
       updateAvailableSlots();
     }
-  }, [selectedBranch, selectedDate, isOpen]);
+  }, [selectedBranch, selectedDate, isOpen, branches.length]);
 
   const loadInitialData = async () => {
     try {
+      setLoadingInitialData(true);
       setLoadingEmployees(true);
+      setDataLoadError(null);
       console.log('BulkSlotBookingDialog: Loading initial data...');
       
       const [employeeData, branchesData, configData] = await Promise.all([
-        getEmployees(),
-        getBranches(),
-        getWeeklySlotConfig()
+        getCasualEmployees().catch(err => {
+          console.error('Error loading casual employees:', err);
+          return [];
+        }),
+        getBranches().catch(err => {
+          console.error('Error loading branches:', err);
+          return [];
+        }),
+        getWeeklySlotConfig().catch(err => {
+          console.error('Error loading weekly config:', err);
+          return {};
+        })
       ]);
       
       console.log('BulkSlotBookingDialog: Loaded employees:', employeeData);
       console.log('BulkSlotBookingDialog: Loaded branches:', branchesData);
       console.log('BulkSlotBookingDialog: Loaded config:', configData);
       
-      const casualEmployees = employeeData.filter(emp => 
-        emp.type?.toLowerCase() === 'casual'
-      );
-      console.log('BulkSlotBookingDialog: Filtered casual employees:', casualEmployees);
-      
-      setEmployees(casualEmployees);
+      setEmployees(employeeData);
       setBranches(branchesData);
       setWeeklyConfig(configData);
+
+      // Set default branch if available
+      if (branchesData.length > 0 && !branchesData.find(b => b.id === selectedBranch)) {
+        setSelectedBranch(branchesData[0].id);
+      }
+
     } catch (error) {
       console.error('BulkSlotBookingDialog: Error loading initial data:', error);
+      setDataLoadError('Failed to load initial data. Please try again.');
       toast.error('Error loading data');
     } finally {
+      setLoadingInitialData(false);
       setLoadingEmployees(false);
     }
   };
@@ -177,8 +193,53 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
     dayName,
     totalSlotsForDay,
     availableSlots,
-    selectedEmployeesCount: selectedEmployees.length
+    selectedEmployeesCount: selectedEmployees.length,
+    branchesLoaded: branches.length,
+    employeesLoaded: employees.length
   });
+
+  if (loadingInitialData) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5" />
+              <span>Add Bulk Slot Booking</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading data...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (dataLoadError) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5" />
+              <span>Add Bulk Slot Booking</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-600 mb-4">{dataLoadError}</p>
+              <Button onClick={loadInitialData}>Try Again</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -228,7 +289,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                 <div>
                   <h4 className="font-medium text-blue-900">{currentBranch.name}</h4>
                   <p className="text-sm text-blue-700">
-                    Available slots: {availableSlots}
+                    Available slots: {availableSlots} (Total for {dayName}: {totalSlotsForDay})
                   </p>
                 </div>
               </div>
@@ -243,7 +304,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
-                disabled={loadingEmployees}
+                disabled={loadingEmployees || employees.length === 0}
               >
                 {selectedEmployees.length === employees.length ? 'Deselect All' : 'Select All'}
               </Button>
@@ -286,6 +347,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                     <div className="text-center py-8 text-gray-500">
                       <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                       <p>No casual employees found</p>
+                      <p className="text-xs text-gray-400 mt-1">Make sure you have casual employees in your system</p>
                     </div>
                   )}
                 </div>
@@ -293,10 +355,18 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             )}
           </div>
 
-          {selectedEmployees.length > availableSlots && (
+          {selectedEmployees.length > availableSlots && availableSlots > 0 && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-700">
                 Warning: You have selected {selectedEmployees.length} employees, but only {availableSlots} slots are available.
+              </p>
+            </div>
+          )}
+
+          {availableSlots === 0 && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                No slots available for {dayName} at {currentBranch?.name || 'this branch'}. Please configure slot availability in Settings.
               </p>
             </div>
           )}
@@ -308,7 +378,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || selectedEmployees.length === 0 || selectedEmployees.length > availableSlots}
+            disabled={loading || selectedEmployees.length === 0 || selectedEmployees.length > availableSlots || availableSlots === 0}
           >
             {loading ? 'Booking...' : `Book ${selectedEmployees.length} Employees`}
           </Button>
