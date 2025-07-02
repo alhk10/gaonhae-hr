@@ -10,7 +10,7 @@ export interface AttendanceRecord {
   breakStart?: string;
   breakEnd?: string;
   hoursWorked?: number;
-  status: 'Present' | 'Absent' | 'Late' | 'On Leave';
+  status: 'Present' | 'Absent' | 'Late' | 'On Leave' | 'Half Day' | 'Medical Leave' | 'Annual Leave';
   location?: string;
   clockInLocation?: string;
   clockOutLocation?: string;
@@ -41,13 +41,153 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
       breakStart: record.break_start,
       breakEnd: record.break_end,
       hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
-      status: record.status as 'Present' | 'Absent' | 'Late' | 'On Leave',
+      status: record.status as AttendanceRecord['status'],
       location: record.location,
       clockInLocation: record.clock_in_location,
       clockOutLocation: record.clock_out_location
     })) || [];
   } catch (error) {
     console.error('Error in getAttendanceRecords:', error);
+    throw error;
+  }
+};
+
+export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<AttendanceRecord[]> => {
+  try {
+    console.log('Fetching attendance records for employee:', employeeId);
+    
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching employee attendance records:', error);
+      throw error;
+    }
+
+    return data?.map(record => ({
+      id: record.id,
+      employeeId: record.employee_id,
+      date: record.date,
+      checkIn: record.check_in,
+      checkOut: record.check_out,
+      breakStart: record.break_start,
+      breakEnd: record.break_end,
+      hoursWorked: record.hours_worked ? Number(record.hours_worked) : undefined,
+      status: record.status as AttendanceRecord['status'],
+      location: record.location,
+      clockInLocation: record.clock_in_location,
+      clockOutLocation: record.clock_out_location
+    })) || [];
+  } catch (error) {
+    console.error('Error in getEmployeeAttendanceRecords:', error);
+    throw error;
+  }
+};
+
+// Clock in/out functionality
+export interface ClockInOutStatus {
+  status: 'clocked-in' | 'clocked-out';
+  clockIn?: string;
+  clockOut?: string;
+  location?: string;
+}
+
+// Simple in-memory storage for clock status (in production, this should be in a database)
+const clockStatusMap = new Map<string, ClockInOutStatus>();
+
+export const getClockInOutStatus = (employeeId: string): ClockInOutStatus | undefined => {
+  return clockStatusMap.get(employeeId);
+};
+
+export const updateClockInOut = async (employeeId: string, action: 'in' | 'out'): Promise<void> => {
+  try {
+    const currentTime = new Date().toLocaleTimeString('en-SG', { 
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (action === 'in') {
+      // Check if already clocked in today
+      const existingStatus = clockStatusMap.get(employeeId);
+      if (existingStatus?.status === 'clocked-in') {
+        throw new Error('Already clocked in');
+      }
+      
+      // Set clock in status
+      clockStatusMap.set(employeeId, {
+        status: 'clocked-in',
+        clockIn: currentTime,
+        location: 'Main Office' // Default location
+      });
+      
+      // Create or update attendance record
+      const { data: existingRecord } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('date', today)
+        .single();
+      
+      if (existingRecord) {
+        await supabase
+          .from('attendance')
+          .update({
+            check_in: currentTime,
+            status: 'Present',
+            clock_in_location: 'Main Office'
+          })
+          .eq('id', existingRecord.id);
+      } else {
+        await supabase
+          .from('attendance')
+          .insert({
+            employee_id: employeeId,
+            date: today,
+            check_in: currentTime,
+            status: 'Present',
+            location: 'Main Office',
+            clock_in_location: 'Main Office'
+          });
+      }
+    } else {
+      // Clock out
+      const existingStatus = clockStatusMap.get(employeeId);
+      if (existingStatus?.status !== 'clocked-in') {
+        throw new Error('Not clocked in');
+      }
+      
+      // Calculate hours worked
+      const checkInTime = new Date(`2000-01-01T${existingStatus.clockIn}`);
+      const checkOutTime = new Date(`2000-01-01T${currentTime}`);
+      const hoursWorked = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+      
+      // Update clock status
+      clockStatusMap.set(employeeId, {
+        status: 'clocked-out',
+        clockIn: existingStatus.clockIn,
+        clockOut: currentTime,
+        location: existingStatus.location
+      });
+      
+      // Update attendance record
+      await supabase
+        .from('attendance')
+        .update({
+          check_out: currentTime,
+          hours_worked: hoursWorked,
+          clock_out_location: 'Main Office'
+        })
+        .eq('employee_id', employeeId)
+        .eq('date', today);
+    }
+  } catch (error) {
+    console.error('Error in updateClockInOut:', error);
     throw error;
   }
 };
@@ -90,7 +230,7 @@ export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id'>):
       breakStart: data.break_start,
       breakEnd: data.break_end,
       hoursWorked: data.hours_worked ? Number(data.hours_worked) : undefined,
-      status: data.status as 'Present' | 'Absent' | 'Late' | 'On Leave',
+      status: data.status as AttendanceRecord['status'],
       location: data.location,
       clockInLocation: data.clock_in_location,
       clockOutLocation: data.clock_out_location
@@ -141,7 +281,7 @@ export const updateAttendanceRecord = async (id: number, record: Partial<Attenda
       breakStart: data.break_start,
       breakEnd: data.break_end,
       hoursWorked: data.hours_worked ? Number(data.hours_worked) : undefined,
-      status: data.status as 'Present' | 'Absent' | 'Late' | 'On Leave',
+      status: data.status as AttendanceRecord['status'],
       location: data.location,
       clockInLocation: data.clock_in_location,
       clockOutLocation: data.clock_out_location

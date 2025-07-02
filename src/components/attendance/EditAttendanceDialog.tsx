@@ -28,7 +28,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
     date: '',
     checkIn: '',
     checkOut: '',
-    status: 'Present',
+    status: 'Present' as AttendanceRecord['status'],
     location: ''
   });
 
@@ -68,7 +68,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
     return Math.max(0, diffInMs / (1000 * 60 * 60));
   };
 
-  const determineStatus = (checkIn: string) => {
+  const determineStatus = (checkIn: string): AttendanceRecord['status'] => {
     if (!checkIn) return 'Present';
     
     const checkInTime = new Date(`2000-01-01T${checkIn}`);
@@ -98,13 +98,12 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
         finalStatus = determineStatus(formData.checkIn);
       }
 
-      const updatedRecord = {
-        ...record,
+      const updatedRecord: Partial<AttendanceRecord> = {
         date: formData.date,
-        checkIn: formData.checkIn || null,
-        checkOut: formData.checkOut || null,
+        checkIn: formData.checkIn || undefined,
+        checkOut: formData.checkOut || undefined,
         status: finalStatus,
-        hoursWorked: hoursWorked > 0 ? hoursWorked : null,
+        hoursWorked: hoursWorked > 0 ? hoursWorked : undefined,
         location: formData.location
       };
 
@@ -122,7 +121,11 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'status') {
+      setFormData(prev => ({ ...prev, [field]: value as AttendanceRecord['status'] }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   return (
@@ -197,6 +200,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
                 <SelectItem value="Half Day">Half Day</SelectItem>
                 <SelectItem value="Medical Leave">Medical Leave</SelectItem>
                 <SelectItem value="Annual Leave">Annual Leave</SelectItem>
+                <SelectItem value="On Leave">On Leave</SelectItem>
               </SelectContent>
             </Select>
           </div>
