@@ -45,14 +45,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Check if password change is required
+          // Check if password change is required - only check once on initialization
           const { data: passwordData } = await supabase
             .from('user_passwords')
             .select('requires_change')
             .eq('email', sessionData.email)
             .single();
           
-          setRequiresPasswordChange(passwordData?.requires_change || false);
+          const needsPasswordChange = passwordData?.requires_change || false;
+          console.log('AuthContext: Password change required on init:', needsPasswordChange);
+          setRequiresPasswordChange(needsPasswordChange);
         }
       } catch (error) {
         console.error('AuthContext: Error initializing auth:', error);
@@ -132,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('AuthContext: Password updated in database successfully');
       
-      // Clear password change requirement immediately
+      // Clear password change requirement immediately and permanently
       setRequiresPasswordChange(false);
       
       // Update session with new password info
@@ -196,8 +198,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(foundUser);
       await saveUserSession(foundUser, password);
       
+      // Only set password change requirement if using default password AND no custom password exists
       if (password === 'password' && !passwordData) {
-        console.log('AuthContext: Setting password change requirement');
+        console.log('AuthContext: Setting password change requirement for system user');
         await supabase
           .from('user_passwords')
           .upsert({
@@ -207,8 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         setRequiresPasswordChange(true);
       } else {
-        console.log('AuthContext: No password change required');
-        setRequiresPasswordChange(passwordData?.requires_change || false);
+        console.log('AuthContext: No password change required for system user');
+        setRequiresPasswordChange(passwordData?.requires_change === true);
       }
       
       return true;
@@ -238,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userRecord);
         await saveUserSession(userRecord, password);
         
+        // Only set password change requirement if using default password AND no custom password exists
         if (password === 'password' && !passwordData) {
           console.log('AuthContext: Setting password change requirement for employee');
           await supabase
@@ -250,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setRequiresPasswordChange(true);
         } else {
           console.log('AuthContext: No password change required for employee');
-          setRequiresPasswordChange(passwordData?.requires_change || false);
+          setRequiresPasswordChange(passwordData?.requires_change === true);
         }
         
         return true;

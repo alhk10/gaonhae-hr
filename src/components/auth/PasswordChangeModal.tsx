@@ -16,7 +16,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { updatePassword } = useAuth();
+  const { updatePassword, requiresPasswordChange } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,13 +89,15 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
     }
   };
 
-  // Prevent dialog from closing when requiresPasswordChange is true
+  // Handle dialog open/close - allow closing only if it's not a required password change
   const handleOpenChange = (newOpen: boolean) => {
-    // Only allow closing if we have an onClose handler (optional closing)
-    if (!newOpen && onClose) {
-      onClose();
+    if (!newOpen) {
+      // If this is not a required password change (has onClose handler), allow closing
+      if (onClose && !requiresPasswordChange) {
+        onClose();
+      }
+      // If it's a required password change, don't allow closing via X button
     }
-    // If no onClose handler, this is a required password change - don't allow closing
   };
 
   return (
