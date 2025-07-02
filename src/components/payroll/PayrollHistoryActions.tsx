@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Lock, Unlock, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { deletePayrollRecord } from '@/services/payrollService';
 
 interface PayrollRecord {
   id: string;
@@ -15,6 +16,9 @@ interface PayrollRecord {
   employeeCount: number;
   processedDate: string | null;
   isLocked?: boolean;
+  employeeId: string;
+  month: string;
+  year: number;
 }
 
 interface PayrollHistoryActionsProps {
@@ -27,6 +31,7 @@ interface PayrollHistoryActionsProps {
 const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollHistoryActionsProps) => {
   const { user } = useAuth();
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isSuperAdmin = user?.role === 'superadmin';
   const isLocked = payroll.isLocked;
@@ -34,18 +39,33 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
 
   const handleLock = () => {
     onLock(payroll.id);
-    toast(`Payroll for ${payroll.period} has been locked`);
+    toast.success(`Payroll for ${payroll.period} has been locked`);
   };
 
   const handleUnlock = () => {
     onUnlock(payroll.id);
     setShowUnlockDialog(false);
-    toast(`Payroll for ${payroll.period} has been unlocked`);
+    toast.success(`Payroll for ${payroll.period} has been unlocked`);
   };
 
-  const handleDelete = () => {
-    onDelete(payroll.id);
-    toast(`Payroll for ${payroll.period} has been deleted`);
+  const handleDelete = async () => {
+    if (!isSuperAdmin) {
+      toast.error('Only super administrators can delete payroll records.');
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      console.log(`Deleting payroll record: ${payroll.id}`);
+      await deletePayrollRecord(payroll.id);
+      onDelete(payroll.id);
+      toast.success(`Payroll for ${payroll.month} ${payroll.year} has been deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting payroll record:', error);
+      toast.error('Failed to delete payroll record. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -84,28 +104,29 @@ const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollH
             <Button
               variant="outline"
               size="sm"
-              disabled={isLocked}
-              className="flex items-center space-x-1 text-red-600 border-red-200 hover:bg-red-50"
+              disabled={isLocked || isDeleting}
+              className="flex items-center space-x-1 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />
-              <span>Delete</span>
+              <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Payroll Record</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete the payroll for {payroll.period}? 
-                This action cannot be undone and will permanently remove all payroll data for this period.
+                Are you sure you want to delete the payroll for {payroll.month} {payroll.year} (Employee: {payroll.employeeId})? 
+                This action cannot be undone and will permanently remove this payroll record from Supabase.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700"
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
-                Delete Payroll
+                {isDeleting ? 'Deleting...' : 'Delete Payroll'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

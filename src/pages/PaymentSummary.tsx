@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -84,16 +83,34 @@ const PaymentSummary = () => {
     setEditPayroll(payroll || null);
   };
 
-  const handleLockPayroll = (payrollId: string) => {
-    // This would typically update the payroll record in Supabase with a locked status
-    console.log(`Payroll ${payrollId} locked by user ${user?.name}`);
-    toast.success('Payroll locked successfully');
+  const handleLockPayroll = async (payrollId: string) => {
+    try {
+      // Update the payroll record in Supabase with locked status
+      // For now, just update local state until lock/unlock is properly implemented
+      setPayrollHistory(prev => 
+        prev.map(p => p.id === payrollId ? { ...p, isLocked: true } : p)
+      );
+      console.log(`Payroll ${payrollId} locked by user ${user?.name}`);
+      toast.success('Payroll locked successfully');
+    } catch (error) {
+      console.error('Error locking payroll:', error);
+      toast.error('Error locking payroll record');
+    }
   };
 
-  const handleUnlockPayroll = (payrollId: string) => {
-    // This would typically update the payroll record in Supabase with an unlocked status
-    console.log(`Payroll ${payrollId} unlocked by user ${user?.name}`);
-    toast.success('Payroll unlocked successfully');
+  const handleUnlockPayroll = async (payrollId: string) => {
+    try {
+      // Update the payroll record in Supabase with unlocked status
+      // For now, just update local state until lock/unlock is properly implemented
+      setPayrollHistory(prev => 
+        prev.map(p => p.id === payrollId ? { ...p, isLocked: false } : p)
+      );
+      console.log(`Payroll ${payrollId} unlocked by user ${user?.name}`);
+      toast.success('Payroll unlocked successfully');
+    } catch (error) {
+      console.error('Error unlocking payroll:', error);
+      toast.error('Error unlocking payroll record');
+    }
   };
 
   const handleDeletePayroll = async (payrollId: string) => {
@@ -103,13 +120,16 @@ const PaymentSummary = () => {
     }
     
     try {
-      await deletePayrollRecord(payrollId);
+      console.log(`Super admin ${user?.name} deleting payroll record: ${payrollId}`);
+      
+      // The actual deletion is handled in PayrollHistoryActions component
+      // Here we just update the local state to remove the deleted record
       setPayrollHistory(prev => prev.filter(p => p.id !== payrollId));
-      console.log(`Payroll ${payrollId} deleted by superadmin ${user?.name}`);
-      toast.success('Payroll record deleted successfully');
+      
+      console.log(`Payroll ${payrollId} successfully removed from UI state`);
     } catch (error) {
-      console.error('Error deleting payroll record:', error);
-      toast.error('Error deleting payroll record');
+      console.error('Error in handleDeletePayroll:', error);
+      toast.error('Error processing deletion request');
     }
   };
 
@@ -178,7 +198,7 @@ const PaymentSummary = () => {
     return sum;
   }, 0);
 
-  const lockedPayrollsCount = 0; // This would come from payroll record status if implemented
+  const lockedPayrollsCount = payrollHistory.filter(p => p.isLocked).length;
 
   if (loading) {
     return (
@@ -426,15 +446,19 @@ const PaymentSummary = () => {
                                 <Edit className="w-4 h-4 mr-1" />
                                 Edit
                               </Button>
-                              {isSuperAdmin && (
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDeletePayroll(payroll.id)}
-                                >
-                                  Delete
-                                </Button>
-                              )}
+                              <PayrollHistoryActions
+                                payroll={{
+                                  ...payroll,
+                                  period: `${payroll.month} ${payroll.year}`,
+                                  status: payroll.month === 'December 2024' ? 'Current' : 'Completed',
+                                  totalAmount: payroll.payrollData?.netSalary || 0,
+                                  employeeCount: 1,
+                                  processedDate: payroll.createdAt
+                                }}
+                                onLock={handleLockPayroll}
+                                onUnlock={handleUnlockPayroll}
+                                onDelete={handleDeletePayroll}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
