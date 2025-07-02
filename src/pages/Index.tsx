@@ -10,7 +10,16 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 
 const Index = () => {
-  const { user, requiresPasswordChange } = useAuth();
+  const { user, requiresPasswordChange, isLoading } = useAuth();
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <LoginForm />;

@@ -40,7 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessions && sessions.length > 0) {
           const sessionData = sessions[0];
           console.log('AuthContext: Loading stored user session:', sessionData.session_data);
-          setUser(sessionData.session_data as unknown as User);
+          // Properly cast the session data to User type
+          const userData = sessionData.session_data as unknown as User;
+          setUser(userData);
           
           // Check if password change is required
           const { data: passwordData } = await supabase
@@ -87,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('user_passwords')
           .upsert({
             email: userData.email,
-            password_hash: btoa(password), // Basic encoding (not secure, for demo only)
+            password_hash: btoa(password + userData.email), // Include email for better uniqueness
             requires_change: false
           });
 
@@ -111,13 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      // First, check if a password record exists
-      const { data: existingPassword } = await supabase
-        .from('user_passwords')
-        .select('id')
-        .eq('email', user.email)
-        .single();
-
       // Save new password to Supabase with proper encoding
       const passwordHash = btoa(newPassword + user.email); // Include email for better uniqueness
       
