@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ const EmployeeProfileForm = () => {
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
-        toast('Failed to load profile data', { type: 'error' });
+        toast.error('Failed to load profile data');
       } finally {
         setLoading(false);
       }
@@ -78,10 +79,10 @@ const EmployeeProfileForm = () => {
 
       await updateEmployee(updatedEmployee);
       setEmployee(updatedEmployee);
-      toast('Profile updated successfully', { type: 'success' });
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast('Failed to update profile', { type: 'error' });
+      toast.error('Failed to update profile');
     } finally {
       setSaving(false);
     }
