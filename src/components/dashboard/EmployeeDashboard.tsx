@@ -91,14 +91,18 @@ const EmployeeDashboard = () => {
 
   // Check clock-in status on load
   useEffect(() => {
-    if (user?.id) {
-      const clockStatus = getClockInOutStatus(user.id);
-      if (clockStatus) {
-        setIsClockedIn(clockStatus.status === 'clocked-in');
-        setClockTime(clockStatus.clockIn || null);
-        setClockLocation(clockStatus.location || null);
+    const checkClockStatus = async () => {
+      if (user?.id) {
+        const clockStatus = await getClockInOutStatus(user.id);
+        if (clockStatus) {
+          setIsClockedIn(clockStatus.status === 'clocked-in');
+          setClockTime(clockStatus.clockIn || null);
+          setClockLocation(clockStatus.location || null);
+        }
       }
-    }
+    };
+    
+    checkClockStatus();
   }, [user?.id]);
 
   // Check slot booking for casual employees using Supabase data
@@ -190,7 +194,7 @@ const EmployeeDashboard = () => {
         setClockLocation(null);
         toast.success(`Clocked out at ${currentTime}`);
       } else {
-        const clockStatus = getClockInOutStatus(user.id);
+        const clockStatus = await getClockInOutStatus(user.id);
         setIsClockedIn(true);
         setClockTime(currentTime);
         setClockLocation(clockStatus?.location || null);

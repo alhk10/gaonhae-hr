@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,7 +102,20 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   const [showAddAllowance, setShowAddAllowance] = useState(false);
   const [showAddDeduction, setShowAddDeduction] = useState(false);
 
-  const branches = getBranches();
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const branchData = await getBranches();
+        setBranches(branchData);
+      } catch (error) {
+        console.error('Error loading branches:', error);
+      }
+    };
+    
+    loadBranches();
+  }, []);
 
   const handleInputChange = (field: string, value: string | number) => {
     console.log(`Updating field ${field} with value:`, value);

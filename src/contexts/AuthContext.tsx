@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessions && sessions.length > 0) {
           const sessionData = sessions[0];
           console.log('AuthContext: Loading stored user session:', sessionData.session_data);
-          setUser(sessionData.session_data as User);
+          setUser(sessionData.session_data as unknown as User);
           
           // Check if password change is required
           const { data: passwordData } = await supabase

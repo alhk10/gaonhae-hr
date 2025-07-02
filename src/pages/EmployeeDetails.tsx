@@ -46,7 +46,7 @@ const EmployeeDetails = () => {
     email: ''
   });
 
-  const branches = getBranches();
+  const [branches, setBranches] = useState([]);
 
   useEffect(() => {
     const loadEmployee = async () => {
@@ -92,6 +92,19 @@ const EmployeeDetails = () => {
 
     loadEmployee();
   }, [id]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const branchData = await getBranches();
+        setBranches(branchData);
+      } catch (error) {
+        console.error('Error loading branches:', error);
+      }
+    };
+    
+    loadBranches();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({

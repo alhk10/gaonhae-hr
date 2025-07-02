@@ -54,7 +54,8 @@ const Settings = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      setBranches(getBranches());
+      const branchData = await getBranches();
+      setBranches(branchData);
       
       // Load system allowances from Supabase
       const { data: allowancesData, error: allowancesError } = await supabase

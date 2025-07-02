@@ -24,7 +24,7 @@ export const getBranches = async (): Promise<Branch[]> => {
     }
 
     if (data && data.setting_value) {
-      return data.setting_value as Branch[];
+      return data.setting_value as unknown as Branch[];
     }
 
     return getDefaultBranches();
