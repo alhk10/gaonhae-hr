@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, Calendar, MapPin, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +48,8 @@ const MyAttendance = () => {
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
   const [nearestBranch, setNearestBranch] = useState<string>('');
   const [locationCheckPassed, setLocationCheckPassed] = useState<boolean>(false);
+  const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string>('');
 
   useEffect(() => {
     fetchAttendanceData();
@@ -64,14 +66,34 @@ const MyAttendance = () => {
   }, [attendanceData, user?.id]);
 
   const checkLocationOnLoad = async () => {
+    if (!user?.id) return;
+    
+    setIsCheckingLocation(true);
+    setLocationError('');
+    
     try {
+      console.log('MyAttendance: Starting location check for user:', user.id);
       const locationCheck = await isWithinBranchRange(100);
+      console.log('MyAttendance: Location check result:', locationCheck);
+      
       setLocationCheckPassed(locationCheck.withinRange);
       setNearestBranch(locationCheck.nearestBranch || '');
+      
+      if (!locationCheck.withinRange) {
+        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 100m to clock in.`);
+      }
     } catch (error) {
-      console.error('Location check failed:', error);
+      console.error('MyAttendance: Location check failed:', error);
       setLocationCheckPassed(false);
+      const errorMessage = error instanceof Error ? error.message : 'Location check failed';
+      setLocationError(errorMessage);
+    } finally {
+      setIsCheckingLocation(false);
     }
+  };
+
+  const retryLocationCheck = async () => {
+    await checkLocationOnLoad();
   };
 
   const fetchEmployeeData = async () => {
@@ -202,8 +224,9 @@ const MyAttendance = () => {
       return;
     }
 
-    // Check location before allowing clock action
+    // Always do a fresh location check when trying to clock in/out
     if (!locationCheckPassed) {
+      setIsCheckingLocation(true);
       try {
         const locationCheck = await isWithinBranchRange(100);
         if (!locationCheck.withinRange) {
@@ -211,13 +234,19 @@ const MyAttendance = () => {
             `You must be within 100m of a branch to clock in/out. ` +
             `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
           );
+          setLocationError(`You are ${locationCheck.distance}m away from ${locationCheck.nearestBranch}`);
           return;
         }
         setLocationCheckPassed(true);
         setNearestBranch(locationCheck.nearestBranch || '');
+        setLocationError('');
       } catch (error) {
-        toast.error("Location access is required to clock in/out. Please enable location services.");
+        const errorMessage = error instanceof Error ? error.message : 'Location access failed';
+        toast.error(errorMessage);
+        setLocationError(errorMessage);
         return;
+      } finally {
+        setIsCheckingLocation(false);
       }
     }
 
@@ -294,12 +323,14 @@ const MyAttendance = () => {
               'bg-gray-400 cursor-not-allowed'
             }`}
             onClick={handleClockInOut}
-            disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
+            disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn)}
           >
             <Clock className="w-5 h-5 mr-3" />
             <div className="text-left">
               <p className="font-medium text-white">
-                {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                {isClockingInOut ? 'Processing...' : 
+                 isCheckingLocation ? 'Checking location...' :
+                 (isClockedIn ? 'Clock Out' : 'Clock In')}
               </p>
               <div className="text-sm text-white/80 flex items-center">
                 {isClockedIn && clockStatus?.clockIn ? (
@@ -328,19 +359,31 @@ const MyAttendance = () => {
         </div>
 
         {/* Location Warning */}
-        {!locationCheckPassed && (
+        {(!locationCheckPassed || locationError) && (
           <Card className="border-orange-200 bg-orange-50">
             <CardContent className={isMobile ? 'p-3' : 'p-4'}>
-              <div className="flex items-center space-x-3">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-                <div>
-                  <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : ''}`}>
-                    Location Access Required
-                  </p>
-                  <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    You must be within 100m of a branch and enable location to clock in.
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <div>
+                    <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : ''}`}>
+                      Location Access Required
+                    </p>
+                    <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {locationError || 'You must be within 100m of a branch and enable location to clock in.'}
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={retryLocationCheck}
+                  disabled={isCheckingLocation}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isCheckingLocation ? 'animate-spin' : ''}`} />
+                  <span>Retry</span>
+                </Button>
               </div>
             </CardContent>
           </Card>

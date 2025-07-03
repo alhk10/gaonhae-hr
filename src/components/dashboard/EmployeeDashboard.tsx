@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, DollarSign, MapPin, AlertCircle } from 'lucide-react';
+import { Calendar, FileText, Clock, DollarSign, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -50,6 +50,8 @@ const EmployeeDashboard = () => {
   const [hasApprovedSlot, setHasApprovedSlot] = useState<boolean>(false);
   const [nearestBranch, setNearestBranch] = useState<string>('');
   const [locationCheckPassed, setLocationCheckPassed] = useState<boolean>(false);
+  const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string>('');
 
   useEffect(() => {
     fetchAttendanceData();
@@ -65,14 +67,34 @@ const EmployeeDashboard = () => {
   }, [attendanceData, user?.id]);
 
   const checkLocationOnLoad = async () => {
+    if (!user?.id) return;
+    
+    setIsCheckingLocation(true);
+    setLocationError('');
+    
     try {
+      console.log('Dashboard: Starting location check for user:', user.id);
       const locationCheck = await isWithinBranchRange(100);
+      console.log('Dashboard: Location check result:', locationCheck);
+      
       setLocationCheckPassed(locationCheck.withinRange);
       setNearestBranch(locationCheck.nearestBranch || '');
+      
+      if (!locationCheck.withinRange) {
+        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 100m to clock in.`);
+      }
     } catch (error) {
-      console.error('Location check failed:', error);
+      console.error('Dashboard: Location check failed:', error);
       setLocationCheckPassed(false);
+      const errorMessage = error instanceof Error ? error.message : 'Location check failed';
+      setLocationError(errorMessage);
+    } finally {
+      setIsCheckingLocation(false);
     }
+  };
+
+  const retryLocationCheck = async () => {
+    await checkLocationOnLoad();
   };
 
   const fetchAttendanceData = async () => {
@@ -246,7 +268,9 @@ const EmployeeDashboard = () => {
       return;
     }
 
+    // Always do a fresh location check when trying to clock in/out
     if (!locationCheckPassed) {
+      setIsCheckingLocation(true);
       try {
         const locationCheck = await isWithinBranchRange(100);
         if (!locationCheck.withinRange) {
@@ -254,13 +278,19 @@ const EmployeeDashboard = () => {
             `You must be within 100m of a branch to clock in/out. ` +
             `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
           );
+          setLocationError(`You are ${locationCheck.distance}m away from ${locationCheck.nearestBranch}`);
           return;
         }
         setLocationCheckPassed(true);
         setNearestBranch(locationCheck.nearestBranch || '');
+        setLocationError('');
       } catch (error) {
-        toast.error("Location access is required to clock in/out. Please enable location services.");
+        const errorMessage = error instanceof Error ? error.message : 'Location access failed';
+        toast.error(errorMessage);
+        setLocationError(errorMessage);
         return;
+      } finally {
+        setIsCheckingLocation(false);
       }
     }
 
@@ -332,6 +362,8 @@ const EmployeeDashboard = () => {
     isClockingInOut,
     locationCheckPassed,
     nearestBranch,
+    isCheckingLocation,
+    locationError,
     renderTimestamp: new Date().toISOString()
   });
 
@@ -348,19 +380,31 @@ const EmployeeDashboard = () => {
       </div>
 
       {/* Location Warning */}
-      {!locationCheckPassed && (
+      {(!locationCheckPassed || locationError) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
-            <div className="flex items-center space-x-3">
-              <AlertCircle className={`text-orange-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-              <div>
-                <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                  Location Access Required
-                </p>
-                <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                  You must be within 100m of a branch and enable location to clock in.
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className={`text-orange-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                <div>
+                  <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                    Location Access Required
+                  </p>
+                  <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    {locationError || 'You must be within 100m of a branch and enable location to clock in.'}
+                  </p>
+                </div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={retryLocationCheck}
+                disabled={isCheckingLocation}
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isCheckingLocation ? 'animate-spin' : ''}`} />
+                <span>Retry</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -383,6 +427,7 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
+      {/* Personal Stats */}
       <div className={`grid gap-3 md:gap-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
         {personalStats.map((stat) => (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
@@ -415,12 +460,14 @@ const EmployeeDashboard = () => {
                   'bg-gray-400 cursor-not-allowed'
                 }`}
                 onClick={handleClockInOut}
-                disabled={isClockingInOut || (!canClockIn && !isClockedIn)}
+                disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn)}
               >
                 <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left flex-1">
                   <p className={`font-medium text-white ${isMobile ? 'text-sm' : ''}`}>
-                    {isClockingInOut ? 'Processing...' : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                    {isClockingInOut ? 'Processing...' : 
+                     isCheckingLocation ? 'Checking location...' :
+                     (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
                   <div className={`text-white/80 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
                     {isClockedIn && clockStatus?.clockIn ? (
