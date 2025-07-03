@@ -10,18 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Plus, Settings, Users, Check, X, Edit, Trash, Filter, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
+import SwapEmployeeDialog from '@/components/slot-booking/SwapEmployeeDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   getBranches,
   getAllSlotBookings,
   updateSlotBookingStatus,
-  getBookedSlotsForDate,
-  getAvailableSlotsForDate,
   getWeeklySlotConfig,
   updateWeeklySlotConfig,
   type SlotBooking,
@@ -30,19 +30,47 @@ import {
 } from '@/services/slotBookingService';
 
 const AdminSlotBooking = () => {
+  const isMobile = useIsMobile();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isBulkBookingDialogOpen, setIsBulkBookingDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [isSwapDialogOpen, setIsSwapDialogOpen] = useState(false);
   const [selectedDateForBooking, setSelectedDateForBooking] = useState<Date>(new Date());
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
+  const [selectedBookingForSwap, setSelectedBookingForSwap] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentWeeklySlots, setCurrentWeeklySlots] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
   const [loading, setLoading] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [autoRefreshActive, setAutoRefreshActive] = useState(true);
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (!autoRefreshActive) return;
+
+    const interval = setInterval(() => {
+      // Only refresh if page is visible
+      if (!document.hidden) {
+        refreshData();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefreshActive]);
+
+  // Pause auto-refresh when page is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setAutoRefreshActive(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Load initial data from Supabase
   useEffect(() => {
@@ -91,7 +119,6 @@ const AdminSlotBooking = () => {
       console.log('AdminSlotBooking: Data refreshed successfully');
     } catch (error) {
       console.error('AdminSlotBooking: Error refreshing data:', error);
-      toast.error('Failed to refresh data');
     }
   };
 
@@ -99,6 +126,7 @@ const AdminSlotBooking = () => {
     const dateString = format(date, 'yyyy-MM-dd');
     return allBookings.filter(b => 
       b.date === dateString && 
+      b.status !== 'rejected' && // Filter out rejected slots
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
   };
@@ -115,9 +143,19 @@ const AdminSlotBooking = () => {
     setIsApprovalDialogOpen(true);
   };
 
+  const handleSwapClick = (booking: SlotBooking, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedBookingForSwap(booking);
+    setIsSwapDialogOpen(true);
+  };
+
   const handleBulkBookingSuccess = async () => {
     await refreshData();
     toast.success('Bulk slot bookings created successfully');
+  };
+
+  const handleSwapSuccess = async () => {
+    await refreshData();
   };
 
   const getSlotSummary = () => {
@@ -176,7 +214,6 @@ const AdminSlotBooking = () => {
       const formData = new FormData(e.target as HTMLFormElement);
       console.log('AdminSlotBooking: Saving settings to Supabase...');
       
-      // Save weekly slots configuration to Supabase
       const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
       const updatePromises = branches.map(async (branch) => {
@@ -206,7 +243,6 @@ const AdminSlotBooking = () => {
       const allSuccessful = results.every(result => result === true);
       
       if (allSuccessful) {
-        // Refresh the local state with updated data
         const updatedWeeklyConfig = await getWeeklySlotConfig();
         setCurrentWeeklySlots(updatedWeeklyConfig);
         
@@ -248,22 +284,22 @@ const AdminSlotBooking = () => {
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
+        <main className={`flex-1 overflow-auto ${isMobile ? 'p-4' : 'p-6'}`}>
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Admin Slot Booking</h2>
-                <p className="text-gray-600">Manage casual employee work schedules with monthly calendar view</p>
+            <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
+              <div className={isMobile ? 'text-center' : ''}>
+                <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Admin Slot Booking</h2>
+                {autoRefreshActive && (
+                  <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
+                    Auto-refreshing every 30 seconds
+                  </p>
+                )}
               </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={refreshData}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-                
+              
+              <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
                 <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className={isMobile ? 'flex-1' : ''}>
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </Button>
@@ -275,7 +311,6 @@ const AdminSlotBooking = () => {
                     </DialogHeader>
                     <form onSubmit={handleSettingsSave}>
                       <div className="grid gap-6 py-4">
-                        {/* Weekly Slots Configuration */}
                         <div className="space-y-4">
                           <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
                           <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week. Changes will be immediately saved to Supabase.</p>
@@ -290,10 +325,12 @@ const AdminSlotBooking = () => {
                                   ></div>
                                   <h4 className="font-medium">{branch.name}</h4>
                                 </div>
-                                <div className="grid grid-cols-7 gap-2">
+                                <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
                                   {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
                                     <div key={day} className="space-y-1">
-                                      <Label className="text-xs font-medium">{day.slice(0, 3)}</Label>
+                                      <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                                        {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
+                                      </Label>
                                       <Input
                                         name={`${branch.id}-${day}`}
                                         type="number"
@@ -321,54 +358,49 @@ const AdminSlotBooking = () => {
                     </form>
                   </DialogContent>
                 </Dialog>
-
-                <Button onClick={() => setIsBulkBookingDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Bulk Booking
-                </Button>
               </div>
             </div>
 
             {/* Slot Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-5'}`}>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Slots</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Total Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{slotSummary.totalSlots}</div>
+                  <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.totalSlots}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Available Slots</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Available</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{slotSummary.availableSlots}</div>
+                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.availableSlots}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Booked Slots</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Booked</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{slotSummary.bookedSlots}</div>
+                  <div className={`font-bold text-blue-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.bookedSlots}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{slotSummary.pendingSlots}</div>
+                  <div className={`font-bold text-yellow-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.pendingSlots}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Approved</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{slotSummary.approvedSlots}</div>
+                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.approvedSlots}</div>
                 </CardContent>
               </Card>
             </div>
@@ -376,15 +408,15 @@ const AdminSlotBooking = () => {
             {/* Branch Filter and Calendar */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
+                <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
+                  <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
                     <CalendarIcon className="w-5 h-5" />
-                    <span>Monthly Calendar View</span>
+                    <span>Monthly Calendar</span>
                   </CardTitle>
-                  <div className="flex items-center space-x-2">
+                  <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
                     <Filter className="w-4 h-4" />
                     <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                      <SelectTrigger className="w-48">
+                      <SelectTrigger className={isMobile ? 'flex-1' : 'w-48'}>
                         <SelectValue placeholder="Filter by branch" />
                       </SelectTrigger>
                       <SelectContent>
@@ -404,9 +436,6 @@ const AdminSlotBooking = () => {
                     </Select>
                   </div>
                 </div>
-                <CardDescription>
-                  Click on any date to create bulk bookings for casual employees
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="w-full">
@@ -419,14 +448,14 @@ const AdminSlotBooking = () => {
                       months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
                       month: "space-y-4 w-full",
                       caption: "flex justify-center pt-1 relative items-center",
-                      caption_label: "text-lg font-medium",
+                      caption_label: isMobile ? "text-base font-medium" : "text-lg font-medium",
                       nav: "space-x-1 flex items-center",
                       table: "w-full border-collapse space-y-1",
                       head_row: "flex w-full",
-                      head_cell: "text-muted-foreground rounded-md w-full font-normal text-sm flex-1",
+                      head_cell: `text-muted-foreground rounded-md w-full font-normal flex-1 ${isMobile ? 'text-xs' : 'text-sm'}`,
                       row: "flex w-full mt-2",
-                      cell: "h-32 text-center text-sm p-1 relative flex-1 border-r border-b [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                      day: "w-full h-full p-2 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md cursor-pointer transition-colors flex flex-col items-start justify-start",
+                      cell: `text-center text-sm p-1 relative flex-1 border-r border-b [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 ${isMobile ? 'h-20' : 'h-32'}`,
+                      day: `w-full h-full p-2 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md cursor-pointer transition-colors flex flex-col items-start justify-start ${isMobile ? 'p-1' : 'p-2'}`,
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                       day_today: "bg-accent text-accent-foreground font-semibold",
                       day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
@@ -438,20 +467,21 @@ const AdminSlotBooking = () => {
                       Day: ({ date, ...props }) => {
                         const dayBookings = getBookingsForDate(date);
                         const hasBookings = dayBookings.length > 0;
+                        const maxVisible = isMobile ? 2 : 4;
                         
                         return (
                           <div className="relative w-full h-full">
                             <div
-                              className={`w-full h-full p-2 text-sm hover:bg-accent rounded-md cursor-pointer transition-colors flex flex-col items-start justify-start ${
+                              className={`w-full h-full text-sm hover:bg-accent rounded-md cursor-pointer transition-colors flex flex-col items-start justify-start ${
                                 isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
-                              } ${hasBookings ? 'bg-blue-50' : ''}`}
+                              } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-1' : 'p-2'}`}
                               onClick={() => handleDateClick(date)}
                             >
                               <div className="w-full h-full flex flex-col">
-                                <span className="font-medium text-left mb-1">{date.getDate()}</span>
+                                <span className={`font-medium text-left mb-1 ${isMobile ? 'text-xs' : ''}`}>{date.getDate()}</span>
                                 {hasBookings && (
                                   <div className="flex flex-col gap-1 w-full flex-1">
-                                    {dayBookings.slice(0, 4).map((booking, idx) => {
+                                    {dayBookings.slice(0, maxVisible).map((booking, idx) => {
                                       const branch = branches.find(b => b.id === booking.branchId);
                                       return (
                                         <div
@@ -460,24 +490,25 @@ const AdminSlotBooking = () => {
                                             e.stopPropagation();
                                             handleApprovalClick(booking, e);
                                           }}
-                                          className="text-xs px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer"
+                                          className={`px-1 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer ${isMobile ? 'text-xs' : 'text-xs'}`}
                                           style={{ 
                                             backgroundColor: branch?.color || '#6b7280',
                                             ...(booking.status === 'pending' && { border: '2px solid #fbbf24' }),
-                                            ...(booking.status === 'approved' && { border: '2px solid #10b981' }),
-                                            ...(booking.status === 'rejected' && { border: '2px solid #ef4444' })
+                                            ...(booking.status === 'approved' && { border: '2px solid #10b981' })
                                           }}
                                           title={`${booking.employeeName} - ${branch?.name} (${booking.status}) - Click to approve/reject`}
                                         >
-                                          {booking.employeeName.split(' ')[0]}
+                                          {isMobile ? 
+                                            booking.employeeName.split(' ')[0].slice(0, 4) : 
+                                            booking.employeeName.split(' ')[0]
+                                          }
                                           {booking.status === 'pending' && ' ⏳'}
                                           {booking.status === 'approved' && ' ✅'}
-                                          {booking.status === 'rejected' && ' ❌'}
                                         </div>
                                       );
                                     })}
-                                    {dayBookings.length > 4 && (
-                                      <span className="text-xs text-gray-600">+{dayBookings.length - 4}</span>
+                                    {dayBookings.length > maxVisible && (
+                                      <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>+{dayBookings.length - maxVisible}</span>
                                     )}
                                   </div>
                                 )}
@@ -495,7 +526,7 @@ const AdminSlotBooking = () => {
             {/* Selected Date Details */}
             <Card>
               <CardHeader>
-                <CardTitle>
+                <CardTitle className={isMobile ? 'text-lg' : ''}>
                   {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                 </CardTitle>
                 <CardDescription>
@@ -507,56 +538,64 @@ const AdminSlotBooking = () => {
                   {getBookingsForDate(selectedDate).map((booking) => {
                     const branch = branches.find(b => b.id === booking.branchId);
                     return (
-                      <Card key={booking.id} className="p-3">
-                        <div className="flex items-start justify-between">
+                      <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
+                        <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
                           <div className="flex items-center space-x-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
                               style={{ backgroundColor: branch?.color || '#6b7280' }}
                             ></div>
                             <div>
-                              <p className="font-medium text-sm">{booking.employeeName}</p>
-                              <p className="text-xs text-gray-600">{branch?.name}</p>
+                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.employeeName}</p>
+                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{branch?.name}</p>
                               <Badge 
                                 variant={
                                   booking.status === 'approved' ? 'default' :
                                   booking.status === 'pending' ? 'secondary' :
                                   'destructive'
                                 }
-                                className="text-xs mt-1"
+                                className={`mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}
                               >
                                 {booking.status}
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex space-x-1">
+                          <div className={`flex space-x-1 ${isMobile ? 'w-full justify-end' : ''}`}>
                             {booking.status === 'pending' && (
                               <>
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
-                                  className="h-6 w-6 p-0"
+                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
                                   onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
                                 >
-                                  <Check className="w-3 h-3 text-green-600" />
+                                  <Check className={`text-green-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
                                 </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
-                                  className="h-6 w-6 p-0"
+                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
                                   onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
                                 >
-                                  <X className="w-3 h-3 text-red-600" />
+                                  <X className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
                                 </Button>
                               </>
                             )}
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="h-6 w-6 p-0"
+                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
+                              onClick={() => handleSwapClick(booking, new MouseEvent('click') as any)}
+                            >
+                              <UserCheck className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
                               onClick={() => handleApprovalClick(booking, new MouseEvent('click') as any)}
                             >
-                              <Edit className="w-3 h-3" />
+                              <Edit className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
                             </Button>
                           </div>
                         </div>
@@ -565,8 +604,8 @@ const AdminSlotBooking = () => {
                   })}
 
                   {getBookingsForDate(selectedDate).length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      No bookings for this date. Click on the calendar to add bulk bookings.
+                    <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
+                      No bookings for this date.
                     </p>
                   )}
                 </div>
@@ -629,6 +668,13 @@ const AdminSlotBooking = () => {
             onClose={() => setIsBulkBookingDialogOpen(false)}
             selectedDate={selectedDateForBooking}
             onSuccess={handleBulkBookingSuccess}
+          />
+
+          <SwapEmployeeDialog
+            isOpen={isSwapDialogOpen}
+            onClose={() => setIsSwapDialogOpen(false)}
+            booking={selectedBookingForSwap}
+            onSuccess={handleSwapSuccess}
           />
         </main>
       </div>

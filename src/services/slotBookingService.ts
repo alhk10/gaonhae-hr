@@ -390,3 +390,36 @@ export const updateSlotBookingStatus = async (
     return false;
   }
 };
+
+export const updateSlotBookingEmployee = async (
+  bookingId: string,
+  newEmployeeId: string,
+  newEmployeeName: string,
+  notes?: string
+): Promise<boolean> => {
+  try {
+    console.log('SlotBookingService: Swapping employee for booking:', bookingId);
+    
+    const updateData: any = {
+      employee_id: newEmployeeId,
+      employee_name: newEmployeeName,
+      notes: notes || null
+    };
+
+    const { error } = await supabase
+      .from('slot_bookings_new')
+      .update(updateData)
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('SlotBookingService: Error swapping employee:', error);
+      return false;
+    }
+
+    console.log('SlotBookingService: Successfully swapped employee for booking:', bookingId);
+    return true;
+  } catch (error) {
+    console.error('SlotBookingService: Error in updateSlotBookingEmployee:', error);
+    return false;
+  }
+};
