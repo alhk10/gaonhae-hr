@@ -1,4 +1,3 @@
-
 export interface Coordinates {
   latitude: number;
   longitude: number;
@@ -8,6 +7,8 @@ export interface LocationError {
   code: number;
   message: string;
 }
+
+import { supabase } from '@/integrations/supabase/client';
 
 // Calculate distance between two points using Haversine formula
 export const calculateDistance = (
@@ -26,6 +27,33 @@ export const calculateDistance = (
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // Distance in meters
+};
+
+// Check if employee has location exception
+export const hasLocationException = async (employeeId: string): Promise<boolean> => {
+  try {
+    console.log('Checking location exception for employee:', employeeId);
+    
+    const { data, error } = await supabase
+      .from('location_exceptions')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('enabled', true)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking location exception:', error);
+      return false;
+    }
+
+    const hasException = !!data;
+    console.log('Location exception found:', hasException, data);
+    return hasException;
+  } catch (error) {
+    console.error('Error in hasLocationException:', error);
+    return false;
+  }
 };
 
 // Get current user location with better error handling
@@ -90,12 +118,27 @@ const BRANCH_COORDINATES: { [key: string]: Coordinates } = {
   'Main Office': { latitude: 1.2786, longitude: 103.8480 }, // Default to CBD
 };
 
-// Check if user is within range of any branch with better logging
+// Updated function to check location with admin override support
 export const isWithinBranchRange = async (
-  maxDistance: number = 100
-): Promise<{ withinRange: boolean; nearestBranch?: string; distance?: number }> => {
+  maxDistance: number = 100,
+  employeeId?: string
+): Promise<{ withinRange: boolean; nearestBranch?: string; distance?: number; hasException?: boolean }> => {
   try {
-    console.log('Checking branch range with max distance:', maxDistance);
+    console.log('Checking branch range with max distance:', maxDistance, 'for employee:', employeeId);
+    
+    // First check if employee has location exception
+    if (employeeId) {
+      const hasException = await hasLocationException(employeeId);
+      if (hasException) {
+        console.log('Employee has location exception - bypassing GPS check');
+        return {
+          withinRange: true,
+          nearestBranch: 'Admin Override',
+          distance: 0,
+          hasException: true
+        };
+      }
+    }
     
     const currentLocation = await getCurrentLocation();
     console.log('Current location obtained:', currentLocation);
@@ -118,13 +161,15 @@ export const isWithinBranchRange = async (
     console.log('Location check result:', {
       withinRange,
       nearestBranch,
-      distance: Math.round(minDistance)
+      distance: Math.round(minDistance),
+      hasException: false
     });
 
     return {
       withinRange,
       nearestBranch,
-      distance: Math.round(minDistance)
+      distance: Math.round(minDistance),
+      hasException: false
     };
   } catch (error) {
     console.error('Location check failed:', error);

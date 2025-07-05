@@ -1,725 +1,611 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { User, Edit, ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { Calendar } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeById, updateEmployee } from '@/services/employeeService';
-import { getBranches } from '@/services/settingsService';
-import { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
-import { useIsMobile } from '@/hooks/use-mobile';
-import EditEmployeeForm from '@/components/employee/EditEmployeeForm';
+import { EmployeeProfile } from '@/types/employee';
+import { Separator } from '@/components/ui/separator';
+import { deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 
 const EmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
-  const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUsingAdvancedForm, setIsUsingAdvancedForm] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isResigning, setIsResigning] = useState(false);
+  const [resignDate, setResignDate] = useState<Date | undefined>(undefined);
+
+  const { data: employee, isLoading, isError } = useQuery({
+    queryKey: ['employee', id],
+    queryFn: () => getEmployeeById(id!),
+    enabled: !!id,
+  });
+
+  const [employeeData, setEmployeeData] = useState<Partial<EmployeeProfile>>({
     name: '',
     nric: '',
     dateOfBirth: '',
-    residencyStatus: '',
-    type: '',
-    baseSalary: '',
-    hourlyRate: '',
-    dailyWeekdayRate: '',
-    dailyWeekendRate: '',
-    paymentType: '',
+    residencyStatus: 'Citizen',
+    type: 'Full-Time',
+    baseSalary: undefined,
+    hourlyRate: undefined,
+    dailyRate: undefined,
+    dailyWeekdayRate: undefined,
+    dailyWeekendRate: undefined,
+    paymentType: 'Monthly',
     bankName: '',
     bankAccount: '',
-    branch: '',
+    branch: 'Main Office',
+    department: '',
     position: '',
     phone: '',
     address: '',
-    email: ''
+    email: '',
+    joinDate: undefined,
+    resignDate: undefined,
   });
 
-  const [branches, setBranches] = useState([]);
-
   useEffect(() => {
-    const loadEmployee = async () => {
-      if (!id) {
-        toast.error("Employee ID is missing");
-        return;
-      }
+    if (employee) {
+      setEmployeeData({
+        name: employee.name,
+        nric: employee.nric,
+        dateOfBirth: employee.dateOfBirth,
+        residencyStatus: employee.residencyStatus,
+        type: employee.type,
+        baseSalary: employee.baseSalary,
+        hourlyRate: employee.hourlyRate,
+        dailyRate: employee.dailyRate,
+        dailyWeekdayRate: employee.dailyWeekdayRate,
+        dailyWeekendRate: employee.dailyWeekendRate,
+        paymentType: employee.paymentType,
+        bankName: employee.bankName,
+        bankAccount: employee.bankAccount,
+        branch: employee.branch,
+        department: employee.department,
+        position: employee.position,
+        phone: employee.phone,
+        address: employee.address,
+        email: employee.email,
+        joinDate: employee.joinDate,
+        resignDate: employee.resignDate,
+      });
+    }
+  }, [employee]);
 
-      try {
-        setIsLoading(true);
-        const employeeData = await getEmployeeById(id);
-        if (employeeData) {
-          setEmployee(employeeData);
-          setFormData({
-            name: employeeData.name,
-            nric: employeeData.nric,
-            dateOfBirth: employeeData.dateOfBirth,
-            residencyStatus: employeeData.residencyStatus,
-            type: employeeData.type,
-            baseSalary: employeeData.baseSalary ? employeeData.baseSalary.toString() : '',
-            hourlyRate: employeeData.hourlyRate ? employeeData.hourlyRate.toString() : '',
-            dailyWeekdayRate: employeeData.dailyWeekdayRate ? employeeData.dailyWeekdayRate.toString() : '',
-            dailyWeekendRate: employeeData.dailyWeekendRate ? employeeData.dailyWeekendRate.toString() : '',
-            paymentType: employeeData.paymentType || '',
-            bankName: employeeData.bankName,
-            bankAccount: employeeData.bankAccount,
-            branch: employeeData.branch || employeeData.department || '',
-            position: employeeData.position || '',
-            phone: employeeData.phone || '',
-            address: employeeData.address || '',
-            email: employeeData.email || ''
-          });
-        } else {
-          toast.error("Employee not found");
-        }
-      } catch (error) {
-        console.error("Error loading employee:", error);
-        toast.error("Failed to load employee details");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const updateEmployeeMutation = useMutation(
+    (updatedData: EmployeeProfile) => updateEmployee(id!, updatedData),
+    {
+      onSuccess: () => {
+        toast.success('Employee details updated successfully!');
+        queryClient.invalidateQueries({ queryKey: ['employee', id] });
+        queryClient.invalidateQueries({ queryKey: ['employees'] });
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update employee details: ${error.message}`);
+      },
+    }
+  );
 
-    loadEmployee();
-  }, [id]);
+  const deleteEmployeeMutation = useMutation(() => deleteEmployee(id!), {
+    onSuccess: () => {
+      toast.success('Employee deleted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      navigate('/employees');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete employee: ${error.message}`);
+    },
+  });
 
-  useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const branchData = await getBranches();
-        setBranches(branchData);
-      } catch (error) {
-        console.error('Error loading branches:', error);
-      }
-    };
-    
-    loadBranches();
-  }, []);
+  const updateResignDateMutation = useMutation(
+    (resignDate: string) => updateEmployeeResignDate(id!, resignDate),
+    {
+      onSuccess: () => {
+        toast.success('Employee resign date updated successfully!');
+        queryClient.invalidateQueries({ queryKey: ['employee', id] });
+        queryClient.invalidateQueries({ queryKey: ['employees'] });
+        setIsResigning(false);
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update resign date: ${error.message}`);
+        setIsResigning(false);
+      },
+    }
+  );
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEmployeeData(prevData => ({
+      ...prevData,
+      [name]: value,
     }));
   };
 
-  const handleEdit = () => {
-    if (isEditing) {
-      handleSave();
-    } else {
-      setIsEditing(true);
-    }
+  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEmployeeData(prevData => ({
+      ...prevData,
+      [name]: value === '' ? undefined : parseFloat(value),
+    }));
   };
 
-  const handleSave = async () => {
-    if (!employee) return;
+  const handleDateChange = (date: Date | undefined, name: string) => {
+    setEmployeeData(prevData => ({
+      ...prevData,
+      [name]: date ? format(date, 'yyyy-MM-dd') : undefined,
+    }));
+  };
 
-    try {
-      setIsSaving(true);
-      console.log('Saving employee with form data:', formData);
-      
-      // Validate required fields
-      if (!formData.name.trim()) {
-        toast("Please enter employee name");
-        return;
-      }
-      
-      if (!formData.position.trim()) {
-        toast("Please select a position");
-        return;
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-      if (!formData.branch.trim()) {
-        toast("Please select a branch");
-        return;
+    const employeeProfile: EmployeeProfile = {
+      id: id!,
+      name: employeeData.name || '',
+      nric: employeeData.nric || '',
+      dateOfBirth: employeeData.dateOfBirth || '',
+      residencyStatus: employeeData.residencyStatus as 'Citizen' | 'Permanent Resident' | 'Foreigner',
+      type: employeeData.type as 'Full-Time' | 'Casual',
+      baseSalary: employeeData.baseSalary,
+      hourlyRate: employeeData.hourlyRate,
+      dailyRate: employeeData.dailyRate,
+      dailyWeekdayRate: employeeData.dailyWeekdayRate,
+      dailyWeekendRate: employeeData.dailyWeekendRate,
+      paymentType: employeeData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
+      bankName: employeeData.bankName || '',
+      bankAccount: employeeData.bankAccount || '',
+      branch: employeeData.branch || '',
+      department: employeeData.department || '',
+      position: employeeData.position || '',
+      phone: employeeData.phone || '',
+      address: employeeData.address || '',
+      email: employeeData.email || '',
+      joinDate: employeeData.joinDate,
+      resignDate: employeeData.resignDate,
+      allowances: employee?.allowances || [],
+      deductions: employee?.deductions || [],
+      certificates: employee?.certificates || [],
+      adminAccess: employee?.adminAccess || {
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      pageAccess: employee?.pageAccess || {
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
       }
-      
-      // Validate salary based on payment type
-      if (formData.paymentType === 'Monthly' && !formData.baseSalary.trim()) {
-        toast("Please enter base salary for monthly payment");
-        return;
-      }
-      
-      if (formData.paymentType === 'Hourly' && !formData.hourlyRate.trim()) {
-        toast("Please enter hourly rate for hourly payment");
-        return;
-      }
-      
-      if (formData.paymentType === 'Daily' && (!formData.dailyWeekdayRate.trim() || !formData.dailyWeekendRate.trim())) {
-        toast("Please enter both weekday and weekend rates for daily payment");
-        return;
-      }
-      
-      // Convert string values to numbers with proper null handling
-      const updateData = {
-        ...formData,
-        baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : null,
-        hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : null,
-        dailyWeekdayRate: formData.dailyWeekdayRate && formData.dailyWeekdayRate.trim() !== '' ? Number(formData.dailyWeekdayRate) : null,
-        dailyWeekendRate: formData.dailyWeekendRate && formData.dailyWeekendRate.trim() !== '' ? Number(formData.dailyWeekendRate) : null,
-      };
+    };
 
-      console.log('Processed update data with converted numbers:', updateData);
+    updateEmployeeMutation.mutate(employeeProfile);
+  };
 
-      await updateEmployee(employee.id, updateData);
-      
-      const updatedEmployee: EmployeeProfile = {
-        ...employee,
-        ...updateData,
-        type: updateData.type as 'Full-Time' | 'Casual',
-        paymentType: updateData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
-        baseSalary: updateData.baseSalary || undefined,
-        hourlyRate: updateData.hourlyRate || undefined,
-        dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
-        dailyWeekendRate: updateData.dailyWeekendRate || undefined,
-      };
-      
-      console.log('Final updated employee object:', updatedEmployee);
-      setEmployee(updatedEmployee);
-      setIsEditing(false);
-      toast("Employee details updated successfully");
-    } catch (error) {
-      console.error('Error updating employee:', error);
-      toast("Error updating employee details");
-    } finally {
-      setIsSaving(false);
+  const handleDelete = () => {
+    deleteEmployeeMutation.mutate();
+  };
+
+  const handleResign = () => {
+    if (resignDate) {
+      updateResignDateMutation.mutate(format(resignDate, 'yyyy-MM-dd'));
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          {!isMobile && <Sidebar />}
-          <main className="flex-1 p-3 md:p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Loading employee details...</p>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
+    return <div>Loading employee details...</div>;
   }
 
-  if (!employee) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          {!isMobile && <Sidebar />}
-          <main className="flex-1 p-3 md:p-6 overflow-auto">
-            <div className="text-center">
-              <p className="text-red-600">Employee not found</p>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (isUsingAdvancedForm) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          {!isMobile && <Sidebar />}
-          <main className="flex-1 p-3 md:p-6 overflow-auto">
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => navigate('/employees')}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Employees
-                </Button>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Edit Employee Details</h2>
-              </div>
-              
-              <EditEmployeeForm
-                employee={employee}
-                onSave={(updatedEmployee) => {
-                  setEmployee(updatedEmployee);
-                  setIsUsingAdvancedForm(false);
-                  toast("Employee updated successfully");
-                }}
-                onCancel={() => setIsUsingAdvancedForm(false)}
-              />
-            </div>
-          </main>
-        </div>
-      </div>
-    );
+  if (isError || !employee) {
+    return <div>Error loading employee details.</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        {!isMobile && <Sidebar />}
-        <main className="flex-1 p-3 md:p-6 overflow-auto">
-          <div className="space-y-4 md:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => navigate('/employees')}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Employees
-                </Button>
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Employee Details</h2>
-                  <p className="text-sm md:text-base text-gray-600">View and manage employee information</p>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                {!isEditing && (
-                  <Button onClick={() => setIsUsingAdvancedForm(true)} variant="outline">
-                    Advanced Edit
-                  </Button>
-                )}
-                <Button 
-                  onClick={handleEdit} 
-                  disabled={isSaving}
-                  className="flex items-center space-x-2"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Edit className="w-4 h-4" />
-                  )}
-                  <span>{isEditing ? 'Save Changes' : 'Edit Details'}</span>
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
-                    <User className="w-5 h-5" />
-                    <span>Personal Information</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Full Name</Label>
-                    {isEditing ? (
-                      <Input
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.name}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>NRIC/FIN</Label>
-                    {isEditing ? (
-                      <Input
-                        value={formData.nric}
-                        onChange={(e) => handleInputChange('nric', e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.nric}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Date of Birth</Label>
-                    {isEditing ? (
-                      <Input
-                        type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.dateOfBirth}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Residency Status</Label>
-                    {isEditing ? (
-                      <Select 
-                        value={formData.residencyStatus} 
-                        onValueChange={(value) => handleInputChange('residencyStatus', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Singapore Citizen">Singapore Citizen</SelectItem>
-                          <SelectItem value="Permanent Resident Year 1">Permanent Resident Year 1</SelectItem>
-                          <SelectItem value="Permanent Resident Year 2">Permanent Resident Year 2</SelectItem>
-                          <SelectItem value="Work Permit">Work Permit</SelectItem>
-                          <SelectItem value="S Pass">S Pass</SelectItem>
-                          <SelectItem value="Employment Pass">Employment Pass</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.residencyStatus}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Email</Label>
-                    {isEditing ? (
-                      <Input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.email || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Phone</Label>
-                    {isEditing ? (
-                      <Input
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.phone || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Address</Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={formData.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        className="mt-1"
-                        rows={3}
-                      />
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.address || 'Not specified'}</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg md:text-xl">Employment Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Employee ID</Label>
-                    <p className="text-base md:text-lg text-gray-900 mt-1">{employee?.id}</p>
-                  </div>
-
-                  <div>
-                    <Label>Branch</Label>
-                    {isEditing ? (
-                      <Select 
-                        value={formData.branch} 
-                        onValueChange={(value) => handleInputChange('branch', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select a branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {branches.map((branch) => (
-                            <SelectItem key={branch.id} value={branch.name}>
-                              {branch.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee?.branch || employee?.department || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Position</Label>
-                    {isEditing ? (
-                      <Select 
-                        value={formData.position} 
-                        onValueChange={(value) => handleInputChange('position', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select a position" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {POSITION_OPTIONS.map((position) => (
-                            <SelectItem key={position} value={position}>
-                              {position}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.position || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Employment Type</Label>
-                    {isEditing ? (
-                      <Select 
-                        value={formData.type} 
-                        onValueChange={(value) => handleInputChange('type', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Full-Time">Full-Time</SelectItem>
-                          <SelectItem value="Casual">Casual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.type}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Payment Type</Label>
-                    {isEditing ? (
-                      <Select 
-                        value={formData.paymentType} 
-                        onValueChange={(value) => handleInputChange('paymentType', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Monthly">Monthly</SelectItem>
-                          <SelectItem value="Hourly">Hourly</SelectItem>
-                          <SelectItem value="Daily">Daily</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-base md:text-lg text-gray-900 mt-1">{employee.paymentType || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  {/* Show Base Salary for Monthly payment */}
-                  {formData.paymentType === 'Monthly' && (
-                    <div>
-                      <Label>Base Salary (S$)</Label>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={formData.baseSalary}
-                          onChange={(e) => handleInputChange('baseSalary', e.target.value)}
-                          className="mt-1"
-                          placeholder="Enter base salary"
-                        />
-                      ) : (
-                        <p className="text-base md:text-lg text-gray-900 mt-1">
-                          {employee.baseSalary ? `S$${employee.baseSalary.toLocaleString()}` : 'Not specified'}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {formData.paymentType === 'Hourly' && (
-                    <div>
-                      <Label>Hourly Rate (S$)</Label>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={formData.hourlyRate}
-                          onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
-                          className="mt-1"
-                          placeholder="Enter hourly rate"
-                        />
-                      ) : (
-                        <p className="text-base md:text-lg text-gray-900 mt-1">
-                          {employee.hourlyRate ? `S$${employee.hourlyRate}/hour` : 'Not specified'}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {formData.paymentType === 'Daily' && (
-                    <>
-                      <div>
-                        <Label>Daily Weekday Rate (S$)</Label>
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.dailyWeekdayRate}
-                            onChange={(e) => handleInputChange('dailyWeekdayRate', e.target.value)}
-                            className="mt-1"
-                            placeholder="Enter weekday rate"
-                          />
-                        ) : (
-                          <p className="text-base md:text-lg text-gray-900 mt-1">
-                            {employee.dailyWeekdayRate ? `S$${employee.dailyWeekdayRate}/day` : 'Not specified'}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <Label>Daily Weekend Rate (S$)</Label>
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.dailyWeekendRate}
-                            onChange={(e) => handleInputChange('dailyWeekendRate', e.target.value)}
-                            className="mt-1"
-                            placeholder="Enter weekend rate"
-                          />
-                        ) : (
-                          <p className="text-base md:text-lg text-gray-900 mt-1">
-                            {employee.dailyWeekendRate ? `S$${employee.dailyWeekendRate}/day` : 'Not specified'}
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg md:text-xl">Bank Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Bank Name</Label>
-                  {isEditing ? (
-                    <Input
-                      value={formData.bankName}
-                      onChange={(e) => handleInputChange('bankName', e.target.value)}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-base md:text-lg text-gray-900 mt-1">{employee.bankName}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Bank Account</Label>
-                  {isEditing ? (
-                    <Input
-                      value={formData.bankAccount}
-                      onChange={(e) => handleInputChange('bankAccount', e.target.value)}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-base md:text-lg text-gray-900 mt-1">{employee.bankAccount}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg md:text-xl">Allowances</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {employee.allowances && employee.allowances.length > 0 ? (
-                  <div className="grid gap-4">
-                    {employee.allowances.map((allowance: EmployeeAllowance) => (
-                      <div key={allowance.id} className="border rounded-md p-4">
-                        <p className="font-semibold">{allowance.name}</p>
-                        <p>Amount: S${allowance.amount}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No allowances added.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg md:text-xl">Deductions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {employee.deductions && employee.deductions.length > 0 ? (
-                  <div className="grid gap-4">
-                    {employee.deductions.map((deduction: EmployeeDeduction) => (
-                      <div key={deduction.id} className="border rounded-md p-4">
-                        <p className="font-semibold">{deduction.name}</p>
-                        <p>Amount: S${deduction.amount}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No deductions added.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Employee Details</CardTitle>
+        </CardHeader>
+        <div className="space-x-2">
+          <Button variant="outline" onClick={() => navigate('/employees')}>
+            Back to Employees
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Delete Employee</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete this employee from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={employeeData.name || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="nric">NRIC</Label>
+                <Input
+                  type="text"
+                  id="nric"
+                  name="nric"
+                  value={employeeData.nric || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  type="date"
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  value={employeeData.dateOfBirth || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="residencyStatus">Residency Status</Label>
+                <Select
+                  name="residencyStatus"
+                  defaultValue={employeeData.residencyStatus || 'Citizen'}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, residencyStatus: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Citizen">Citizen</SelectItem>
+                    <SelectItem value="Permanent Resident">Permanent Resident</SelectItem>
+                    <SelectItem value="Foreigner">Foreigner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="type">Employee Type</Label>
+                <Select
+                  name="type"
+                  defaultValue={employeeData.type || 'Full-Time'}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Full-Time">Full-Time</SelectItem>
+                    <SelectItem value="Casual">Casual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="joinDate">Join Date</Label>
+                <Input
+                  type="date"
+                  id="joinDate"
+                  name="joinDate"
+                  value={employeeData.joinDate || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <CardHeader>
+              <CardTitle>Salary Information</CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="paymentType">Payment Type</Label>
+                <Select
+                  name="paymentType"
+                  defaultValue={employeeData.paymentType || 'Monthly'}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, paymentType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Hourly">Hourly</SelectItem>
+                    <SelectItem value="Daily">Daily</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {employeeData.paymentType === 'Monthly' && (
+                <div>
+                  <Label htmlFor="baseSalary">Base Salary</Label>
+                  <Input
+                    type="number"
+                    id="baseSalary"
+                    name="baseSalary"
+                    value={employeeData.baseSalary === undefined ? '' : employeeData.baseSalary.toString()}
+                    onChange={handleNumberInputChange}
+                  />
+                </div>
+              )}
+
+              {employeeData.paymentType === 'Hourly' && (
+                <div>
+                  <Label htmlFor="hourlyRate">Hourly Rate</Label>
+                  <Input
+                    type="number"
+                    id="hourlyRate"
+                    name="hourlyRate"
+                    value={employeeData.hourlyRate === undefined ? '' : employeeData.hourlyRate.toString()}
+                    onChange={handleNumberInputChange}
+                  />
+                </div>
+              )}
+
+              {employeeData.paymentType === 'Daily' && (
+                <>
+                  <div>
+                    <Label htmlFor="dailyRate">Daily Rate</Label>
+                    <Input
+                      type="number"
+                      id="dailyRate"
+                      name="dailyRate"
+                      value={employeeData.dailyRate === undefined ? '' : employeeData.dailyRate.toString()}
+                      onChange={handleNumberInputChange}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate</Label>
+                    <Input
+                      type="number"
+                      id="dailyWeekdayRate"
+                      name="dailyWeekdayRate"
+                      value={employeeData.dailyWeekdayRate === undefined ? '' : employeeData.dailyWeekdayRate.toString()}
+                      onChange={handleNumberInputChange}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dailyWeekendRate">Daily Weekend Rate</Label>
+                    <Input
+                      type="number"
+                      id="dailyWeekendRate"
+                      name="dailyWeekendRate"
+                      value={employeeData.dailyWeekendRate === undefined ? '' : employeeData.dailyWeekendRate.toString()}
+                      onChange={handleNumberInputChange}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <Separator className="my-4" />
+
+            <CardHeader>
+              <CardTitle>Bank Information</CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  type="text"
+                  id="bankName"
+                  name="bankName"
+                  value={employeeData.bankName || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="bankAccount">Bank Account</Label>
+                <Input
+                  type="text"
+                  id="bankAccount"
+                  name="bankAccount"
+                  value={employeeData.bankAccount || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <CardHeader>
+              <CardTitle>Company Information</CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="branch">Branch</Label>
+                <Input
+                  type="text"
+                  id="branch"
+                  name="branch"
+                  value={employeeData.branch || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="department">Department</Label>
+                <Input
+                  type="text"
+                  id="department"
+                  name="department"
+                  value={employeeData.department || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="position">Position</Label>
+                <Input
+                  type="text"
+                  id="position"
+                  name="position"
+                  value={employeeData.position || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  type="text"
+                  id="phone"
+                  name="phone"
+                  value={employeeData.phone || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  type="text"
+                  id="address"
+                  name="address"
+                  value={employeeData.address || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={employeeData.email || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <CardHeader>
+              <CardTitle>Resign Information</CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="resignDate">Resign Date</Label>
+                <div className="relative">
+                  <DatePicker
+                    id="resignDate"
+                    onSelect={(date) => {
+                      setResignDate(date);
+                      handleDateChange(date, 'resignDate');
+                    }}
+                  />
+                  {employeeData.resignDate && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Current Resign Date: {employeeData.resignDate}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit">Update Employee</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Location Exception Management */}
+      <LocationExceptionManager 
+        employeeId={id} 
+        employeeName={employee?.name}
+      />
+
+      <Card>
+        <CardContent>
+          <div className="flex justify-end">
+            <Button
+              variant="destructive"
+              onClick={() => setIsResigning(true)}
+              disabled={isResigning}
+            >
+              {isResigning ? 'Resigning...' : 'Confirm Resignation'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Confirm Resignation Dialog */}
+      <AlertDialog open={isResigning} onOpenChange={setIsResigning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Resignation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to confirm the resignation for this employee?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsResigning(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleResign}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
-
-const POSITION_OPTIONS = [
-  'Manager',
-  'Assistant Manager',
-  'Senior Executive',
-  'Executive',
-  'Senior Officer',
-  'Officer',
-  'Assistant',
-  'Clerk',
-  'Supervisor',
-  'Team Leader',
-  'Senior Specialist',
-  'Specialist',
-  'Analyst',
-  'Senior Analyst',
-  'Coordinator',
-  'Administrator',
-  'Receptionist',
-  'Sales Executive',
-  'Sales Manager',
-  'Marketing Executive',
-  'HR Executive',
-  'HR Manager',
-  'Finance Executive',
-  'Finance Manager',
-  'Operations Executive',
-  'Operations Manager',
-  'IT Support',
-  'IT Manager',
-  'Developer',
-  'Senior Developer',
-  'Project Manager',
-  'Director',
-  'Senior Director',
-  'General Manager',
-  'Senior Partner',
-  'Instructor',
-  'Casual Instructor',
-  'Training Assistant',
-  'Part-time Staff',
-  'Freelancer',
-  'Consultant',
-  'Other'
-];
 
 export default EmployeeDetails;

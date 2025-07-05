@@ -74,14 +74,17 @@ const EmployeeDashboard = () => {
     
     try {
       console.log('Dashboard: Starting location check for user:', user.id);
-      const locationCheck = await isWithinBranchRange(100);
+      const locationCheck = await isWithinBranchRange(100, user.id);
       console.log('Dashboard: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
       setNearestBranch(locationCheck.nearestBranch || '');
       
-      if (!locationCheck.withinRange) {
+      if (!locationCheck.withinRange && !locationCheck.hasException) {
         setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 100m to clock in.`);
+      } else if (locationCheck.hasException) {
+        setLocationError('');
+        console.log('Location exception active - clock in enabled');
       }
     } catch (error) {
       console.error('Dashboard: Location check failed:', error);
@@ -272,8 +275,8 @@ const EmployeeDashboard = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(100);
-        if (!locationCheck.withinRange) {
+        const locationCheck = await isWithinBranchRange(100, user.id);
+        if (!locationCheck.withinRange && !locationCheck.hasException) {
           toast.error(
             `You must be within 100m of a branch to clock in/out. ` +
             `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
@@ -284,6 +287,10 @@ const EmployeeDashboard = () => {
         setLocationCheckPassed(true);
         setNearestBranch(locationCheck.nearestBranch || '');
         setLocationError('');
+        
+        if (locationCheck.hasException) {
+          console.log('Using admin location exception for clock in/out');
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Location access failed';
         toast.error(errorMessage);
