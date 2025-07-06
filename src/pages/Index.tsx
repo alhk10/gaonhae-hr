@@ -14,6 +14,7 @@ const Index = () => {
   console.log('Index: Rendering with state:', { 
     user: !!user, 
     userEmail: user?.email,
+    userRole: user?.role,
     requiresPasswordChange, 
     isLoading 
   });
@@ -46,12 +47,16 @@ const Index = () => {
   const renderDashboard = () => {
     switch (user.role) {
       case 'superadmin':
+        console.log('Index: Rendering SuperadminDashboard');
         return <SuperadminDashboard />;
       case 'manager':
+        console.log('Index: Rendering ManagerDashboard');
         return <ManagerDashboard />;
       case 'employee':
+        console.log('Index: Rendering EmployeeDashboard');
         return <EmployeeDashboard />;
       default:
+        console.error('Index: Invalid user role:', user.role);
         return <div>Invalid user role: {user.role}</div>;
     }
   };

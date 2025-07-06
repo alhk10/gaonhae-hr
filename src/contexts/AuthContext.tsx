@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -13,6 +14,44 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Helper function to determine user role based on admin permissions
+const determineUserRole = (adminAccess: any): 'superadmin' | 'manager' | 'employee' => {
+  console.log('AuthContext: Determining role based on admin access:', adminAccess);
+  
+  if (!adminAccess) {
+    return 'employee';
+  }
+
+  // Count how many admin permissions are enabled
+  const permissions = [
+    adminAccess.employees,
+    adminAccess.payroll,
+    adminAccess.leave_management,
+    adminAccess.claims,
+    adminAccess.attendance,
+    adminAccess.slot_booking,
+    adminAccess.reports
+  ].filter(Boolean).length;
+
+  console.log('AuthContext: Admin permissions count:', permissions);
+
+  // If user has all 7 permissions, they are superadmin
+  if (permissions === 7) {
+    console.log('AuthContext: User has all permissions - assigning superadmin role');
+    return 'superadmin';
+  }
+  
+  // If user has some permissions (but not all), they are manager
+  if (permissions > 0) {
+    console.log('AuthContext: User has partial permissions - assigning manager role');
+    return 'manager';
+  }
+  
+  // If user has no permissions, they are employee
+  console.log('AuthContext: User has no permissions - assigning employee role');
+  return 'employee';
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -215,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       needsPasswordChange = true;
     }
     
-    // Define system admin users
+    // Define system admin users - these always get superadmin role
     const systemUsers: { [key: string]: User } = {
       'alhk10@gmail.com': {
         id: 'ADMIN001',
@@ -269,14 +308,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (employee) {
         console.log('AuthContext: Employee found:', employee);
         
+        // Get admin access permissions for this employee
+        const { data: adminAccess } = await supabase
+          .from('admin_access')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .single();
+
+        console.log('AuthContext: Admin access for employee:', adminAccess);
+        
+        // Determine role based on admin permissions
+        const userRole = determineUserRole(adminAccess);
+        console.log('AuthContext: Determined role:', userRole);
+        
         const userRecord: User = {
           id: employee.id,
           name: employee.name,
           email: employee.email,
-          role: 'employee',
+          role: userRole, // Use dynamically determined role
           department: employee.branch,
           employeeId: employee.id
         };
+        
+        console.log('AuthContext: Created user record with role:', userRecord.role);
         
         setUser(userRecord);
         await saveUserSession(userRecord, password);

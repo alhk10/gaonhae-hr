@@ -605,6 +605,47 @@ export type Database = {
         }
         Relationships: []
       }
+      location_exceptions: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          employee_id: string
+          enabled: boolean
+          expires_at: string | null
+          id: string
+          reason: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          employee_id: string
+          enabled?: boolean
+          expires_at?: string | null
+          id?: string
+          reason: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          employee_id?: string
+          enabled?: boolean
+          expires_at?: string | null
+          id?: string
+          reason?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_exceptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_records: {
         Row: {
           created_at: string | null
