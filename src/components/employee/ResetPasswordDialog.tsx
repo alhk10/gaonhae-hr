@@ -56,7 +56,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
       const salt = generateSalt();
       const hashedPassword = await hashPassword(passwordToUse, salt);
 
-      // Update password in database with enhanced security fields
+      // Update password in database with enhanced security fields using type assertion
       const { error } = await supabase
         .from('user_passwords')
         .upsert({
@@ -69,7 +69,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
           last_password_change: new Date().toISOString(),
           failed_attempts: 0,
           locked_until: null
-        });
+        } as any);
 
       if (error) {
         console.error('ResetPasswordDialog: Error resetting password:', error);

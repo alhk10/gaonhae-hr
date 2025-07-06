@@ -47,8 +47,8 @@ const SuperadminManager: React.FC = () => {
       const employeeData = await getEmployees();
       setEmployees(employeeData);
       
-      // Load superadmin users
-      const { data: superadminData, error } = await supabase
+      // Load superadmin users using type assertion
+      const { data: superadminData, error } = await (supabase as any)
         .from('superadmin_users')
         .select(`
           *,
@@ -67,10 +67,10 @@ const SuperadminManager: React.FC = () => {
       }
 
       // Transform data to include employee info
-      const transformedData = superadminData?.map(sa => ({
+      const transformedData = superadminData?.map((sa: any) => ({
         ...sa,
-        employee_name: (sa.employees as any)?.name,
-        employee_email: (sa.employees as any)?.email
+        employee_name: sa.employees?.name,
+        employee_email: sa.employees?.email
       })) || [];
 
       setSuperadmins(transformedData);
@@ -118,7 +118,7 @@ const SuperadminManager: React.FC = () => {
         return;
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('superadmin_users')
         .insert({
           employee_id: selectedEmployee,
@@ -171,7 +171,7 @@ const SuperadminManager: React.FC = () => {
     if (!removingSuperadmin) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('superadmin_users')
         .update({ is_active: false })
         .eq('id', removingSuperadmin.id);

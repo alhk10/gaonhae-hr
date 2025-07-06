@@ -1,63 +1,50 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { checkPasswordComplexity } from '@/services/securityService';
 
-interface PasswordChangeModalProps {
-  open: boolean;
-  onClose?: () => void;
-}
-
-const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose }) => {
+const PasswordChangeModal: React.FC = () => {
+  const { requiresPasswordChange, updatePassword } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [complexityCheck, setComplexityCheck] = useState({ isValid: false, errors: [] as string[] });
-  const { updatePassword, requiresPasswordChange } = useAuth();
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Check password complexity in real-time
-  useEffect(() => {
-    if (newPassword) {
-      const result = checkPasswordComplexity(newPassword);
-      setComplexityCheck(result);
-    } else {
-      setComplexityCheck({ isValid: false, errors: [] });
-    }
-  }, [newPassword]);
+  const passwordComplexity = checkPasswordComplexity(newPassword);
+  const passwordsMatch = newPassword === confirmPassword && newPassword.length > 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordUpdate = async () => {
+    console.log('PasswordChangeModal: Starting password update process');
     
-    if (!complexityCheck.isValid) {
+    if (!passwordComplexity.isValid) {
       toast({
         title: "Password Requirements Not Met",
-        description: "Please ensure your password meets all complexity requirements.",
+        description: passwordComplexity.errors.join(', '),
         variant: "destructive",
       });
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (!passwordsMatch) {
       toast({
-        title: "Password Mismatch",
-        description: "New password and confirmation do not match.",
+        title: "Passwords Don't Match",
+        description: "Please ensure both password fields match.",
         variant: "destructive",
       });
       return;
     }
-    
-    setIsLoading(true);
+
+    setIsUpdating(true);
+    console.log('PasswordChangeModal: Calling updatePassword...');
     
     try {
-      console.log('PasswordChangeModal: Attempting to update password');
       const success = await updatePassword(newPassword);
       
       if (success) {
@@ -67,125 +54,104 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
           description: "Your password has been successfully updated.",
         });
         
-        // Clear form
         setNewPassword('');
         setConfirmPassword('');
-        
-        console.log('PasswordChangeModal: Password update completed, modal should close automatically');
-        
       } else {
-        console.error('PasswordChangeModal: Password update failed');
+        console.log('PasswordChangeModal: Password update failed');
         toast({
           title: "Update Failed",
-          description: "Failed to update password. The password may have been used recently or doesn't meet security requirements.",
+          description: "Failed to update password. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('PasswordChangeModal: Error updating password:', error);
+      console.error('PasswordChangeModal: Error during password update:', error);
       toast({
-        title: "Update Failed",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Update Error",
+        description: "An error occurred while updating your password.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsUpdating(false);
     }
   };
 
-  // Handle dialog open/close - prevent closing if it's a required password change
-  const handleOpenChange = (newOpen: boolean) => {
-    console.log('PasswordChangeModal: handleOpenChange called with:', newOpen);
-    console.log('PasswordChangeModal: requiresPasswordChange:', requiresPasswordChange);
-    
-    if (!newOpen) {
-      // Only allow closing if it's not a required password change
-      if (!requiresPasswordChange && onClose) {
-        console.log('PasswordChangeModal: Closing modal via onClose');
-        onClose();
-      } else {
-        console.log('PasswordChangeModal: Preventing modal close - password change required');
-      }
-    }
-  };
+  if (!requiresPasswordChange) {
+    return null;
+  }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={requiresPasswordChange} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md" hideCloseButton>
         <DialogHeader>
-          <DialogTitle>Change Your Password</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-amber-500" />
+            Password Change Required
+          </DialogTitle>
           <DialogDescription>
-            {requiresPasswordChange 
-              ? "For security reasons, you must change your password before continuing."
-              : "Update your password to maintain account security."
-            }
+            For security reasons, you must change your password before continuing.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800">Password Requirements:</p>
+                <ul className="mt-1 text-amber-700 space-y-1">
+                  <li>• At least 8 characters long</li>
+                  <li>• Contains uppercase and lowercase letters</li>
+                  <li>• Contains at least one number</li>
+                  <li>• Contains at least one special character (@$!%*?&)</li>
+                  <li>• Cannot be "password"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
             <div className="relative">
               <Input
                 id="newPassword"
-                type={showNewPassword ? "text" : "password"}
+                type={showPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-                required
-                disabled={isLoading}
-                autoComplete="new-password"
-                className={newPassword && !complexityCheck.isValid ? "border-red-500" : ""}
+                className={`pr-10 ${
+                  newPassword && !passwordComplexity.isValid 
+                    ? 'border-red-500 focus:border-red-500' 
+                    : newPassword && passwordComplexity.isValid 
+                    ? 'border-green-500 focus:border-green-500' 
+                    : ''
+                }`}
+                placeholder="Enter your new password"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                disabled={isLoading}
+                className="absolute right-0 top-0 h-full px-3"
+                onClick={() => setShowPassword(!showPassword)}
               >
-                {showNewPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </Button>
             </div>
-            
-            {/* Password Complexity Indicators */}
-            {newPassword && (
+            {newPassword && !passwordComplexity.isValid && (
               <div className="space-y-1">
-                <div className="text-sm font-medium text-gray-700">Password Requirements:</div>
-                <div className="space-y-1">
-                  <div className={`flex items-center text-xs ${newPassword.length >= 8 ? 'text-green-600' : 'text-red-600'}`}>
-                    {newPassword.length >= 8 ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    At least 8 characters
-                  </div>
-                  <div className={`flex items-center text-xs ${/[a-z]/.test(newPassword) ? 'text-green-600' : 'text-red-600'}`}>
-                    {/[a-z]/.test(newPassword) ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    One lowercase letter
-                  </div>
-                  <div className={`flex items-center text-xs ${/[A-Z]/.test(newPassword) ? 'text-green-600' : 'text-red-600'}`}>
-                    {/[A-Z]/.test(newPassword) ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    One uppercase letter
-                  </div>
-                  <div className={`flex items-center text-xs ${/\d/.test(newPassword) ? 'text-green-600' : 'text-red-600'}`}>
-                    {/\d/.test(newPassword) ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    One number
-                  </div>
-                  <div className={`flex items-center text-xs ${/[@$!%*?&]/.test(newPassword) ? 'text-green-600' : 'text-red-600'}`}>
-                    {/[@$!%*?&]/.test(newPassword) ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    One special character (@$!%*?&)
-                  </div>
-                  <div className={`flex items-center text-xs ${newPassword.toLowerCase() !== 'password' ? 'text-green-600' : 'text-red-600'}`}>
-                    {newPassword.toLowerCase() !== 'password' ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    Not "password"
-                  </div>
-                </div>
+                {passwordComplexity.errors.map((error, index) => (
+                  <p key={index} className="text-xs text-red-600">• {error}</p>
+                ))}
+              </div>
+            )}
+            {newPassword && passwordComplexity.isValid && (
+              <div className="flex items-center space-x-2 text-green-600">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs">Password meets requirements</span>
               </div>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
             <div className="relative">
@@ -194,40 +160,44 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ open, onClose
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                required
-                disabled={isLoading}
-                autoComplete="new-password"
-                className={confirmPassword && newPassword !== confirmPassword ? "border-red-500" : ""}
+                className={`pr-10 ${
+                  confirmPassword && !passwordsMatch 
+                    ? 'border-red-500 focus:border-red-500' 
+                    : confirmPassword && passwordsMatch 
+                    ? 'border-green-500 focus:border-green-500' 
+                    : ''
+                }`}
+                placeholder="Confirm your new password"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-3"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                disabled={isLoading}
               >
-                {showConfirmPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </Button>
             </div>
-            {confirmPassword && newPassword !== confirmPassword && (
-              <p className="text-xs text-red-600">Passwords do not match</p>
+            {confirmPassword && !passwordsMatch && (
+              <p className="text-xs text-red-600">• Passwords do not match</p>
+            )}
+            {confirmPassword && passwordsMatch && (
+              <div className="flex items-center space-x-2 text-green-600">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs">Passwords match</span>
+              </div>
             )}
           </div>
-          
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isLoading || !complexityCheck.isValid || newPassword !== confirmPassword || !newPassword || !confirmPassword}
+
+          <Button
+            onClick={handlePasswordUpdate}
+            disabled={!passwordComplexity.isValid || !passwordsMatch || isUpdating}
+            className="w-full"
           >
-            {isLoading ? 'Updating Password...' : 'Update Password'}
+            {isUpdating ? 'Updating Password...' : 'Update Password'}
           </Button>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -108,7 +108,8 @@ export const logSecurityEvent = async (auditLog: SecurityAuditLog): Promise<void
 // Check password history to prevent reuse
 export const checkPasswordHistory = async (email: string, newPassword: string): Promise<boolean> => {
   try {
-    const { data: history, error } = await supabase
+    // Use type assertion to work around TypeScript limitations
+    const { data: history, error } = await (supabase as any)
       .from('password_history')
       .select('password_hash, salt')
       .eq('email', email)
@@ -142,7 +143,7 @@ export const checkPasswordHistory = async (email: string, newPassword: string): 
 // Add password to history
 export const addPasswordToHistory = async (email: string, passwordHash: string, salt: string): Promise<void> => {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('password_history')
       .insert({
         email,
@@ -163,7 +164,7 @@ export const checkFailedLoginAttempts = async (email: string): Promise<boolean> 
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('failed_login_attempts')
       .select('id')
       .eq('email', email)
@@ -184,7 +185,7 @@ export const checkFailedLoginAttempts = async (email: string): Promise<boolean> 
 // Log failed login attempt
 export const logFailedLoginAttempt = async (email: string): Promise<void> => {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('failed_login_attempts')
       .insert({
         email,
@@ -203,7 +204,7 @@ export const logFailedLoginAttempt = async (email: string): Promise<void> => {
 // Clear failed login attempts after successful login
 export const clearFailedLoginAttempts = async (email: string): Promise<void> => {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('failed_login_attempts')
       .delete()
       .eq('email', email);

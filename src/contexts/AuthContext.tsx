@@ -101,17 +101,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Check password change requirement
-          const { data: passwordData } = await supabase
+          // Check password change requirement using type assertion
+          const { data: passwordData, error: pwError } = await (supabase as any)
             .from('user_passwords')
             .select('requires_change, must_change_password')
             .eq('email', sessionData.email)
             .single();
           
-          // Set password change requirement if either flag is true
-          const needsPasswordChange = passwordData?.requires_change === true || passwordData?.must_change_password === true;
-          console.log('AuthContext: Password change required on init:', needsPasswordChange);
-          setRequiresPasswordChange(needsPasswordChange);
+          if (!pwError && passwordData) {
+            // Set password change requirement if either flag is true
+            const needsPasswordChange = passwordData.requires_change === true || passwordData.must_change_password === true;
+            console.log('AuthContext: Password change required on init:', needsPasswordChange);
+            setRequiresPasswordChange(needsPasswordChange);
+          }
         } else {
           console.log('AuthContext: No active session found');
         }
@@ -199,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           last_password_change: new Date().toISOString(),
           failed_attempts: 0,
           locked_until: null
-        }, {
+        } as any, {
           onConflict: 'email'
         });
 
@@ -250,8 +252,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
     
-    // Check stored passwords first
-    const { data: passwordData } = await supabase
+    // Check stored passwords first using type assertion
+    const { data: passwordData, error: pwError } = await (supabase as any)
       .from('user_passwords')
       .select('password_hash, salt, requires_change, must_change_password, locked_until')
       .eq('email', email)
@@ -260,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let passwordValid = false;
     let needsPasswordChange = false;
 
-    if (passwordData) {
+    if (!pwError && passwordData) {
       // Check if account is locked
       if (passwordData.locked_until && new Date(passwordData.locked_until) > new Date()) {
         console.log('AuthContext: Account is locked until:', passwordData.locked_until);
@@ -361,7 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 requires_change: false,
                 must_change_password: true,
                 password_complexity_met: false
-              });
+              } as any);
           }
         }
         
