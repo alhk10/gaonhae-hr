@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -164,242 +163,230 @@ const Claims = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center flex items-center justify-center h-full">
-              <div>
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-lg text-gray-600">Loading claims...</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-lg text-gray-600">Loading claims...</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
-              <p className="text-gray-600 mt-2">Manage and approve employee expense claims</p>
-            </div>
+    <ResponsiveLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
+          <p className="text-gray-600 mt-2">Manage and approve employee expense claims</p>
+        </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <DollarSign className="w-8 h-8 text-green-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-green-600">Approved This Month</p>
-                      <p className="text-2xl font-bold text-green-900">S${stats.totalAmount.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <FileText className="w-8 h-8 text-blue-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-blue-600">Total Claims</p>
-                      <p className="text-2xl font-bold text-blue-900">{stats.totalClaims}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Check className="w-8 h-8 text-green-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-green-600">Approved</p>
-                      <p className="text-2xl font-bold text-green-900">{stats.approvedClaims}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <FileText className="w-8 h-8 text-yellow-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-yellow-600">Pending</p>
-                      <p className="text-2xl font-bold text-yellow-900">{stats.pendingClaims}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Additional Stats Row for Rejected Claims */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <X className="w-8 h-8 text-red-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-red-600">Rejected Claims</p>
-                      <p className="text-2xl font-bold text-red-900">{stats.rejectedClaims}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <DollarSign className="w-8 h-8 text-yellow-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-yellow-600">Pending Amount</p>
-                      <p className="text-2xl font-bold text-yellow-900">S${stats.pendingAmount.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <DollarSign className="w-8 h-8 text-red-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-red-600">Rejected Amount</p>
-                      <p className="text-2xl font-bold text-red-900">S${stats.rejectedAmount.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Claims Table */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>All Claims (Including Rejected)</CardTitle>
-                    <CardDescription>Review and manage all employee expense claims with month filtering.</CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <label htmlFor="month-filter" className="text-sm font-medium text-gray-700">
-                      Filter by Month:
-                    </label>
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Select month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getMonthOptions().map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <DollarSign className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-green-600">Approved This Month</p>
+                  <p className="text-2xl font-bold text-green-900">S${stats.totalAmount.toFixed(2)}</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {filteredClaims.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredClaims.map((claim) => (
-                          <TableRow key={claim.id}>
-                            <TableCell className="font-medium">{claim.employee}</TableCell>
-                            <TableCell>{claim.type}</TableCell>
-                            <TableCell>S${claim.amount.toFixed(2)}</TableCell>
-                            <TableCell>{new Date(claim.date).toLocaleDateString()}</TableCell>
-                            <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={
-                                  claim.status === 'Approved' ? 'default' : 
-                                  claim.status === 'Pending' ? 'secondary' : 
-                                  'destructive'
-                                }
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <FileText className="w-8 h-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-blue-600">Total Claims</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.totalClaims}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Check className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-green-600">Approved</p>
+                  <p className="text-2xl font-bold text-green-900">{stats.approvedClaims}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <FileText className="w-8 h-8 text-yellow-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-yellow-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-900">{stats.pendingClaims}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Stats Row for Rejected Claims */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <X className="w-8 h-8 text-red-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-red-600">Rejected Claims</p>
+                  <p className="text-2xl font-bold text-red-900">{stats.rejectedClaims}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <DollarSign className="w-8 h-8 text-yellow-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-yellow-600">Pending Amount</p>
+                  <p className="text-2xl font-bold text-yellow-900">S${stats.pendingAmount.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <DollarSign className="w-8 h-8 text-red-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-red-600">Rejected Amount</p>
+                  <p className="text-2xl font-bold text-red-900">S${stats.rejectedAmount.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Claims Table */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>All Claims (Including Rejected)</CardTitle>
+                <CardDescription>Review and manage all employee expense claims with month filtering.</CardDescription>
+              </div>
+              <div className="flex items-center space-x-2">
+                <label htmlFor="month-filter" className="text-sm font-medium text-gray-700">
+                  Filter by Month:
+                </label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMonthOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredClaims.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClaims.map((claim) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="font-medium">{claim.employee}</TableCell>
+                        <TableCell>{claim.type}</TableCell>
+                        <TableCell>S${claim.amount.toFixed(2)}</TableCell>
+                        <TableCell>{new Date(claim.date).toLocaleDateString()}</TableCell>
+                        <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              claim.status === 'Approved' ? 'default' : 
+                              claim.status === 'Pending' ? 'secondary' : 
+                              'destructive'
+                            }
+                          >
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            {claim.status === 'Pending' && user?.role !== 'employee' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(claim.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleReject(claim.id)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            
+                            {user?.role === 'superadmin' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDelete(claim.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
-                                {claim.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                {claim.status === 'Pending' && user?.role !== 'employee' && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleApprove(claim.id)}
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => handleReject(claim.id)}
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </Button>
-                                  </>
-                                )}
-                                
-                                {user?.role === 'superadmin' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDelete(claim.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">
-                      {selectedMonth !== 'all' ? 
-                        `No claims found for ${getMonthOptions().find(opt => opt.value === selectedMonth)?.label}` : 
-                        'No claims found'
-                      }
-                    </p>
-                    <p className="text-sm">Claims will appear here once submitted by employees</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg">
+                  {selectedMonth !== 'all' ? 
+                    `No claims found for ${getMonthOptions().find(opt => opt.value === selectedMonth)?.label}` : 
+                    'No claims found'
+                  }
+                </p>
+                <p className="text-sm">Claims will appear here once submitted by employees</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </ResponsiveLayout>
   );
 };
 
