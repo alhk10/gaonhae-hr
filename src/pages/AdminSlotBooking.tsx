@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
@@ -24,6 +24,7 @@ import {
   getWeeklySlotConfig,
   updateWeeklySlotConfig,
   cancelSlotBooking,
+  updateSlotBookingEmployee,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig
@@ -48,6 +49,10 @@ const AdminSlotBooking = () => {
   const [loading, setLoading] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [autoRefreshActive, setAutoRefreshActive] = useState(true);
+
+  // New state for swap functionality in approval dialog
+  const [swapEmployeeId, setSwapEmployeeId] = useState('');
+  const [isSwappingInDialog, setIsSwappingInDialog] = useState(false);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -141,6 +146,7 @@ const AdminSlotBooking = () => {
   const handleApprovalClick = (booking: SlotBooking, event: React.MouseEvent) => {
     event.stopPropagation();
     setSelectedBookingForApproval(booking);
+    setSwapEmployeeId(''); // Reset swap selection
     setIsApprovalDialogOpen(true);
   };
 
@@ -209,6 +215,38 @@ const AdminSlotBooking = () => {
     } catch (error) {
       console.error('AdminSlotBooking: Error updating booking status:', error);
       toast.error("Failed to update booking status");
+    }
+  };
+
+  const handleSwapInDialog = async () => {
+    if (!selectedBookingForApproval || !swapEmployeeId) return;
+    
+    const selectedEmployee = casualEmployees.find(emp => emp.id === swapEmployeeId);
+    if (!selectedEmployee) return;
+
+    try {
+      setIsSwappingInDialog(true);
+      const success = await updateSlotBookingEmployee(
+        selectedBookingForApproval.id,
+        swapEmployeeId,
+        selectedEmployee.name,
+        `Swapped from ${selectedBookingForApproval.employeeName} to ${selectedEmployee.name} by Admin`
+      );
+
+      if (success) {
+        toast.success(`Successfully swapped employee to ${selectedEmployee.name}`);
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        setSwapEmployeeId('');
+      } else {
+        toast.error('Failed to swap employee');
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error swapping employee:', error);
+      toast.error('Failed to swap employee');
+    } finally {
+      setIsSwappingInDialog(false);
     }
   };
 
@@ -652,51 +690,94 @@ const AdminSlotBooking = () => {
               </CardContent>
             </Card>
 
-            {/* Approval Dialog */}
+            {/* Enhanced Approval Dialog with Swap Functionality */}
             <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
               setIsApprovalDialogOpen(open);
-              if (!open) setSelectedBookingForApproval(null);
+              if (!open) {
+                setSelectedBookingForApproval(null);
+                setSwapEmployeeId('');
+              }
             }}>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Approve/Reject Booking</DialogTitle>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <Users className="w-5 h-5" />
+                    <span>Manage Booking</span>
+                  </DialogTitle>
                   <DialogDescription>
                     {selectedBookingForApproval && 
                       `Review booking for ${selectedBookingForApproval.employeeName} on ${new Date(selectedBookingForApproval.date).toLocaleDateString()}`
                     }
                   </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
+                <div className="py-4 space-y-4">
                   <div className="space-y-2">
                     <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
                     <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
                     <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
                     <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
                   </div>
+
+                  {/* Swap Employee Section */}
+                  <div className="border-t pt-4">
+                    <Label htmlFor="swap-employee" className="text-sm font-medium">Swap Employee (Optional)</Label>
+                    <Select value={swapEmployeeId} onValueChange={setSwapEmployeeId}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select new employee to swap" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {casualEmployees
+                          .filter(emp => emp.id !== selectedBookingForApproval?.employeeId)
+                          .map((employee) => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                            {employee.name} ({employee.id})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <DialogFooter className="flex justify-between">
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Reject
-                  </Button>
+                <DialogFooter className="flex justify-between gap-2">
+                  <div className="flex space-x-2">
+                    {selectedBookingForApproval?.status === 'pending' && (
+                      <Button 
+                        type="button" 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex space-x-2">
                     <Button type="button" variant="outline" onClick={() => {
                       setIsApprovalDialogOpen(false);
                       setSelectedBookingForApproval(null);
+                      setSwapEmployeeId('');
                     }}>
                       Close
                     </Button>
-                    <Button 
-                      type="button"
-                      onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Approve
-                    </Button>
+                    {swapEmployeeId && (
+                      <Button 
+                        type="button"
+                        variant="secondary"
+                        onClick={handleSwapInDialog}
+                        disabled={isSwappingInDialog}
+                      >
+                        {isSwappingInDialog ? 'Swapping...' : 'Swap Employee'}
+                      </Button>
+                    )}
+                    {selectedBookingForApproval?.status === 'pending' && (
+                      <Button 
+                        type="button"
+                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Approve
+                      </Button>
+                    )}
                   </div>
                 </DialogFooter>
               </DialogContent>

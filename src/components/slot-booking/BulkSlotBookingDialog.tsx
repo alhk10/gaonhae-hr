@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -190,7 +191,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-auto">
+        <div className="flex-1 space-y-6 overflow-auto">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="date">Date</Label>
@@ -225,7 +226,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </div>
 
           {currentBranch && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-green-600" />
                 <div>
@@ -239,8 +240,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           )}
 
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <Label>Select Casual Employees ({selectedEmployees.length} selected)</Label>
+            <div className="flex items-center justify-between mb-4">
+              <Label className="text-base font-medium">Select Employees ({selectedEmployees.length} selected)</Label>
               <Button
                 type="button"
                 variant="outline"
@@ -253,34 +254,25 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             </div>
 
             {loadingEmployees ? (
-              <div className="text-center py-4">
+              <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-sm text-gray-600 mt-2">Loading employees...</p>
               </div>
             ) : (
               <ScrollArea className="h-64 border rounded-lg">
-                <div className="p-3">
+                <div className="p-4">
                   {employees.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {employees.map((employee) => (
-                        <div key={employee.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                        <div key={employee.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg">
                           <Checkbox
                             id={employee.id}
                             checked={selectedEmployees.includes(employee.id)}
                             onCheckedChange={() => handleEmployeeToggle(employee.id)}
                           />
                           <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm">{employee.name}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-600">{employee.type}</p>
-                                {employee.department && (
-                                  <p className="text-xs text-gray-500">{employee.department}</p>
-                                )}
-                              </div>
-                            </div>
+                            <p className="font-medium">{employee.name}</p>
+                            <p className="text-sm text-gray-500">ID: {employee.id}</p>
                           </div>
                         </div>
                       ))}
@@ -297,7 +289,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </div>
 
           {selectedEmployees.length > availableSlots && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-700">
                 Warning: You have selected {selectedEmployees.length} employees, but only {availableSlots} slots are available.
               </p>
@@ -305,7 +297,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           )}
 
           {selectedEmployees.length > 0 && selectedEmployees.length <= availableSlots && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
                 ✓ All {selectedEmployees.length} bookings will be automatically approved as admin bookings.
               </p>
@@ -313,7 +305,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           )}
         </div>
 
-        <div className="flex justify-end space-x-2 pt-4 border-t">
+        <div className="flex justify-end space-x-3 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
