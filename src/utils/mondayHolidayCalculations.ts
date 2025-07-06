@@ -7,7 +7,7 @@ export const calculateMondayHolidayBonus = async (employeeId: string, year?: num
     console.log('MondayHolidayCalculations: Calculating bonus days for employee:', employeeId);
     
     // Use the existing service which queries the database
-    const bonusDays = await getMondayHolidayBonusDays(employeeId, year);
+    const bonusDays = await getMondayHolidayBonusDays(employeeId);
     
     console.log(`MondayHolidayCalculations: Employee ${employeeId} has ${bonusDays} Monday holiday bonus days`);
     return bonusDays;
