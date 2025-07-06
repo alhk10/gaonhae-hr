@@ -47,11 +47,15 @@ export const addPublicHoliday = async (holiday: Omit<PublicHoliday, 'id' | 'is_m
   try {
     console.log('PublicHolidayService: Adding new holiday:', holiday);
     
+    // Calculate year from date for the insert
+    const year = new Date(holiday.date).getFullYear();
+    
     const { data, error } = await supabase
       .from('public_holidays')
       .insert({
         name: holiday.name,
-        date: holiday.date
+        date: holiday.date,
+        year: year
       })
       .select()
       .single();
@@ -80,11 +84,15 @@ export const updatePublicHoliday = async (holiday: PublicHoliday): Promise<Publi
   try {
     console.log('PublicHolidayService: Updating holiday:', holiday.id);
     
+    // Calculate year from date for the update
+    const year = new Date(holiday.date).getFullYear();
+    
     const { data, error } = await supabase
       .from('public_holidays')
       .update({
         name: holiday.name,
-        date: holiday.date
+        date: holiday.date,
+        year: year
       })
       .eq('id', holiday.id)
       .select()

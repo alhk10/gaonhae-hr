@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { calculateMondayHolidayBonus, calculateTotalAnnualLeaveWithBonus } from './mondayHolidayCalculations';
 
@@ -93,63 +94,95 @@ const calculateBaseAnnualLeave = (
   return 0; // Employee hasn't joined yet
 };
 
-// Calculate Leave Balance
+// Calculate Leave Balance - Updated to return proper structure
 export const calculateLeaveBalance = async (
   employeeId: string,
+  joinDate: string,
   leaveRequests: any[],
   year: number = new Date().getFullYear()
 ): Promise<{
-  entitlement: number;
-  used: number;
-  pending: number;
-  balance: number;
-  mondayHolidayBonus: number;
+  annualLeave: {
+    total: number;
+    used: number;
+    remaining: number;
+  };
+  medicalLeave: {
+    total: number;
+    used: number;
+    remaining: number;
+  };
 }> => {
   try {
     // Get employee data
-    // This would need to be passed in or fetched - assuming it's available
-    const employee = { id: employeeId, join_date: null, resign_date: null }; // Placeholder
+    const employee = { id: employeeId, join_date: joinDate, resign_date: null };
     
     // Calculate total entitlement including Monday holiday bonuses
-    const totalEntitlement = await calculateAnnualLeaveEntitlement(employee, year);
+    const totalAnnualEntitlement = await calculateAnnualLeaveEntitlement(employee, year);
     const mondayBonus = await calculateMondayHolidayBonus(employeeId);
-    const baseEntitlement = totalEntitlement - mondayBonus;
     
     // Calculate used and pending leave (existing logic)
     const currentYearRequests = leaveRequests.filter(request => {
-      const requestYear = new Date(request.start_date).getFullYear();
+      const requestYear = new Date(request.startDate || request.start_date).getFullYear();
       return requestYear === year;
     });
     
-    const usedLeave = currentYearRequests
-      .filter(request => request.status === 'Approved')
-      .reduce((total, request) => total + request.days_requested, 0);
+    const usedAnnualLeave = currentYearRequests
+      .filter(request => request.status === 'Approved' && (request.type === 'Annual Leave'))
+      .reduce((total, request) => total + (request.days || request.days_requested || 1), 0);
     
-    const pendingLeave = currentYearRequests
-      .filter(request => request.status === 'Pending')
-      .reduce((total, request) => total + request.days_requested, 0);
+    const usedMedicalLeave = currentYearRequests
+      .filter(request => request.status === 'Approved' && (request.type === 'Medical Leave'))
+      .reduce((total, request) => total + (request.days || request.days_requested || 1), 0);
     
-    const balance = totalEntitlement - usedLeave - pendingLeave;
+    const annualLeaveRemaining = totalAnnualEntitlement - usedAnnualLeave;
+    const medicalLeaveRemaining = 14 - usedMedicalLeave; // Standard 14 days medical leave
     
-    console.log(`LeaveCalculations: Employee ${employeeId} balance - Total: ${totalEntitlement} (Base: ${baseEntitlement} + Monday: ${mondayBonus}), Used: ${usedLeave}, Pending: ${pendingLeave}, Balance: ${balance}`);
+    console.log(`LeaveCalculations: Employee ${employeeId} balance - Annual: ${totalAnnualEntitlement} (includes ${mondayBonus} Monday bonus), Used: ${usedAnnualLeave}, Remaining: ${annualLeaveRemaining}`);
     
     return {
-      entitlement: totalEntitlement,
-      used: usedLeave,
-      pending: pendingLeave,
-      balance: balance,
-      mondayHolidayBonus: mondayBonus
+      annualLeave: {
+        total: totalAnnualEntitlement,
+        used: usedAnnualLeave,
+        remaining: Math.max(0, annualLeaveRemaining)
+      },
+      medicalLeave: {
+        total: 14,
+        used: usedMedicalLeave,
+        remaining: Math.max(0, medicalLeaveRemaining)
+      }
     };
   } catch (error) {
     console.error('Error calculating leave balance:', error);
     // Return fallback values
     return {
-      entitlement: 21,
-      used: 0,
-      pending: 0,
-      balance: 21,
-      mondayHolidayBonus: 0
+      annualLeave: {
+        total: 21,
+        used: 0,
+        remaining: 21
+      },
+      medicalLeave: {
+        total: 14,
+        used: 0,
+        remaining: 14
+      }
     };
+  }
+};
+
+// Get leave entitlement summary text
+export const getLeaveEntitlementSummary = (joinDate: string): string => {
+  const currentYear = new Date().getFullYear();
+  const joinYear = new Date(joinDate).getFullYear();
+  const joinMonth = new Date(joinDate).getMonth() + 1;
+  
+  if (joinYear < currentYear) {
+    return `You are entitled to 21 annual leave days for ${currentYear} (full year entitlement) plus any Monday holiday bonuses.`;
+  } else if (joinYear === currentYear) {
+    const monthsWorked = 12 - new Date(joinDate).getMonth();
+    const proRatedDays = Math.round((21 * monthsWorked) / 12);
+    return `You are entitled to ${proRatedDays} annual leave days for ${currentYear} (pro-rated from ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })}) plus any Monday holiday bonuses.`;
+  } else {
+    return `You will be entitled to annual leave starting from your join date.`;
   }
 };
 

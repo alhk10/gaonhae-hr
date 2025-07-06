@@ -36,26 +36,42 @@ const LeaveSummaryPanel = () => {
   // Upcoming leave (next 30 days)
   const upcomingLeave = allLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
-    const startDate = new Date(leave.startDate);
+    const startDate = new Date(leave.startDate || leave.start_date);
     return startDate >= today && startDate <= next30Days;
   }).length;
 
-  // Calculate total annual leave remaining using new calculation method for eligible employees only
-  const totalAnnualLeaveRemaining = eligibleEmployees.reduce((total, employee) => {
-    if (!employee.joinDate) return total; // Skip if no join date
-    
-    const leaveBalance = calculateLeaveBalance(
-      employee.id, 
-      employee.joinDate, 
-      allLeaveRequests
-    );
-    return total + leaveBalance.annualLeave.remaining;
-  }, 0);
+  // Calculate total annual leave remaining using async calculation
+  const [totalAnnualLeaveRemaining, setTotalAnnualLeaveRemaining] = React.useState(0);
+
+  React.useEffect(() => {
+    const calculateTotalRemaining = async () => {
+      let total = 0;
+      for (const employee of eligibleEmployees) {
+        if (employee.joinDate || employee.join_date) {
+          try {
+            const leaveBalance = await calculateLeaveBalance(
+              employee.id, 
+              employee.joinDate || employee.join_date, 
+              allLeaveRequests
+            );
+            total += leaveBalance.annualLeave.remaining;
+          } catch (error) {
+            console.error(`Error calculating leave balance for ${employee.id}:`, error);
+          }
+        }
+      }
+      setTotalAnnualLeaveRemaining(total);
+    };
+
+    if (eligibleEmployees.length > 0 && allLeaveRequests.length > 0) {
+      calculateTotalRemaining();
+    }
+  }, [eligibleEmployees, allLeaveRequests]);
 
   // Approved leave this month
   const approvedLeaveThisMonth = allLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
-    const startDate = new Date(leave.startDate);
+    const startDate = new Date(leave.startDate || leave.start_date);
     return startDate >= startOfMonth && startDate <= endOfMonth;
   }).length;
 

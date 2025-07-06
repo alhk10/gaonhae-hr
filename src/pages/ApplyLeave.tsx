@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +19,10 @@ const ApplyLeave = () => {
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState('');
   const [medicalCertificate, setMedicalCertificate] = useState<File | null>(null);
+  const [leaveBalance, setLeaveBalance] = useState<{
+    annualLeave: { total: number; used: number; remaining: number };
+    medicalLeave: { total: number; used: number; remaining: number };
+  } | null>(null);
   
   // Get current employee data from Supabase
   const { data: currentEmployee, isLoading: employeeLoading, error: employeeError } = useQuery({
@@ -37,10 +40,31 @@ const ApplyLeave = () => {
   // Filter leave history for current employee
   const leaveHistory = allLeaveRequests.filter(leave => leave.employeeId === user?.id);
 
-  // Calculate leave balance using new calculation method
-  const leaveBalance = currentEmployee?.joinDate 
-    ? calculateLeaveBalance(currentEmployee.id, currentEmployee.joinDate, allLeaveRequests)
-    : { annualLeave: { total: 0, used: 0, remaining: 0 }, medicalLeave: { total: 14, used: 0, remaining: 14 } };
+  // Calculate leave balance using async calculation
+  useEffect(() => {
+    const fetchLeaveBalance = async () => {
+      if (currentEmployee?.joinDate || currentEmployee?.join_date) {
+        try {
+          const balance = await calculateLeaveBalance(
+            currentEmployee.id, 
+            currentEmployee.joinDate || currentEmployee.join_date, 
+            allLeaveRequests
+          );
+          setLeaveBalance(balance);
+        } catch (error) {
+          console.error('Error calculating leave balance:', error);
+          setLeaveBalance({
+            annualLeave: { total: 21, used: 0, remaining: 21 },
+            medicalLeave: { total: 14, used: 0, remaining: 14 }
+          });
+        }
+      }
+    };
+
+    if (currentEmployee && allLeaveRequests.length >= 0) {
+      fetchLeaveBalance();
+    }
+  }, [currentEmployee, allLeaveRequests]);
 
   // Mutation for adding leave request
   const addLeaveMutation = useMutation({
@@ -58,7 +82,7 @@ const ApplyLeave = () => {
     }
   });
 
-  if (employeeLoading || leavesLoading) {
+  if (employeeLoading || leavesLoading || !leaveBalance) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -249,17 +273,17 @@ const ApplyLeave = () => {
               </div>
 
               {/* Leave Entitlement Information */}
-              {currentEmployee.joinDate && (
+              {(currentEmployee.joinDate || currentEmployee.join_date) && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start space-x-3">
                     <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
                       <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
                       <p className="text-sm text-blue-700 mt-1">
-                        {getLeaveEntitlementSummary(currentEmployee.joinDate)}
+                        {getLeaveEntitlementSummary(currentEmployee.joinDate || currentEmployee.join_date)}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Based on join date: {new Date(currentEmployee.joinDate).toLocaleDateString()}
+                        Based on join date: {new Date(currentEmployee.joinDate || currentEmployee.join_date).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -384,17 +408,17 @@ const ApplyLeave = () => {
             </div>
 
             {/* Leave Entitlement Information */}
-            {currentEmployee.joinDate && (
+            {(currentEmployee.joinDate || currentEmployee.join_date) && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-blue-900">Your Annual Leave Entitlement</h3>
                     <p className="text-sm text-blue-700 mt-1">
-                      {getLeaveEntitlementSummary(currentEmployee.joinDate)}
+                      {getLeaveEntitlementSummary(currentEmployee.joinDate || currentEmployee.join_date)}
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
-                      Based on join date: {new Date(currentEmployee.joinDate).toLocaleDateString()}
+                      Based on join date: {new Date(currentEmployee.joinDate || currentEmployee.join_date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
