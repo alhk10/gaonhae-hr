@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -117,258 +116,246 @@ const Attendance = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center flex items-center justify-center h-full">
-              <div>
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-lg text-gray-600">Loading attendance data...</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-lg text-gray-600">Loading attendance data...</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
-                <p className="text-gray-600 mt-2">Track and manage employee attendance</p>
-              </div>
-              
-              <div className="flex space-x-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn(
-                      "w-[240px] justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                
-                {user?.role !== 'employee' && (
-                  <>
-                    <Button onClick={() => setIsBulkDialogOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Bulk Add
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsSettingsOpen(true)}
-                      className="flex items-center space-x-2"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span>Settings</span>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Users className="w-8 h-8 text-green-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-green-600">Present</p>
-                      <p className="text-2xl font-bold text-green-900">{stats.totalPresent}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Users className="w-8 h-8 text-red-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-red-600">Absent</p>
-                      <p className="text-2xl font-bold text-red-900">{stats.totalAbsent}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Clock className="w-8 h-8 text-yellow-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-yellow-600">Late</p>
-                      <p className="text-2xl font-bold text-yellow-900">{stats.totalLate}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Clock className="w-8 h-8 text-blue-600" />
-                    <div className="ml-4">
-                      <p className="text-sm text-blue-600">Avg Hours</p>
-                      <p className="text-2xl font-bold text-blue-900">{stats.averageHours.toFixed(1)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content with Tabs */}
-            <Tabs defaultValue="list" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="list">Attendance Records</TabsTrigger>
-                <TabsTrigger value="calendar">Calendar View</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="list">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      Attendance Records - {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
-                    </CardTitle>
-                    <CardDescription>
-                      View and manage employee attendance for the selected date
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {filteredRecords.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Employee</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Check In</TableHead>
-                              <TableHead>Check Out</TableHead>
-                              <TableHead>Hours</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Location</TableHead>
-                              {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredRecords.map((record) => (
-                              <TableRow key={record.id}>
-                                <TableCell className="font-medium">
-                                  {employees.find(emp => emp.id === record.employeeId)?.name || 'Unknown'}
-                                </TableCell>
-                                <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                                <TableCell>{record.checkIn || '-'}</TableCell>
-                                <TableCell>{record.checkOut || '-'}</TableCell>
-                                <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={
-                                      record.status === 'Present' ? 'default' : 
-                                      record.status === 'Late' ? 'secondary' : 
-                                      'destructive'
-                                    }
-                                  >
-                                    {record.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center">
-                                    <MapPin className="w-4 h-4 mr-1 text-gray-400" />
-                                    <span className="text-sm">{record.location || 'Not specified'}</span>
-                                  </div>
-                                </TableCell>
-                                {user?.role === 'superadmin' && (
-                                  <TableCell>
-                                    <div className="flex space-x-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleEdit(record)}
-                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleDelete(record.id)}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-gray-500">
-                        <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p className="text-lg">No attendance records found</p>
-                        <p className="text-sm">
-                          {selectedDate 
-                            ? `No records for ${format(selectedDate, "MMMM d, yyyy")}`
-                            : "Attendance records will appear here"
-                          }
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="calendar">
-                <AttendanceCalendarView />
-              </TabsContent>
-            </Tabs>
+    <ResponsiveLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
+            <p className="text-gray-600 mt-2">Track and manage employee attendance</p>
           </div>
+          
+          <div className="flex space-x-3">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(
+                  "w-[240px] justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            {user?.role !== 'employee' && (
+              <>
+                <Button onClick={() => setIsBulkDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Add
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
 
-          <BulkAttendanceDialog
-            isOpen={isBulkDialogOpen}
-            onClose={() => setIsBulkDialogOpen(false)}
-            employees={employees}
-            selectedDate={selectedDate || new Date()}
-            onSuccess={loadData}
-          />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-green-600">Present</p>
+                  <p className="text-2xl font-bold text-green-900">{stats.totalPresent}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <EditAttendanceDialog
-            isOpen={isEditDialogOpen}
-            onClose={() => setIsEditDialogOpen(false)}
-            record={selectedRecord}
-            onSuccess={loadData}
-          />
+          <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="w-8 h-8 text-red-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-red-600">Absent</p>
+                  <p className="text-2xl font-bold text-red-900">{stats.totalAbsent}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <AttendanceSettings
-            isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
-          />
-        </main>
+          <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Clock className="w-8 h-8 text-yellow-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-yellow-600">Late</p>
+                  <p className="text-2xl font-bold text-yellow-900">{stats.totalLate}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Clock className="w-8 h-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm text-blue-600">Avg Hours</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.averageHours.toFixed(1)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content with Tabs */}
+        <Tabs defaultValue="list" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list">Attendance Records</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Attendance Records - {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
+                </CardTitle>
+                <CardDescription>
+                  View and manage employee attendance for the selected date
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {filteredRecords.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Check In</TableHead>
+                          <TableHead>Check Out</TableHead>
+                          <TableHead>Hours</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Location</TableHead>
+                          {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredRecords.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {employees.find(emp => emp.id === record.employeeId)?.name || 'Unknown'}
+                            </TableCell>
+                            <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{record.checkIn || '-'}</TableCell>
+                            <TableCell>{record.checkOut || '-'}</TableCell>
+                            <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  record.status === 'Present' ? 'default' : 
+                                  record.status === 'Late' ? 'secondary' : 
+                                  'destructive'
+                                }
+                              >
+                                {record.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-1 text-gray-400" />
+                                <span className="text-sm">{record.location || 'Not specified'}</span>
+                              </div>
+                            </TableCell>
+                            {user?.role === 'superadmin' && (
+                              <TableCell>
+                                <div className="flex space-x-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEdit(record)}
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDelete(record.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg">No attendance records found</p>
+                    <p className="text-sm">
+                      {selectedDate 
+                        ? `No records for ${format(selectedDate, "MMMM d, yyyy")}`
+                        : "Attendance records will appear here"
+                      }
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <AttendanceCalendarView />
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
+
+      <BulkAttendanceDialog
+        isOpen={isBulkDialogOpen}
+        onClose={() => setIsBulkDialogOpen(false)}
+        employees={employees}
+        selectedDate={selectedDate || new Date()}
+        onSuccess={loadData}
+      />
+
+      <EditAttendanceDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        record={selectedRecord}
+        onSuccess={loadData}
+      />
+
+      <AttendanceSettings
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+    </ResponsiveLayout>
   );
 };
 
