@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import SwapEmployeeDialog from '@/components/slot-booking/SwapEmployeeDialog';
+import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   getBranches,
@@ -23,6 +23,7 @@ import {
   updateSlotBookingStatus,
   getWeeklySlotConfig,
   updateWeeklySlotConfig,
+  cancelSlotBooking,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig
@@ -35,8 +36,11 @@ const AdminSlotBooking = () => {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [isSwapDialogOpen, setIsSwapDialogOpen] = useState(false);
+  const [isBulkBookingDialogOpen, setIsBulkBookingDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<SlotBooking | null>(null);
   const [selectedBookingForSwap, setSelectedBookingForSwap] = useState<SlotBooking | null>(null);
+  const [selectedBookingForCancel, setSelectedBookingForCancel] = useState<SlotBooking | null>(null);
   const [casualEmployees, setCasualEmployees] = useState<EmployeeProfile[]>([]);
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -123,9 +127,15 @@ const AdminSlotBooking = () => {
     const dateString = format(date, 'yyyy-MM-dd');
     return allBookings.filter(b => 
       b.date === dateString && 
-      b.status !== 'rejected' && // Filter out rejected slots
+      b.status !== 'rejected' && 
+      b.status !== 'cancelled' && // Filter out cancelled slots
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
+  };
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setIsBulkBookingDialogOpen(true);
   };
 
   const handleApprovalClick = (booking: SlotBooking, event: React.MouseEvent) => {
@@ -140,7 +150,17 @@ const AdminSlotBooking = () => {
     setIsSwapDialogOpen(true);
   };
 
+  const handleCancelClick = (booking: SlotBooking, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedBookingForCancel(booking);
+    setIsCancelDialogOpen(true);
+  };
+
   const handleSwapSuccess = async () => {
+    await refreshData();
+  };
+
+  const handleBulkBookingSuccess = async () => {
     await refreshData();
   };
 
@@ -189,6 +209,25 @@ const AdminSlotBooking = () => {
     } catch (error) {
       console.error('AdminSlotBooking: Error updating booking status:', error);
       toast.error("Failed to update booking status");
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    if (!selectedBookingForCancel) return;
+    
+    try {
+      const success = await cancelSlotBooking(selectedBookingForCancel.id, 'Admin');
+      if (success) {
+        await refreshData();
+        setIsCancelDialogOpen(false);
+        setSelectedBookingForCancel(null);
+        toast.success('Booking cancelled successfully');
+      } else {
+        toast.error('Failed to cancel booking');
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
     }
   };
 
@@ -461,7 +500,7 @@ const AdminSlotBooking = () => {
                               className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
                                 isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
                               } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
-                              onClick={() => setSelectedDate(date)}
+                              onClick={() => handleDateClick(date)}
                             >
                               <div className="w-full h-full flex flex-col overflow-hidden">
                                 <span className={`font-medium text-left mb-0.5 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-sm'}`}>{date.getDate()}</span>
@@ -482,7 +521,7 @@ const AdminSlotBooking = () => {
                                             ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
                                             ...(booking.status === 'approved' && { border: '1px solid #10b981' })
                                           }}
-                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status}) - Click to approve/reject`}
+                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status}) - Click to manage booking`}
                                         >
                                           <span className="truncate">
                                             {isMobile ? 
@@ -498,6 +537,11 @@ const AdminSlotBooking = () => {
                                     {dayBookings.length > maxVisible && (
                                       <span className={`text-gray-600 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-xs'}`}>+{dayBookings.length - maxVisible}</span>
                                     )}
+                                  </div>
+                                )}
+                                {!hasBookings && (
+                                  <div className="flex items-center justify-center flex-1">
+                                    <Plus className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                                   </div>
                                 )}
                               </div>
@@ -581,6 +625,14 @@ const AdminSlotBooking = () => {
                               size="sm" 
                               variant="outline" 
                               className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
+                              onClick={() => handleCancelClick(booking, new MouseEvent('click') as any)}
+                            >
+                              <UserX className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
                               onClick={() => handleApprovalClick(booking, new MouseEvent('click') as any)}
                             >
                               <Edit className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
@@ -593,7 +645,7 @@ const AdminSlotBooking = () => {
 
                   {getBookingsForDate(selectedDate).length === 0 && (
                     <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
-                      No bookings for this date.
+                      No bookings for this date. Click on a date to add bulk bookings.
                     </p>
                   )}
                 </div>
@@ -649,6 +701,48 @@ const AdminSlotBooking = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* Cancel Booking Dialog */}
+            <Dialog open={isCancelDialogOpen} onOpenChange={(open) => {
+              setIsCancelDialogOpen(open);
+              if (!open) setSelectedBookingForCancel(null);
+            }}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Cancel Booking</DialogTitle>
+                  <DialogDescription>
+                    {selectedBookingForCancel && 
+                      `Are you sure you want to cancel this booking for ${selectedBookingForCancel.employeeName}?`
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <div className="space-y-2">
+                    <p><strong>Employee:</strong> {selectedBookingForCancel?.employeeName}</p>
+                    <p><strong>Branch:</strong> {selectedBookingForCancel?.branchName}</p>
+                    <p><strong>Date:</strong> {selectedBookingForCancel && new Date(selectedBookingForCancel.date).toLocaleDateString()}</p>
+                    <p><strong>Current Status:</strong> <Badge variant="secondary">{selectedBookingForCancel?.status}</Badge></p>
+                  </div>
+                  <p className="text-sm text-red-600 mt-3">This action cannot be undone.</p>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsCancelDialogOpen(false);
+                    setSelectedBookingForCancel(null);
+                  }}>
+                    Keep Booking
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleCancelBooking}
+                  >
+                    <UserX className="w-4 h-4 mr-2" />
+                    Cancel Booking
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <SwapEmployeeDialog
@@ -656,6 +750,13 @@ const AdminSlotBooking = () => {
             onClose={() => setIsSwapDialogOpen(false)}
             booking={selectedBookingForSwap}
             onSuccess={handleSwapSuccess}
+          />
+
+          <BulkSlotBookingDialog
+            isOpen={isBulkBookingDialogOpen}
+            onClose={() => setIsBulkBookingDialogOpen(false)}
+            selectedDate={selectedDate}
+            onSuccess={handleBulkBookingSuccess}
           />
         </main>
       </div>

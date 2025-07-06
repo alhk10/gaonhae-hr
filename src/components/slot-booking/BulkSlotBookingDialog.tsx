@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import { Calendar, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
   getBranches, 
-  addSlotBooking, 
+  addAdminSlotBooking,
   getAvailableSlotsForDate, 
   getWeeklySlotConfig,
   type Branch,
@@ -133,26 +132,27 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
 
     try {
       setLoading(true);
-      console.log('BulkSlotBookingDialog: Creating bulk bookings for', selectedEmployees.length, 'employees');
+      console.log('BulkSlotBookingDialog: Creating bulk admin bookings for', selectedEmployees.length, 'employees');
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const branch = branches.find(b => b.id === selectedBranch);
 
+      // Use addAdminSlotBooking for auto-approved bookings
       const bookingPromises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
-        return addSlotBooking({
+        return addAdminSlotBooking({
           employeeId,
           employeeName: employee?.name || 'Unknown',
           branchId: selectedBranch,
           branchName: branch?.name || 'Unknown Branch',
           date: dateStr,
-          status: 'pending'
+          notes: 'Bulk booking created by Admin'
         });
       });
 
       await Promise.all(bookingPromises);
 
-      toast.success(`Successfully created ${selectedEmployees.length} slot bookings for ${format(selectedDate, 'PPP')}`);
+      toast.success(`Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`);
       
       if (onSuccess) {
         onSuccess();
@@ -186,7 +186,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="w-5 h-5" />
-            <span>Add Bulk Slot Booking</span>
+            <span>Add Bulk Slot Booking (Auto-Approved)</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -211,7 +211,10 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${branch.color}`}></div>
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: branch.color }}
+                        ></div>
                         <span>{branch.name}</span>
                       </div>
                     </SelectItem>
@@ -222,13 +225,13 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </div>
 
           {currentBranch && (
-            <div className="p-3 bg-blue-50 rounded-lg">
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
+                <MapPin className="w-4 h-4 text-green-600" />
                 <div>
-                  <h4 className="font-medium text-blue-900">{currentBranch.name}</h4>
-                  <p className="text-sm text-blue-700">
-                    Available slots: {availableSlots}
+                  <h4 className="font-medium text-green-900">{currentBranch.name}</h4>
+                  <p className="text-sm text-green-700">
+                    Available slots: {availableSlots} • Bookings will be auto-approved
                   </p>
                 </div>
               </div>
@@ -300,6 +303,14 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
               </p>
             </div>
           )}
+
+          {selectedEmployees.length > 0 && selectedEmployees.length <= availableSlots && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                ✓ All {selectedEmployees.length} bookings will be automatically approved as admin bookings.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-2 pt-4 border-t">
@@ -310,7 +321,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             onClick={handleSubmit} 
             disabled={loading || selectedEmployees.length === 0 || selectedEmployees.length > availableSlots}
           >
-            {loading ? 'Booking...' : `Book ${selectedEmployees.length} Employees`}
+            {loading ? 'Creating...' : `Create ${selectedEmployees.length} Auto-Approved Bookings`}
           </Button>
         </div>
       </DialogContent>

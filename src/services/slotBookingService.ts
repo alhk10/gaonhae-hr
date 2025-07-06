@@ -15,7 +15,7 @@ export interface SlotBooking {
   branchId: string;
   branchName: string;
   date: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   bookedOn: string;
   approvedBy?: string;
   approvedOn?: string;
@@ -195,7 +195,8 @@ export const getBookedSlotsForDate = async (date: string, branchId: string): Pro
       .from('slot_bookings_new')
       .select('id')
       .eq('date', date)
-      .eq('branch_id', branchId);
+      .eq('branch_id', branchId)
+      .neq('status', 'cancelled');
 
     if (error) {
       console.error('SlotBookingService: Error fetching booked slots:', error);
@@ -244,6 +245,24 @@ export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn
   }
 };
 
+export const addAdminSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn' | 'status' | 'approvedBy' | 'approvedOn'>): Promise<string> => {
+  try {
+    console.log('SlotBookingService: Creating admin auto-approved slot booking:', booking);
+    
+    const adminBooking = {
+      ...booking,
+      status: 'approved' as const,
+      approvedBy: 'Admin',
+      approvedOn: new Date().toISOString().split('T')[0]
+    };
+    
+    return await addSlotBooking(adminBooking);
+  } catch (error) {
+    console.error('SlotBookingService: Error in addAdminSlotBooking:', error);
+    throw error;
+  }
+};
+
 export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotBooking[]> => {
   try {
     console.log('SlotBookingService: Fetching employee slot bookings for:', employeeId);
@@ -266,7 +285,7 @@ export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotB
       branchId: booking.branch_id,
       branchName: booking.branch_name,
       date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected',
+      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
       bookedOn: booking.booked_on,
       approvedBy: booking.approved_by || undefined,
       approvedOn: booking.approved_on || undefined,
@@ -303,7 +322,7 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
       branchId: booking.branch_id,
       branchName: booking.branch_name,
       date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected',
+      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
       bookedOn: booking.booked_on,
       approvedBy: booking.approved_by || undefined,
       approvedOn: booking.approved_on || undefined,
@@ -339,7 +358,7 @@ export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
       branchId: booking.branch_id,
       branchName: booking.branch_name,
       date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected',
+      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
       bookedOn: booking.booked_on,
       approvedBy: booking.approved_by || undefined,
       approvedOn: booking.approved_on || undefined,
@@ -387,6 +406,39 @@ export const updateSlotBookingStatus = async (
     return true;
   } catch (error) {
     console.error('SlotBookingService: Error in updateSlotBookingStatus:', error);
+    return false;
+  }
+};
+
+export const cancelSlotBooking = async (
+  bookingId: string,
+  cancelledBy: string,
+  notes?: string
+): Promise<boolean> => {
+  try {
+    console.log('SlotBookingService: Cancelling slot booking:', bookingId);
+    
+    const updateData: any = {
+      status: 'cancelled',
+      approved_by: cancelledBy,
+      approved_on: new Date().toISOString().split('T')[0],
+      notes: notes ? `Cancelled: ${notes}` : 'Cancelled by Admin'
+    };
+
+    const { error } = await supabase
+      .from('slot_bookings_new')
+      .update(updateData)
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('SlotBookingService: Error cancelling booking:', error);
+      return false;
+    }
+
+    console.log('SlotBookingService: Successfully cancelled booking:', bookingId);
+    return true;
+  } catch (error) {
+    console.error('SlotBookingService: Error in cancelSlotBooking:', error);
     return false;
   }
 };
