@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -12,7 +13,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Calendar, AlertTriangle, Info, CheckCircle, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
-import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
+import { calculateLeaveBalance } from '@/utils/leaveCalculations';
 import { isEligibleForLeave, getEmployeeEligibilityMessage } from '@/utils/employeeEligibility';
 import { validateLeaveRequest } from '@/services/leaveValidationService';
 import { applyForLeaveWithValidation, calculateEmployeeLeaveEntitlement } from '@/services/enhancedLeaveService';
@@ -26,6 +27,7 @@ const ApplyLeave = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [leaveBalance, setLeaveBalance] = useState<any>(null);
   const [enhancedEntitlement, setEnhancedEntitlement] = useState<any>(null);
+  const [entitlementSummary, setEntitlementSummary] = useState<string>('');
   const [formData, setFormData] = useState({
     type: '',
     startDate: '',
@@ -95,6 +97,12 @@ const ApplyLeave = () => {
         console.warn('Could not load enhanced entitlement data:', error);
       }
 
+      // Load entitlement summary
+      if (employeeData.joinDate) {
+        const summary = await getLeaveEntitlementSummary(employeeData.id, employeeData.joinDate);
+        setEntitlementSummary(summary);
+      }
+
     } catch (error) {
       console.error('Error loading employee data:', error);
       toast({
@@ -102,6 +110,43 @@ const ApplyLeave = () => {
         description: "Failed to load employee data",
         variant: "destructive",
       });
+    }
+  };
+
+  const getLeaveEntitlementSummary = async (employeeId: string, joinDate: string): Promise<string> => {
+    const currentYear = new Date().getFullYear();
+    const joinYear = new Date(joinDate).getFullYear();
+    
+    try {
+      const entitlement = await calculateEmployeeLeaveEntitlement(employeeId, currentYear);
+      
+      if (!entitlement) {
+        return "Unable to calculate leave entitlement. Please contact HR.";
+      }
+
+      const { baseAnnualLeave, yearsOfService, serviceBonusDays, mondayHolidayBonus, finalAnnualLeave } = entitlement;
+      
+      let summary = `You are entitled to ${finalAnnualLeave} annual leave days for ${currentYear}. `;
+      summary += `This includes ${baseAnnualLeave} base days`;
+      
+      if (yearsOfService > 0) {
+        summary += ` + ${serviceBonusDays} service bonus days (${yearsOfService} years of service)`;
+      }
+      
+      if (mondayHolidayBonus > 0) {
+        summary += ` + ${mondayHolidayBonus} Monday holiday bonus days`;
+      }
+      
+      summary += ` + 14 medical leave days.`;
+      
+      if (joinYear === currentYear) {
+        summary += ` (Pro-rated from your join date in ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })})`;
+      }
+      
+      return summary;
+    } catch (error) {
+      console.error('Error getting leave entitlement summary:', error);
+      return "Unable to calculate leave entitlement. Please contact HR.";
     }
   };
 
@@ -290,12 +335,14 @@ const ApplyLeave = () => {
                         {enhancedEntitlement ? (
                           <>
                             <div>
-                              <p className="text-blue-600">Annual Leave (Base): <span className="font-medium">{enhancedEntitlement.annualLeaveBase} days</span></p>
+                              <p className="text-blue-600">Annual Leave (Base): <span className="font-medium">{enhancedEntitlement.baseAnnualLeave} days</span></p>
+                              <p className="text-green-600">Service Bonus: <span className="font-medium">+{enhancedEntitlement.serviceBonusDays} days</span></p>
                               <p className="text-purple-600">Monday Holiday Bonus: <span className="font-medium">+{enhancedEntitlement.mondayHolidayBonus} days</span></p>
-                              <p className="text-blue-800 font-medium">Total Annual Leave: {enhancedEntitlement.totalAnnualLeave} days</p>
+                              <p className="text-blue-800 font-medium">Total Annual Leave: {enhancedEntitlement.finalAnnualLeave} days</p>
                             </div>
                             <div>
                               <p className="text-green-600">Medical Leave: <span className="font-medium">{enhancedEntitlement.medicalLeave} days</span></p>
+                              <p className="text-gray-600">Years of Service: <span className="font-medium">{enhancedEntitlement.yearsOfService} years</span></p>
                             </div>
                           </>
                         ) : leaveBalance ? (
@@ -309,9 +356,9 @@ const ApplyLeave = () => {
                           </>
                         ) : null}
                       </div>
-                      {employee.joinDate && (
+                      {entitlementSummary && (
                         <p className="text-xs text-blue-600 mt-2">
-                          {getLeaveEntitlementSummary(employee.joinDate)}
+                          {entitlementSummary}
                         </p>
                       )}
                     </div>

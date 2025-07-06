@@ -41,9 +41,12 @@ const EnhancedLeaveSummary = () => {
           return { 
             id: emp.id, 
             entitlement: { 
-              annualLeaveBase: 0, 
+              baseAnnualLeave: 0,
+              yearsOfService: 0,
+              serviceBonusDays: 0,
+              totalAnnualLeave: 0,
               mondayHolidayBonus: 0, 
-              totalAnnualLeave: 0, 
+              finalAnnualLeave: 0, 
               medicalLeave: 0 
             } 
           };
@@ -107,7 +110,7 @@ const EnhancedLeaveSummary = () => {
   };
 
   const totalAnnualLeavePool = Object.values(entitlements).reduce(
-    (total, ent) => total + ent.totalAnnualLeave, 0
+    (total, ent) => total + ent.finalAnnualLeave, 0
   );
 
   const totalMondayBonuses = Object.values(entitlements).reduce(
@@ -258,7 +261,11 @@ const EnhancedLeaveSummary = () => {
                   <div className="flex space-x-4 text-sm">
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Base Annual</p>
-                      <p className="font-medium">{entitlement.annualLeaveBase}</p>
+                      <p className="font-medium">{entitlement.baseAnnualLeave}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Service Bonus</p>
+                      <p className="font-medium text-green-600">+{entitlement.serviceBonusDays}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Monday Bonus</p>
@@ -266,7 +273,7 @@ const EnhancedLeaveSummary = () => {
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Total Annual</p>
-                      <p className="font-bold text-blue-600">{entitlement.totalAnnualLeave}</p>
+                      <p className="font-bold text-blue-600">{entitlement.finalAnnualLeave}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Medical</p>
