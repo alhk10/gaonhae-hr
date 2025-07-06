@@ -10,6 +10,7 @@ export interface Claim {
   date: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   description: string;
+  receipt_url?: string;
 }
 
 export const getClaims = async (): Promise<Claim[]> => {
@@ -39,7 +40,8 @@ export const getClaims = async (): Promise<Claim[]> => {
       amount: parseFloat(item.amount),
       date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       status: item.status,
-      description: item.description
+      description: item.description,
+      receipt_url: item.receipt_url
     }));
 
     console.log('Transformed claims data:', transformedData);
@@ -76,7 +78,8 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
       amount: parseFloat(item.amount),
       date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       status: item.status,
-      description: item.description
+      description: item.description,
+      receipt_url: item.receipt_url
     }));
 
     return transformedData;
@@ -86,9 +89,14 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
   }
 };
 
-export const createClaim = async (claim: Omit<Claim, 'id'>): Promise<void> => {
+export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url: string }): Promise<void> => {
   try {
     console.log('Creating new claim:', claim);
+
+    // Validate required fields
+    if (!claim.receipt_url) {
+      throw new Error('Receipt is required to submit a claim');
+    }
 
     const insertData = {
       employee_id: claim.employeeId,
@@ -96,6 +104,7 @@ export const createClaim = async (claim: Omit<Claim, 'id'>): Promise<void> => {
       amount: claim.amount,
       description: claim.description,
       status: claim.status || 'Pending',
+      receipt_url: claim.receipt_url,
       submitted_date: new Date().toISOString()
     };
 

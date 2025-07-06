@@ -11,28 +11,11 @@ import { History, FileText, Calendar, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEmployeeClaims, createClaim } from '@/services/claimsService';
+import { getEmployeeClaims, createClaim, type Claim } from '@/services/claimsService';
 import { getEmployees } from '@/services/employeeService';
+import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-interface Claim {
-  id: number;
-  employeeId: string;
-  employee: string;
-  type: string;
-  amount: number;
-  date: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
-  description: string;
-}
-
-interface ClaimType {
-  id: string;
-  name: string;
-  limit: number | null;
-  coPay: number;
-}
 
 const SubmitClaim = () => {
   const { user } = useAuth();
@@ -42,7 +25,7 @@ const SubmitClaim = () => {
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     type: '',
     amount: '',
@@ -52,41 +35,23 @@ const SubmitClaim = () => {
     description: ''
   });
 
-  // Load claim types from localStorage
+  // Load claim types from database
   useEffect(() => {
-    const loadClaimTypes = () => {
+    const loadClaimTypes = async () => {
       try {
-        const stored = localStorage.getItem('claim_types');
-        if (stored) {
-          const parsedTypes = JSON.parse(stored);
-          console.log('Loaded claim types:', parsedTypes);
-          setClaimTypes(parsedTypes);
-          // Set default type to first available type (excluding Medical for casual employees)
-          if (parsedTypes.length > 0 && !formData.type) {
-            const availableTypes = parsedTypes.filter((type: ClaimType) => 
-              currentEmployee?.type === 'Full-Time' || type.name !== 'Medical'
-            );
-            if (availableTypes.length > 0) {
-              setFormData(prev => ({ ...prev, type: availableTypes[0].name }));
-            }
+        console.log('Loading claim types from database...');
+        const types = await getClaimTypes();
+        console.log('Loaded claim types:', types);
+        setClaimTypes(types);
+        
+        // Set default type based on employee type
+        if (types.length > 0 && !formData.type && currentEmployee) {
+          const availableTypes = types.filter(type => 
+            currentEmployee.type === 'Full-Time' || type.name !== 'Medical'
+          );
+          if (availableTypes.length > 0) {
+            setFormData(prev => ({ ...prev, type: availableTypes[0].name }));
           }
-        } else {
-          // Default claim types
-          const defaultTypes: ClaimType[] = [
-            { id: 'medical', name: 'Medical', limit: 1000, coPay: 0 },
-            { id: 'transport', name: 'Transport', limit: 500, coPay: 0 },
-            { id: 'meal', name: 'Meal', limit: 300, coPay: 20 },
-            { id: 'equipment', name: 'Equipment', limit: null, coPay: 10 }
-          ];
-          console.log('Setting default claim types:', defaultTypes);
-          setClaimTypes(defaultTypes);
-          // Set default type based on employee type
-          if (currentEmployee?.type === 'Full-Time') {
-            setFormData(prev => ({ ...prev, type: 'Medical' }));
-          } else {
-            setFormData(prev => ({ ...prev, type: 'Transport' }));
-          }
-          localStorage.setItem('claim_types', JSON.stringify(defaultTypes));
         }
       } catch (error) {
         console.error('Error loading claim types:', error);
@@ -148,23 +113,24 @@ const SubmitClaim = () => {
       return;
     }
 
-    if (!uploadedFile) {
-      toast("Please upload a receipt");
+    if (!receiptUrl) {
+      toast("Please upload a receipt before submitting");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      console.log('Submitting claim:', formData);
+      console.log('Submitting claim:', formData, 'with receipt:', receiptUrl);
 
-      const newClaim: Omit<Claim, 'id'> = {
+      const newClaim = {
         employeeId: currentEmployee.id,
         employee: currentEmployee.name,
         type: formData.type,
         amount: parseFloat(formData.amount),
         date: formData.date,
-        status: 'Pending',
-        description: formData.description
+        status: 'Pending' as const,
+        description: formData.description,
+        receipt_url: receiptUrl
       };
 
       await createClaim(newClaim);
@@ -182,9 +148,9 @@ const SubmitClaim = () => {
         vendor: '',
         description: ''
       }));
-      setUploadedFile(null);
+      setReceiptUrl(null);
 
-      toast("Claim submitted successfully");
+      toast("Claim submitted successfully!");
     } catch (error) {
       console.error('Error submitting claim:', error);
       toast("Error submitting claim. Please try again.");
@@ -255,7 +221,7 @@ const SubmitClaim = () => {
         <div className="flex items-center justify-end">
           <Button 
             onClick={handleSubmitClaim} 
-            disabled={isSubmitting}
+            disabled={isSubmitting || !receiptUrl}
             className={`bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3 text-lg font-semibold'}`}
             size={isMobile ? "default" : "lg"}
           >
@@ -294,6 +260,7 @@ const SubmitClaim = () => {
                       value={formData.type}
                       onChange={(e) => handleInputChange('type', e.target.value)}
                     >
+                      <option value="">Select claim type</option>
                       {getAvailableClaimTypes().map((claimType) => (
                         <option key={claimType.id} value={claimType.name}>
                           {getClaimTypeIcon(claimType.name)} {claimType.name}
@@ -368,11 +335,14 @@ const SubmitClaim = () => {
                 </div>
 
                 {/* Receipt Upload Section */}
-                <ReceiptUpload 
-                  onFileUpload={setUploadedFile}
-                  uploadedFile={uploadedFile}
-                  isRequired={true}
-                />
+                {currentEmployee && (
+                  <ReceiptUpload 
+                    onFileUpload={setReceiptUrl}
+                    uploadedFileUrl={receiptUrl}
+                    employeeId={currentEmployee.id}
+                    isRequired={true}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>

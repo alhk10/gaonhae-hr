@@ -284,6 +284,39 @@ export type Database = {
           },
         ]
       }
+      claim_types: {
+        Row: {
+          co_pay: number
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          limit_amount: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          co_pay?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          limit_amount?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          co_pay?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          limit_amount?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       claims: {
         Row: {
           amount: number
