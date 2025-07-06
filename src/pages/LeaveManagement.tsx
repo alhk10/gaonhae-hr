@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -7,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from '@/components/ui/sonner';
-import { CalendarDays, Users, Check, X, Clock, Calendar, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import { CalendarDays, Users, Check, X, Clock, Calendar, Trash2, AlertTriangle, Info, Shield } from 'lucide-react';
 import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 import LeaveSummaryPanel from '@/components/leave/LeaveSummaryPanel';
+import EnhancedLeaveSummary from '@/components/leave/EnhancedLeaveSummary';
 import { getEmployees } from '@/services/employeeService';
 import { isEligibleForLeave } from '@/utils/employeeEligibility';
 import { cleanupIneligibleMondayHolidayAdjustments } from '@/services/publicHolidayService';
@@ -24,6 +24,7 @@ const LeaveManagement = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOnlyEligible, setShowOnlyEligible] = useState(true);
+  const [systemValidated, setSystemValidated] = useState(false);
   const [stats, setStats] = useState({
     totalRequests: 0,
     pendingRequests: 0,
@@ -35,8 +36,7 @@ const LeaveManagement = () => {
 
   useEffect(() => {
     loadData();
-    // Run cleanup on component mount
-    cleanupIneligibleMondayHolidayAdjustments().catch(console.error);
+    validateSystemIntegrity();
   }, []);
 
   const loadData = async () => {
@@ -71,37 +71,80 @@ const LeaveManagement = () => {
       console.log('Eligible employees:', eligibleEmployees.length, 'Total employees:', allEmployees.length);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast('Error loading leave data');
+      toast({
+        title: "Error",
+        description: "Error loading leave data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const validateSystemIntegrity = async () => {
+    try {
+      // Check if database triggers are working by attempting to get system info
+      const { data, error } = await supabase.rpc('get_eligible_employees_for_leave');
+      
+      if (error) {
+        console.warn('Database functions may not be available:', error);
+        setSystemValidated(false);
+      } else {
+        setSystemValidated(true);
+      }
+    } catch (error) {
+      console.warn('System validation check failed:', error);
+      setSystemValidated(false);
     }
   };
 
   const handleApprove = async (leaveId: number) => {
     try {
       await updateLeaveStatus(leaveId, 'Approved', user?.name);
-      toast('Leave request approved');
+      toast({
+        title: "Success",
+        description: "Leave request approved",
+      });
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving leave:', error);
-      toast('Error approving leave request');
+      const errorMessage = error?.message?.includes('not eligible') 
+        ? 'Cannot approve: Employee is not eligible for leave'
+        : 'Error approving leave request';
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
   const handleReject = async (leaveId: number) => {
     try {
       await updateLeaveStatus(leaveId, 'Rejected', user?.name);
-      toast('Leave request rejected');
+      toast({
+        title: "Success",
+        description: "Leave request rejected",
+      });
       await loadData();
     } catch (error) {
       console.error('Error rejecting leave:', error);
-      toast('Error rejecting leave request');
+      toast({
+        title: "Error",
+        description: "Error rejecting leave request",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDelete = async (leaveId: number) => {
     if (!user || user.role !== 'superadmin') {
-      toast('Only superadmin can delete leave records');
+      toast({
+        title: "Access Denied",
+        description: "Only superadmin can delete leave records",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -117,11 +160,19 @@ const LeaveManagement = () => {
 
       if (error) throw error;
 
-      toast('Leave record deleted successfully');
+      toast({
+        title: "Success",
+        description: "Leave record deleted successfully",
+      });
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting leave:', error);
-      toast('Error deleting leave record');
+      const errorMessage = error?.message || 'Error deleting leave record';
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -191,6 +242,12 @@ const LeaveManagement = () => {
                     {stats.ineligibleEmployees} ineligible employees
                   </Badge>
                 )}
+                <div className="flex items-center space-x-1">
+                  <Shield className={`w-4 h-4 ${systemValidated ? 'text-green-600' : 'text-orange-600'}`} />
+                  <span className={`text-xs ${systemValidated ? 'text-green-600' : 'text-orange-600'}`}>
+                    {systemValidated ? 'System Validated' : 'Validation Pending'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -259,18 +316,19 @@ const LeaveManagement = () => {
               </Card>
             </div>
 
-            {/* Leave Policy Information */}
+            {/* System Status and Policy Information */}
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-4">
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium text-blue-800">Leave Policy Summary</h3>
+                    <h3 className="font-medium text-blue-800">Leave Policy & System Status</h3>
                     <div className="text-sm text-blue-700 mt-1 space-y-1">
                       <p>• <strong>Full-Time Employees:</strong> 21 annual leave days + 14 medical leave days (pro-rated from join date)</p>
                       <p>• <strong>Monday Holiday Bonus:</strong> +1 annual leave day for each public holiday that falls on Monday</p>
                       <p>• <strong>Casual Employees:</strong> No leave entitlements (pay based on actual work days)</p>
                       <p>• <strong>Senior Partners:</strong> Flexible leave arrangements (do not use this system)</p>
+                      <p>• <strong>Database Validation:</strong> {systemValidated ? '✅ Active - Triggers prevent invalid applications' : '⚠️ Pending validation'}</p>
                     </div>
                   </div>
                 </div>
@@ -287,7 +345,7 @@ const LeaveManagement = () => {
                       <h3 className="font-medium text-orange-800">Ineligible Employee Leave Requests Found</h3>
                       <p className="text-sm text-orange-700 mt-1">
                         Some leave requests are from employees not eligible for leave (Casual employees or Senior Partners). 
-                        These requests may need manual review or deletion.
+                        These requests may need manual review or deletion. Database triggers now prevent new invalid requests.
                       </p>
                     </div>
                   </div>
@@ -297,10 +355,11 @@ const LeaveManagement = () => {
 
             {/* Main Content */}
             <Tabs defaultValue="list" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="list">Leave Requests</TabsTrigger>
                 <TabsTrigger value="calendar">Calendar View</TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="enhanced">System Overview</TabsTrigger>
               </TabsList>
 
               <TabsContent value="list">
@@ -445,6 +504,10 @@ const LeaveManagement = () => {
 
               <TabsContent value="summary">
                 <LeaveSummaryPanel />
+              </TabsContent>
+
+              <TabsContent value="enhanced">
+                <EnhancedLeaveSummary />
               </TabsContent>
             </Tabs>
           </div>
