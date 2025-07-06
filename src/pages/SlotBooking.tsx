@@ -372,6 +372,9 @@ const SlotBooking = () => {
                           fontWeight: 'bold'
                         }
                       }}
+                      style={{
+                        minHeight: '400px'
+                      }}
                     />
                   </div>
                 </div>

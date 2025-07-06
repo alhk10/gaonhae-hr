@@ -139,7 +139,7 @@ const AttendanceCalendarView = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div style={{ height: '600px' }}>
+          <div style={{ height: '800px' }}>
             <Calendar
               localizer={localizer}
               events={events}
@@ -152,9 +152,31 @@ const AttendanceCalendarView = () => {
               views={['month']}
               defaultView="month"
               popup
+              dayLayoutAlgorithm="no-overlap"
               tooltipAccessor={(event) => {
                 const employee = employees.find(emp => emp.id === event.resource.employeeId);
                 return `${employee?.name || 'Unknown'} - ${event.resource.status} (${event.resource.hoursWorked}h)`;
+              }}
+              formats={{
+                dayHeaderFormat: (date, culture, localizer) =>
+                  localizer?.format(date, 'dddd', culture) || ''
+              }}
+              components={{
+                month: {
+                  dateHeader: ({ date, label }) => (
+                    <div className="rbc-date-cell">
+                      <div className="rbc-row-bg">
+                        <div className="rbc-day-bg rbc-today" style={{ minHeight: '120px' }}>
+                          <span className="rbc-date-cell-text">{label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+              }}
+              style={{
+                height: '100%',
+                fontSize: '14px'
               }}
             />
           </div>

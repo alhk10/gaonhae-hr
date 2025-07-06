@@ -155,7 +155,7 @@ const LeaveCalendarView = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div style={{ height: '600px' }}>
+          <div style={{ height: '800px' }}>
             <Calendar
               localizer={localizer}
               events={events}
@@ -168,7 +168,16 @@ const LeaveCalendarView = () => {
               views={['month']}
               defaultView="month"
               popup
+              dayLayoutAlgorithm="no-overlap"
               tooltipAccessor={(event) => `${event.resource.employeeName} - ${event.resource.type} (${event.resource.status})`}
+              formats={{
+                dayHeaderFormat: (date, culture, localizer) =>
+                  localizer?.format(date, 'dddd', culture) || ''
+              }}
+              style={{
+                height: '100%',
+                fontSize: '14px'
+              }}
             />
           </div>
         </CardContent>
