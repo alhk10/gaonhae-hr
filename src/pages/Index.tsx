@@ -37,7 +37,7 @@ const Index = () => {
     console.log('Index: User requires password change, showing modal');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <PasswordChangeModal open={true} />
+        <PasswordChangeModal />
       </div>
     );
   }

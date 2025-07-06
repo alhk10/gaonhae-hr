@@ -82,7 +82,7 @@ const PasswordChangeModal: React.FC = () => {
 
   return (
     <Dialog open={requiresPasswordChange} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md" hideCloseButton>
+      <DialogContent className="sm:max-w-md [&>button]:hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-amber-500" />
