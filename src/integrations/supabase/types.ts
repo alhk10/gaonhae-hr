@@ -700,6 +700,45 @@ export type Database = {
           },
         ]
       }
+      monday_holiday_leave_adjustments: {
+        Row: {
+          bonus_days_granted: number
+          employee_id: string
+          granted_date: string | null
+          holiday_id: string
+          id: string
+        }
+        Insert: {
+          bonus_days_granted?: number
+          employee_id: string
+          granted_date?: string | null
+          holiday_id: string
+          id?: string
+        }
+        Update: {
+          bonus_days_granted?: number
+          employee_id?: string
+          granted_date?: string | null
+          holiday_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monday_holiday_leave_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monday_holiday_leave_adjustments_holiday_id_fkey"
+            columns: ["holiday_id"]
+            isOneToOne: false
+            referencedRelation: "public_holidays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_history: {
         Row: {
           created_at: string | null
@@ -764,6 +803,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      public_holidays: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          is_monday_holiday: boolean
+          name: string
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          is_monday_holiday?: boolean
+          name: string
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          is_monday_holiday?: boolean
+          name?: string
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
       }
       security_audit_log: {
         Row: {

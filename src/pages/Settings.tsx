@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import SuperadminManager from '@/components/admin/SuperadminManager';
+import PublicHolidayManagement from '@/components/settings/PublicHolidayManagement';
 import { 
   getBranches, 
   saveBranch,
@@ -378,6 +379,10 @@ const Settings = () => {
 
         {user?.role === 'superadmin' && (
           <SuperadminManager />
+        )}
+
+        {user?.role === 'superadmin' && (
+          <PublicHolidayManagement />
         )}
 
         <Card>

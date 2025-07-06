@@ -1,111 +1,174 @@
+import { supabase } from '@/integrations/supabase/client';
+import { calculateMondayHolidayBonus, calculateTotalAnnualLeaveWithBonus } from './mondayHolidayCalculations';
 
-// Utility functions for calculating annual leave entitlements
+// Calculate total leave requests for a specific employee
+export const calculateTotalLeaveRequests = async (employeeId: string): Promise<number> => {
+  try {
+    const { data: leaveRequests, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('employee_id', employeeId);
 
-export interface LeaveEntitlement {
-  annualLeave: {
-    total: number;
-    used: number;
-    remaining: number;
-  };
-  medicalLeave: {
-    total: number;
-    used: number;
-    remaining: number;
-  };
-}
-
-export const calculateAnnualLeaveEntitlement = (joinDate: string): number => {
-  const today = new Date();
-  const join = new Date(joinDate);
-  
-  // Calculate years of service (completed years)
-  const yearsOfService = Math.floor((today.getTime() - join.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  
-  // Base annual leave: 14 days + 1 day per year of service, max 18 days
-  const baseLeave = 14;
-  const additionalDays = Math.min(yearsOfService, 4); // Max 4 additional days
-  const totalAnnualLeave = baseLeave + additionalDays;
-  
-  return totalAnnualLeave;
-};
-
-export const calculateProRatedLeave = (joinDate: string, totalEntitlement: number): number => {
-  const today = new Date();
-  const join = new Date(joinDate);
-  const currentYear = today.getFullYear();
-  const joinYear = join.getFullYear();
-  
-  // If joined in current year, pro-rate the leave
-  if (joinYear === currentYear) {
-    const startOfYear = new Date(currentYear, 0, 1);
-    const endOfYear = new Date(currentYear, 11, 31);
-    const totalDaysInYear = Math.ceil((endOfYear.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-    const remainingDaysInYear = Math.ceil((endOfYear.getTime() - join.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-    
-    // Pro-rate based on remaining days in the year
-    const proRatedLeave = Math.floor((totalEntitlement * remainingDaysInYear) / totalDaysInYear);
-    return Math.max(1, proRatedLeave); // Minimum 1 day
-  }
-  
-  // If joined in previous years, return full entitlement
-  return totalEntitlement;
-};
-
-export const calculateLeaveBalance = (
-  employeeId: string, 
-  joinDate: string, 
-  leaveHistory: any[]
-): LeaveEntitlement => {
-  const currentYear = new Date().getFullYear();
-  
-  // Calculate annual leave entitlement
-  const annualLeaveEntitlement = calculateAnnualLeaveEntitlement(joinDate);
-  const proRatedAnnualLeave = calculateProRatedLeave(joinDate, annualLeaveEntitlement);
-  
-  // Filter leave history for current year and approved leaves
-  const thisYearLeaves = leaveHistory.filter(leave => 
-    leave.employeeId === employeeId &&
-    new Date(leave.startDate).getFullYear() === currentYear && 
-    leave.status === 'Approved'
-  );
-  
-  // Calculate used leave days
-  const annualLeaveUsed = thisYearLeaves
-    .filter(leave => leave.type === 'Annual Leave')
-    .reduce((total, leave) => total + leave.days, 0);
-  
-  const medicalLeaveUsed = thisYearLeaves
-    .filter(leave => leave.type === 'Medical Leave')
-    .reduce((total, leave) => total + leave.days, 0);
-
-  return {
-    annualLeave: { 
-      total: proRatedAnnualLeave, 
-      used: annualLeaveUsed, 
-      remaining: proRatedAnnualLeave - annualLeaveUsed 
-    },
-    medicalLeave: { 
-      total: 14, // Medical leave remains fixed at 14 days
-      used: medicalLeaveUsed, 
-      remaining: 14 - medicalLeaveUsed 
+    if (error) {
+      console.error('Error fetching leave requests:', error);
+      return 0;
     }
-  };
+
+    return leaveRequests.reduce((total, request) => total + request.days_requested, 0);
+  } catch (error) {
+    console.error('Error calculating total leave requests:', error);
+    return 0;
+  }
 };
 
-export const getLeaveEntitlementSummary = (joinDate: string): string => {
-  const today = new Date();
-  const join = new Date(joinDate);
-  const yearsOfService = Math.floor((today.getTime() - join.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  const entitlement = calculateAnnualLeaveEntitlement(joinDate);
-  const proRated = calculateProRatedLeave(joinDate, entitlement);
+// Calculate Annual Leave Entitlement based on join date and resign date
+export const calculateAnnualLeaveEntitlement = async (
+  employee: { 
+    join_date: string | null; 
+    resign_date: string | null; 
+    id: string;
+  },
+  year: number = new Date().getFullYear()
+): Promise<number> => {
+  // Calculate base annual leave (existing logic)
+  const baseAnnualLeave = calculateBaseAnnualLeave(employee, year);
   
-  if (join.getFullYear() === today.getFullYear()) {
-    return `${proRated} days (pro-rated for ${today.getFullYear()})`;
+  // Add Monday holiday bonus days
+  const totalWithBonus = await calculateTotalAnnualLeaveWithBonus(baseAnnualLeave, employee.id);
+  
+  console.log(`LeaveCalculations: Employee ${employee.id} - Base: ${baseAnnualLeave}, With Monday bonus: ${totalWithBonus}`);
+  
+  return totalWithBonus;
+};
+
+// Helper function for base annual leave calculation (without Monday bonuses)
+const calculateBaseAnnualLeave = (
+  employee: { 
+    join_date: string | null; 
+    resign_date: string | null; 
+  },
+  year: number = new Date().getFullYear()
+): number => {
+  const baseAnnualLeave = 21; // Standard annual leave days
+  
+  if (!employee.join_date) {
+    return baseAnnualLeave;
+  }
+
+  const joinDate = new Date(employee.join_date);
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  
+  // If employee joined before this year, they get full entitlement
+  if (joinDate.getFullYear() < year) {
+    // Check if they resigned during the year
+    if (employee.resign_date) {
+      const resignDate = new Date(employee.resign_date);
+      if (resignDate.getFullYear() === year) {
+        // Pro-rate based on resignation date
+        const monthsWorked = resignDate.getMonth() + 1;
+        return Math.round((baseAnnualLeave * monthsWorked) / 12);
+      }
+    }
+    return baseAnnualLeave;
   }
   
-  if (yearsOfService >= 4) {
-    return `${entitlement} days (maximum reached after ${yearsOfService} years)`;
+  // If employee joined during this year, pro-rate the entitlement
+  if (joinDate.getFullYear() === year) {
+    const monthsInYear = 12;
+    const monthsWorked = monthsInYear - joinDate.getMonth();
+    
+    // If they also resigned in the same year
+    if (employee.resign_date) {
+      const resignDate = new Date(employee.resign_date);
+      if (resignDate.getFullYear() === year) {
+        const actualMonthsWorked = resignDate.getMonth() - joinDate.getMonth() + 1;
+        return Math.round((baseAnnualLeave * actualMonthsWorked) / 12);
+      }
+    }
+    
+    return Math.round((baseAnnualLeave * monthsWorked) / 12);
   }
   
-  return `${entitlement} days (${yearsOfService} years of service)`;
+  return 0; // Employee hasn't joined yet
+};
+
+// Calculate Leave Balance
+export const calculateLeaveBalance = async (
+  employeeId: string,
+  leaveRequests: any[],
+  year: number = new Date().getFullYear()
+): Promise<{
+  entitlement: number;
+  used: number;
+  pending: number;
+  balance: number;
+  mondayHolidayBonus: number;
+}> => {
+  try {
+    // Get employee data
+    // This would need to be passed in or fetched - assuming it's available
+    const employee = { id: employeeId, join_date: null, resign_date: null }; // Placeholder
+    
+    // Calculate total entitlement including Monday holiday bonuses
+    const totalEntitlement = await calculateAnnualLeaveEntitlement(employee, year);
+    const mondayBonus = await calculateMondayHolidayBonus(employeeId);
+    const baseEntitlement = totalEntitlement - mondayBonus;
+    
+    // Calculate used and pending leave (existing logic)
+    const currentYearRequests = leaveRequests.filter(request => {
+      const requestYear = new Date(request.start_date).getFullYear();
+      return requestYear === year;
+    });
+    
+    const usedLeave = currentYearRequests
+      .filter(request => request.status === 'Approved')
+      .reduce((total, request) => total + request.days_requested, 0);
+    
+    const pendingLeave = currentYearRequests
+      .filter(request => request.status === 'Pending')
+      .reduce((total, request) => total + request.days_requested, 0);
+    
+    const balance = totalEntitlement - usedLeave - pendingLeave;
+    
+    console.log(`LeaveCalculations: Employee ${employeeId} balance - Total: ${totalEntitlement} (Base: ${baseEntitlement} + Monday: ${mondayBonus}), Used: ${usedLeave}, Pending: ${pendingLeave}, Balance: ${balance}`);
+    
+    return {
+      entitlement: totalEntitlement,
+      used: usedLeave,
+      pending: pendingLeave,
+      balance: balance,
+      mondayHolidayBonus: mondayBonus
+    };
+  } catch (error) {
+    console.error('Error calculating leave balance:', error);
+    // Return fallback values
+    return {
+      entitlement: 21,
+      used: 0,
+      pending: 0,
+      balance: 21,
+      mondayHolidayBonus: 0
+    };
+  }
+};
+
+// Function to get all leave requests for a specific employee
+export const getLeaveRequests = async (employeeId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('employee_id', employeeId);
+
+    if (error) {
+      console.error('Error fetching leave requests:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching leave requests:', error);
+    return [];
+  }
 };
