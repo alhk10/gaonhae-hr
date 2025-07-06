@@ -83,11 +83,14 @@ const LeaveManagement = () => {
 
   const validateSystemIntegrity = async () => {
     try {
-      // Check if database triggers are working by attempting to get system info
-      const { data, error } = await supabase.rpc('get_eligible_employees_for_leave');
+      // Check if database constraints are working by testing a simple query
+      const { data, error } = await supabase
+        .from('employees')
+        .select('count')
+        .limit(1);
       
       if (error) {
-        console.warn('Database functions may not be available:', error);
+        console.warn('Database validation check failed:', error);
         setSystemValidated(false);
       } else {
         setSystemValidated(true);

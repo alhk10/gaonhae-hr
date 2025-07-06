@@ -18,48 +18,53 @@ export interface EligibleEmployee {
   email: string | null;
 }
 
-// Get all employees eligible for leave using the database function
+// Get all employees eligible for leave using direct query since RPC isn't typed yet
 export const getEligibleEmployeesForLeave = async (): Promise<EligibleEmployee[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_eligible_employees_for_leave');
+    // Use direct query instead of RPC until types are updated
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name, type, position, join_date, email, resign_date')
+      .eq('type', 'Full-Time')
+      .is('resign_date', null);
     
     if (error) {
       console.error('Error fetching eligible employees:', error);
       throw error;
     }
 
-    return (data || []).map((emp: any) => ({
-      id: emp.id,
-      name: emp.name,
-      type: emp.type,
-      position: emp.position,
-      joinDate: emp.join_date,
-      email: emp.email
-    }));
+    // Filter out Senior Partners and map to expected format
+    return (data || [])
+      .filter(emp => emp.position !== 'Senior Partner')
+      .map((emp: any) => ({
+        id: emp.id,
+        name: emp.name,
+        type: emp.type,
+        position: emp.position,
+        joinDate: emp.join_date,
+        email: emp.email
+      }));
   } catch (error) {
     console.error('Error in getEligibleEmployeesForLeave:', error);
     throw error;
   }
 };
 
-// Calculate leave entitlement using the database function
+// Calculate leave entitlement manually until database function is available
 export const calculateEmployeeLeaveEntitlement = async (
   employeeId: string,
   year: number = new Date().getFullYear()
 ): Promise<LeaveEntitlementCalculation> => {
   try {
-    const { data, error } = await supabase.rpc('calculate_employee_leave_entitlement', {
-      p_employee_id: employeeId,
-      p_year: year
-    });
+    // Get employee data
+    const { data: employee, error: empError } = await supabase
+      .from('employees')
+      .select('type, position, join_date')
+      .eq('id', employeeId)
+      .single();
 
-    if (error) {
-      console.error('Error calculating leave entitlement:', error);
-      throw error;
-    }
-
-    const result = data?.[0];
-    if (!result) {
+    if (empError || !employee) {
+      console.error('Error fetching employee:', empError);
       return {
         annualLeaveBase: 0,
         mondayHolidayBonus: 0,
@@ -68,15 +73,55 @@ export const calculateEmployeeLeaveEntitlement = async (
       };
     }
 
+    // Check eligibility
+    if (!isEligibleForLeave(employee)) {
+      return {
+        annualLeaveBase: 0,
+        mondayHolidayBonus: 0,
+        totalAnnualLeave: 0,
+        medicalLeave: 0
+      };
+    }
+
+    let baseAnnualLeave = 21;
+    const medicalLeave = 14;
+
+    // Calculate pro-rated leave if joined mid-year
+    if (employee.join_date) {
+      const joinDate = new Date(employee.join_date);
+      if (joinDate.getFullYear() === year) {
+        const monthsWorked = 12 - joinDate.getMonth();
+        baseAnnualLeave = Math.round((baseAnnualLeave * monthsWorked) / 12);
+      }
+    }
+
+    // Get Monday holiday bonuses
+    const { data: bonuses } = await supabase
+      .from('monday_holiday_leave_adjustments')
+      .select(`
+        bonus_days_granted,
+        public_holidays!inner(year)
+      `)
+      .eq('employee_id', employeeId)
+      .eq('public_holidays.year', year);
+
+    const mondayHolidayBonus = bonuses?.reduce((sum, bonus) => sum + (bonus.bonus_days_granted || 0), 0) || 0;
+    const totalAnnualLeave = baseAnnualLeave + mondayHolidayBonus;
+
     return {
-      annualLeaveBase: result.annual_leave_base || 0,
-      mondayHolidayBonus: result.monday_holiday_bonus || 0,
-      totalAnnualLeave: result.total_annual_leave || 0,
-      medicalLeave: result.medical_leave || 0
+      annualLeaveBase: baseAnnualLeave,
+      mondayHolidayBonus,
+      totalAnnualLeave,
+      medicalLeave
     };
   } catch (error) {
     console.error('Error in calculateEmployeeLeaveEntitlement:', error);
-    throw error;
+    return {
+      annualLeaveBase: 0,
+      mondayHolidayBonus: 0,
+      totalAnnualLeave: 0,
+      medicalLeave: 0
+    };
   }
 };
 

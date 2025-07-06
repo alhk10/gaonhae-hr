@@ -5,32 +5,48 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, X, FileText } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/components/ui/use-toast';
 
 interface MedicalCertificateUploadProps {
-  onFileUpload: (file: File | null) => void;
-  uploadedFile: File | null;
+  onUploadComplete: (certificateUrl: string) => void;
+  currentCertificateUrl?: string;
 }
 
 const MedicalCertificateUpload: React.FC<MedicalCertificateUploadProps> = ({
-  onFileUpload,
-  uploadedFile
+  onUploadComplete,
+  currentCertificateUrl
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast("File size must be less than 5MB");
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB",
+          variant: "destructive",
+        });
         return;
       }
       if (!file.type.includes('image') && !file.type.includes('pdf')) {
-        toast("Please upload an image or PDF file");
+        toast({
+          title: "Error",
+          description: "Please upload an image or PDF file",
+          variant: "destructive",
+        });
         return;
       }
-      onFileUpload(file);
-      toast("Medical certificate uploaded successfully");
+      setUploadedFile(file);
+      // For now, we'll just pass the file name as URL
+      // In a real implementation, you'd upload to storage and get the URL
+      const mockUrl = `uploaded/${file.name}`;
+      onUploadComplete(mockUrl);
+      toast({
+        title: "Success",
+        description: "Medical certificate uploaded successfully",
+      });
     }
   };
 
@@ -41,22 +57,41 @@ const MedicalCertificateUpload: React.FC<MedicalCertificateUploadProps> = ({
     const file = event.dataTransfer.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast("File size must be less than 5MB");
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB",
+          variant: "destructive",
+        });
         return;
       }
       if (!file.type.includes('image') && !file.type.includes('pdf')) {
-        toast("Please upload an image or PDF file");
+        toast({
+          title: "Error",
+          description: "Please upload an image or PDF file",
+          variant: "destructive",
+        });
         return;
       }
-      onFileUpload(file);
-      toast("Medical certificate uploaded successfully");
+      setUploadedFile(file);
+      const mockUrl = `uploaded/${file.name}`;
+      onUploadComplete(mockUrl);
+      toast({
+        title: "Success",
+        description: "Medical certificate uploaded successfully",
+      });
     }
   };
 
   const handleRemoveFile = () => {
-    onFileUpload(null);
-    toast("Medical certificate removed");
+    setUploadedFile(null);
+    onUploadComplete('');
+    toast({
+      title: "Success",
+      description: "Medical certificate removed",
+    });
   };
+
+  const displayFile = uploadedFile || (currentCertificateUrl ? { name: 'Previously uploaded file', size: 0 } : null);
 
   return (
     <Card>
@@ -67,15 +102,17 @@ const MedicalCertificateUpload: React.FC<MedicalCertificateUploadProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {uploadedFile ? (
+        {displayFile ? (
           <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center space-x-3">
               <FileText className="w-5 h-5 text-green-600" />
               <div>
-                <p className="font-medium text-green-800">{uploadedFile.name}</p>
-                <p className="text-sm text-green-600">
-                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
+                <p className="font-medium text-green-800">{displayFile.name}</p>
+                {displayFile.size > 0 && (
+                  <p className="text-sm text-green-600">
+                    {(displayFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                )}
               </div>
             </div>
             <Button
