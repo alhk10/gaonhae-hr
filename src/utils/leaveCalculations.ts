@@ -1,7 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { calculateMondayHolidayBonus, calculateTotalAnnualLeaveWithBonus } from './mondayHolidayCalculations';
 import { isEligibleForLeave } from './employeeEligibility';
+
+// Interface for database function results
+interface LeaveEntitlementResult {
+  base_annual_leave: number;
+  years_of_service: number;
+  service_bonus_days: number;
+  total_annual_leave: number;
+  monday_holiday_bonus: number;
+  final_annual_leave: number;
+  medical_leave: number;
+}
 
 // Calculate total leave requests for a specific employee
 export const calculateTotalLeaveRequests = async (employeeId: string): Promise<number> => {
@@ -23,7 +33,7 @@ export const calculateTotalLeaveRequests = async (employeeId: string): Promise<n
   }
 };
 
-// Calculate Annual Leave Entitlement based on join date and resign date
+// Calculate Annual Leave Entitlement using database function
 export const calculateAnnualLeaveEntitlement = async (
   employee: { 
     join_date: string | null; 
@@ -40,78 +50,59 @@ export const calculateAnnualLeaveEntitlement = async (
     return 0;
   }
 
-  // Calculate base annual leave (existing logic)
-  const baseAnnualLeave = calculateBaseAnnualLeave(employee, year);
-  
-  // Add Monday holiday bonus days only for eligible employees
-  const totalWithBonus = await calculateTotalAnnualLeaveWithBonus(baseAnnualLeave, employee.id);
-  
-  console.log(`LeaveCalculations: Employee ${employee.id} - Base: ${baseAnnualLeave}, With Monday bonus: ${totalWithBonus}`);
-  
-  return totalWithBonus;
-};
+  try {
+    // Use the database function to calculate entitlement
+    const { data, error } = await supabase.rpc('calculate_annual_leave_entitlement', {
+      employee_id: employee.id,
+      reference_year: year
+    });
 
-// Helper function for base annual leave calculation (without Monday bonuses)
-const calculateBaseAnnualLeave = (
-  employee: { 
-    join_date: string | null; 
-    resign_date: string | null;
-    type: string;
-    position?: string;
-  },
-  year: number = new Date().getFullYear()
-): number => {
-  // Return 0 for ineligible employees
-  if (!isEligibleForLeave(employee)) {
+    if (error) {
+      console.error('Error calculating leave entitlement:', error);
+      return 0;
+    }
+
+    if (data && data.length > 0) {
+      const result = data[0] as LeaveEntitlementResult;
+      console.log(`LeaveCalculations: Employee ${employee.id} - Base: ${result.base_annual_leave}, Years of service: ${result.years_of_service}, Service bonus: ${result.service_bonus_days}, Total: ${result.final_annual_leave}`);
+      return result.final_annual_leave;
+    }
+
+    return 0;
+  } catch (error) {
+    console.error('Error in calculateAnnualLeaveEntitlement:', error);
     return 0;
   }
-
-  const baseAnnualLeave = 21; // Standard annual leave days
-  
-  if (!employee.join_date) {
-    console.log(`LeaveCalculations: Employee has no join date, using full entitlement`);
-    return baseAnnualLeave;
-  }
-
-  const joinDate = new Date(employee.join_date);
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year, 11, 31);
-  
-  // If employee joined before this year, they get full entitlement
-  if (joinDate.getFullYear() < year) {
-    // Check if they resigned during the year
-    if (employee.resign_date) {
-      const resignDate = new Date(employee.resign_date);
-      if (resignDate.getFullYear() === year) {
-        // Pro-rate based on resignation date
-        const monthsWorked = resignDate.getMonth() + 1;
-        return Math.round((baseAnnualLeave * monthsWorked) / 12);
-      }
-    }
-    return baseAnnualLeave;
-  }
-  
-  // If employee joined during this year, pro-rate the entitlement
-  if (joinDate.getFullYear() === year) {
-    const monthsInYear = 12;
-    const monthsWorked = monthsInYear - joinDate.getMonth();
-    
-    // If they also resigned in the same year
-    if (employee.resign_date) {
-      const resignDate = new Date(employee.resign_date);
-      if (resignDate.getFullYear() === year) {
-        const actualMonthsWorked = resignDate.getMonth() - joinDate.getMonth() + 1;
-        return Math.round((baseAnnualLeave * actualMonthsWorked) / 12);
-      }
-    }
-    
-    return Math.round((baseAnnualLeave * monthsWorked) / 12);
-  }
-  
-  return 0; // Employee hasn't joined yet
 };
 
-// Calculate Leave Balance - Updated to handle employee eligibility
+// Get detailed leave entitlement breakdown
+export const getLeaveEntitlementDetails = async (
+  employeeId: string,
+  year: number = new Date().getFullYear()
+): Promise<LeaveEntitlementResult | null> => {
+  try {
+    const { data, error } = await supabase.rpc('calculate_annual_leave_entitlement', {
+      employee_id: employeeId,
+      reference_year: year
+    });
+
+    if (error) {
+      console.error('Error getting leave entitlement details:', error);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      return data[0] as LeaveEntitlementResult;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error in getLeaveEntitlementDetails:', error);
+    return null;
+  }
+};
+
+// Calculate Leave Balance using database functions
 export const calculateLeaveBalance = async (
   employeeId: string,
   joinDate: string,
@@ -123,6 +114,7 @@ export const calculateLeaveBalance = async (
     total: number;
     used: number;
     remaining: number;
+    details?: LeaveEntitlementResult;
   };
   medicalLeave: {
     total: number;
@@ -140,37 +132,17 @@ export const calculateLeaveBalance = async (
       };
     }
 
-    // Get employee data if not provided
-    let employeeData = employee;
-    if (!employeeData) {
-      const { data: empData } = await supabase
-        .from('employees')
-        .select('type, position')
-        .eq('id', employeeId)
-        .single();
-      
-      if (empData && !isEligibleForLeave(empData)) {
-        return {
-          annualLeave: { total: 0, used: 0, remaining: 0 },
-          medicalLeave: { total: 0, used: 0, remaining: 0 }
-        };
-      }
+    // Get detailed entitlement from database function
+    const entitlementDetails = await getLeaveEntitlementDetails(employeeId, year);
+    
+    if (!entitlementDetails) {
+      return {
+        annualLeave: { total: 0, used: 0, remaining: 0 },
+        medicalLeave: { total: 0, used: 0, remaining: 0 }
+      };
     }
-    
-    // Create employee object for calculations
-    const employeeForCalc = { 
-      id: employeeId, 
-      join_date: joinDate, 
-      resign_date: null,
-      type: employeeData?.type || 'Full-Time',
-      position: employeeData?.position
-    };
-    
-    // Calculate total entitlement including Monday holiday bonuses
-    const totalAnnualEntitlement = await calculateAnnualLeaveEntitlement(employeeForCalc, year);
-    const mondayBonus = await calculateMondayHolidayBonus(employeeId);
-    
-    // Calculate used and pending leave (existing logic)
+
+    // Calculate used leave from requests
     const currentYearRequests = leaveRequests.filter(request => {
       const requestYear = new Date(request.startDate || request.start_date).getFullYear();
       return requestYear === year;
@@ -184,27 +156,26 @@ export const calculateLeaveBalance = async (
       .filter(request => request.status === 'Approved' && (request.type === 'Medical Leave'))
       .reduce((total, request) => total + (request.days || request.days_requested || 1), 0);
     
-    const annualLeaveRemaining = totalAnnualEntitlement - usedAnnualLeave;
-    const medicalLeaveTotal = isEligibleForLeave(employeeForCalc) ? 14 : 0; // Standard 14 days medical leave for eligible employees
-    const medicalLeaveRemaining = medicalLeaveTotal - usedMedicalLeave;
+    const annualLeaveRemaining = entitlementDetails.final_annual_leave - usedAnnualLeave;
+    const medicalLeaveRemaining = entitlementDetails.medical_leave - usedMedicalLeave;
     
-    console.log(`LeaveCalculations: Employee ${employeeId} balance - Annual: ${totalAnnualEntitlement} (includes ${mondayBonus} Monday bonus), Used: ${usedAnnualLeave}, Remaining: ${annualLeaveRemaining}`);
+    console.log(`LeaveCalculations: Employee ${employeeId} balance - Annual: ${entitlementDetails.final_annual_leave} (Base: ${entitlementDetails.base_annual_leave}, Service: ${entitlementDetails.service_bonus_days}, Monday bonus: ${entitlementDetails.monday_holiday_bonus}), Used: ${usedAnnualLeave}, Remaining: ${annualLeaveRemaining}`);
     
     return {
       annualLeave: {
-        total: totalAnnualEntitlement,
+        total: entitlementDetails.final_annual_leave,
         used: usedAnnualLeave,
-        remaining: Math.max(0, annualLeaveRemaining)
+        remaining: Math.max(0, annualLeaveRemaining),
+        details: entitlementDetails
       },
       medicalLeave: {
-        total: medicalLeaveTotal,
+        total: entitlementDetails.medical_leave,
         used: usedMedicalLeave,
         remaining: Math.max(0, medicalLeaveRemaining)
       }
     };
   } catch (error) {
     console.error('Error calculating leave balance:', error);
-    // Return zero values for error cases
     return {
       annualLeave: { total: 0, used: 0, remaining: 0 },
       medicalLeave: { total: 0, used: 0, remaining: 0 }
@@ -212,20 +183,41 @@ export const calculateLeaveBalance = async (
   }
 };
 
-// Get leave entitlement summary text
-export const getLeaveEntitlementSummary = (joinDate: string): string => {
+// Get leave entitlement summary text with new policy
+export const getLeaveEntitlementSummary = async (employeeId: string, joinDate: string): Promise<string> => {
   const currentYear = new Date().getFullYear();
   const joinYear = new Date(joinDate).getFullYear();
-  const joinMonth = new Date(joinDate).getMonth() + 1;
   
-  if (joinYear < currentYear) {
-    return `You are entitled to 21 annual leave days for ${currentYear} (full year entitlement) plus any Monday holiday bonuses.`;
-  } else if (joinYear === currentYear) {
-    const monthsWorked = 12 - new Date(joinDate).getMonth();
-    const proRatedDays = Math.round((21 * monthsWorked) / 12);
-    return `You are entitled to ${proRatedDays} annual leave days for ${currentYear} (pro-rated from ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })}) plus any Monday holiday bonuses.`;
-  } else {
-    return `You will be entitled to annual leave starting from your join date.`;
+  try {
+    const entitlementDetails = await getLeaveEntitlementDetails(employeeId, currentYear);
+    
+    if (!entitlementDetails) {
+      return "Unable to calculate leave entitlement. Please contact HR.";
+    }
+
+    const { base_annual_leave, years_of_service, service_bonus_days, monday_holiday_bonus, final_annual_leave } = entitlementDetails;
+    
+    let summary = `You are entitled to ${final_annual_leave} annual leave days for ${currentYear}. `;
+    summary += `This includes ${base_annual_leave} base days`;
+    
+    if (years_of_service > 0) {
+      summary += ` + ${service_bonus_days} service bonus days (${years_of_service} years of service)`;
+    }
+    
+    if (monday_holiday_bonus > 0) {
+      summary += ` + ${monday_holiday_bonus} Monday holiday bonus days`;
+    }
+    
+    summary += ` + 14 medical leave days.`;
+    
+    if (joinYear === currentYear) {
+      summary += ` (Pro-rated from your join date in ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })})`;
+    }
+    
+    return summary;
+  } catch (error) {
+    console.error('Error getting leave entitlement summary:', error);
+    return "Unable to calculate leave entitlement. Please contact HR.";
   }
 };
 

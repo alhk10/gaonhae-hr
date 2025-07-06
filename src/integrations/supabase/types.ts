@@ -1200,6 +1200,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_annual_leave_entitlement: {
+        Args: { employee_id: string; reference_year?: number }
+        Returns: {
+          base_annual_leave: number
+          years_of_service: number
+          service_bonus_days: number
+          total_annual_leave: number
+          monday_holiday_bonus: number
+          final_annual_leave: number
+          medical_leave: number
+        }[]
+      }
+      calculate_years_of_service: {
+        Args: { join_date: string; reference_date?: string }
+        Returns: number
+      }
+      get_eligible_employees_with_entitlements: {
+        Args: { reference_year?: number }
+        Returns: {
+          employee_id: string
+          employee_name: string
+          employee_type: string
+          employee_position: string
+          join_date: string
+          email: string
+          years_of_service: number
+          base_annual_leave: number
+          service_bonus_days: number
+          total_annual_leave: number
+          monday_holiday_bonus: number
+          final_annual_leave: number
+          medical_leave: number
+        }[]
+      }
       is_superadmin: {
         Args: { user_email: string }
         Returns: boolean

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
-import { CalendarDays, Users, Check, X, Clock, Calendar, Trash2, AlertTriangle, Info, Shield } from 'lucide-react';
+import { CalendarDays, Users, Check, X, Clock, Calendar, Trash2, AlertTriangle, Info, Shield, Award } from 'lucide-react';
 import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,12 +16,13 @@ import LeaveSummaryPanel from '@/components/leave/LeaveSummaryPanel';
 import EnhancedLeaveSummary from '@/components/leave/EnhancedLeaveSummary';
 import { getEmployees } from '@/services/employeeService';
 import { isEligibleForLeave } from '@/utils/employeeEligibility';
-import { cleanupIneligibleMondayHolidayAdjustments } from '@/services/publicHolidayService';
+import { getEligibleEmployeesForLeave, calculateEmployeeLeaveEntitlement } from '@/services/enhancedLeaveService';
 
 const LeaveManagement = () => {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [eligibleEmployees, setEligibleEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOnlyEligible, setShowOnlyEligible] = useState(true);
   const [systemValidated, setSystemValidated] = useState(false);
@@ -31,7 +32,9 @@ const LeaveManagement = () => {
     approvedRequests: 0,
     rejectedRequests: 0,
     eligibleEmployees: 0,
-    ineligibleEmployees: 0
+    ineligibleEmployees: 0,
+    averageYearsOfService: 0,
+    totalLeaveEntitlement: 0
   });
 
   useEffect(() => {
@@ -43,32 +46,42 @@ const LeaveManagement = () => {
     try {
       setLoading(true);
       
-      // Load leaves and employees in parallel
-      const [allLeaves, allEmployees] = await Promise.all([
+      // Load leaves, employees, and eligible employees with entitlements in parallel
+      const [allLeaves, allEmployees, eligibleEmployeesWithEntitlements] = await Promise.all([
         getAllLeaveRequests(),
-        getEmployees()
+        getEmployees(),
+        getEligibleEmployeesForLeave()
       ]);
       
       setLeaves(allLeaves);
       setEmployees(allEmployees);
+      setEligibleEmployees(eligibleEmployeesWithEntitlements);
       
       // Filter eligible employees and their leave requests
-      const eligibleEmployees = allEmployees.filter(emp => isEligibleForLeave(emp));
-      const eligibleEmployeeIds = new Set(eligibleEmployees.map(emp => emp.id));
+      const eligibleEmployeeIds = new Set(eligibleEmployeesWithEntitlements.map(emp => emp.id));
       const eligibleLeaveRequests = allLeaves.filter(leave => eligibleEmployeeIds.has(leave.employeeId));
       
-      // Calculate stats based on eligible employees only
+      // Calculate enhanced stats
+      const averageYears = eligibleEmployeesWithEntitlements.length > 0 
+        ? Math.round(eligibleEmployeesWithEntitlements.reduce((sum, emp) => sum + (emp.yearsOfService || 0), 0) / eligibleEmployeesWithEntitlements.length)
+        : 0;
+        
+      const totalEntitlement = eligibleEmployeesWithEntitlements.reduce((sum, emp) => 
+        sum + (emp.leaveEntitlement?.finalAnnualLeave || 0), 0);
+      
       setStats({
         totalRequests: eligibleLeaveRequests.length,
         pendingRequests: eligibleLeaveRequests.filter(l => l.status === 'Pending').length,
         approvedRequests: eligibleLeaveRequests.filter(l => l.status === 'Approved').length,
         rejectedRequests: eligibleLeaveRequests.filter(l => l.status === 'Rejected').length,
-        eligibleEmployees: eligibleEmployees.length,
-        ineligibleEmployees: allEmployees.length - eligibleEmployees.length
+        eligibleEmployees: eligibleEmployeesWithEntitlements.length,
+        ineligibleEmployees: allEmployees.length - eligibleEmployeesWithEntitlements.length,
+        averageYearsOfService: averageYears,
+        totalLeaveEntitlement: totalEntitlement
       });
       
       console.log('Loaded leaves:', allLeaves.length, 'Eligible leaves:', eligibleLeaveRequests.length);
-      console.log('Eligible employees:', eligibleEmployees.length, 'Total employees:', allEmployees.length);
+      console.log('Eligible employees with entitlements:', eligibleEmployeesWithEntitlements.length, 'Total employees:', allEmployees.length);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -83,14 +96,13 @@ const LeaveManagement = () => {
 
   const validateSystemIntegrity = async () => {
     try {
-      // Check if database constraints are working by testing a simple query
-      const { data, error } = await supabase
-        .from('employees')
-        .select('count')
-        .limit(1);
+      // Test the database functions
+      const { data, error } = await supabase.rpc('calculate_years_of_service', {
+        join_date: '2020-01-01'
+      });
       
       if (error) {
-        console.warn('Database validation check failed:', error);
+        console.warn('Database function validation failed:', error);
         setSystemValidated(false);
       } else {
         setSystemValidated(true);
@@ -113,6 +125,8 @@ const LeaveManagement = () => {
       console.error('Error approving leave:', error);
       const errorMessage = error?.message?.includes('not eligible') 
         ? 'Cannot approve: Employee is not eligible for leave'
+        : error?.message?.includes('exceeds') 
+        ? `Cannot approve: ${error.message}`
         : 'Error approving leave request';
       
       toast({
@@ -179,20 +193,30 @@ const LeaveManagement = () => {
     }
   };
 
-  // Get employee info with eligibility status
+  // Get employee info with eligibility status and years of service
   const getEmployeeInfo = (employeeId: string) => {
     const employee = employees.find(emp => emp.id === employeeId);
-    if (!employee) return { type: 'Unknown', eligible: false, displayText: 'Unknown Employee' };
+    const eligibleEmployee = eligibleEmployees.find(emp => emp.id === employeeId);
+    
+    if (!employee) return { type: 'Unknown', eligible: false, displayText: 'Unknown Employee', yearsOfService: 0 };
     
     const eligible = isEligibleForLeave(employee);
-    const displayText = `${employee.type}${employee.position ? ` (${employee.position})` : ''}`;
+    const yearsOfService = eligibleEmployee?.yearsOfService || 0;
+    const entitlement = eligibleEmployee?.leaveEntitlement;
+    
+    let displayText = `${employee.type}${employee.position ? ` (${employee.position})` : ''}`;
+    if (eligible && yearsOfService > 0) {
+      displayText += ` - ${yearsOfService}Y`;
+    }
     
     return { 
       type: employee.type, 
       position: employee.position,
       eligible, 
       displayText,
-      hasJoinDate: !!employee.joinDate
+      hasJoinDate: !!employee.joinDate,
+      yearsOfService,
+      entitlement
     };
   };
 
@@ -204,9 +228,15 @@ const LeaveManagement = () => {
       })
     : leaves;
 
-  // Get eligible employee count for display
-  const getEligibleEmployeeText = () => {
-    return `${stats.eligibleEmployees} eligible employees (Full-Time, excluding Senior Partners)`;
+  // Get enhanced policy information
+  const getPolicyInfo = () => {
+    return {
+      basePolicy: "14 annual leave days + 1 additional day per year of service (maximum 18 days total)",
+      medicalLeave: "14 medical leave days",
+      eligibility: "Full-Time employees only (excluding Senior Partners)",
+      proRating: "Pro-rated from join date for employees who joined mid-year",
+      mondayBonus: "Additional days for public holidays falling on Monday"
+    };
   };
 
   if (loading) {
@@ -228,6 +258,8 @@ const LeaveManagement = () => {
     );
   }
 
+  const policyInfo = getPolicyInfo();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -239,7 +271,7 @@ const LeaveManagement = () => {
               <h1 className="text-3xl font-bold text-gray-900">Leave Management</h1>
               <p className="text-gray-600 mt-2">Manage and approve employee leave requests</p>
               <div className="flex items-center space-x-4 mt-2">
-                <p className="text-sm text-gray-500">{getEligibleEmployeeText()}</p>
+                <p className="text-sm text-gray-500">{stats.eligibleEmployees} eligible employees</p>
                 {stats.ineligibleEmployees > 0 && (
                   <Badge variant="secondary" className="text-xs">
                     {stats.ineligibleEmployees} ineligible employees
@@ -248,14 +280,14 @@ const LeaveManagement = () => {
                 <div className="flex items-center space-x-1">
                   <Shield className={`w-4 h-4 ${systemValidated ? 'text-green-600' : 'text-orange-600'}`} />
                   <span className={`text-xs ${systemValidated ? 'text-green-600' : 'text-orange-600'}`}>
-                    {systemValidated ? 'System Validated' : 'Validation Pending'}
+                    {systemValidated ? 'Database Functions Active' : 'Validation Pending'}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Enhanced Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center">
@@ -263,7 +295,7 @@ const LeaveManagement = () => {
                     <div className="ml-3">
                       <p className="text-xs text-blue-600">Total Requests</p>
                       <p className="text-xl font-bold text-blue-900">{stats.totalRequests}</p>
-                      <p className="text-xs text-blue-500">Eligible employees only</p>
+                      <p className="text-xs text-blue-500">Eligible only</p>
                     </div>
                   </div>
                 </CardContent>
@@ -317,21 +349,35 @@ const LeaveManagement = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center">
+                    <Award className="w-6 h-6 text-indigo-600" />
+                    <div className="ml-3">
+                      <p className="text-xs text-indigo-600">Avg. Service</p>
+                      <p className="text-xl font-bold text-indigo-900">{stats.averageYearsOfService}Y</p>
+                      <p className="text-xs text-indigo-500">Years</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* System Status and Policy Information */}
+            {/* Updated Policy Information */}
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-4">
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium text-blue-800">Leave Policy & System Status</h3>
+                    <h3 className="font-medium text-blue-800">Updated Leave Policy (2025)</h3>
                     <div className="text-sm text-blue-700 mt-1 space-y-1">
-                      <p>• <strong>Full-Time Employees:</strong> 21 annual leave days + 14 medical leave days (pro-rated from join date)</p>
+                      <p>• <strong>Annual Leave:</strong> {policyInfo.basePolicy}</p>
+                      <p>• <strong>Medical Leave:</strong> {policyInfo.medicalLeave}</p>
                       <p>• <strong>Monday Holiday Bonus:</strong> +1 annual leave day for each public holiday that falls on Monday</p>
-                      <p>• <strong>Casual Employees:</strong> No leave entitlements (pay based on actual work days)</p>
-                      <p>• <strong>Senior Partners:</strong> Flexible leave arrangements (do not use this system)</p>
-                      <p>• <strong>Database Validation:</strong> {systemValidated ? '✅ Active - Triggers prevent invalid applications' : '⚠️ Pending validation'}</p>
+                      <p>• <strong>Eligibility:</strong> {policyInfo.eligibility}</p>
+                      <p>• <strong>Pro-rating:</strong> {policyInfo.proRating}</p>
+                      <p>• <strong>Database Validation:</strong> {systemValidated ? '✅ Active - Automatic entitlement calculation and validation' : '⚠️ Pending validation'}</p>
                     </div>
                   </div>
                 </div>
@@ -345,10 +391,10 @@ const LeaveManagement = () => {
                   <div className="flex items-start space-x-3">
                     <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-orange-800">Ineligible Employee Leave Requests Found</h3>
+                      <h3 className="font-medium text-orange-800">Legacy Data Warning</h3>
                       <p className="text-sm text-orange-700 mt-1">
-                        Some leave requests are from employees not eligible for leave (Casual employees or Senior Partners). 
-                        These requests may need manual review or deletion. Database triggers now prevent new invalid requests.
+                        Some leave requests are from employees not eligible under the current policy (Casual employees or Senior Partners). 
+                        These may be legacy requests. Database triggers now prevent new invalid requests based on the updated policy.
                       </p>
                     </div>
                   </div>
@@ -372,7 +418,7 @@ const LeaveManagement = () => {
                       <div>
                         <CardTitle>Leave Requests</CardTitle>
                         <CardDescription>
-                          Review and manage employee leave requests
+                          Review and manage employee leave requests with new policy validation
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -393,7 +439,7 @@ const LeaveManagement = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Employee</TableHead>
-                              <TableHead>Type & Eligibility</TableHead>
+                              <TableHead>Type & Service</TableHead>
                               <TableHead>Leave Type</TableHead>
                               <TableHead>Start Date</TableHead>
                               <TableHead>End Date</TableHead>
@@ -420,6 +466,11 @@ const LeaveManagement = () => {
                                       {employeeInfo.eligible && !employeeInfo.hasJoinDate && (
                                         <Badge variant="secondary" className="text-xs">
                                           No Join Date
+                                        </Badge>
+                                      )}
+                                      {employeeInfo.entitlement && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {employeeInfo.entitlement.finalAnnualLeave}AL
                                         </Badge>
                                       )}
                                     </div>

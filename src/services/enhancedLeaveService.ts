@@ -3,9 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { isEligibleForLeave } from '@/utils/employeeEligibility';
 
 export interface LeaveEntitlementCalculation {
-  annualLeaveBase: number;
-  mondayHolidayBonus: number;
+  baseAnnualLeave: number;
+  yearsOfService: number;
+  serviceBonusDays: number;
   totalAnnualLeave: number;
+  mondayHolidayBonus: number;
+  finalAnnualLeave: number;
   medicalLeave: number;
 }
 
@@ -16,116 +19,111 @@ export interface EligibleEmployee {
   position: string | null;
   joinDate: string | null;
   email: string | null;
+  yearsOfService?: number;
+  leaveEntitlement?: LeaveEntitlementCalculation;
 }
 
-// Get all employees eligible for leave using direct query since RPC isn't typed yet
-export const getEligibleEmployeesForLeave = async (): Promise<EligibleEmployee[]> => {
+// Get all employees eligible for leave using database function
+export const getEligibleEmployeesForLeave = async (year?: number): Promise<EligibleEmployee[]> => {
   try {
-    // Use direct query instead of RPC until types are updated
-    const { data, error } = await supabase
-      .from('employees')
-      .select('id, name, type, position, join_date, email, resign_date')
-      .eq('type', 'Full-Time')
-      .is('resign_date', null);
+    const referenceYear = year || new Date().getFullYear();
+    
+    // Use the database function to get eligible employees with entitlements
+    const { data, error } = await supabase.rpc('get_eligible_employees_with_entitlements', {
+      reference_year: referenceYear
+    });
     
     if (error) {
-      console.error('Error fetching eligible employees:', error);
+      console.error('Error fetching eligible employees with entitlements:', error);
       throw error;
     }
 
-    // Filter out Senior Partners and map to expected format
-    return (data || [])
-      .filter(emp => emp.position !== 'Senior Partner')
-      .map((emp: any) => ({
-        id: emp.id,
-        name: emp.name,
-        type: emp.type,
-        position: emp.position,
-        joinDate: emp.join_date,
-        email: emp.email
-      }));
+    return (data || []).map((emp: any) => ({
+      id: emp.employee_id,
+      name: emp.employee_name,
+      type: emp.employee_type,
+      position: emp.employee_position,
+      joinDate: emp.join_date,
+      email: emp.email,
+      yearsOfService: emp.years_of_service,
+      leaveEntitlement: {
+        baseAnnualLeave: emp.base_annual_leave,
+        yearsOfService: emp.years_of_service,
+        serviceBonusDays: emp.service_bonus_days,
+        totalAnnualLeave: emp.total_annual_leave,
+        mondayHolidayBonus: emp.monday_holiday_bonus,
+        finalAnnualLeave: emp.final_annual_leave,
+        medicalLeave: emp.medical_leave
+      }
+    }));
   } catch (error) {
     console.error('Error in getEligibleEmployeesForLeave:', error);
     throw error;
   }
 };
 
-// Calculate leave entitlement manually until database function is available
+// Calculate leave entitlement using database function
 export const calculateEmployeeLeaveEntitlement = async (
   employeeId: string,
   year: number = new Date().getFullYear()
 ): Promise<LeaveEntitlementCalculation> => {
   try {
-    // Get employee data
-    const { data: employee, error: empError } = await supabase
-      .from('employees')
-      .select('type, position, join_date')
-      .eq('id', employeeId)
-      .single();
+    // Use the database function to calculate entitlement
+    const { data, error } = await supabase.rpc('calculate_annual_leave_entitlement', {
+      employee_id: employeeId,
+      reference_year: year
+    });
 
-    if (empError || !employee) {
-      console.error('Error fetching employee:', empError);
+    if (error) {
+      console.error('Error calculating employee leave entitlement:', error);
       return {
-        annualLeaveBase: 0,
-        mondayHolidayBonus: 0,
+        baseAnnualLeave: 0,
+        yearsOfService: 0,
+        serviceBonusDays: 0,
         totalAnnualLeave: 0,
+        mondayHolidayBonus: 0,
+        finalAnnualLeave: 0,
         medicalLeave: 0
       };
     }
 
-    // Check eligibility
-    if (!isEligibleForLeave(employee)) {
+    if (data && data.length > 0) {
+      const result = data[0];
       return {
-        annualLeaveBase: 0,
-        mondayHolidayBonus: 0,
-        totalAnnualLeave: 0,
-        medicalLeave: 0
+        baseAnnualLeave: result.base_annual_leave,
+        yearsOfService: result.years_of_service,
+        serviceBonusDays: result.service_bonus_days,
+        totalAnnualLeave: result.total_annual_leave,
+        mondayHolidayBonus: result.monday_holiday_bonus,
+        finalAnnualLeave: result.final_annual_leave,
+        medicalLeave: result.medical_leave
       };
     }
-
-    let baseAnnualLeave = 21;
-    const medicalLeave = 14;
-
-    // Calculate pro-rated leave if joined mid-year
-    if (employee.join_date) {
-      const joinDate = new Date(employee.join_date);
-      if (joinDate.getFullYear() === year) {
-        const monthsWorked = 12 - joinDate.getMonth();
-        baseAnnualLeave = Math.round((baseAnnualLeave * monthsWorked) / 12);
-      }
-    }
-
-    // Get Monday holiday bonuses
-    const { data: bonuses } = await supabase
-      .from('monday_holiday_leave_adjustments')
-      .select(`
-        bonus_days_granted,
-        public_holidays!inner(year)
-      `)
-      .eq('employee_id', employeeId)
-      .eq('public_holidays.year', year);
-
-    const mondayHolidayBonus = bonuses?.reduce((sum, bonus) => sum + (bonus.bonus_days_granted || 0), 0) || 0;
-    const totalAnnualLeave = baseAnnualLeave + mondayHolidayBonus;
 
     return {
-      annualLeaveBase: baseAnnualLeave,
-      mondayHolidayBonus,
-      totalAnnualLeave,
-      medicalLeave
+      baseAnnualLeave: 0,
+      yearsOfService: 0,
+      serviceBonusDays: 0,
+      totalAnnualLeave: 0,
+      mondayHolidayBonus: 0,
+      finalAnnualLeave: 0,
+      medicalLeave: 0
     };
   } catch (error) {
     console.error('Error in calculateEmployeeLeaveEntitlement:', error);
     return {
-      annualLeaveBase: 0,
-      mondayHolidayBonus: 0,
+      baseAnnualLeave: 0,
+      yearsOfService: 0,
+      serviceBonusDays: 0,
       totalAnnualLeave: 0,
+      mondayHolidayBonus: 0,
+      finalAnnualLeave: 0,
       medicalLeave: 0
     };
   }
 };
 
-// Enhanced leave application with database validation
+// Enhanced leave application with database validation (triggers will handle validation)
 export const applyForLeaveWithValidation = async (leaveData: {
   employeeId: string;
   type: string;
@@ -136,7 +134,7 @@ export const applyForLeaveWithValidation = async (leaveData: {
   medicalCertificate?: string;
 }) => {
   try {
-    // The database triggers will automatically validate eligibility
+    // The database triggers will automatically validate eligibility and entitlements
     const { data, error } = await supabase
       .from('leave_requests')
       .insert({
@@ -157,6 +155,9 @@ export const applyForLeaveWithValidation = async (leaveData: {
       // Check if it's an eligibility error from our trigger
       if (error.message.includes('not eligible for leave requests')) {
         throw new Error('You are not eligible to apply for leave. Only Full-Time employees (excluding Senior Partners) can apply for leave.');
+      }
+      if (error.message.includes('exceeds annual leave entitlement') || error.message.includes('exceeds medical leave entitlement')) {
+        throw new Error(error.message);
       }
       throw error;
     }
@@ -213,5 +214,35 @@ export const cleanupIneligibleLeaveData = async (): Promise<{
   } catch (error) {
     console.error('Error cleaning up ineligible leave data:', error);
     throw error;
+  }
+};
+
+// Get years of service for an employee
+export const calculateYearsOfService = async (employeeId: string): Promise<number> => {
+  try {
+    const { data: employee } = await supabase
+      .from('employees')
+      .select('join_date')
+      .eq('id', employeeId)
+      .single();
+
+    if (!employee?.join_date) {
+      return 0;
+    }
+
+    // Use the database function to calculate years of service
+    const { data, error } = await supabase.rpc('calculate_years_of_service', {
+      join_date: employee.join_date
+    });
+
+    if (error) {
+      console.error('Error calculating years of service:', error);
+      return 0;
+    }
+
+    return data || 0;
+  } catch (error) {
+    console.error('Error in calculateYearsOfService:', error);
+    return 0;
   }
 };
