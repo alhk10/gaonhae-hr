@@ -440,7 +440,7 @@ const AdminSlotBooking = () => {
                       head_row: "flex w-full max-w-full",
                       head_cell: `text-muted-foreground rounded-md w-full font-normal flex-1 text-center ${isMobile ? 'text-xs p-1' : 'text-sm p-2'}`,
                       row: "flex w-full max-w-full mt-2",
-                      cell: `text-center relative flex-1 border-r border-b focus-within:relative focus-within:z-20 ${isMobile ? 'h-16 p-0.5' : 'h-24 p-1'}`,
+                      cell: `text-center relative flex-1 border-r border-b focus-within:relative focus-within:z-20 ${isMobile ? 'h-24 p-0.5' : 'h-32 p-1'}`,
                       day: `w-full h-full font-normal aria-selected:opacity-100 hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${isMobile ? 'p-0.5' : 'p-1'}`,
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                       day_today: "bg-accent text-accent-foreground font-semibold",
@@ -453,7 +453,7 @@ const AdminSlotBooking = () => {
                       Day: ({ date, ...props }) => {
                         const dayBookings = getBookingsForDate(date);
                         const hasBookings = dayBookings.length > 0;
-                        const maxVisible = isMobile ? 1 : 3;
+                        const maxVisible = isMobile ? 2 : 4; // Increased from 1/3 to 2/4
                         
                         return (
                           <div className="relative w-full h-full overflow-hidden">
@@ -486,8 +486,8 @@ const AdminSlotBooking = () => {
                                         >
                                           <span className="truncate">
                                             {isMobile ? 
-                                              booking.employeeName.split(' ')[0].slice(0, 3) : 
-                                              booking.employeeName.split(' ')[0].slice(0, 8)
+                                              booking.employeeName.split(' ')[0].slice(0, 4) : 
+                                              booking.employeeName.split(' ')[0].slice(0, 10)
                                             }
                                             {booking.status === 'pending' && ' ⏳'}
                                             {booking.status === 'approved' && ' ✅'}
