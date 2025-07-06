@@ -36,7 +36,7 @@ const LeaveSummaryPanel = () => {
   // Upcoming leave (next 30 days)
   const upcomingLeave = allLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
-    const startDate = new Date(leave.startDate || leave.start_date);
+    const startDate = new Date(leave.startDate);
     return startDate >= today && startDate <= next30Days;
   }).length;
 
@@ -47,11 +47,11 @@ const LeaveSummaryPanel = () => {
     const calculateTotalRemaining = async () => {
       let total = 0;
       for (const employee of eligibleEmployees) {
-        if (employee.joinDate || employee.join_date) {
+        if (employee.joinDate) {
           try {
             const leaveBalance = await calculateLeaveBalance(
               employee.id, 
-              employee.joinDate || employee.join_date, 
+              employee.joinDate, 
               allLeaveRequests
             );
             total += leaveBalance.annualLeave.remaining;
@@ -71,7 +71,7 @@ const LeaveSummaryPanel = () => {
   // Approved leave this month
   const approvedLeaveThisMonth = allLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
-    const startDate = new Date(leave.startDate || leave.start_date);
+    const startDate = new Date(leave.startDate);
     return startDate >= startOfMonth && startDate <= endOfMonth;
   }).length;
 
