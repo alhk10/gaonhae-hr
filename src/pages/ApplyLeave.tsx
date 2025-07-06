@@ -12,6 +12,7 @@ import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, LeaveRequest } from '@/services/leaveService';
 import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
 import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
+import { isEligibleForLeave, getEmployeeEligibilityMessage } from '@/utils/employeeEligibility';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
@@ -43,21 +44,28 @@ const ApplyLeave = () => {
   // Calculate leave balance using async calculation
   useEffect(() => {
     const fetchLeaveBalance = async () => {
-      if (currentEmployee?.joinDate) {
+      if (currentEmployee?.joinDate && isEligibleForLeave(currentEmployee)) {
         try {
           const balance = await calculateLeaveBalance(
             currentEmployee.id, 
             currentEmployee.joinDate, 
-            allLeaveRequests
+            allLeaveRequests,
+            { type: currentEmployee.type, position: currentEmployee.position }
           );
           setLeaveBalance(balance);
         } catch (error) {
           console.error('Error calculating leave balance:', error);
           setLeaveBalance({
-            annualLeave: { total: 21, used: 0, remaining: 21 },
-            medicalLeave: { total: 14, used: 0, remaining: 14 }
+            annualLeave: { total: 0, used: 0, remaining: 0 },
+            medicalLeave: { total: 0, used: 0, remaining: 0 }
           });
         }
+      } else {
+        // Set zero balance for ineligible employees
+        setLeaveBalance({
+          annualLeave: { total: 0, used: 0, remaining: 0 },
+          medicalLeave: { total: 0, used: 0, remaining: 0 }
+        });
       }
     };
 
@@ -117,8 +125,8 @@ const ApplyLeave = () => {
     );
   }
 
-  // Check if employee is casual or Senior Partner - they are not entitled to leaves
-  if (currentEmployee.type === 'Casual' || currentEmployee.position === 'Senior Partner') {
+  // Check if employee is eligible for leave
+  if (!isEligibleForLeave(currentEmployee)) {
     const isPartner = currentEmployee.position === 'Senior Partner';
     
     return (
@@ -132,7 +140,7 @@ const ApplyLeave = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
                 <p className="text-gray-600">Employee leave information</p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Employee: {currentEmployee.name} ({currentEmployee.id})
+                  Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}{currentEmployee.position ? `, ${currentEmployee.position}` : ''}
                 </p>
               </div>
 
@@ -144,10 +152,7 @@ const ApplyLeave = () => {
                       {isPartner ? 'Leave Not Required' : 'Leave Not Applicable'}
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      {isPartner 
-                        ? 'As a Senior Partner, you do not need to apply for leave through the system.'
-                        : 'As a casual employee, you are not entitled to annual leave or medical leave benefits.'
-                      }
+                      {getEmployeeEligibilityMessage(currentEmployee)}
                     </p>
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-left">
                       <h4 className="font-medium text-orange-800 mb-2">
@@ -264,7 +269,7 @@ const ApplyLeave = () => {
                   <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
                   <p className="text-gray-600">Submit your leave application</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Employee: {currentEmployee.name} ({currentEmployee.id})
+                    Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}
                   </p>
                 </div>
                 <Button variant="outline" onClick={() => setShowApplyForm(false)}>
@@ -398,7 +403,7 @@ const ApplyLeave = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Leave Summary</h2>
                 <p className="text-gray-600">Your leave balance and history</p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Employee: {currentEmployee.name} ({currentEmployee.id})
+                  Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}
                 </p>
               </div>
               <Button onClick={() => setShowApplyForm(true)}>

@@ -6,6 +6,7 @@ import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { getAllLeaveRequests } from '@/services/leaveService';
 import { getEmployees } from '@/services/employeeService';
 import { calculateLeaveBalance } from '@/utils/leaveCalculations';
+import { isEligibleForLeave } from '@/utils/employeeEligibility';
 
 const LeaveSummaryPanel = () => {
   const { data: allLeaveRequests = [] } = useQuery({
@@ -28,19 +29,23 @@ const LeaveSummaryPanel = () => {
   
   const currentYear = new Date().getFullYear();
 
-  // Filter full-time employees excluding Senior Partners
-  const eligibleEmployees = employees.filter(emp => 
-    emp.type === 'Full-Time' && emp.position !== 'Senior Partner'
+  // Filter eligible employees (Full-Time employees excluding Senior Partners)
+  const eligibleEmployees = employees.filter(emp => isEligibleForLeave(emp));
+
+  // Filter leave requests to only include those from eligible employees
+  const eligibleEmployeeIds = new Set(eligibleEmployees.map(emp => emp.id));
+  const eligibleLeaveRequests = allLeaveRequests.filter(leave => 
+    eligibleEmployeeIds.has(leave.employeeId)
   );
 
-  // Upcoming leave (next 30 days)
-  const upcomingLeave = allLeaveRequests.filter(leave => {
+  // Upcoming leave (next 30 days) - only for eligible employees
+  const upcomingLeave = eligibleLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
     const startDate = new Date(leave.startDate);
     return startDate >= today && startDate <= next30Days;
   }).length;
 
-  // Calculate total annual leave remaining using async calculation
+  // Calculate total annual leave remaining using async calculation for eligible employees only
   const [totalAnnualLeaveRemaining, setTotalAnnualLeaveRemaining] = React.useState(0);
 
   React.useEffect(() => {
@@ -52,7 +57,8 @@ const LeaveSummaryPanel = () => {
             const leaveBalance = await calculateLeaveBalance(
               employee.id, 
               employee.joinDate, 
-              allLeaveRequests
+              allLeaveRequests,
+              { type: employee.type, position: employee.position }
             );
             total += leaveBalance.annualLeave.remaining;
           } catch (error) {
@@ -68,15 +74,15 @@ const LeaveSummaryPanel = () => {
     }
   }, [eligibleEmployees, allLeaveRequests]);
 
-  // Approved leave this month
-  const approvedLeaveThisMonth = allLeaveRequests.filter(leave => {
+  // Approved leave this month - only for eligible employees
+  const approvedLeaveThisMonth = eligibleLeaveRequests.filter(leave => {
     if (leave.status !== 'Approved') return false;
     const startDate = new Date(leave.startDate);
     return startDate >= startOfMonth && startDate <= endOfMonth;
   }).length;
 
-  // Pending approval
-  const pendingApproval = allLeaveRequests.filter(leave => leave.status === 'Pending').length;
+  // Pending approval - only for eligible employees
+  const pendingApproval = eligibleLeaveRequests.filter(leave => leave.status === 'Pending').length;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -86,7 +92,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Upcoming Leave</p>
               <p className="text-2xl font-bold text-gray-900">{upcomingLeave}</p>
-              <p className="text-xs text-gray-500">Next 30 days</p>
+              <p className="text-xs text-gray-500">Next 30 days (eligible employees)</p>
             </div>
             <Calendar className="w-8 h-8 text-blue-500" />
           </div>
@@ -99,7 +105,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Annual Leave Remaining</p>
               <p className="text-2xl font-bold text-gray-900">{Math.max(0, totalAnnualLeaveRemaining)}</p>
-              <p className="text-xs text-gray-500">Eligible employees only</p>
+              <p className="text-xs text-gray-500">Full-time employees only</p>
             </div>
             <Clock className="w-8 h-8 text-green-500" />
           </div>
@@ -112,7 +118,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Approved Leave</p>
               <p className="text-2xl font-bold text-gray-900">{approvedLeaveThisMonth}</p>
-              <p className="text-xs text-gray-500">This month</p>
+              <p className="text-xs text-gray-500">This month (eligible employees)</p>
             </div>
             <CheckCircle className="w-8 h-8 text-purple-500" />
           </div>
@@ -125,7 +131,7 @@ const LeaveSummaryPanel = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Approval</p>
               <p className="text-2xl font-bold text-gray-900">{pendingApproval}</p>
-              <p className="text-xs text-gray-500">Awaiting review</p>
+              <p className="text-xs text-gray-500">Awaiting review (eligible employees)</p>
             </div>
             <AlertCircle className="w-8 h-8 text-orange-500" />
           </div>
