@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -181,20 +180,14 @@ const Payroll = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading payroll data...</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading payroll data...</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
@@ -205,304 +198,298 @@ const Payroll = () => {
   const nextProcessingDays = getNextProcessingDate();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
-            {/* Header Section */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
-                <div className="flex items-center space-x-4 mt-2">
-                  <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                    {payrollState.status.charAt(0).toUpperCase() + payrollState.status.slice(1)}
-                  </Badge>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Period:</span>
-                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "text-sm",
-                            !payrollDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {payrollDate ? format(payrollDate, 'MMMM yyyy') : <span>Select period</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={payrollDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              setPayrollDate(date);
-                              setIsDatePickerOpen(false);
-                            }
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Last Updated: {payrollState.lastUpdated.toLocaleString()}
+    <ResponsiveLayout>
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Payroll Management</h2>
+            <div className="flex items-center space-x-4 mt-2">
+              <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                {payrollState.status.charAt(0).toUpperCase() + payrollState.status.slice(1)}
+              </Badge>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Period:</span>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "text-sm",
+                        !payrollDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {payrollDate ? format(payrollDate, 'MMMM yyyy') : <span>Select period</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={payrollDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setPayrollDate(date);
+                          setIsDatePickerOpen(false);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <p className="text-sm text-gray-500">
+                Last Updated: {payrollState.lastUpdated.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline"
+              onClick={handleIncrementPlanning}
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Increment Planning
+            </Button>
+            <Button 
+              onClick={handleProcessPayroll}
+              disabled={!hasEmployees}
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              Process Payroll
+            </Button>
+          </div>
+        </div>
+
+        {!hasEmployees && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              No employees found in the database. Please add employees before processing payroll.
+              <Button 
+                variant="link" 
+                className="ml-2 p-0 h-auto text-blue-600"
+                onClick={handleAddEmployees}
+              >
+                Add Employees
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Current Total</p>
+                  <p className="text-2xl font-bold text-gray-900">S${currentTotal.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {format(payrollDate, 'MMMM yyyy')}
                   </p>
                 </div>
+                <DollarSign className="w-8 h-8 text-green-500" />
               </div>
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline"
-                  onClick={handleIncrementPlanning}
-                >
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Increment Planning
-                </Button>
-                <Button 
-                  onClick={handleProcessPayroll}
-                  disabled={!hasEmployees}
-                >
-                  <CalendarIcon className="w-4 h-4 mr-2" />
-                  Process Payroll
-                </Button>
-              </div>
-            </div>
-
-            {!hasEmployees && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  No employees found in the database. Please add employees before processing payroll.
-                  <Button 
-                    variant="link" 
-                    className="ml-2 p-0 h-auto text-blue-600"
-                    onClick={handleAddEmployees}
-                  >
-                    Add Employees
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Current Total</p>
-                      <p className="text-2xl font-bold text-gray-900">S${currentTotal.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {format(payrollDate, 'MMMM yyyy')}
-                      </p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {payrollState.fullTimeEmployees.length} FT + {payrollState.casualEmployees.length} Casual
-                      </p>
-                    </div>
-                    <Users className="w-8 h-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Estimated Yearly</p>
-                      <p className="text-2xl font-bold text-gray-900">S${yearlyTotal.toLocaleString()}</p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-purple-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Next Processing</p>
-                      <p className="text-2xl font-bold text-gray-900">{nextProcessingDays} days</p>
-                      <p className="text-xs text-gray-500 mt-1">2nd of month</p>
-                    </div>
-                    <Clock className="w-8 h-8 text-orange-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Employee Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Full-Time Employees</CardTitle>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={openBulkAddDialog}
-                      disabled={loadingEmployees}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Bulk Add
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {hasEmployees && payrollState.fullTimeEmployees.slice(0, 5).map((employee) => (
-                      <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{employee.name}</p>
-                          <p className="text-sm text-gray-600">
-                            Base: S${(employee.baseSalary || 0).toLocaleString()} • 
-                            Allowances: S${(employee.allowances || 0).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-900">S${(employee.total || 0).toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">+ S${(employee.cpf || 0).toLocaleString()} CPF</p>
-                        </div>
-                      </div>
-                    ))}
-                    {!hasEmployees && (
-                      <div className="text-center py-8">
-                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500 mb-3">No full-time employees found</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleAddEmployees}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Employees
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Casual Employees</CardTitle>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={openBulkAddDialog}
-                      disabled={loadingEmployees}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Bulk Add
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {hasEmployees && payrollState.casualEmployees.slice(0, 5).map((employee) => {
-                      const rate = employee.hourlyRate || employee.dailyRate || employee.baseSalary || 0;
-                      const workAmount = employee.hoursWorked || employee.daysWorked || 0;
-                      const paymentType = employee.paymentType || 'Monthly';
-                      
-                      let rateDisplay = '';
-                      if (paymentType === 'Hourly' && employee.hourlyRate) {
-                        rateDisplay = `${workAmount}h @ S$${rate.toFixed(2)}/hr`;
-                      } else if (paymentType === 'Daily' && employee.dailyRate) {
-                        rateDisplay = `${workAmount} days @ S$${rate.toFixed(2)}/day`;
-                      } else {
-                        rateDisplay = `Monthly: S$${rate.toFixed(2)}`;
-                      }
-
-                      return (
-                        <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900">{employee.name}</p>
-                            <p className="text-sm text-gray-600">{rateDisplay}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900">S${(employee.totalPay || 0).toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{paymentType}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {!hasEmployees && (
-                      <div className="text-center py-8">
-                        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500 mb-3">No casual employees found</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleAddEmployees}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Employees
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Payroll Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Payroll Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={handlePaymentSummary}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Payment Summary
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => generatePDF(format(payrollDate, 'MMMM yyyy'))}
-                    disabled={!hasEmployees}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Report
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      setPayrollStatus('processing');
-                      toast('Payroll status updated to processing');
-                    }}
-                    disabled={!hasEmployees}
-                  >
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    Mark as Processing
-                  </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Employees</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {payrollState.fullTimeEmployees.length} FT + {payrollState.casualEmployees.length} Casual
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+                <Users className="w-8 h-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Estimated Yearly</p>
+                  <p className="text-2xl font-bold text-gray-900">S${yearlyTotal.toLocaleString()}</p>
+                </div>
+                <DollarSign className="w-8 h-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Next Processing</p>
+                  <p className="text-2xl font-bold text-gray-900">{nextProcessingDays} days</p>
+                  <p className="text-xs text-gray-500 mt-1">2nd of month</p>
+                </div>
+                <Clock className="w-8 h-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Employee Sections */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Full-Time Employees</CardTitle>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={openBulkAddDialog}
+                  disabled={loadingEmployees}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Add
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {hasEmployees && payrollState.fullTimeEmployees.slice(0, 5).map((employee) => (
+                  <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{employee.name}</p>
+                      <p className="text-sm text-gray-600">
+                        Base: S${(employee.baseSalary || 0).toLocaleString()} • 
+                        Allowances: S${(employee.allowances || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">S${(employee.total || 0).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">+ S${(employee.cpf || 0).toLocaleString()} CPF</p>
+                    </div>
+                  </div>
+                ))}
+                {!hasEmployees && (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500 mb-3">No full-time employees found</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleAddEmployees}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Employees
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Casual Employees</CardTitle>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={openBulkAddDialog}
+                  disabled={loadingEmployees}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Add
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {hasEmployees && payrollState.casualEmployees.slice(0, 5).map((employee) => {
+                  const rate = employee.hourlyRate || employee.dailyRate || employee.baseSalary || 0;
+                  const workAmount = employee.hoursWorked || employee.daysWorked || 0;
+                  const paymentType = employee.paymentType || 'Monthly';
+                  
+                  let rateDisplay = '';
+                  if (paymentType === 'Hourly' && employee.hourlyRate) {
+                    rateDisplay = `${workAmount}h @ S$${rate.toFixed(2)}/hr`;
+                  } else if (paymentType === 'Daily' && employee.dailyRate) {
+                    rateDisplay = `${workAmount} days @ S$${rate.toFixed(2)}/day`;
+                  } else {
+                    rateDisplay = `Monthly: S$${rate.toFixed(2)}`;
+                  }
+
+                  return (
+                    <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{employee.name}</p>
+                        <p className="text-sm text-gray-600">{rateDisplay}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-gray-900">S${(employee.totalPay || 0).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">{paymentType}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!hasEmployees && (
+                  <div className="text-center py-8">
+                    <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500 mb-3">No casual employees found</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleAddEmployees}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Employees
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Payroll Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Payroll Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button 
+                variant="outline" 
+                onClick={handlePaymentSummary}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Payment Summary
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => generatePDF(format(payrollDate, 'MMMM yyyy'))}
+                disabled={!hasEmployees}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Report
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setPayrollStatus('processing');
+                  toast('Payroll status updated to processing');
+                }}
+                disabled={!hasEmployees}
+              >
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                Mark as Processing
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Bulk Add Employees Dialog */}
@@ -550,7 +537,7 @@ const Payroll = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </ResponsiveLayout>
   );
 };
 
