@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Settings as SettingsIcon, MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import SuperadminManager from '@/components/admin/SuperadminManager';
 import { 
   getBranches, 
   saveBranch,
@@ -33,6 +35,7 @@ interface SystemDeduction {
 }
 
 const Settings = () => {
+  const { user } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [allowances, setAllowances] = useState<SystemAllowance[]>([]);
   const [deductions, setDeductions] = useState<SystemDeduction[]>([]);
@@ -372,6 +375,10 @@ const Settings = () => {
           <h2 className="text-2xl font-bold text-gray-900">System Settings</h2>
           <p className="text-gray-600">Manage system configurations and settings</p>
         </div>
+
+        {user?.role === 'superadmin' && (
+          <SuperadminManager />
+        )}
 
         <Card>
           <CardHeader>

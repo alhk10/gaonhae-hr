@@ -15,7 +15,7 @@ import {
   checkFailedLoginAttempts,
   logFailedLoginAttempt,
   clearFailedLoginAttempts,
-  generateSecurePassword
+  initializeSuperadmin
 } from '@/services/securityService';
 
 interface AuthContextType {
@@ -74,10 +74,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in from Supabase sessions
+    // Initialize the security system and check for sessions
     const initializeAuth = async () => {
       try {
         console.log('AuthContext: Initializing authentication...');
+        
+        // Initialize superadmin user first
+        await initializeSuperadmin();
         
         // Check for active sessions in Supabase
         const { data: sessions, error } = await supabase

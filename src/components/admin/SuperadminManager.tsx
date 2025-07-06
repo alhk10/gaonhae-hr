@@ -16,13 +16,12 @@ import { EmployeeProfile } from '@/types/employee';
 
 interface SuperadminUser {
   id: string;
-  employee_id: string;
+  employee_email: string;
+  employee_name: string;
   created_at: string;
   created_by: string;
   is_active: boolean;
   notes: string;
-  employee_name?: string;
-  employee_email?: string;
 }
 
 const SuperadminManager: React.FC = () => {
@@ -42,18 +41,17 @@ const SuperadminManager: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('SuperadminManager: Loading superadmin users and employees...');
       
       // Load employees
       const employeeData = await getEmployees();
       setEmployees(employeeData);
+      console.log('SuperadminManager: Loaded employees:', employeeData.length);
       
-      // Load superadmin users using type assertion
-      const { data: superadminData, error } = await (supabase as any)
+      // Load superadmin users directly from superadmin_users table
+      const { data: superadminData, error } = await supabase
         .from('superadmin_users')
-        .select(`
-          *,
-          employees!inner(name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -66,14 +64,8 @@ const SuperadminManager: React.FC = () => {
         return;
       }
 
-      // Transform data to include employee info
-      const transformedData = superadminData?.map((sa: any) => ({
-        ...sa,
-        employee_name: sa.employees?.name,
-        employee_email: sa.employees?.email
-      })) || [];
-
-      setSuperadmins(transformedData);
+      setSuperadmins(superadminData || []);
+      console.log('SuperadminManager: Loaded superadmins:', superadminData?.length);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -108,7 +100,7 @@ const SuperadminManager: React.FC = () => {
       }
 
       // Check if employee is already a superadmin
-      const existingSuperadmin = superadmins.find(sa => sa.employee_id === selectedEmployee && sa.is_active);
+      const existingSuperadmin = superadmins.find(sa => sa.employee_email === selectedEmp.email && sa.is_active);
       if (existingSuperadmin) {
         toast({
           title: "Already Superadmin",
@@ -118,10 +110,13 @@ const SuperadminManager: React.FC = () => {
         return;
       }
 
-      const { error } = await (supabase as any)
+      console.log('SuperadminManager: Adding superadmin:', selectedEmp.email);
+
+      const { error } = await supabase
         .from('superadmin_users')
         .insert({
-          employee_id: selectedEmployee,
+          employee_email: selectedEmp.email || '',
+          employee_name: selectedEmp.name,
           created_by: 'CURRENT_USER', // In a real app, get from current user context
           notes: notes.trim()
         });
@@ -171,7 +166,9 @@ const SuperadminManager: React.FC = () => {
     if (!removingSuperadmin) return;
 
     try {
-      const { error } = await (supabase as any)
+      console.log('SuperadminManager: Removing superadmin:', removingSuperadmin.employee_email);
+
+      const { error } = await supabase
         .from('superadmin_users')
         .update({ is_active: false })
         .eq('id', removingSuperadmin.id);
@@ -188,7 +185,7 @@ const SuperadminManager: React.FC = () => {
 
       // Log security event
       await logSecurityEvent({
-        user_email: removingSuperadmin.employee_email || '',
+        user_email: removingSuperadmin.employee_email,
         action: 'SUPERADMIN_REVOKED',
         details: {
           employee_name: removingSuperadmin.employee_name,
@@ -222,7 +219,7 @@ const SuperadminManager: React.FC = () => {
 
   // Filter out employees who are already superadmins
   const availableEmployees = employees.filter(emp => 
-    !superadmins.find(sa => sa.employee_id === emp.id && sa.is_active)
+    !superadmins.find(sa => sa.employee_email === emp.email && sa.is_active)
   );
 
   if (loading) {
