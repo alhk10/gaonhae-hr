@@ -3,6 +3,20 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  hashPassword,
+  verifyPassword,
+  generateSalt,
+  checkPasswordComplexity,
+  isSuperadmin,
+  logSecurityEvent,
+  checkPasswordHistory,
+  addPasswordToHistory,
+  checkFailedLoginAttempts,
+  logFailedLoginAttempt,
+  clearFailedLoginAttempts,
+  generateSecurePassword
+} from '@/services/securityService';
 
 interface AuthContextType {
   user: User | null;
@@ -16,8 +30,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Helper function to determine user role based on admin permissions
-const determineUserRole = (adminAccess: any): 'superadmin' | 'manager' | 'employee' => {
-  console.log('AuthContext: Determining role based on admin access:', adminAccess);
+const determineUserRole = async (email: string, adminAccess: any): Promise<'superadmin' | 'manager' | 'employee'> => {
+  console.log('AuthContext: Determining role for:', email);
+  
+  // First check if user is superadmin
+  const isUserSuperadmin = await isSuperadmin(email);
+  if (isUserSuperadmin) {
+    console.log('AuthContext: User is superadmin');
+    return 'superadmin';
+  }
   
   if (!adminAccess) {
     return 'employee';
@@ -36,13 +57,7 @@ const determineUserRole = (adminAccess: any): 'superadmin' | 'manager' | 'employ
 
   console.log('AuthContext: Admin permissions count:', permissions);
 
-  // If user has all 7 permissions, they are superadmin
-  if (permissions === 7) {
-    console.log('AuthContext: User has all permissions - assigning superadmin role');
-    return 'superadmin';
-  }
-  
-  // If user has some permissions (but not all), they are manager
+  // If user has some permissions (but not superadmin), they are manager
   if (permissions > 0) {
     console.log('AuthContext: User has partial permissions - assigning manager role');
     return 'manager';
@@ -86,15 +101,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Only check password change requirement if using default password
+          // Check password change requirement
           const { data: passwordData } = await supabase
             .from('user_passwords')
-            .select('requires_change')
+            .select('requires_change, must_change_password')
             .eq('email', sessionData.email)
             .single();
           
-          // Only set password change requirement if it's explicitly true
-          const needsPasswordChange = passwordData?.requires_change === true;
+          // Set password change requirement if either flag is true
+          const needsPasswordChange = passwordData?.requires_change === true || passwordData?.must_change_password === true;
           console.log('AuthContext: Password change required on init:', needsPasswordChange);
           setRequiresPasswordChange(needsPasswordChange);
         } else {
@@ -130,20 +145,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Save password if provided and not default
-      if (password && password !== 'password') {
-        const { error: passwordError } = await supabase
-          .from('user_passwords')
-          .upsert({
-            email: userData.email,
-            password_hash: btoa(password + userData.email),
-            requires_change: false
-          });
-
-        if (passwordError) {
-          console.error('AuthContext: Error saving password:', passwordError);
-        }
-      }
+      // Log successful login
+      await logSecurityEvent({
+        user_email: userData.email,
+        action: 'LOGIN_SUCCESS',
+        details: { role: userData.role }
+      });
       
       console.log('AuthContext: User session saved successfully');
     } catch (error) {
@@ -160,8 +167,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      // Step 1: Update password in database with proper error handling
-      const passwordHash = btoa(newPassword + user.email);
+      // Check password complexity
+      const complexityResult = checkPasswordComplexity(newPassword);
+      if (!complexityResult.isValid) {
+        console.error('AuthContext: Password complexity check failed:', complexityResult.errors);
+        return false;
+      }
+
+      // Check password history
+      const isPasswordReused = !(await checkPasswordHistory(user.email, newPassword));
+      if (isPasswordReused) {
+        console.error('AuthContext: Password was recently used');
+        return false;
+      }
+
+      // Generate salt and hash password
+      const salt = generateSalt();
+      const passwordHash = await hashPassword(newPassword, salt);
+      
       console.log('AuthContext: Updating password in database...');
       
       const { error: updateError } = await supabase
@@ -169,7 +192,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .upsert({
           email: user.email,
           password_hash: passwordHash,
-          requires_change: false
+          salt: salt,
+          requires_change: false,
+          must_change_password: false,
+          password_complexity_met: true,
+          last_password_change: new Date().toISOString(),
+          failed_attempts: 0,
+          locked_until: null
         }, {
           onConflict: 'email'
         });
@@ -178,33 +207,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('AuthContext: Database update error:', updateError);
         return false;
       }
-      
-      console.log('AuthContext: Password updated in database successfully');
-      
-      // Step 2: Verify the database update actually worked
-      console.log('AuthContext: Verifying database update...');
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('user_passwords')
-        .select('requires_change')
-        .eq('email', user.email)
-        .single();
 
-      if (verifyError) {
-        console.error('AuthContext: Verification error:', verifyError);
-        return false;
-      }
-
-      if (verifyData?.requires_change === true) {
-        console.error('AuthContext: Database update verification failed - requires_change is still true');
-        return false;
-      }
-
-      console.log('AuthContext: Database update verified successfully');
+      // Add password to history
+      await addPasswordToHistory(user.email, passwordHash, salt);
       
-      // Step 3: Update session with new password info
+      // Log password change
+      await logSecurityEvent({
+        user_email: user.email,
+        action: 'PASSWORD_CHANGE',
+        details: { complexity_met: true }
+      });
+      
+      console.log('AuthContext: Password updated successfully');
+      
+      // Update session with new password info
       await saveUserSession(user, newPassword);
       
-      // Step 4: Update local state immediately (no page reload needed)
+      // Update local state immediately
       console.log('AuthContext: Updating local state - setting requiresPasswordChange to false');
       setRequiresPasswordChange(false);
       
@@ -219,10 +238,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
     
+    // Check if account is locked due to failed attempts
+    const isAccountLocked = await checkFailedLoginAttempts(email);
+    if (isAccountLocked) {
+      console.log('AuthContext: Account is locked due to failed attempts');
+      await logSecurityEvent({
+        user_email: email,
+        action: 'LOGIN_ATTEMPT_LOCKED',
+        details: { reason: 'Too many failed attempts' }
+      });
+      return false;
+    }
+    
     // Check stored passwords first
     const { data: passwordData } = await supabase
       .from('user_passwords')
-      .select('password_hash, requires_change')
+      .select('password_hash, salt, requires_change, must_change_password, locked_until')
       .eq('email', email)
       .single();
 
@@ -230,72 +261,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let needsPasswordChange = false;
 
     if (passwordData) {
-      const storedHash = passwordData.password_hash;
-      const testHash = btoa(password + email);
-      
-      if (storedHash === testHash || storedHash === btoa(password)) {
-        console.log('AuthContext: Using stored password for login');
-        passwordValid = true;
-        needsPasswordChange = passwordData.requires_change === true;
-      } else if (password !== 'password') {
-        console.log('AuthContext: Invalid password');
+      // Check if account is locked
+      if (passwordData.locked_until && new Date(passwordData.locked_until) > new Date()) {
+        console.log('AuthContext: Account is locked until:', passwordData.locked_until);
+        await logSecurityEvent({
+          user_email: email,
+          action: 'LOGIN_ATTEMPT_LOCKED',
+          details: { locked_until: passwordData.locked_until }
+        });
         return false;
       }
-    }
-    
-    // If no stored password, only allow default password
-    if (!passwordValid && password !== 'password') {
-      console.log('AuthContext: Invalid password - no stored password found');
-      return false;
-    }
-    
-    // If using default password and no stored password, require change
-    if (password === 'password' && !passwordData) {
-      needsPasswordChange = true;
-    }
-    
-    // Define system admin users - these always get superadmin role
-    const systemUsers: { [key: string]: User } = {
-      'alhk10@gmail.com': {
-        id: 'ADMIN001',
-        name: 'System Administrator',
-        email: 'alhk10@gmail.com',
-        role: 'superadmin'
-      },
-      'manager@company.sg': {
-        id: 'MANAGER001', 
-        name: 'Department Manager',
-        email: 'manager@company.sg',
-        role: 'manager'
-      },
-    };
 
-    // Check system users first
-    if (systemUsers[email]) {
-      console.log('AuthContext: System user login successful:', systemUsers[email]);
-      const foundUser = systemUsers[email];
-      
-      setUser(foundUser);
-      await saveUserSession(foundUser, password);
-      
-      // Set password change requirement based on analysis above
-      if (needsPasswordChange) {
-        console.log('AuthContext: Setting password change requirement for system user');
-        await supabase
-          .from('user_passwords')
-          .upsert({
-            email: foundUser.email,
-            password_hash: btoa(password),
-            requires_change: true
-          });
+      if (passwordData.salt) {
+        // Use secure password verification
+        passwordValid = await verifyPassword(password, passwordData.password_hash, passwordData.salt);
+      } else {
+        // Legacy password check (for migration purposes)
+        const testHash = btoa(password + email);
+        passwordValid = passwordData.password_hash === testHash || passwordData.password_hash === btoa(password);
       }
       
-      setRequiresPasswordChange(needsPasswordChange);
-      console.log('AuthContext: Password change required:', needsPasswordChange);
-      
-      return true;
+      if (passwordValid) {
+        needsPasswordChange = passwordData.requires_change === true || passwordData.must_change_password === true;
+      }
+    } else {
+      // If no stored password, only allow default password for new users
+      if (password === 'password') {
+        passwordValid = true;
+        needsPasswordChange = true;
+      }
+    }
+    
+    if (!passwordValid) {
+      console.log('AuthContext: Invalid password');
+      await logFailedLoginAttempt(email);
+      await logSecurityEvent({
+        user_email: email,
+        action: 'LOGIN_FAILED',
+        details: { reason: 'Invalid password' }
+      });
+      return false;
     }
 
+    // Clear failed login attempts on successful authentication
+    await clearFailedLoginAttempts(email);
+    
     // Load all employees from database for regular employee login
     try {
       console.log('AuthContext: Loading employees from database...');
@@ -317,15 +327,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log('AuthContext: Admin access for employee:', adminAccess);
         
-        // Determine role based on admin permissions
-        const userRole = determineUserRole(adminAccess);
+        // Determine role based on admin permissions and superadmin status
+        const userRole = await determineUserRole(email, adminAccess);
         console.log('AuthContext: Determined role:', userRole);
         
         const userRecord: User = {
           id: employee.id,
           name: employee.name,
           email: employee.email,
-          role: userRole, // Use dynamically determined role
+          role: userRole,
           department: employee.branch,
           employeeId: employee.id
         };
@@ -335,16 +345,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userRecord);
         await saveUserSession(userRecord, password);
         
-        // Set password change requirement based on analysis above
+        // Set password change requirement if needed
         if (needsPasswordChange) {
           console.log('AuthContext: Setting password change requirement for employee');
-          await supabase
-            .from('user_passwords')
-            .upsert({
-              email: userRecord.email,
-              password_hash: btoa(password),
-              requires_change: true
-            });
+          // Create or update password record if using default password
+          if (password === 'password') {
+            const salt = generateSalt();
+            const hashedPassword = await hashPassword(password, salt);
+            await supabase
+              .from('user_passwords')
+              .upsert({
+                email: userRecord.email,
+                password_hash: hashedPassword,
+                salt: salt,
+                requires_change: false,
+                must_change_password: true,
+                password_complexity_met: false
+              });
+          }
         }
         
         setRequiresPasswordChange(needsPasswordChange);
@@ -360,6 +378,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     console.log('AuthContext: Login failed for email:', email);
+    await logFailedLoginAttempt(email);
+    await logSecurityEvent({
+      user_email: email,
+      action: 'LOGIN_FAILED',
+      details: { reason: 'Employee not found' }
+    });
     return false;
   };
 
@@ -367,6 +391,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthContext: Logging out user:', user);
     
     if (user?.email) {
+      // Log logout event
+      await logSecurityEvent({
+        user_email: user.email,
+        action: 'LOGOUT',
+        details: { role: user.role }
+      });
+
       // Remove session from Supabase
       await supabase
         .from('user_sessions')
