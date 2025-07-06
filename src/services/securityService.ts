@@ -74,7 +74,7 @@ export const generateSecurePassword = (): string => {
 // Check if user is superadmin
 export const isSuperadmin = async (email: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.rpc('is_superadmin' as any, { user_email: email });
+    const { data, error } = await (supabase as any).rpc('is_superadmin', { user_email: email });
     if (error) {
       console.error('Error checking superadmin status:', error);
       return false;
@@ -89,7 +89,7 @@ export const isSuperadmin = async (email: string): Promise<boolean> => {
 // Log security event
 export const logSecurityEvent = async (auditLog: SecurityAuditLog): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('log_security_event' as any, {
+    const { error } = await (supabase as any).rpc('log_security_event', {
       p_user_email: auditLog.user_email,
       p_action: auditLog.action,
       p_details: auditLog.details || null,
