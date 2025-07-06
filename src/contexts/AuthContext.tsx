@@ -101,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
           
-          // Check password change requirement using type assertion
-          const { data: passwordData, error: pwError } = await (supabase as any)
+          // Check password change requirement
+          const { data: passwordData, error: pwError } = await supabase
             .from('user_passwords')
             .select('requires_change, must_change_password')
             .eq('email', sessionData.email)
@@ -201,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           last_password_change: new Date().toISOString(),
           failed_attempts: 0,
           locked_until: null
-        } as any, {
+        }, {
           onConflict: 'email'
         });
 
@@ -225,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update session with new password info
       await saveUserSession(user, newPassword);
       
-      // Update local state immediately
+      // Update local state - this is the key fix
       console.log('AuthContext: Updating local state - setting requiresPasswordChange to false');
       setRequiresPasswordChange(false);
       
@@ -252,8 +252,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
     
-    // Check stored passwords first using type assertion
-    const { data: passwordData, error: pwError } = await (supabase as any)
+    // Check stored passwords first
+    const { data: passwordData, error: pwError } = await supabase
       .from('user_passwords')
       .select('password_hash, salt, requires_change, must_change_password, locked_until')
       .eq('email', email)
@@ -363,7 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 requires_change: false,
                 must_change_password: true,
                 password_complexity_met: false
-              } as any);
+              });
           }
         }
         

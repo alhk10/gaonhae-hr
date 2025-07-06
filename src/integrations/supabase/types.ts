@@ -552,6 +552,27 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_login_attempts: {
+        Row: {
+          attempt_time: string | null
+          email: string
+          id: string
+          ip_address: string | null
+        }
+        Insert: {
+          attempt_time?: string | null
+          email: string
+          id?: string
+          ip_address?: string | null
+        }
+        Update: {
+          attempt_time?: string | null
+          email?: string
+          id?: string
+          ip_address?: string | null
+        }
+        Relationships: []
+      }
       leave_requests: {
         Row: {
           applied_date: string | null
@@ -679,6 +700,30 @@ export type Database = {
           },
         ]
       }
+      password_history: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          password_hash: string
+          salt: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          password_hash: string
+          salt: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          password_hash?: string
+          salt?: string
+        }
+        Relationships: []
+      }
       payroll_records: {
         Row: {
           created_at: string | null
@@ -719,6 +764,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      security_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_email: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_email: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_email?: string
+        }
+        Relationships: []
       }
       slot_bookings: {
         Row: {
@@ -824,6 +899,36 @@ export type Database = {
           },
         ]
       }
+      superadmin_users: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          employee_email: string
+          employee_name: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          employee_email: string
+          employee_name: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          employee_email?: string
+          employee_name?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+        }
+        Relationships: []
+      }
       system_allowances: {
         Row: {
           created_at: string | null
@@ -900,25 +1005,43 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          failed_attempts: number | null
           id: string
+          last_password_change: string | null
+          locked_until: string | null
+          must_change_password: boolean | null
+          password_complexity_met: boolean | null
           password_hash: string
           requires_change: boolean | null
+          salt: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
+          failed_attempts?: number | null
           id?: string
+          last_password_change?: string | null
+          locked_until?: string | null
+          must_change_password?: boolean | null
+          password_complexity_met?: boolean | null
           password_hash: string
           requires_change?: boolean | null
+          salt?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
+          failed_attempts?: number | null
           id?: string
+          last_password_change?: string | null
+          locked_until?: string | null
+          must_change_password?: boolean | null
+          password_complexity_met?: boolean | null
           password_hash?: string
           requires_change?: boolean | null
+          salt?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1008,7 +1131,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_superadmin: {
+        Args: { user_email: string }
+        Returns: boolean
+      }
+      log_security_event: {
+        Args: {
+          p_user_email: string
+          p_action: string
+          p_details?: Json
+          p_ip_address?: string
+          p_user_agent?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

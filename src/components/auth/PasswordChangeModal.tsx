@@ -51,11 +51,16 @@ const PasswordChangeModal: React.FC = () => {
         console.log('PasswordChangeModal: Password updated successfully');
         toast({
           title: "Password Updated",
-          description: "Your password has been successfully updated.",
+          description: "Your password has been successfully updated. You can now access the system.",
         });
         
         setNewPassword('');
         setConfirmPassword('');
+        
+        // Small delay to let the user see the success message
+        setTimeout(() => {
+          console.log('PasswordChangeModal: Password change completed, modal should close automatically');
+        }, 1000);
       } else {
         console.log('PasswordChangeModal: Password update failed');
         toast({
@@ -81,7 +86,7 @@ const PasswordChangeModal: React.FC = () => {
   }
 
   return (
-    <Dialog open={requiresPasswordChange} onOpenChange={() => {}}>
+    <Dialog open={requiresPasswordChange}>
       <DialogContent className="sm:max-w-md [&>button]:hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
