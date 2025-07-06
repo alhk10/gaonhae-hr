@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,21 +84,20 @@ const EmployeeDetails = () => {
     }
   }, [employee]);
 
-  const updateEmployeeMutation = useMutation(
-    (updatedData: EmployeeProfile) => updateEmployee(id!, updatedData),
-    {
-      onSuccess: () => {
-        toast.success('Employee details updated successfully!');
-        queryClient.invalidateQueries({ queryKey: ['employee', id] });
-        queryClient.invalidateQueries({ queryKey: ['employees'] });
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to update employee details: ${error.message}`);
-      },
-    }
-  );
+  const updateEmployeeMutation = useMutation({
+    mutationFn: (updatedData: EmployeeProfile) => updateEmployee(id!, updatedData),
+    onSuccess: () => {
+      toast.success('Employee details updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['employee', id] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update employee details: ${error.message}`);
+    },
+  });
 
-  const deleteEmployeeMutation = useMutation(() => deleteEmployee(id!), {
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: () => deleteEmployee(id!),
     onSuccess: () => {
       toast.success('Employee deleted successfully!');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -108,21 +108,19 @@ const EmployeeDetails = () => {
     },
   });
 
-  const updateResignDateMutation = useMutation(
-    (resignDate: string) => updateEmployeeResignDate(id!, resignDate),
-    {
-      onSuccess: () => {
-        toast.success('Employee resign date updated successfully!');
-        queryClient.invalidateQueries({ queryKey: ['employee', id] });
-        queryClient.invalidateQueries({ queryKey: ['employees'] });
-        setIsResigning(false);
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to update resign date: ${error.message}`);
-        setIsResigning(false);
-      },
-    }
-  );
+  const updateResignDateMutation = useMutation({
+    mutationFn: (resignDate: string) => updateEmployeeResignDate(id!, resignDate),
+    onSuccess: () => {
+      toast.success('Employee resign date updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['employee', id] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsResigning(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update resign date: ${error.message}`);
+      setIsResigning(false);
+    },
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -291,7 +289,7 @@ const EmployeeDetails = () => {
                 <Select
                   name="residencyStatus"
                   defaultValue={employeeData.residencyStatus || 'Citizen'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, residencyStatus: value }))}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, residencyStatus: value as 'Citizen' | 'Permanent Resident' | 'Foreigner' }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -311,7 +309,7 @@ const EmployeeDetails = () => {
                 <Select
                   name="type"
                   defaultValue={employeeData.type || 'Full-Time'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, type: value }))}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, type: value as 'Full-Time' | 'Casual' }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -346,7 +344,7 @@ const EmployeeDetails = () => {
                 <Select
                   name="paymentType"
                   defaultValue={employeeData.paymentType || 'Monthly'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, paymentType: value }))}
+                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select payment type" />
