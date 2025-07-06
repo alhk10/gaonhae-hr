@@ -6,13 +6,15 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Clock, AlertCircle, Info } from 'lucide-react';
+import { Calendar, Plus, Clock, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests, addLeaveRequest, LeaveRequest } from '@/services/leaveService';
 import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
+import EmployeeLeaveInfo from '@/components/leave/EmployeeLeaveInfo';
 import { calculateLeaveBalance, getLeaveEntitlementSummary } from '@/utils/leaveCalculations';
 import { isEligibleForLeave, getEmployeeEligibilityMessage } from '@/utils/employeeEligibility';
+import { validateLeaveRequest } from '@/services/leaveValidationService';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
@@ -20,6 +22,7 @@ const ApplyLeave = () => {
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState('');
   const [medicalCertificate, setMedicalCertificate] = useState<File | null>(null);
+  const [validationResult, setValidationResult] = useState<any>(null);
   const [leaveBalance, setLeaveBalance] = useState<{
     annualLeave: { total: number; used: number; remaining: number };
     medicalLeave: { total: number; used: number; remaining: number };
@@ -83,6 +86,7 @@ const ApplyLeave = () => {
       setShowApplyForm(false);
       setMedicalCertificate(null);
       setSelectedLeaveType('');
+      setValidationResult(null);
     },
     onError: (error) => {
       console.error('Error submitting leave:', error);
@@ -139,17 +143,16 @@ const ApplyLeave = () => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Leave Management</h2>
                 <p className="text-gray-600">Employee leave information</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}{currentEmployee.position ? `, ${currentEmployee.position}` : ''}
-                </p>
               </div>
+
+              <EmployeeLeaveInfo employee={currentEmployee} showDetailedInfo={true} />
 
               <Card>
                 <CardContent className="p-8">
                   <div className="text-center">
                     <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      {isPartner ? 'Leave Not Required' : 'Leave Not Applicable'}
+                      {isPartner ? 'Leave System Not Required' : 'Leave Not Applicable'}
                     </h3>
                     <p className="text-gray-600 mb-4">
                       {getEmployeeEligibilityMessage(currentEmployee)}
@@ -171,7 +174,7 @@ const ApplyLeave = () => {
                             <li>• No annual leave entitlement</li>
                             <li>• No medical leave entitlement</li>
                             <li>• Pay is based on actual hours/days worked</li>
-                            <li>• Contact HR for any work-related inquiries</li>
+                            <li>• Contact HR for any work arrangements</li>
                           </>
                         )}
                       </ul>
@@ -201,7 +204,7 @@ const ApplyLeave = () => {
     },
   ];
 
-  const handleSubmitLeave = (e: React.FormEvent) => {
+  const handleSubmitLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
@@ -214,16 +217,28 @@ const ApplyLeave = () => {
       return;
     }
 
-    // Check if medical certificate is required for Medical Leave
-    if (leaveType === 'Medical Leave' && !medicalCertificate) {
-      toast("Medical certificate is required for Medical Leave");
+    // Validate the leave request
+    const validation = await validateLeaveRequest({
+      employeeId: currentEmployee.id,
+      leaveType,
+      startDate: leaveDate,
+      endDate: leaveDate,
+      days: 1
+    });
+
+    if (!validation.isValid) {
+      validation.errors.forEach(error => toast(error));
       return;
     }
 
-    // Check if employee has remaining leave days
-    const selectedLeaveBalance = currentLeaveStatus.find(leave => leave.type === leaveType);
-    if (selectedLeaveBalance && selectedLeaveBalance.remaining <= 0) {
-      toast(`No remaining ${leaveType.toLowerCase()} days available`);
+    // Show warnings if any
+    validation.warnings.forEach(warning => {
+      console.warn('Leave validation warning:', warning);
+    });
+
+    // Check if medical certificate is required for Medical Leave
+    if (leaveType === 'Medical Leave' && !medicalCertificate) {
+      toast("Medical certificate is required for Medical Leave");
       return;
     }
 
@@ -268,14 +283,13 @@ const ApplyLeave = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
                   <p className="text-gray-600">Submit your leave application</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}
-                  </p>
                 </div>
                 <Button variant="outline" onClick={() => setShowApplyForm(false)}>
                   Back to Leave Summary
                 </Button>
               </div>
+
+              <EmployeeLeaveInfo employee={currentEmployee} showDetailedInfo={false} />
 
               {/* Leave Entitlement Information */}
               {currentEmployee.joinDate && (
@@ -303,6 +317,15 @@ const ApplyLeave = () => {
                         <p className="text-sm font-medium text-gray-600">{leave.type}</p>
                         <p className="text-2xl font-bold text-gray-900">{leave.remaining}</p>
                         <p className="text-sm text-gray-500">remaining</p>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {leave.used} of {leave.total} used
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${leave.total > 0 ? (leave.used / leave.total) * 100 : 0}%` }}
+                          ></div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -327,8 +350,8 @@ const ApplyLeave = () => {
                           onChange={(e) => setSelectedLeaveType(e.target.value)}
                         >
                           <option value="">Select leave type</option>
-                          <option value="Annual Leave">Annual Leave</option>
-                          <option value="Medical Leave">Medical Leave</option>
+                          <option value="Annual Leave">Annual Leave ({currentLeaveStatus[0]?.remaining} days available)</option>
+                          <option value="Medical Leave">Medical Leave ({currentLeaveStatus[1]?.remaining} days available)</option>
                           <option value="Emergency Leave">Emergency Leave</option>
                           <option value="Maternity Leave">Maternity Leave</option>
                           <option value="Paternity Leave">Paternity Leave</option>
@@ -339,6 +362,7 @@ const ApplyLeave = () => {
                         <input name="leaveDate" type="date" className="w-full p-2 border border-gray-300 rounded-lg" required />
                       </div>
                     </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
                       <textarea 
@@ -373,6 +397,27 @@ const ApplyLeave = () => {
                         />
                       </div>
                     )}
+
+                    {/* Leave Balance Warning */}
+                    {selectedLeaveType && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium text-gray-700">Leave Balance Check</span>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {selectedLeaveType === 'Annual Leave' && (
+                            <p>You have {currentLeaveStatus[0]?.remaining} annual leave days remaining</p>
+                          )}
+                          {selectedLeaveType === 'Medical Leave' && (
+                            <p>You have {currentLeaveStatus[1]?.remaining} medical leave days remaining</p>
+                          )}
+                          {!['Annual Leave', 'Medical Leave'].includes(selectedLeaveType) && (
+                            <p>This leave type may not count against your standard leave balance</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     
                     <Button 
                       type="submit" 
@@ -402,15 +447,14 @@ const ApplyLeave = () => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Leave Summary</h2>
                 <p className="text-gray-600">Your leave balance and history</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Employee: {currentEmployee.name} ({currentEmployee.id}) - {currentEmployee.type}
-                </p>
               </div>
               <Button onClick={() => setShowApplyForm(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Apply for Leave
               </Button>
             </div>
+
+            <EmployeeLeaveInfo employee={currentEmployee} showDetailedInfo={true} />
 
             {/* Leave Entitlement Information */}
             {currentEmployee.joinDate && (
@@ -488,7 +532,9 @@ const ApplyLeave = () => {
                     ))
                   ) : (
                     <div className="text-center text-gray-500 py-8">
-                      No leave history found
+                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No leave history found</p>
+                      <p className="text-sm">Your leave applications will appear here</p>
                     </div>
                   )}
                 </div>
