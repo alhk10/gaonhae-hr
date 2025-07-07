@@ -1,25 +1,19 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, Calendar as CalendarIcon, Download, TrendingUp, Eye, Clock, AlertCircle, Save } from 'lucide-react';
+import { DollarSign, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { usePayroll } from '@/contexts/PayrollContext';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import PayrollPeriodManager from '@/components/payroll/PayrollPeriodManager';
+import PayrollSummaryCards from '@/components/payroll/PayrollSummaryCards';
 import PayrollEmployeeManager from '@/components/payroll/PayrollEmployeeManager';
+import PayrollActionButtons from '@/components/payroll/PayrollActionButtons';
 
 const Payroll = () => {
   const navigate = useNavigate();
-  const { payrollState, calculatePayrollTotal, setPayrollStatus, setCurrentPeriod, savePayrollToSupabase, isLoading } = usePayroll();
-  const [payrollDate, setPayrollDate] = useState<Date>(new Date());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const { payrollState, calculatePayrollTotal, savePayrollToSupabase, isLoading } = usePayroll();
   const [isSaving, setIsSaving] = useState(false);
 
   const handleProcessPayroll = () => {
@@ -53,16 +47,6 @@ const Payroll = () => {
       toast.error('Error saving payroll');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handlePeriodChange = (date: Date | undefined) => {
-    if (date) {
-      setPayrollDate(date);
-      const newPeriod = format(date, 'MMMM yyyy');
-      setCurrentPeriod(newPeriod);
-      setIsDatePickerOpen(false);
-      toast.success(`Payroll period updated to ${newPeriod}`);
     }
   };
 
@@ -165,7 +149,6 @@ const Payroll = () => {
   }
 
   const currentTotal = calculatePayrollTotal();
-  const yearlyTotal = currentTotal * 12;
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
   const hasEmployees = totalEmployees > 0;
   const nextProcessingDays = getNextProcessingDate();
@@ -177,63 +160,7 @@ const Payroll = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">Payroll Management</h2>
-            <div className="flex items-center space-x-4 mt-2">
-              <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                {payrollState.status.charAt(0).toUpperCase() + payrollState.status.slice(1)}
-              </Badge>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Period:</span>
-                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "text-sm",
-                        !payrollDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {payrollDate ? format(payrollDate, 'MMMM yyyy') : <span>Select period</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={payrollDate}
-                      onSelect={handlePeriodChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <p className="text-sm text-gray-500">
-                Last Updated: {payrollState.lastUpdated.toLocaleString()}
-              </p>
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline"
-              onClick={handleSavePayroll}
-              disabled={!hasEmployees || isSaving}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Payroll'}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={handleIncrementPlanning}
-            >
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Increment Planning
-            </Button>
-            <Button 
-              onClick={handleProcessPayroll}
-              disabled={!hasEmployees}
-            >
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              Process Payroll
-            </Button>
+            <p className="text-gray-600 mt-1">Manage employee payroll and compensation</p>
           </div>
         </div>
 
@@ -248,118 +175,28 @@ const Payroll = () => {
           </Alert>
         )}
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-600">Current Total</p>
-                  <p className="text-2xl font-bold text-green-900">S${currentTotal.toLocaleString()}</p>
-                  <p className="text-xs text-green-500 mt-1">
-                    {format(payrollDate, 'MMMM yyyy')}
-                  </p>
-                </div>
-                <DollarSign className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-600">Total Employees</p>
-                  <p className="text-2xl font-bold text-blue-900">{totalEmployees}</p>
-                  <p className="text-xs text-blue-500 mt-1">
-                    {payrollState.fullTimeEmployees.length} FT • {payrollState.casualEmployees.length} Casual
-                  </p>
-                </div>
-                <DollarSign className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-600">Estimated Yearly</p>
-                  <p className="text-2xl font-bold text-purple-900">S${yearlyTotal.toLocaleString()}</p>
-                  <p className="text-xs text-purple-500 mt-1">Projection</p>
-                </div>
-                <DollarSign className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-600">Next Processing</p>
-                  <p className="text-2xl font-bold text-orange-900">{nextProcessingDays} days</p>
-                  <p className="text-xs text-orange-500 mt-1">2nd of month</p>
-                </div>
-                <Clock className="w-8 h-8 text-orange-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Period Management */}
+        <PayrollPeriodManager />
+
+        {/* Summary Cards */}
+        <PayrollSummaryCards 
+          currentTotal={currentTotal}
+          totalEmployees={totalEmployees}
+          nextProcessingDays={nextProcessingDays}
+        />
 
         {/* Employee Management Section */}
         <PayrollEmployeeManager payrollPeriod={payrollState.currentPeriod} />
 
-        {/* Payroll Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Payroll Actions</CardTitle>
-            <CardDescription>
-              Manage payroll operations and generate reports
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button 
-                variant="outline" 
-                onClick={handlePaymentSummary}
-                className="flex items-center justify-center"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Payment Summary
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => generatePDF(payrollState.currentPeriod)}
-                disabled={!hasEmployees}
-                className="flex items-center justify-center"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Report
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  setPayrollStatus('processing');
-                  toast.success('Payroll status updated to processing');
-                }}
-                disabled={!hasEmployees}
-                className="flex items-center justify-center"
-              >
-                <CalendarIcon className="w-4 h-4 mr-2" />
-                Mark Processing
-              </Button>
-              <Button 
-                onClick={handleSavePayroll}
-                disabled={!hasEmployees || isSaving}
-                className="flex items-center justify-center"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Action Buttons */}
+        <PayrollActionButtons
+          hasEmployees={hasEmployees}
+          onProcessPayroll={handleProcessPayroll}
+          onPaymentSummary={handlePaymentSummary}
+          onGeneratePDF={() => generatePDF(payrollState.currentPeriod)}
+          onSavePayroll={handleSavePayroll}
+          isSaving={isSaving}
+        />
       </div>
     </ResponsiveLayout>
   );
