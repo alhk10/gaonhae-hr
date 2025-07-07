@@ -1,11 +1,10 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Settings } from 'lucide-react';
+import { Plus, Settings, Grid, List, Filter } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +15,9 @@ import EmployeeCard from '@/components/employee/EmployeeCard';
 import EmployeeSearchFilter from '@/components/employee/EmployeeSearchFilter';
 import BulkActions from '@/components/employee/BulkActions';
 import ActionMenu from '@/components/employee/ActionMenu';
+import EmployeeStatsCards from '@/components/employee/EmployeeStatsCards';
+import EmployeeListView from '@/components/employee/EmployeeListView';
+import AdvancedEmployeeFilters from '@/components/employee/AdvancedEmployeeFilters';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,11 +28,24 @@ const Employees = () => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   
+  // View States
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  
+  // Advanced Filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    salaryRange: { min: '', max: '' },
+    joinDateRange: { start: '', end: '' },
+    showInactiveOnly: false,
+    hasEmail: false,
+    hasPhone: false
+  });
   
   // Selection States
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
@@ -106,9 +121,26 @@ const Employees = () => {
         if (empDept !== departmentFilter) return false;
       }
 
+      // Advanced filters
+      if (advancedFilters.salaryRange.min && employee.baseSalary) {
+        if (employee.baseSalary < parseFloat(advancedFilters.salaryRange.min)) return false;
+      }
+      if (advancedFilters.salaryRange.max && employee.baseSalary) {
+        if (employee.baseSalary > parseFloat(advancedFilters.salaryRange.max)) return false;
+      }
+      if (advancedFilters.joinDateRange.start && employee.joinDate) {
+        if (new Date(employee.joinDate) < new Date(advancedFilters.joinDateRange.start)) return false;
+      }
+      if (advancedFilters.joinDateRange.end && employee.joinDate) {
+        if (new Date(employee.joinDate) > new Date(advancedFilters.joinDateRange.end)) return false;
+      }
+      if (advancedFilters.showInactiveOnly && !employee.resignDate) return false;
+      if (advancedFilters.hasEmail && !employee.email) return false;
+      if (advancedFilters.hasPhone && !employee.phone) return false;
+
       return true;
     });
-  }, [employees, searchTerm, typeFilter, statusFilter, departmentFilter]);
+  }, [employees, searchTerm, typeFilter, statusFilter, departmentFilter, advancedFilters]);
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
@@ -207,6 +239,28 @@ const Employees = () => {
     setTypeFilter('');
     setStatusFilter('');
     setDepartmentFilter('');
+    setAdvancedFilters({
+      salaryRange: { min: '', max: '' },
+      joinDateRange: { start: '', end: '' },
+      showInactiveOnly: false,
+      hasEmail: false,
+      hasPhone: false
+    });
+  };
+
+  const handleApplyAdvancedFilters = () => {
+    setShowAdvancedFilters(false);
+    // Filters are automatically applied via useMemo
+  };
+
+  const handleClearAdvancedFilters = () => {
+    setAdvancedFilters({
+      salaryRange: { min: '', max: '' },
+      joinDateRange: { start: '', end: '' },
+      showInactiveOnly: false,
+      hasEmail: false,
+      hasPhone: false
+    });
   };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
@@ -297,6 +351,14 @@ const Employees = () => {
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
+              onClick={() => setShowAdvancedFilters(true)}
+              className="w-full sm:w-auto"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Advanced Filters
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowModuleSettings(true)}
               className="w-full sm:w-auto"
             >
@@ -312,6 +374,9 @@ const Employees = () => {
             </Button>
           </div>
         </div>
+
+        {/* Stats Cards */}
+        <EmployeeStatsCards employees={employees} />
 
         {/* Search and Filters */}
         <EmployeeSearchFilter
@@ -329,48 +394,81 @@ const Employees = () => {
           onClearFilters={handleClearFilters}
         />
 
-        {/* Bulk Actions */}
-        <BulkActions
-          employees={filteredEmployees}
-          selectedEmployees={selectedEmployees}
-          onSelectionChange={setSelectedEmployees}
-          onBulkDelete={handleBulkDelete}
-          onBulkExport={(ids) => toast("Export functionality not implemented yet")}
-          onBulkEmail={(ids) => toast("Email functionality not implemented yet")}
-          onBulkStatusChange={(ids, status) => toast(`Status change functionality not implemented yet`)}
-          isSuperAdmin={isSuperAdmin}
-        />
+        {/* View Toggle and Bulk Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+            >
+              <Grid className="w-4 h-4 mr-2" />
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="w-4 h-4 mr-2" />
+              List
+            </Button>
+          </div>
+          
+          <BulkActions
+            employees={filteredEmployees}
+            selectedEmployees={selectedEmployees}
+            onSelectionChange={setSelectedEmployees}
+            onBulkDelete={handleBulkDelete}
+            onBulkExport={(ids) => toast("Export functionality not implemented yet")}
+            onBulkEmail={(ids) => toast("Email functionality not implemented yet")}
+            onBulkStatusChange={(ids, status) => toast(`Status change functionality not implemented yet`)}
+            isSuperAdmin={isSuperAdmin}
+          />
+        </div>
 
-        {/* Employee Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredEmployees.map((employee) => (
-            <div key={employee.id} className="relative">
-              <EmployeeCard
-                employee={employee}
-                onView={(id) => navigate(`/employees/${id}`)}
-                onEdit={(id) => navigate(`/employees/${id}/edit`)}
-                onResetPassword={handleResetPassword}
-                onDelete={handleDeleteEmployee}
-                showActions={false}
-                isSuperAdmin={isSuperAdmin}
-              />
-              <div className="absolute top-2 right-2">
-                <ActionMenu
-                  employeeId={employee.id}
-                  employeeName={employee.name}
-                  employeeEmail={employee.email || ''}
-                  isActive={!employee.resignDate}
+        {/* Employee Display */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredEmployees.map((employee) => (
+              <div key={employee.id} className="relative">
+                <EmployeeCard
+                  employee={employee}
                   onView={(id) => navigate(`/employees/${id}`)}
                   onEdit={(id) => navigate(`/employees/${id}/edit`)}
                   onResetPassword={handleResetPassword}
                   onDelete={handleDeleteEmployee}
-                  onToggleStatus={handleToggleStatus}
+                  showActions={false}
                   isSuperAdmin={isSuperAdmin}
                 />
+                <div className="absolute top-2 right-2">
+                  <ActionMenu
+                    employeeId={employee.id}
+                    employeeName={employee.name}
+                    employeeEmail={employee.email || ''}
+                    isActive={!employee.resignDate}
+                    onView={(id) => navigate(`/employees/${id}`)}
+                    onEdit={(id) => navigate(`/employees/${id}/edit`)}
+                    onResetPassword={handleResetPassword}
+                    onDelete={handleDeleteEmployee}
+                    onToggleStatus={handleToggleStatus}
+                    isSuperAdmin={isSuperAdmin}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmployeeListView
+            employees={filteredEmployees}
+            onView={(id) => navigate(`/employees/${id}`)}
+            onEdit={(id) => navigate(`/employees/${id}/edit`)}
+            onResetPassword={handleResetPassword}
+            onDelete={handleDeleteEmployee}
+            onToggleStatus={handleToggleStatus}
+            isSuperAdmin={isSuperAdmin}
+          />
+        )}
 
         {/* Empty State */}
         {filteredEmployees.length === 0 && (
@@ -415,6 +513,15 @@ const Employees = () => {
           employeeEmail={selectedEmployee.email}
         />
       )}
+
+      <AdvancedEmployeeFilters
+        isOpen={showAdvancedFilters}
+        onClose={() => setShowAdvancedFilters(false)}
+        filters={advancedFilters}
+        onFiltersChange={setAdvancedFilters}
+        onApplyFilters={handleApplyAdvancedFilters}
+        onClearFilters={handleClearAdvancedFilters}
+      />
 
       {/* Add Employee Form Modal */}
       {showAddForm && (
