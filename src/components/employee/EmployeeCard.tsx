@@ -3,18 +3,17 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Mail, 
   Phone, 
   Calendar, 
   MapPin, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  KeyRound,
+  Eye,
   User,
-  Building
+  Building,
+  Briefcase,
+  CreditCard
 } from 'lucide-react';
 import { EmployeeProfile } from '@/types/employee';
 
@@ -26,6 +25,8 @@ interface EmployeeCardProps {
   onResetPassword?: (name: string, email: string) => void;
   showActions?: boolean;
   isSuperAdmin?: boolean;
+  isSelected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
 }
 
 const EmployeeCard: React.FC<EmployeeCardProps> = ({
@@ -35,7 +36,9 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
   onDelete,
   onResetPassword,
   showActions = true,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  isSelected = false,
+  onSelect
 }) => {
   const getInitials = (name: string) => {
     return name
@@ -48,128 +51,127 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
 
   const isActive = !employee.resignDate;
 
+  const getSalaryDisplay = () => {
+    if (employee.baseSalary) {
+      return `S$${employee.baseSalary.toLocaleString()}/month`;
+    } else if (employee.hourlyRate) {
+      return `S$${employee.hourlyRate}/hour`;
+    } else if (employee.dailyWeekdayRate) {
+      return `S$${employee.dailyWeekdayRate}/day`;
+    }
+    return 'Not set';
+  };
+
   return (
-    <Card className={`transition-all duration-200 hover:shadow-md ${!isActive ? 'opacity-75 bg-gray-50' : ''}`}>
-      <CardContent className="p-4">
+    <Card className={`transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${
+      !isActive ? 'opacity-75 bg-gray-50' : 'hover:shadow-md'
+    } ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+      <CardContent className="p-6">
         <div className="flex items-start space-x-4">
           {/* Avatar */}
-          <Avatar className="h-12 w-12 flex-shrink-0">
-            <AvatarFallback className={`text-sm font-medium ${employee.type === 'Full-Time' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-              {getInitials(employee.name)}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex-shrink-0">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={employee.profilePhoto} alt={employee.name} />
+              <AvatarFallback className={`text-lg font-bold ${
+                employee.type === 'Full-Time' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'bg-purple-100 text-purple-700'
+              }`}>
+                {getInitials(employee.name)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             {/* Header */}
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-gray-900 truncate">{employee.name}</h3>
-                <p className="text-sm text-gray-600 truncate">{employee.position || 'Not specified'}</p>
-              </div>
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                <Badge 
-                  variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}
-                  className="text-xs"
-                >
-                  {employee.type}
-                </Badge>
-                {!isActive && (
-                  <Badge variant="destructive" className="text-xs">
-                    Inactive
+            <div className="flex items-start justify-between mb-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-lg text-gray-900 truncate mb-1">
+                  {employee.name}
+                </h3>
+                <div className="flex items-center space-x-2 mb-2">
+                  <Badge 
+                    variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {employee.type}
                   </Badge>
+                  {!isActive && (
+                    <Badge variant="destructive" className="text-xs">
+                      Inactive
+                    </Badge>
+                  )}
+                </div>
+                {employee.position && (
+                  <div className="flex items-center text-sm text-gray-600 mb-2">
+                    <Briefcase className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">{employee.position}</span>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Details Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+            <div className="space-y-2 text-sm text-gray-600 mb-4">
               {employee.email && (
                 <div className="flex items-center space-x-2 min-w-0">
-                  <Mail className="w-4 h-4 flex-shrink-0" />
+                  <Mail className="w-4 h-4 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{employee.email}</span>
                 </div>
               )}
+              
               {employee.phone && (
                 <div className="flex items-center space-x-2 min-w-0">
-                  <Phone className="w-4 h-4 flex-shrink-0" />
+                  <Phone className="w-4 h-4 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{employee.phone}</span>
                 </div>
               )}
-              {employee.joinDate && (
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 flex-shrink-0" />
-                  <span>Joined: {new Date(employee.joinDate).toLocaleDateString()}</span>
-                </div>
-              )}
+              
               {employee.branch && (
                 <div className="flex items-center space-x-2 min-w-0">
-                  <MapPin className="w-4 h-4 flex-shrink-0" />
+                  <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{employee.branch}</span>
                 </div>
               )}
+
               {employee.department && (
                 <div className="flex items-center space-x-2 min-w-0">
-                  <Building className="w-4 h-4 flex-shrink-0" />
+                  <Building className="w-4 h-4 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{employee.department}</span>
                 </div>
               )}
+
               <div className="flex items-center space-x-2">
-                <User className="w-4 h-4 flex-shrink-0" />
+                <CreditCard className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                <span>{getSalaryDisplay()}</span>
+              </div>
+
+              {employee.joinDate && (
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                  <span>Joined: {new Date(employee.joinDate).toLocaleDateString()}</span>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <User className="w-4 h-4 flex-shrink-0 text-gray-400" />
                 <span>ID: {employee.id}</span>
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Quick Action */}
             {showActions && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t">
+              <div className="pt-3 border-t">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => onView(employee.id)}
-                  className="text-xs"
+                  className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                 >
-                  <Eye className="w-3 h-3 mr-1" />
-                  View
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Details
                 </Button>
-                
-                {onEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(employee.id)}
-                    className="text-xs"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                )}
-
-                {isSuperAdmin && employee.email && onResetPassword && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onResetPassword(employee.name, employee.email)}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                    title="Reset password"
-                  >
-                    <KeyRound className="w-3 h-3 mr-1" />
-                    Reset
-                  </Button>
-                )}
-
-                {isSuperAdmin && onDelete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDelete(employee.id, employee.name)}
-                    className="text-xs text-red-600 hover:text-red-700"
-                    title="Remove employee"
-                  >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Remove
-                  </Button>
-                )}
               </div>
             )}
           </div>

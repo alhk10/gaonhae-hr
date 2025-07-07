@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -13,6 +14,8 @@ import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
 import EmployeeCard from '@/components/employee/EmployeeCard';
 import EmployeeSearchFilter from '@/components/employee/EmployeeSearchFilter';
+import BulkActions from '@/components/employee/BulkActions';
+import ActionMenu from '@/components/employee/ActionMenu';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +31,9 @@ const Employees = () => {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  
+  // Selection States
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   
   // Dialog States
   const [showAddForm, setShowAddForm] = useState(false);
@@ -146,10 +152,32 @@ const Employees = () => {
     }
   };
 
+  const handleBulkDelete = (employeeIds: string[]) => {
+    if (window.confirm(`Are you sure you want to remove ${employeeIds.length} employees? This will set their resign date to today.`)) {
+      Promise.all(employeeIds.map(id => deleteEmployeeMutation.mutateAsync(id)))
+        .then(() => {
+          setSelectedEmployees(new Set());
+          toast(`${employeeIds.length} employees removed successfully`);
+        })
+        .catch((error) => {
+          console.error('Error in bulk delete:', error);
+          toast("Error removing some employees. Please try again.");
+        });
+    }
+  };
+
   const handleResetPassword = (employeeName: string, employeeEmail: string) => {
     console.log('Opening reset password dialog for:', employeeName, employeeEmail);
     setSelectedEmployee({ name: employeeName, email: employeeEmail });
     setShowResetPasswordDialog(true);
+  };
+
+  const handleToggleStatus = (employeeId: string, employeeName: string, currentStatus: boolean) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    if (window.confirm(`Are you sure you want to ${action} ${employeeName}?`)) {
+      // Implementation would go here
+      toast(`Employee ${action}d successfully`);
+    }
   };
 
   const handleCloseAddForm = () => {
@@ -301,17 +329,46 @@ const Employees = () => {
           onClearFilters={handleClearFilters}
         />
 
+        {/* Bulk Actions */}
+        <BulkActions
+          employees={filteredEmployees}
+          selectedEmployees={selectedEmployees}
+          onSelectionChange={setSelectedEmployees}
+          onBulkDelete={handleBulkDelete}
+          onBulkExport={(ids) => toast("Export functionality not implemented yet")}
+          onBulkEmail={(ids) => toast("Email functionality not implemented yet")}
+          onBulkStatusChange={(ids, status) => toast(`Status change functionality not implemented yet`)}
+          isSuperAdmin={isSuperAdmin}
+        />
+
         {/* Employee Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredEmployees.map((employee) => (
-            <EmployeeCard
-              key={employee.id}
-              employee={employee}
-              onView={(id) => navigate(`/employees/${id}`)}
-              onResetPassword={handleResetPassword}
-              onDelete={handleDeleteEmployee}
-              isSuperAdmin={isSuperAdmin}
-            />
+            <div key={employee.id} className="relative">
+              <EmployeeCard
+                employee={employee}
+                onView={(id) => navigate(`/employees/${id}`)}
+                onEdit={(id) => navigate(`/employees/${id}/edit`)}
+                onResetPassword={handleResetPassword}
+                onDelete={handleDeleteEmployee}
+                showActions={false}
+                isSuperAdmin={isSuperAdmin}
+              />
+              <div className="absolute top-2 right-2">
+                <ActionMenu
+                  employeeId={employee.id}
+                  employeeName={employee.name}
+                  employeeEmail={employee.email || ''}
+                  isActive={!employee.resignDate}
+                  onView={(id) => navigate(`/employees/${id}`)}
+                  onEdit={(id) => navigate(`/employees/${id}/edit`)}
+                  onResetPassword={handleResetPassword}
+                  onDelete={handleDeleteEmployee}
+                  onToggleStatus={handleToggleStatus}
+                  isSuperAdmin={isSuperAdmin}
+                />
+              </div>
+            </div>
           ))}
         </div>
 
