@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { AlertTriangle, Copy, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSecurePassword, generateSalt, hashPassword, logSecurityEvent } from '@/services/securityService';
 
@@ -23,62 +24,53 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
-  const handleGeneratePassword = () => {
-    const generatedPassword = generateSecurePassword();
-    setNewPassword(generatedPassword);
-    setShowPassword(true);
-  };
+  const handleGenerateAndReset = async () => {
+    console.log('ResetPasswordDialog: Starting password reset for:', employeeEmail);
+    
+    if (!employeeEmail || !employeeEmail.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Employee email is required for password reset.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleCopyPassword = () => {
-    navigator.clipboard.writeText(newPassword);
-    toast({
-      title: "Password Copied",
-      description: "The new password has been copied to your clipboard.",
-    });
-  };
-
-  const handleResetPassword = async () => {
-    console.log('ResetPasswordDialog: Resetting password for employee:', employeeEmail);
     setIsLoading(true);
 
     try {
-      let passwordToUse = newPassword;
+      // Generate secure password
+      const generatedPassword = generateSecurePassword();
+      setNewPassword(generatedPassword);
       
-      // Generate secure password if none generated yet
-      if (!passwordToUse) {
-        passwordToUse = generateSecurePassword();
-        setNewPassword(passwordToUse);
-        setShowPassword(true);
-      }
-
-      // Generate salt and hash the new password
+      // Generate salt and hash the password
       const salt = generateSalt();
-      const hashedPassword = await hashPassword(passwordToUse, salt);
+      const hashedPassword = await hashPassword(generatedPassword, salt);
 
-      // Update password in database with enhanced security fields using type assertion
-      const { error } = await supabase
+      console.log('ResetPasswordDialog: Generated password and hash for:', employeeEmail);
+
+      // Update/insert password in database
+      const { error: upsertError } = await supabase
         .from('user_passwords')
         .upsert({
           email: employeeEmail,
           password_hash: hashedPassword,
           salt: salt,
-          requires_change: false,
-          must_change_password: true, // Force user to change on next login
+          must_change_password: true,
           password_complexity_met: true,
           last_password_change: new Date().toISOString(),
           failed_attempts: 0,
-          locked_until: null
-        } as any);
-
-      if (error) {
-        console.error('ResetPasswordDialog: Error resetting password:', error);
-        toast({
-          title: "Reset Failed",
-          description: "Failed to reset password. Please try again.",
-          variant: "destructive",
+          locked_until: null,
+          requires_change: false
+        }, {
+          onConflict: 'email'
         });
-        return;
+
+      if (upsertError) {
+        console.error('ResetPasswordDialog: Database error:', upsertError);
+        throw new Error(`Database error: ${upsertError.message}`);
       }
 
       // Log security event
@@ -86,28 +78,27 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
         user_email: employeeEmail,
         action: 'PASSWORD_RESET_BY_ADMIN',
         details: { 
-          reset_by: 'admin', // In a real app, you'd get the current admin user
+          reset_by: 'admin',
           employee_name: employeeName,
-          secure_password_generated: true
+          timestamp: new Date().toISOString()
         }
       });
 
-      console.log('ResetPasswordDialog: Password reset successfully for:', employeeEmail);
+      console.log('ResetPasswordDialog: Password reset completed successfully');
+      
+      setIsComplete(true);
+      setShowPassword(true);
       
       toast({
-        title: "Password Reset",
-        description: `${employeeName}'s password has been reset. They will be required to change it on next login.`,
+        title: "Password Reset Complete",
+        description: `New password generated for ${employeeName}. They must change it on next login.`,
       });
 
-      // Don't close immediately to show the new password
-      if (!showPassword) {
-        onClose();
-      }
     } catch (error) {
-      console.error('ResetPasswordDialog: Error resetting password:', error);
+      console.error('ResetPasswordDialog: Error during password reset:', error);
       toast({
         title: "Reset Failed",
-        description: "Failed to reset password. Please try again.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred during password reset.",
         variant: "destructive",
       });
     } finally {
@@ -115,9 +106,27 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     }
   };
 
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(newPassword);
+      toast({
+        title: "Password Copied",
+        description: "The new password has been copied to your clipboard.",
+      });
+    } catch (error) {
+      console.error('Failed to copy password:', error);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy password to clipboard. Please copy it manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleClose = () => {
     setNewPassword('');
     setShowPassword(false);
+    setIsComplete(false);
     onClose();
   };
 
@@ -126,32 +135,47 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
-            Reset Password
+            <Lock className="w-5 h-5 text-blue-500" />
+            Reset Employee Password
           </DialogTitle>
           <DialogDescription>
-            Reset {employeeName}'s password with a secure, randomly generated password.
+            Generate a new secure password for {employeeName}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          {!showPassword ? (
+          {!isComplete ? (
             <>
+              {/* Warning Notice */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-amber-800">Security Notice:</p>
-                    <ul className="mt-1 text-amber-700 space-y-1">
+                    <p className="font-medium text-amber-800 mb-2">Before proceeding:</p>
+                    <ul className="text-amber-700 space-y-1">
                       <li>• A secure random password will be generated</li>
-                      <li>• {employeeName} will be required to change it on next login</li>
-                      <li>• The new password will meet complexity requirements</li>
-                      <li>• This action will be logged for security purposes</li>
+                      <li>• {employeeName} must change it on their next login</li>
+                      <li>• The password will meet all complexity requirements</li>
+                      <li>• This action will be logged for security</li>
                     </ul>
                   </div>
                 </div>
               </div>
 
+              {/* Employee Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm">
+                  <p className="font-medium text-blue-800">Employee Details:</p>
+                  <p className="text-blue-700 mt-1">
+                    <strong>Name:</strong> {employeeName}
+                  </p>
+                  <p className="text-blue-700">
+                    <strong>Email:</strong> {employeeEmail}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
               <div className="flex space-x-3">
                 <Button
                   variant="outline"
@@ -162,54 +186,83 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleGeneratePassword}
-                  className="flex-1"
+                  onClick={handleGenerateAndReset}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
                   disabled={isLoading}
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Generate Password
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Generate & Reset
+                    </>
+                  )}
                 </Button>
               </div>
             </>
           ) : (
             <>
+              {/* Success State */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="text-sm">
-                  <p className="font-medium text-green-800 mb-2">New Password Generated:</p>
-                  <div className="bg-white border rounded p-3 font-mono text-lg break-all">
-                    {newPassword}
+                <div className="flex items-start space-x-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-800 mb-2">Password Reset Successful!</p>
+                    <p className="text-green-700">
+                      New password has been generated for {employeeName}. Please share it securely.
+                    </p>
                   </div>
-                  <p className="mt-2 text-green-700 text-xs">
-                    Please copy this password and share it securely with {employeeName}.
-                  </p>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={handleCopyPassword}
-                  className="flex-1"
-                >
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Password
-                </Button>
-                <Button
-                  onClick={handleResetPassword}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Applying Reset...' : 'Apply Reset'}
-                </Button>
+              {/* Generated Password Display */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    readOnly
+                    className="pr-20 font-mono text-sm bg-gray-50"
+                  />
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyPassword}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Share this password securely with {employeeName}. They will be required to change it on their next login.
+                </p>
               </div>
 
+              {/* Close Button */}
               <Button
-                variant="ghost"
                 onClick={handleClose}
                 className="w-full"
-                disabled={isLoading}
               >
-                Close
+                Done
               </Button>
             </>
           )}

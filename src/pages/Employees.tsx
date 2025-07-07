@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Settings, Eye, Trash2, Phone, Mail, Calendar, MapPin, KeyRound } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
+import EmployeeCard from '@/components/employee/EmployeeCard';
+import EmployeeSearchFilter from '@/components/employee/EmployeeSearchFilter';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,13 +22,21 @@ const Employees = () => {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  
+  // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  
+  // Dialog States
   const [showAddForm, setShowAddForm] = useState(false);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
-  const [paymentType, setPaymentType] = useState('Monthly');
   
+  // Form States
+  const [paymentType, setPaymentType] = useState('Monthly');
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -52,6 +61,49 @@ const Employees = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Computed values
+  const departments = useMemo(() => {
+    const depts = employees
+      .map(emp => emp.department || emp.branch)
+      .filter(Boolean)
+      .filter((dept, index, arr) => arr.indexOf(dept) === index)
+      .sort();
+    return depts;
+  }, [employees]);
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(employee => {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          employee.name.toLowerCase().includes(searchLower) ||
+          employee.email?.toLowerCase().includes(searchLower) ||
+          employee.id.toLowerCase().includes(searchLower) ||
+          employee.phone?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Type filter
+      if (typeFilter && employee.type !== typeFilter) return false;
+
+      // Status filter
+      if (statusFilter) {
+        const isActive = !employee.resignDate;
+        if (statusFilter === 'active' && !isActive) return false;
+        if (statusFilter === 'inactive' && isActive) return false;
+      }
+
+      // Department filter
+      if (departmentFilter) {
+        const empDept = employee.department || employee.branch;
+        if (empDept !== departmentFilter) return false;
+      }
+
+      return true;
+    });
+  }, [employees, searchTerm, typeFilter, statusFilter, departmentFilter]);
+
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
       const newEmployee = await createEmployee(employeeData);
@@ -67,25 +119,7 @@ const Employees = () => {
       console.log('Employee added successfully with access permissions');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee added successfully");
-      setShowAddForm(false);
-      setPaymentType('Monthly');
-      setNewEmployeeAdminAccess({
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      });
-      setNewEmployeePageAccess({
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      });
+      handleCloseAddForm();
     },
     onError: (error) => {
       console.error('Error adding employee:', error);
@@ -116,6 +150,35 @@ const Employees = () => {
     console.log('Opening reset password dialog for:', employeeName, employeeEmail);
     setSelectedEmployee({ name: employeeName, email: employeeEmail });
     setShowResetPasswordDialog(true);
+  };
+
+  const handleCloseAddForm = () => {
+    setShowAddForm(false);
+    setPaymentType('Monthly');
+    setNewEmployeeAdminAccess({
+      employees: false,
+      payroll: false,
+      leaveManagement: false,
+      claims: false,
+      attendance: false,
+      slotBooking: false,
+      reports: false
+    });
+    setNewEmployeePageAccess({
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('');
+    setStatusFilter('');
+    setDepartmentFilter('');
   };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
@@ -155,8 +218,6 @@ const Employees = () => {
       };
 
       console.log('Creating employee with data:', newEmployee);
-      console.log('Admin access permissions:', newEmployeeAdminAccess);
-      console.log('Page access permissions:', newEmployeePageAccess);
       await addEmployeeMutation.mutateAsync(newEmployee);
     } catch (error) {
       console.error('Failed to add employee:', error);
@@ -164,20 +225,12 @@ const Employees = () => {
   };
 
   const handleAdminAccessChange = (permissions: AdminAccessPermissions) => {
-    console.log('Admin access permissions changed:', permissions);
     setNewEmployeeAdminAccess(permissions);
   };
 
   const handlePageAccessChange = (permissions: EmployeePageAccessPermissions) => {
-    console.log('Page access permissions changed:', permissions);
     setNewEmployeePageAccess(permissions);
   };
-
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const isSuperAdmin = user?.role === 'superadmin';
 
@@ -206,11 +259,12 @@ const Employees = () => {
 
   return (
     <ResponsiveLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900">Employee Management</h2>
-            <p className="text-sm md:text-base text-gray-600">Manage your workforce efficiently</p>
+            <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
+            <p className="text-gray-600">Manage your workforce efficiently</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
@@ -222,10 +276,7 @@ const Employees = () => {
               Module Settings
             </Button>
             <Button 
-              onClick={() => {
-                console.log('Add Employee button clicked');
-                setShowAddForm(true);
-              }}
+              onClick={() => setShowAddForm(true)}
               className="w-full sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -234,163 +285,59 @@ const Employees = () => {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <span className="text-lg md:text-xl">Active Employees ({employees.length})</span>
-              <div className="flex items-center space-x-2 w-full sm:w-auto">
-                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <Input
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full sm:w-64"
-                />
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Mobile Card Layout */}
-            {isMobile ? (
-              <div className="space-y-4">
-                {filteredEmployees.map((employee) => (
-                  <Card key={employee.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg">{employee.name}</h3>
-                          <p className="text-sm text-gray-600">{employee.position || 'Not specified'}</p>
-                        </div>
-                        <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
-                          {employee.type}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-2 text-sm text-gray-600">
-                        {employee.email && (
-                          <div className="flex items-center space-x-2">
-                            <Mail className="w-4 h-4" />
-                            <span className="break-all">{employee.email}</span>
-                          </div>
-                        )}
-                        {employee.phone && (
-                          <div className="flex items-center space-x-2">
-                            <Phone className="w-4 h-4" />
-                            <span>{employee.phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Joined: {employee.joinDate}</span>
-                        </div>
-                        {employee.branch && (
-                          <div className="flex items-center space-x-2">
-                            <MapPin className="w-4 h-4" />
-                            <span>{employee.branch}</span>
-                          </div>
-                        )}
-                      </div>
+        {/* Search and Filters */}
+        <EmployeeSearchFilter
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          typeFilter={typeFilter}
+          onTypeFilterChange={setTypeFilter}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          departmentFilter={departmentFilter}
+          onDepartmentFilterChange={setDepartmentFilter}
+          departments={departments}
+          totalCount={employees.length}
+          filteredCount={filteredEmployees.length}
+          onClearFilters={handleClearFilters}
+        />
 
-                      <div className="flex space-x-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/employees/${employee.id}`)}
-                          className="flex-1"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
-                        </Button>
-                        {isSuperAdmin && employee.email && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResetPassword(employee.name, employee.email)}
-                            className="text-blue-600 hover:text-blue-700"
-                            title="Reset password to default"
-                          >
-                            <KeyRound className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteEmployee(employee.id, employee.name)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              /* Desktop Table Layout */
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3 font-medium text-gray-600">Name</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Position</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Type</th>
-                      <th className="text-left p-3 font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEmployees.map((employee) => (
-                      <tr key={employee.id} className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-medium">{employee.name}</td>
-                        <td className="p-3 text-sm">{employee.position || 'Not specified'}</td>
-                        <td className="p-3">
-                          <Badge variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}>
-                            {employee.type}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/employees/${employee.id}`)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {isSuperAdmin && employee.email && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResetPassword(employee.name, employee.email)}
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Reset password to default"
-                              >
-                                <KeyRound className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {isSuperAdmin && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteEmployee(employee.id, employee.name)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Employee Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredEmployees.map((employee) => (
+            <EmployeeCard
+              key={employee.id}
+              employee={employee}
+              onView={(id) => navigate(`/employees/${id}`)}
+              onResetPassword={handleResetPassword}
+              onDelete={handleDeleteEmployee}
+              isSuperAdmin={isSuperAdmin}
+            />
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredEmployees.length === 0 && (
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-gray-500 text-lg mb-2">No employees found</p>
+              <p className="text-gray-400 mb-4">
+                {searchTerm || typeFilter || statusFilter || departmentFilter
+                  ? "Try adjusting your search or filters"
+                  : "Get started by adding your first employee"
+                }
+              </p>
+              {!(searchTerm || typeFilter || statusFilter || departmentFilter) && (
+                <Button onClick={() => setShowAddForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Employee
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
+      {/* Dialogs */}
       {showModuleSettings && (
         <EmployeeModuleSettings
           open={showModuleSettings}
@@ -412,47 +359,23 @@ const Employees = () => {
         />
       )}
 
+      {/* Add Employee Form Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4 md:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Add New Employee</h2>
-                  <p className="text-sm md:text-base text-gray-600">Fill out the employee information</p>
+                  <h2 className="text-xl font-bold text-gray-900">Add New Employee</h2>
+                  <p className="text-gray-600">Fill out the employee information</p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    console.log('Closing add employee form');
-                    setShowAddForm(false);
-                    setPaymentType('Monthly');
-                    setNewEmployeeAdminAccess({
-                      employees: false,
-                      payroll: false,
-                      leaveManagement: false,
-                      claims: false,
-                      attendance: false,
-                      slotBooking: false,
-                      reports: false
-                    });
-                    setNewEmployeePageAccess({
-                      profile: true,
-                      applyLeave: true,
-                      submitClaim: true,
-                      payslips: true,
-                      myAttendance: true,
-                      slotBookingEmployee: true
-                    });
-                  }}
-                  className="w-full sm:w-auto"
-                >
+                <Button variant="outline" onClick={handleCloseAddForm}>
                   Cancel
                 </Button>
               </div>
             </div>
 
-            <div className="p-4 md:p-6">
+            <div className="p-6">
               <form onSubmit={handleAddEmployee} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -555,6 +478,7 @@ const Employees = () => {
                     </div>
                   )}
                 </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
                   <textarea 
@@ -575,7 +499,7 @@ const Employees = () => {
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                <div className="flex space-x-4">
                   <Button 
                     type="submit" 
                     className="flex-1"
@@ -587,27 +511,7 @@ const Employees = () => {
                     type="button"
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setPaymentType('Monthly');
-                      setNewEmployeeAdminAccess({
-                        employees: false,
-                        payroll: false,
-                        leaveManagement: false,
-                        claims: false,
-                        attendance: false,
-                        slotBooking: false,
-                        reports: false
-                      });
-                      setNewEmployeePageAccess({
-                        profile: true,
-                        applyLeave: true,
-                        submitClaim: true,
-                        payslips: true,
-                        myAttendance: true,
-                        slotBookingEmployee: true
-                      });
-                    }}
+                    onClick={handleCloseAddForm}
                   >
                     Cancel
                   </Button>
