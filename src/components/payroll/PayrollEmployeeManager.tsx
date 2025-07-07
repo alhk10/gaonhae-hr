@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Users, DollarSign, AlertTriangle } from 'lucide-react';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { toast } from '@/components/ui/sonner';
+import PayrollCalculationDetails from './PayrollCalculationDetails';
+import PayrollValidationSummary from './PayrollValidationSummary';
+import { validateEmployeeForPayroll } from '@/utils/payrollCalculations';
 
 interface PayrollEmployeeManagerProps {
   payrollPeriod: string;
@@ -17,6 +20,30 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
   const { payrollState, addEmployeesToPayroll, removeEmployeeFromPayroll, refreshAvailableEmployees, isLoading } = usePayroll();
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+
+  // Validate all employees and collect issues
+  const validationIssues = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]
+    .map(emp => {
+      const employeeProfile = payrollState.availableEmployees.find(e => e.id === emp.id);
+      if (!employeeProfile) return null;
+      
+      const validation = validateEmployeeForPayroll(employeeProfile);
+      if (!validation.isValid || validation.errors.length > 0) {
+        return {
+          employeeId: emp.id,
+          employeeName: emp.name,
+          errors: validation.errors,
+          warnings: []
+        };
+      }
+      return null;
+    })
+    .filter(Boolean) as Array<{
+      employeeId: string;
+      employeeName: string;
+      errors: string[];
+      warnings: string[];
+    }>;
 
   const openBulkAddDialog = async () => {
     await refreshAvailableEmployees();
@@ -62,6 +89,12 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
 
   return (
     <div className="space-y-6">
+      {/* Validation Summary */}
+      <PayrollValidationSummary 
+        validationIssues={validationIssues}
+        totalEmployees={totalEmployees}
+      />
+
       {/* Summary Card */}
       <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
         <CardContent className="p-4">
@@ -125,34 +158,51 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   </Button>
                 </div>
               ) : (
-                payrollState.fullTimeEmployees.map((employee) => (
-                  <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-gray-900">{employee.name}</p>
-                        <Badge variant="secondary" className="ml-2">Full-Time</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Base: S${(employee.baseSalary || 0).toLocaleString()} • 
-                        Gross: S${(employee.grossPay || 0).toLocaleString()}
-                      </p>
-                      <div className="flex items-center mt-1">
-                        <DollarSign className="w-3 h-3 text-green-600 mr-1" />
-                        <p className="text-sm font-semibold text-green-600">
-                          Net: S${(employee.netPay || 0).toLocaleString()}
+                payrollState.fullTimeEmployees.map((employee) => {
+                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.id);
+                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.id);
+                  
+                  return (
+                    <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            {hasValidationIssues && (
+                              <AlertTriangle className="w-4 h-4 text-red-500 ml-2" />
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="secondary">Full-Time</Badge>
+                            <PayrollCalculationDetails 
+                              employee={employee}
+                              calculationErrors={validationIssue?.errors}
+                              calculationWarnings={validationIssue?.warnings}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Base: S${(employee.baseSalary || 0).toLocaleString()} • 
+                          Gross: S${(employee.grossPay || 0).toLocaleString()}
                         </p>
+                        <div className="flex items-center mt-1">
+                          <DollarSign className="w-3 h-3 text-green-600 mr-1" />
+                          <p className="text-sm font-semibold text-green-600">
+                            Net: S${(employee.netPay || 0).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveEmployee(employee.id, employee.name)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveEmployee(employee.id, employee.name)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -195,6 +245,9 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 </div>
               ) : (
                 payrollState.casualEmployees.map((employee) => {
+                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.id);
+                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.id);
+                  
                   const rateDisplay = employee.paymentType === 'Hourly' 
                     ? `${employee.hoursWorked}h @ S$${(employee.hourlyRate || 0).toFixed(2)}/hr`
                     : employee.paymentType === 'Daily'
@@ -205,8 +258,20 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                     <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-gray-900">{employee.name}</p>
-                          <Badge variant="outline" className="ml-2">{employee.paymentType || 'Casual'}</Badge>
+                          <div className="flex items-center">
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            {hasValidationIssues && (
+                              <AlertTriangle className="w-4 h-4 text-red-500 ml-2" />
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline">{employee.paymentType || 'Casual'}</Badge>
+                            <PayrollCalculationDetails 
+                              employee={employee}
+                              calculationErrors={validationIssue?.errors}
+                              calculationWarnings={validationIssue?.warnings}
+                            />
+                          </div>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">{rateDisplay}</p>
                         <div className="flex items-center mt-1">
@@ -250,36 +315,50 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   <p className="text-sm text-gray-500">All employees are already in payroll</p>
                 </div>
               ) : (
-                availableForAdd.map((employee) => (
-                  <div key={employee.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                    <Checkbox
-                      id={employee.id}
-                      checked={selectedEmployees.includes(employee.id)}
-                      onCheckedChange={(checked) => 
-                        handleEmployeeSelection(employee.id, checked as boolean)
-                      }
-                    />
-                    <div className="flex-1">
-                      <label 
-                        htmlFor={employee.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        {employee.name}
-                      </label>
-                      <div className="flex items-center mt-1">
-                        <Badge variant="outline" className="text-xs mr-2">
-                          {employee.type}
-                        </Badge>
-                        <span className="text-xs text-gray-500">
-                          {employee.paymentType || 'Monthly'} • 
-                          S${employee.baseSalary || employee.hourlyRate || employee.dailyRate || 0}
-                          {employee.paymentType === 'Hourly' ? '/hr' : 
-                           employee.paymentType === 'Daily' ? '/day' : ''}
-                        </span>
+                availableForAdd.map((employee) => {
+                  const validation = validateEmployeeForPayroll(employee);
+                  const hasErrors = !validation.isValid;
+                  
+                  return (
+                    <div key={employee.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                      <Checkbox
+                        id={employee.id}
+                        checked={selectedEmployees.includes(employee.id)}
+                        onCheckedChange={(checked) => 
+                          handleEmployeeSelection(employee.id, checked as boolean)
+                        }
+                        disabled={hasErrors}
+                      />
+                      <div className="flex-1">
+                        <label 
+                          htmlFor={employee.id}
+                          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer ${hasErrors ? 'text-red-600' : ''}`}
+                        >
+                          <div className="flex items-center">
+                            {employee.name}
+                            {hasErrors && <AlertTriangle className="w-4 h-4 text-red-500 ml-2" />}
+                          </div>
+                        </label>
+                        <div className="flex items-center mt-1">
+                          <Badge variant="outline" className="text-xs mr-2">
+                            {employee.type}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {employee.paymentType || 'Monthly'} • 
+                            S${employee.baseSalary || employee.hourlyRate || employee.dailyRate || 0}
+                            {employee.paymentType === 'Hourly' ? '/hr' : 
+                             employee.paymentType === 'Daily' ? '/day' : ''}
+                          </span>
+                        </div>
+                        {hasErrors && (
+                          <div className="text-xs text-red-600 mt-1">
+                            Issues: {validation.errors.join(', ')}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             <div className="flex justify-between items-center">
