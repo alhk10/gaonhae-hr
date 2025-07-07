@@ -1,53 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Settings, Grid, List, Filter } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
-import EmployeeCard from '@/components/employee/EmployeeCard';
-import EmployeeSearchFilter from '@/components/employee/EmployeeSearchFilter';
-import BulkActions from '@/components/employee/BulkActions';
-import ActionMenu from '@/components/employee/ActionMenu';
 import EmployeeListView from '@/components/employee/EmployeeListView';
-import AdvancedEmployeeFilters from '@/components/employee/AdvancedEmployeeFilters';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Employees = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   const { user } = useAuth();
   
-  // View States - Default to list view for simpler layout
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  
-  // Search and Filter States
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all-types');
-  const [statusFilter, setStatusFilter] = useState('all-status');
-  const [departmentFilter, setDepartmentFilter] = useState('all-departments');
-  
-  // Advanced Filters
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState({
-    salaryRange: { min: '', max: '' },
-    joinDateRange: { start: '', end: '' },
-    showInactiveOnly: false,
-    hasEmail: false,
-    hasPhone: false
-  });
-  
-  // Selection States
-  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  // Filter State - Single dropdown for status
+  const [statusFilter, setStatusFilter] = useState('current-all');
   
   // Dialog States
   const [showAddForm, setShowAddForm] = useState(false);
@@ -81,65 +56,27 @@ const Employees = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Computed values
-  const departments = useMemo(() => {
-    const depts = employees
-      .map(emp => emp.department || emp.branch)
-      .filter(Boolean)
-      .filter((dept, index, arr) => arr.indexOf(dept) === index)
-      .sort();
-    return depts;
-  }, [employees]);
-
   const filteredEmployees = useMemo(() => {
     return employees.filter(employee => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = 
-          employee.name.toLowerCase().includes(searchLower) ||
-          employee.email?.toLowerCase().includes(searchLower) ||
-          employee.id.toLowerCase().includes(searchLower) ||
-          employee.phone?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
+      switch (statusFilter) {
+        case 'current-all':
+          return !employee.resignDate;
+        case 'current-fulltime':
+          return !employee.resignDate && employee.type === 'Full-Time';
+        case 'current-casual':
+          return !employee.resignDate && employee.type === 'Casual';
+        case 'resigned':
+          return employee.resignDate !== null;
+        default:
+          return true;
       }
-
-      // Type filter
-      if (typeFilter && typeFilter !== 'all-types' && employee.type !== typeFilter) return false;
-
-      // Status filter
-      if (statusFilter && statusFilter !== 'all-status') {
-        const isActive = !employee.resignDate;
-        if (statusFilter === 'active' && !isActive) return false;
-        if (statusFilter === 'inactive' && isActive) return false;
-      }
-
-      // Department filter
-      if (departmentFilter && departmentFilter !== 'all-departments') {
-        const empDept = employee.department || employee.branch;
-        if (empDept !== departmentFilter) return false;
-      }
-
-      // Advanced filters
-      if (advancedFilters.salaryRange.min && employee.baseSalary) {
-        if (employee.baseSalary < parseFloat(advancedFilters.salaryRange.min)) return false;
-      }
-      if (advancedFilters.salaryRange.max && employee.baseSalary) {
-        if (employee.baseSalary > parseFloat(advancedFilters.salaryRange.max)) return false;
-      }
-      if (advancedFilters.joinDateRange.start && employee.joinDate) {
-        if (new Date(employee.joinDate) < new Date(advancedFilters.joinDateRange.start)) return false;
-      }
-      if (advancedFilters.joinDateRange.end && employee.joinDate) {
-        if (new Date(employee.joinDate) > new Date(advancedFilters.joinDateRange.end)) return false;
-      }
-      if (advancedFilters.showInactiveOnly && !employee.resignDate) return false;
-      if (advancedFilters.hasEmail && !employee.email) return false;
-      if (advancedFilters.hasPhone && !employee.phone) return false;
-
-      return true;
     });
-  }, [employees, searchTerm, typeFilter, statusFilter, departmentFilter, advancedFilters]);
+  }, [employees, statusFilter]);
+
+  // Store filtered employees in localStorage for navigation in details page
+  React.useEffect(() => {
+    localStorage.setItem('filteredEmployeeIds', JSON.stringify(filteredEmployees.map(emp => emp.id)));
+  }, [filteredEmployees]);
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
@@ -183,20 +120,6 @@ const Employees = () => {
     }
   };
 
-  const handleBulkDelete = (employeeIds: string[]) => {
-    if (window.confirm(`Are you sure you want to remove ${employeeIds.length} employees? This will set their resign date to today.`)) {
-      Promise.all(employeeIds.map(id => deleteEmployeeMutation.mutateAsync(id)))
-        .then(() => {
-          setSelectedEmployees(new Set());
-          toast(`${employeeIds.length} employees removed successfully`);
-        })
-        .catch((error) => {
-          console.error('Error in bulk delete:', error);
-          toast("Error removing some employees. Please try again.");
-        });
-    }
-  };
-
   const handleResetPassword = (employeeName: string, employeeEmail: string) => {
     console.log('Opening reset password dialog for:', employeeName, employeeEmail);
     setSelectedEmployee({ name: employeeName, email: employeeEmail });
@@ -206,7 +129,6 @@ const Employees = () => {
   const handleToggleStatus = (employeeId: string, employeeName: string, currentStatus: boolean) => {
     const action = currentStatus ? 'deactivate' : 'activate';
     if (window.confirm(`Are you sure you want to ${action} ${employeeName}?`)) {
-      // Implementation would go here
       toast(`Employee ${action}d successfully`);
     }
   };
@@ -230,35 +152,6 @@ const Employees = () => {
       payslips: true,
       myAttendance: true,
       slotBookingEmployee: true
-    });
-  };
-
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setTypeFilter('all-types');
-    setStatusFilter('all-status');
-    setDepartmentFilter('all-departments');
-    setAdvancedFilters({
-      salaryRange: { min: '', max: '' },
-      joinDateRange: { start: '', end: '' },
-      showInactiveOnly: false,
-      hasEmail: false,
-      hasPhone: false
-    });
-  };
-
-  const handleApplyAdvancedFilters = () => {
-    setShowAdvancedFilters(false);
-    // Filters are automatically applied via useMemo
-  };
-
-  const handleClearAdvancedFilters = () => {
-    setAdvancedFilters({
-      salaryRange: { min: '', max: '' },
-      joinDateRange: { start: '', end: '' },
-      showInactiveOnly: false,
-      hasEmail: false,
-      hasPhone: false
     });
   };
 
@@ -346,18 +239,10 @@ const Employees = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
             <p className="text-gray-600">
-              {filteredEmployees.length} of {employees.length} employees
+              {filteredEmployees.length} employees
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowAdvancedFilters(true)}
-              className="w-full sm:w-auto"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Advanced Filters
-            </Button>
             <Button
               variant="outline"
               onClick={() => setShowModuleSettings(true)}
@@ -376,97 +261,34 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Simplified Search and Filters */}
-        <EmployeeSearchFilter
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          typeFilter={typeFilter}
-          onTypeFilterChange={setTypeFilter}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          departmentFilter={departmentFilter}
-          onDepartmentFilterChange={setDepartmentFilter}
-          departments={departments}
-          totalCount={employees.length}
-          filteredCount={filteredEmployees.length}
-          onClearFilters={handleClearFilters}
-        />
-
-        {/* View Toggle and Bulk Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="w-4 h-4 mr-2" />
-              List
-            </Button>
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid className="w-4 h-4 mr-2" />
-              Grid
-            </Button>
+        {/* Simple Status Filter */}
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700">Filter by status:</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current-all">All current employees</SelectItem>
+                <SelectItem value="current-fulltime">Current full-time</SelectItem>
+                <SelectItem value="current-casual">Current casual</SelectItem>
+                <SelectItem value="resigned">Resigned</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          
-          <BulkActions
-            employees={filteredEmployees}
-            selectedEmployees={selectedEmployees}
-            onSelectionChange={setSelectedEmployees}
-            onBulkDelete={handleBulkDelete}
-            onBulkExport={(ids) => toast("Export functionality not implemented yet")}
-            onBulkEmail={(ids) => toast("Email functionality not implemented yet")}
-            onBulkStatusChange={(ids, status) => toast(`Status change functionality not implemented yet`)}
-            isSuperAdmin={isSuperAdmin}
-          />
         </div>
 
-        {/* Employee Display */}
-        {viewMode === 'list' ? (
-          <EmployeeListView
-            employees={filteredEmployees}
-            onView={(id) => navigate(`/employees/${id}`)}
-            onEdit={(id) => navigate(`/employees/${id}/edit`)}
-            onResetPassword={handleResetPassword}
-            onDelete={handleDeleteEmployee}
-            onToggleStatus={handleToggleStatus}
-            isSuperAdmin={isSuperAdmin}
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredEmployees.map((employee) => (
-              <div key={employee.id} className="relative">
-                <EmployeeCard
-                  employee={employee}
-                  onView={(id) => navigate(`/employees/${id}`)}
-                  onEdit={(id) => navigate(`/employees/${id}/edit`)}
-                  onResetPassword={handleResetPassword}
-                  onDelete={handleDeleteEmployee}
-                  showActions={false}
-                  isSuperAdmin={isSuperAdmin}
-                />
-                <div className="absolute top-2 right-2">
-                  <ActionMenu
-                    employeeId={employee.id}
-                    employeeName={employee.name}
-                    employeeEmail={employee.email || ''}
-                    isActive={!employee.resignDate}
-                    onView={(id) => navigate(`/employees/${id}`)}
-                    onEdit={(id) => navigate(`/employees/${id}/edit`)}
-                    onResetPassword={handleResetPassword}
-                    onDelete={handleDeleteEmployee}
-                    onToggleStatus={handleToggleStatus}
-                    isSuperAdmin={isSuperAdmin}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Employee List */}
+        <EmployeeListView
+          employees={filteredEmployees}
+          onView={(id) => navigate(`/employees/${id}`)}
+          onEdit={(id) => navigate(`/employees/${id}/edit`)}
+          onResetPassword={handleResetPassword}
+          onDelete={handleDeleteEmployee}
+          onToggleStatus={handleToggleStatus}
+          isSuperAdmin={isSuperAdmin}
+        />
 
         {/* Empty State */}
         {filteredEmployees.length === 0 && (
@@ -474,17 +296,8 @@ const Employees = () => {
             <CardContent className="text-center py-12">
               <p className="text-gray-500 text-lg mb-2">No employees found</p>
               <p className="text-gray-400 mb-4">
-                {searchTerm || typeFilter !== 'all-types' || statusFilter !== 'all-status' || departmentFilter !== 'all-departments'
-                  ? "Try adjusting your search or filters"
-                  : "Get started by adding your first employee"
-                }
+                No employees match the selected filter criteria
               </p>
-              {!(searchTerm || typeFilter !== 'all-types' || statusFilter !== 'all-status' || departmentFilter !== 'all-departments') && (
-                <Button onClick={() => setShowAddForm(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Employee
-                </Button>
-              )}
             </CardContent>
           </Card>
         )}
@@ -511,15 +324,6 @@ const Employees = () => {
           employeeEmail={selectedEmployee.email}
         />
       )}
-
-      <AdvancedEmployeeFilters
-        isOpen={showAdvancedFilters}
-        onClose={() => setShowAdvancedFilters(false)}
-        filters={advancedFilters}
-        onFiltersChange={setAdvancedFilters}
-        onApplyFilters={handleApplyAdvancedFilters}
-        onClearFilters={handleClearAdvancedFilters}
-      />
 
       {/* Add Employee Form Modal */}
       {showAddForm && (

@@ -83,7 +83,7 @@ const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                       </Badge>
                       {!isActive && (
                         <Badge variant="destructive" className="text-xs flex-shrink-0">
-                          Inactive
+                          Resigned
                         </Badge>
                       )}
                     </div>
