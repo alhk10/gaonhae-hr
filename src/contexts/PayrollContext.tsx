@@ -5,6 +5,7 @@ import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { getEmployeeClaims } from '@/services/claimsService';
 import { getEmployeeAttendanceRecords } from '@/services/attendanceService';
 import { getEmployeePayrollData, savePayrollRecord, getAllPayrollRecords } from '@/services/payrollService';
+import { getEncashmentForPayroll, integrateEncashmentIntoPayroll } from '@/services/payrollEncashmentService';
 import { toast } from '@/components/ui/sonner';
 
 interface PayrollState {
@@ -14,6 +15,8 @@ interface PayrollState {
   casualEmployees: CasualEmployeePayroll[];
   totalAmount: number;
   lastUpdated: Date;
+  availableEmployees: EmployeeProfile[];
+  encashmentData: any[];
 }
 
 interface PayrollContextType {
@@ -29,7 +32,9 @@ interface PayrollContextType {
   initializePayroll: () => void;
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<boolean>;
-  savePayrollDraft: () => void;
+  addEmployeesToPayroll: (employeeIds: string[]) => Promise<void>;
+  removeEmployeeFromPayroll: (employeeId: string) => void;
+  refreshAvailableEmployees: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -50,12 +55,14 @@ interface PayrollProviderProps {
 export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [payrollState, setPayrollState] = useState<PayrollState>({
-    currentPeriod: 'December 2024',
+    currentPeriod: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
     status: 'draft',
     fullTimeEmployees: [],
     casualEmployees: [],
     totalAmount: 0,
-    lastUpdated: new Date()
+    lastUpdated: new Date(),
+    availableEmployees: [],
+    encashmentData: []
   });
 
   const getApprovedClaimsTotal = async (employeeId: string): Promise<number> => {
@@ -73,21 +80,16 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     try {
       const attendanceRecords = await getEmployeeAttendanceRecords(employeeId);
       
-      // Parse the payroll period (e.g., "December 2024") to get month and year
       const [monthName, year] = period.split(' ');
       const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
       
-      // Filter attendance records for the specific month/year
       const monthlyRecords = attendanceRecords.filter(record => {
         const recordDate = new Date(record.date);
         return recordDate.getMonth() + 1 === monthNumber && 
                recordDate.getFullYear() === parseInt(year);
       });
       
-      // Sum up the hours worked for that month
       const totalHours = monthlyRecords.reduce((sum, record) => sum + record.hoursWorked, 0);
-      console.log(`Employee ${employeeId} worked ${totalHours} hours in ${period}`);
-      
       return totalHours;
     } catch (error) {
       console.error(`Error fetching monthly hours for employee ${employeeId}:`, error);
@@ -95,84 +97,96 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     }
   };
 
-  const getEmployeeMonthlyDays = async (employeeId: string, period: string): Promise<{weekdays: number, weekends: number}> => {
-    try {
-      const attendanceRecords = await getEmployeeAttendanceRecords(employeeId);
+  const processEmployeePayroll = async (employee: EmployeeProfile): Promise<PayrollEmployee | CasualEmployeePayroll> => {
+    const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
+    const totalDeductions = employee.deductions.reduce((sum, d) => sum + d.amount, 0);
+    const age = calculateAge(employee.dateOfBirth);
+    const approvedClaims = await getApprovedClaimsTotal(employee.id);
+
+    if (employee.type === 'Full-Time') {
+      const grossSalary = (employee.baseSalary || 0) + totalAllowances;
+      const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus, age);
+      const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
       
-      const [monthName, year] = period.split(' ');
-      const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
-      
-      const monthlyRecords = attendanceRecords.filter(record => {
-        const recordDate = new Date(record.date);
-        return recordDate.getMonth() + 1 === monthNumber && 
-               recordDate.getFullYear() === parseInt(year);
-      });
-      
-      let weekdays = 0;
-      let weekends = 0;
-      
-      monthlyRecords.forEach(record => {
-        const recordDate = new Date(record.date);
-        const dayOfWeek = recordDate.getDay();
-        
-        if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
-          weekends++;
-        } else {
-          weekdays++;
-        }
-      });
-      
-      console.log(`Employee ${employeeId} worked ${weekdays} weekdays and ${weekends} weekends in ${period}`);
-      return { weekdays, weekends };
-    } catch (error) {
-      console.error(`Error fetching monthly days for employee ${employeeId}:`, error);
-      return { weekdays: 0, weekends: 0 };
+      return {
+        id: employee.id,
+        name: employee.name,
+        type: employee.type,
+        baseSalary: employee.baseSalary,
+        allowances: employee.allowances,
+        deductions: employee.deductions,
+        grossPay: grossSalary,
+        cpfEmployee: cpfCalc.employeeCPF,
+        cpfEmployer: cpfCalc.employerCPF,
+        netPay: netSalary,
+        cpf: cpfCalc.employerCPF,
+        total: netSalary
+      } as PayrollEmployee;
+    } else {
+      // Casual employee processing
+      let grossPay = 0;
+      let hoursWorked = 0;
+      let daysWorked = 0;
+
+      if (employee.paymentType === 'Hourly') {
+        hoursWorked = await getEmployeeMonthlyHours(employee.id, payrollState.currentPeriod);
+        grossPay = (employee.hourlyRate || 0) * hoursWorked;
+        daysWorked = Math.ceil(hoursWorked / 8);
+      } else if (employee.paymentType === 'Daily') {
+        // Simplified daily calculation - you may want to implement more sophisticated logic
+        daysWorked = 22; // Assume standard working days
+        grossPay = (employee.dailyRate || employee.dailyWeekdayRate || 0) * daysWorked;
+        hoursWorked = daysWorked * 8;
+      } else {
+        grossPay = employee.baseSalary || 0;
+        daysWorked = 22;
+        hoursWorked = daysWorked * 8;
+      }
+
+      const grossPayWithAllowances = grossPay + totalAllowances;
+      const cpfCalc = calculateCPF(grossPayWithAllowances, employee.residencyStatus, age);
+      const netPay = grossPayWithAllowances - cpfCalc.employeeCPF - totalDeductions;
+      const totalPay = netPay + approvedClaims;
+
+      return {
+        id: employee.id,
+        name: employee.name,
+        type: employee.type,
+        baseSalary: employee.baseSalary,
+        hourlyRate: employee.hourlyRate,
+        dailyRate: employee.dailyRate,
+        dailyWeekdayRate: employee.dailyWeekdayRate,
+        dailyWeekendRate: employee.dailyWeekendRate,
+        paymentType: employee.paymentType,
+        allowances: employee.allowances,
+        deductions: employee.deductions,
+        hoursWorked,
+        daysWorked,
+        grossPay: grossPayWithAllowances,
+        cpfEmployee: cpfCalc.employeeCPF,
+        cpfEmployer: cpfCalc.employerCPF,
+        netPay,
+        totalPay,
+        employeeCPF: cpfCalc.employeeCPF,
+        employerCPF: cpfCalc.employerCPF,
+        cpf: cpfCalc.employerCPF,
+        total: totalPay
+      } as CasualEmployeePayroll;
     }
   };
 
-  const calculateCasualEmployeePay = async (emp: EmployeeProfile, period: string) => {
-    const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-    const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-    
-    let grossPay = 0;
-    let hoursWorked = 0;
-    let daysWorked = 0;
-    
-    if (emp.paymentType === 'Hourly') {
-      hoursWorked = await getEmployeeMonthlyHours(emp.id, period);
-      grossPay = (emp.hourlyRate || 0) * hoursWorked;
-      daysWorked = Math.ceil(hoursWorked / 8);
-    } else if (emp.paymentType === 'Daily') {
-      const { weekdays, weekends } = await getEmployeeMonthlyDays(emp.id, period);
-      const weekdayPay = (emp.dailyWeekdayRate || emp.dailyRate || 0) * weekdays;
-      const weekendPay = (emp.dailyWeekendRate || emp.dailyRate || 0) * weekends;
-      grossPay = weekdayPay + weekendPay;
-      daysWorked = weekdays + weekends;
-      hoursWorked = daysWorked * 8; // Estimate hours
-    } else if (emp.paymentType === 'Monthly') {
-      grossPay = emp.baseSalary || 0;
-      daysWorked = 22; // Standard working days
-      hoursWorked = daysWorked * 8;
+  const refreshAvailableEmployees = async () => {
+    try {
+      const allEmployees = await getEmployees();
+      setPayrollState(prev => ({
+        ...prev,
+        availableEmployees: allEmployees,
+        lastUpdated: new Date()
+      }));
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast.error('Error loading employee data');
     }
-    
-    const grossPayWithAllowances = grossPay + totalAllowances;
-    const age = calculateAge(emp.dateOfBirth);
-    const cpfCalc = calculateCPF(grossPayWithAllowances, emp.residencyStatus, age);
-    const approvedClaims = await getApprovedClaimsTotal(emp.id);
-    const netPay = grossPayWithAllowances - cpfCalc.employeeCPF - totalDeductions;
-    const totalPay = netPay + approvedClaims;
-    
-    return {
-      grossPay: grossPayWithAllowances,
-      cpfEmployee: cpfCalc.employeeCPF,
-      cpfEmployer: cpfCalc.employerCPF,
-      netPay,
-      totalPay,
-      hoursWorked,
-      daysWorked,
-      employeeCPF: cpfCalc.employeeCPF,
-      employerCPF: cpfCalc.employerCPF
-    };
   };
 
   const initializePayroll = async () => {
@@ -180,201 +194,126 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
     setIsLoading(true);
     
     try {
-      // First try to load existing payroll data from Supabase
-      const existingData = await loadPayrollFromSupabase();
+      await refreshAvailableEmployees();
       
-      if (!existingData) {
-        // If no existing data, generate fresh payroll from employee data
-        let allEmployees = [];
-        try {
-          allEmployees = await getEmployees();
-          console.log('Fetched employees from Supabase for payroll:', allEmployees.length);
-        } catch (supabaseError) {
-          console.log('Supabase fetch failed, using local employee data:', supabaseError);
-          const { getEmployees: getLocalEmployees } = await import('@/data/employeeData');
-          allEmployees = getLocalEmployees();
-          console.log('Using local employee data for payroll:', allEmployees.length);
-        }
-        
-        if (allEmployees.length === 0) {
-          console.log('No employees found in any data source');
-          setPayrollState(prev => ({
-            ...prev,
-            fullTimeEmployees: [],
-            casualEmployees: [],
-            lastUpdated: new Date()
-          }));
-          setIsLoading(false);
-          return;
-        }
-
-      const fullTimeEmps = allEmployees.filter(emp => emp.type === 'Full-Time');
-      const casualEmps = allEmployees.filter(emp => emp.type === 'Casual');
-
-      console.log(`Found ${fullTimeEmps.length} full-time and ${casualEmps.length} casual employees`);
-
-      // Initialize full-time employees
-      const fullTimePayroll: PayrollEmployee[] = await Promise.all(
-        fullTimeEmps.map(async (emp) => {
-          try {
-            const totalAllowances = emp.allowances.reduce((sum, a) => sum + a.amount, 0);
-            const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
-            const grossSalary = (emp.baseSalary || 0) + totalAllowances;
-            
-            const age = calculateAge(emp.dateOfBirth);
-            const cpfCalc = calculateCPF(grossSalary, emp.residencyStatus, age);
-            const approvedClaims = await getApprovedClaimsTotal(emp.id);
-            const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaims;
-            
-            return {
-              id: emp.id,
-              name: emp.name,
-              type: emp.type,
-              baseSalary: emp.baseSalary,
-              hourlyRate: emp.hourlyRate,
-              dailyRate: emp.dailyRate,
-              dailyWeekdayRate: emp.dailyWeekdayRate,
-              dailyWeekendRate: emp.dailyWeekendRate,
-              paymentType: emp.paymentType,
-              allowances: emp.allowances,
-              deductions: emp.deductions,
-              grossPay: grossSalary,
-              cpfEmployee: cpfCalc.employeeCPF,
-              cpfEmployer: cpfCalc.employerCPF,
-              netPay: netSalary,
-              cpf: cpfCalc.employerCPF,
-              total: netSalary
-            };
-          } catch (error) {
-            console.error('Error processing full-time employee:', emp.id, error);
-            return {
-              id: emp.id,
-              name: emp.name,
-              type: emp.type,
-              baseSalary: emp.baseSalary,
-              hourlyRate: emp.hourlyRate,
-              dailyRate: emp.dailyRate,
-              dailyWeekdayRate: emp.dailyWeekdayRate,
-              dailyWeekendRate: emp.dailyWeekendRate,
-              paymentType: emp.paymentType,
-              allowances: emp.allowances,
-              deductions: emp.deductions,
-              grossPay: emp.baseSalary || 0,
-              cpfEmployee: 0,
-              cpfEmployer: 0,
-              netPay: emp.baseSalary || 0,
-              cpf: 0,
-              total: emp.baseSalary || 0
-            };
-          }
-        })
-      );
-
-      // Initialize casual employees with proper payment type handling
-      const casualPayroll: CasualEmployeePayroll[] = await Promise.all(
-        casualEmps.map(async (emp) => {
-          try {
-            const payCalc = await calculateCasualEmployeePay(emp, payrollState.currentPeriod);
-            
-            console.log(`Casual employee ${emp.name} (${emp.paymentType}): Total Pay = S$${payCalc.totalPay}`);
-            
-            return {
-              id: emp.id,
-              name: emp.name,
-              type: emp.type,
-              baseSalary: emp.baseSalary,
-              hourlyRate: emp.hourlyRate,
-              dailyRate: emp.dailyRate,
-              dailyWeekdayRate: emp.dailyWeekdayRate,
-              dailyWeekendRate: emp.dailyWeekendRate,
-              paymentType: emp.paymentType,
-              allowances: emp.allowances,
-              deductions: emp.deductions,
-              hoursWorked: payCalc.hoursWorked,
-              daysWorked: payCalc.daysWorked,
-              grossPay: payCalc.grossPay,
-              cpfEmployee: payCalc.cpfEmployee,
-              cpfEmployer: payCalc.cpfEmployer,
-              netPay: payCalc.netPay,
-              totalPay: payCalc.totalPay,
-              employeeCPF: payCalc.employeeCPF,
-              employerCPF: payCalc.employerCPF,
-              cpf: payCalc.cpfEmployer,
-              total: payCalc.totalPay
-            };
-          } catch (error) {
-            console.error('Error processing casual employee:', emp.id, error);
-            return {
-              id: emp.id,
-              name: emp.name,
-              type: emp.type,
-              baseSalary: emp.baseSalary,
-              hourlyRate: emp.hourlyRate || 0,
-              dailyRate: emp.dailyRate,
-              dailyWeekdayRate: emp.dailyWeekdayRate,
-              dailyWeekendRate: emp.dailyWeekendRate,
-              paymentType: emp.paymentType,
-              allowances: emp.allowances,
-              deductions: emp.deductions,
-              hoursWorked: 0,
-              daysWorked: 0,
-              grossPay: 0,
-              cpfEmployee: 0,
-              cpfEmployer: 0,
-              netPay: 0,
-              totalPay: 0,
-              employeeCPF: 0,
-              employerCPF: 0,
-              cpf: 0,
-              total: 0
-            };
-          }
-        })
-      );
-
+      // Load encashment data for current period
+      const [monthName, year] = payrollState.currentPeriod.split(' ');
+      const encashmentData = await getEncashmentForPayroll(monthName, parseInt(year));
+      
       setPayrollState(prev => ({
         ...prev,
-        fullTimeEmployees: fullTimePayroll,
-        casualEmployees: casualPayroll,
+        encashmentData,
         lastUpdated: new Date()
       }));
       
-        // After processing, save to Supabase
-        await savePayrollToSupabase();
-      }
-      
-      console.log('Payroll initialized successfully from Supabase');
+      console.log('Payroll initialized successfully');
     } catch (error) {
-      console.error('Error initializing payroll from Supabase:', error);
-      toast.error('Error loading payroll data from Supabase');
-      setPayrollState(prev => ({
-        ...prev,  
-        fullTimeEmployees: [],
-        casualEmployees: [],
-        lastUpdated: new Date()
-      }));
+      console.error('Error initializing payroll:', error);
+      toast.error('Error initializing payroll data');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const addEmployeesToPayroll = async (employeeIds: string[]): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const employeesToAdd = payrollState.availableEmployees.filter(emp => 
+        employeeIds.includes(emp.id) && 
+        !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
+        !payrollState.casualEmployees.some(existing => existing.id === emp.id)
+      );
+
+      const processedEmployees = await Promise.all(
+        employeesToAdd.map(emp => processEmployeePayroll(emp))
+      );
+
+      const newFullTime: PayrollEmployee[] = [];
+      const newCasual: CasualEmployeePayroll[] = [];
+
+      processedEmployees.forEach(emp => {
+        if (emp.type === 'Full-Time') {
+          newFullTime.push(emp as PayrollEmployee);
+        } else {
+          newCasual.push(emp as CasualEmployeePayroll);
+        }
+      });
+
+      // Integrate encashment data
+      const [monthName, year] = payrollState.currentPeriod.split(' ');
+      const encashmentData = await getEncashmentForPayroll(monthName, parseInt(year));
+      
+      const enhancedFullTime = newFullTime.map(emp => {
+        const basePayrollData = {
+          employeeId: emp.id,
+          baseSalary: emp.baseSalary,
+          allowances: emp.allowances,
+          totalAllowances: emp.allowances.reduce((sum, a) => sum + a.amount, 0),
+          grossSalary: emp.grossPay,
+          totalDeductions: emp.deductions.reduce((sum, d) => sum + d.amount, 0)
+        };
+        
+        const enhancedData = integrateEncashmentIntoPayroll(basePayrollData, encashmentData);
+        
+        return {
+          ...emp,
+          grossPay: enhancedData.grossSalary,
+          netPay: enhancedData.netSalary,
+          total: enhancedData.netSalary,
+          allowances: enhancedData.allowances || emp.allowances
+        };
+      });
+
+      setPayrollState(prev => ({
+        ...prev,
+        fullTimeEmployees: [...prev.fullTimeEmployees, ...enhancedFullTime],
+        casualEmployees: [...prev.casualEmployees, ...newCasual],
+        lastUpdated: new Date()
+      }));
+
+      // Save to Supabase
+      for (const employee of employeesToAdd) {
+        const payrollData = await getEmployeePayrollData(employee.id);
+        const enhancedPayrollData = integrateEncashmentIntoPayroll(payrollData, encashmentData);
+        await savePayrollRecord(employee.id, payrollState.currentPeriod, enhancedPayrollData);
+      }
+
+      toast.success(`Successfully added ${employeesToAdd.length} employees to payroll`);
+    } catch (error) {
+      console.error('Error adding employees to payroll:', error);
+      toast.error('Error adding employees to payroll');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeEmployeeFromPayroll = (employeeId: string) => {
+    setPayrollState(prev => ({
+      ...prev,
+      fullTimeEmployees: prev.fullTimeEmployees.filter(emp => emp.id !== employeeId),
+      casualEmployees: prev.casualEmployees.filter(emp => emp.id !== employeeId),
+      lastUpdated: new Date()
+    }));
+    toast.success('Employee removed from payroll');
   };
 
   const savePayrollToSupabase = async (): Promise<void> => {
     try {
       console.log('Saving payroll data to Supabase');
       
-      // Save payroll records for all employees
       const allEmployees = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees];
       
       for (const employee of allEmployees) {
         const payrollData = await getEmployeePayrollData(employee.id);
-        await savePayrollRecord(employee.id, payrollState.currentPeriod, payrollData);
+        const enhancedPayrollData = integrateEncashmentIntoPayroll(payrollData, payrollState.encashmentData);
+        await savePayrollRecord(employee.id, payrollState.currentPeriod, enhancedPayrollData);
       }
       
       console.log('Payroll data saved to Supabase successfully');
-      toast.success('Payroll data saved to Supabase');
+      toast.success('Payroll data saved successfully');
     } catch (error) {
       console.error('Error saving payroll to Supabase:', error);
-      toast.error('Error saving payroll data to Supabase');
+      toast.error('Error saving payroll data');
       throw error;
     }
   };
@@ -382,38 +321,18 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const loadPayrollFromSupabase = async (): Promise<boolean> => {
     try {
       console.log('Loading payroll data from Supabase');
-      
       const records = await getAllPayrollRecords();
       
       if (records.length === 0) {
-        console.log('No payroll records found in Supabase');
         return false;
       }
       
-      // Process records and update payroll state
       const currentPeriodRecords = records.filter(record => record.month === payrollState.currentPeriod);
-      
-      if (currentPeriodRecords.length > 0) {
-        console.log('Found existing payroll data in Supabase for current period');
-        // Load and process existing data
-        // This would require more complex logic to rebuild the payroll state
-        return true;
-      }
-      
-      return false;
+      return currentPeriodRecords.length > 0;
     } catch (error) {
       console.error('Error loading payroll from Supabase:', error);
       return false;
     }
-  };
-
-  const savePayrollDraft = () => {
-    const draftData = {
-      ...payrollState,
-      lastUpdated: new Date().toISOString()
-    };
-    localStorage.setItem('payrollDraft', JSON.stringify(draftData));
-    console.log('Payroll draft saved to localStorage');
   };
 
   const updateEmployeeSalary = (employeeId: string, newSalary: number) => {
@@ -548,9 +467,7 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const calculatePayrollTotal = (): number => {
     const fullTimeTotal = payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0);
     const casualTotal = payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0);
-    const total = fullTimeTotal + casualTotal;
-    
-    return Math.round(total * 100) / 100;
+    return Math.round((fullTimeTotal + casualTotal) * 100) / 100;
   };
 
   const setPayrollStatus = (status: PayrollState['status']) => {
@@ -561,19 +478,19 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
   const setCurrentPeriod = (period: string) => {
     console.log(`Setting current period to: ${period}`);
     setPayrollState(prev => ({ ...prev, currentPeriod: period, lastUpdated: new Date() }));
+    // Reinitialize when period changes
+    initializePayroll();
   };
 
   const resetPayroll = () => {
     console.log('Resetting payroll to initial state');
-    setPayrollState({
-      currentPeriod: 'December 2024',
-      status: 'draft',
+    setPayrollState(prev => ({
+      ...prev,
       fullTimeEmployees: [],
       casualEmployees: [],
-      totalAmount: 0,
+      status: 'draft',
       lastUpdated: new Date()
-    });
-    initializePayroll();
+    }));
   };
 
   useEffect(() => {
@@ -599,7 +516,9 @@ export const PayrollProvider = ({ children }: PayrollProviderProps) => {
       initializePayroll,
       savePayrollToSupabase,
       loadPayrollFromSupabase,
-      savePayrollDraft,
+      addEmployeesToPayroll,
+      removeEmployeeFromPayroll,
+      refreshAvailableEmployees,
       isLoading
     }}>
       {children}
