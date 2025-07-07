@@ -15,7 +15,6 @@ import EmployeeCard from '@/components/employee/EmployeeCard';
 import EmployeeSearchFilter from '@/components/employee/EmployeeSearchFilter';
 import BulkActions from '@/components/employee/BulkActions';
 import ActionMenu from '@/components/employee/ActionMenu';
-import EmployeeStatsCards from '@/components/employee/EmployeeStatsCards';
 import EmployeeListView from '@/components/employee/EmployeeListView';
 import AdvancedEmployeeFilters from '@/components/employee/AdvancedEmployeeFilters';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
@@ -28,14 +27,14 @@ const Employees = () => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   
-  // View States
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  // View States - Default to list view for simpler layout
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all-types');
+  const [statusFilter, setStatusFilter] = useState('all-status');
+  const [departmentFilter, setDepartmentFilter] = useState('all-departments');
   
   // Advanced Filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -342,11 +341,13 @@ const Employees = () => {
   return (
     <ResponsiveLayout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Simplified Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
-            <p className="text-gray-600">Manage your workforce efficiently</p>
+            <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
+            <p className="text-gray-600">
+              {filteredEmployees.length} of {employees.length} employees
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
@@ -363,7 +364,7 @@ const Employees = () => {
               className="w-full sm:w-auto"
             >
               <Settings className="w-4 h-4 mr-2" />
-              Module Settings
+              Settings
             </Button>
             <Button 
               onClick={() => setShowAddForm(true)}
@@ -375,10 +376,7 @@ const Employees = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <EmployeeStatsCards employees={employees} />
-
-        {/* Search and Filters */}
+        {/* Simplified Search and Filters */}
         <EmployeeSearchFilter
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -398,20 +396,20 @@ const Employees = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-2">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid className="w-4 h-4 mr-2" />
-              Grid
-            </Button>
-            <Button
               variant={viewMode === 'list' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('list')}
             >
               <List className="w-4 h-4 mr-2" />
               List
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+            >
+              <Grid className="w-4 h-4 mr-2" />
+              Grid
             </Button>
           </div>
           
@@ -428,7 +426,17 @@ const Employees = () => {
         </div>
 
         {/* Employee Display */}
-        {viewMode === 'grid' ? (
+        {viewMode === 'list' ? (
+          <EmployeeListView
+            employees={filteredEmployees}
+            onView={(id) => navigate(`/employees/${id}`)}
+            onEdit={(id) => navigate(`/employees/${id}/edit`)}
+            onResetPassword={handleResetPassword}
+            onDelete={handleDeleteEmployee}
+            onToggleStatus={handleToggleStatus}
+            isSuperAdmin={isSuperAdmin}
+          />
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredEmployees.map((employee) => (
               <div key={employee.id} className="relative">
@@ -458,16 +466,6 @@ const Employees = () => {
               </div>
             ))}
           </div>
-        ) : (
-          <EmployeeListView
-            employees={filteredEmployees}
-            onView={(id) => navigate(`/employees/${id}`)}
-            onEdit={(id) => navigate(`/employees/${id}/edit`)}
-            onResetPassword={handleResetPassword}
-            onDelete={handleDeleteEmployee}
-            onToggleStatus={handleToggleStatus}
-            isSuperAdmin={isSuperAdmin}
-          />
         )}
 
         {/* Empty State */}
@@ -476,12 +474,12 @@ const Employees = () => {
             <CardContent className="text-center py-12">
               <p className="text-gray-500 text-lg mb-2">No employees found</p>
               <p className="text-gray-400 mb-4">
-                {searchTerm || typeFilter || statusFilter || departmentFilter
+                {searchTerm || typeFilter !== 'all-types' || statusFilter !== 'all-status' || departmentFilter !== 'all-departments'
                   ? "Try adjusting your search or filters"
                   : "Get started by adding your first employee"
                 }
               </p>
-              {!(searchTerm || typeFilter || statusFilter || departmentFilter) && (
+              {!(searchTerm || typeFilter !== 'all-types' || statusFilter !== 'all-status' || departmentFilter !== 'all-departments') && (
                 <Button onClick={() => setShowAddForm(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Employee

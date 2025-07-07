@@ -6,15 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from 'lucide-react';
-import { DatePicker } from '@/components/ui/date-picker';
-import { format } from 'date-fns';
+import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEmployeeById, updateEmployee } from '@/services/employeeService';
+import { getEmployeeById, updateEmployee, deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
-import { Separator } from '@/components/ui/separator';
-import { deleteEmployee, updateEmployeeResignDate } from '@/services/employeeService';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 
@@ -138,13 +134,6 @@ const EmployeeDetails = () => {
     }));
   };
 
-  const handleDateChange = (date: Date | undefined, name: string) => {
-    setEmployeeData(prevData => ({
-      ...prevData,
-      [name]: date ? format(date, 'yyyy-MM-dd') : undefined,
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -200,119 +189,150 @@ const EmployeeDetails = () => {
     deleteEmployeeMutation.mutate();
   };
 
-  const handleResign = () => {
-    if (resignDate) {
-      updateResignDateMutation.mutate(format(resignDate, 'yyyy-MM-dd'));
-    }
-  };
-
   if (isLoading) {
-    return <div>Loading employee details...</div>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading employee details...</p>
+        </div>
+      </div>
+    );
   }
 
   if (isError || !employee) {
-    return <div>Error loading employee details.</div>;
+    return (
+      <div className="text-center">
+        <p className="text-red-600">Error loading employee details.</p>
+        <Button onClick={() => navigate('/employees')} className="mt-4">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Employees
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Clean Header */}
       <div className="flex items-center justify-between">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Employee Details</CardTitle>
-        </CardHeader>
-        <div className="space-x-2">
-          <Button variant="outline" onClick={() => navigate('/employees')}>
-            Back to Employees
+        <div className="flex items-center space-x-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/employees')}
+            className="flex items-center"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
+            <p className="text-gray-600">Employee ID: {employee.id}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button 
+            type="submit" 
+            form="employee-form"
+            disabled={updateEmployeeMutation.isPending}
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {updateEmployeeMutation.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">Delete Employee</Button>
+              <Button variant="destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Delete Employee</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete this employee from our servers.
+                  Are you sure you want to delete this employee? This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Employee Details Form */}
+      <form id="employee-form" onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Full Name</Label>
                 <Input
-                  type="text"
                   id="name"
                   name="name"
                   value={employeeData.name || ''}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
               <div>
                 <Label htmlFor="nric">NRIC</Label>
                 <Input
-                  type="text"
                   id="nric"
                   name="nric"
                   value={employeeData.nric || ''}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
-                  type="date"
                   id="dateOfBirth"
                   name="dateOfBirth"
+                  type="date"
                   value={employeeData.dateOfBirth || ''}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="residencyStatus">Residency Status</Label>
-                <Select
-                  name="residencyStatus"
-                  defaultValue={employeeData.residencyStatus || 'Citizen'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, residencyStatus: value as 'Citizen' | 'Permanent Resident' | 'Foreigner' }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Citizen">Citizen</SelectItem>
-                    <SelectItem value="Permanent Resident">Permanent Resident</SelectItem>
-                    <SelectItem value="Foreigner">Foreigner</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="joinDate">Join Date</Label>
+                <Input
+                  id="joinDate"
+                  name="joinDate"
+                  type="date"
+                  value={employeeData.joinDate || ''}
+                  onChange={handleInputChange}
+                />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Employment Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Employment Details</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="type">Employee Type</Label>
                 <Select
                   name="type"
-                  defaultValue={employeeData.type || 'Full-Time'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, type: value as 'Full-Time' | 'Casual' }))}
+                  value={employeeData.type || 'Full-Time'}
+                  onValueChange={(value) => setEmployeeData(prev => ({ ...prev, type: value as 'Full-Time' | 'Casual' }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Full-Time">Full-Time</SelectItem>
@@ -321,33 +341,60 @@ const EmployeeDetails = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="joinDate">Join Date</Label>
+                <Label htmlFor="residencyStatus">Residency Status</Label>
+                <Select
+                  name="residencyStatus"
+                  value={employeeData.residencyStatus || 'Citizen'}
+                  onValueChange={(value) => setEmployeeData(prev => ({ ...prev, residencyStatus: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Citizen">Citizen</SelectItem>
+                    <SelectItem value="Permanent Resident">Permanent Resident</SelectItem>
+                    <SelectItem value="Foreigner">Foreigner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="position">Position</Label>
                 <Input
-                  type="date"
-                  id="joinDate"
-                  name="joinDate"
-                  value={employeeData.joinDate || ''}
+                  id="position"
+                  name="position"
+                  value={employeeData.position || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="branch">Branch</Label>
+                <Input
+                  id="branch"
+                  name="branch"
+                  value={employeeData.branch || ''}
                   onChange={handleInputChange}
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <Separator className="my-4" />
-
-            <CardHeader>
-              <CardTitle>Salary Information</CardTitle>
-            </CardHeader>
-
+        {/* Compensation */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Compensation</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="paymentType">Payment Type</Label>
                 <Select
                   name="paymentType"
-                  defaultValue={employeeData.paymentType || 'Monthly'}
-                  onValueChange={(value) => setEmployeeData(prevData => ({ ...prevData, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}
+                  value={employeeData.paymentType || 'Monthly'}
+                  onValueChange={(value) => setEmployeeData(prev => ({ ...prev, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select payment type" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Monthly">Monthly</SelectItem>
@@ -359,11 +406,12 @@ const EmployeeDetails = () => {
 
               {employeeData.paymentType === 'Monthly' && (
                 <div>
-                  <Label htmlFor="baseSalary">Base Salary</Label>
+                  <Label htmlFor="baseSalary">Base Salary (S$)</Label>
                   <Input
-                    type="number"
                     id="baseSalary"
                     name="baseSalary"
+                    type="number"
+                    step="0.01"
                     value={employeeData.baseSalary === undefined ? '' : employeeData.baseSalary.toString()}
                     onChange={handleNumberInputChange}
                   />
@@ -372,11 +420,12 @@ const EmployeeDetails = () => {
 
               {employeeData.paymentType === 'Hourly' && (
                 <div>
-                  <Label htmlFor="hourlyRate">Hourly Rate</Label>
+                  <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
                   <Input
-                    type="number"
                     id="hourlyRate"
                     name="hourlyRate"
+                    type="number"
+                    step="0.01"
                     value={employeeData.hourlyRate === undefined ? '' : employeeData.hourlyRate.toString()}
                     onChange={handleNumberInputChange}
                   />
@@ -386,31 +435,23 @@ const EmployeeDetails = () => {
               {employeeData.paymentType === 'Daily' && (
                 <>
                   <div>
-                    <Label htmlFor="dailyRate">Daily Rate</Label>
+                    <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
                     <Input
-                      type="number"
-                      id="dailyRate"
-                      name="dailyRate"
-                      value={employeeData.dailyRate === undefined ? '' : employeeData.dailyRate.toString()}
-                      onChange={handleNumberInputChange}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate</Label>
-                    <Input
-                      type="number"
                       id="dailyWeekdayRate"
                       name="dailyWeekdayRate"
+                      type="number"
+                      step="0.01"
                       value={employeeData.dailyWeekdayRate === undefined ? '' : employeeData.dailyWeekdayRate.toString()}
                       onChange={handleNumberInputChange}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="dailyWeekendRate">Daily Weekend Rate</Label>
+                    <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
                     <Input
-                      type="number"
                       id="dailyWeekendRate"
                       name="dailyWeekendRate"
+                      type="number"
+                      step="0.01"
                       value={employeeData.dailyWeekendRate === undefined ? '' : employeeData.dailyWeekendRate.toString()}
                       onChange={handleNumberInputChange}
                     />
@@ -418,18 +459,19 @@ const EmployeeDetails = () => {
                 </>
               )}
             </div>
+          </CardContent>
+        </Card>
 
-            <Separator className="my-4" />
-
-            <CardHeader>
-              <CardTitle>Bank Information</CardTitle>
-            </CardHeader>
-
+        {/* Banking Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Banking Information</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="bankName">Bank Name</Label>
                 <Input
-                  type="text"
                   id="bankName"
                   name="bankName"
                   value={employeeData.bankName || ''}
@@ -439,7 +481,6 @@ const EmployeeDetails = () => {
               <div>
                 <Label htmlFor="bankAccount">Bank Account</Label>
                 <Input
-                  type="text"
                   id="bankAccount"
                   name="bankAccount"
                   value={employeeData.bankAccount || ''}
@@ -447,70 +488,38 @@ const EmployeeDetails = () => {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <Separator className="my-4" />
-
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-            </CardHeader>
-
+        {/* Contact Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Contact Information</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="branch">Branch</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  type="text"
-                  id="branch"
-                  name="branch"
-                  value={employeeData.branch || ''}
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={employeeData.email || ''}
                   onChange={handleInputChange}
                 />
               </div>
-              <div>
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  type="text"
-                  id="department"
-                  name="department"
-                  value={employeeData.department || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="position">Position</Label>
-                <Input
-                  type="text"
-                  id="position"
-                  name="position"
-                  value={employeeData.position || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Phone</Label>
                 <Input
-                  type="text"
                   id="phone"
                   name="phone"
                   value={employeeData.phone || ''}
                   onChange={handleInputChange}
                 />
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <Label htmlFor="address">Address</Label>
                 <Input
-                  type="text"
                   id="address"
                   name="address"
                   value={employeeData.address || ''}
@@ -518,90 +527,15 @@ const EmployeeDetails = () => {
                 />
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={employeeData.email || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            <CardHeader>
-              <CardTitle>Resign Information</CardTitle>
-            </CardHeader>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="resignDate">Resign Date</Label>
-                <div className="relative">
-                  <DatePicker
-                    id="resignDate"
-                    onSelect={(date) => {
-                      setResignDate(date);
-                      handleDateChange(date, 'resignDate');
-                    }}
-                  />
-                  {employeeData.resignDate && (
-                    <p className="mt-2 text-sm text-gray-500">
-                      Current Resign Date: {employeeData.resignDate}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Button type="submit">Update Employee</Button>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </form>
 
       {/* Location Exception Management */}
       <LocationExceptionManager 
         employeeId={id} 
         employeeName={employee?.name}
       />
-
-      <Card>
-        <CardContent>
-          <div className="flex justify-end">
-            <Button
-              variant="destructive"
-              onClick={() => setIsResigning(true)}
-              disabled={isResigning}
-            >
-              {isResigning ? 'Resigning...' : 'Confirm Resignation'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Confirm Resignation Dialog */}
-      <AlertDialog open={isResigning} onOpenChange={setIsResigning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Resignation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to confirm the resignation for this employee?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsResigning(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleResign}>
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
