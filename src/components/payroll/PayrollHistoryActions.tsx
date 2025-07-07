@@ -1,232 +1,272 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Lock, Unlock, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { deletePayrollRecord, updatePayrollLockStatus } from '@/services/payrollService';
-
-interface PayrollRecord {
-  id: string;
-  period: string;
-  status: string;
-  totalAmount: number;
-  employeeCount: number;
-  processedDate: string | null;
-  isLocked?: boolean;
-  employeeId: string;
-  month: string;
-  year: number;
-}
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Eye, Download, Lock, Unlock, Trash2, AlertTriangle, Calendar, DollarSign, FileText } from 'lucide-react';
+import { PayrollRecord } from '@/services/payrollService';
+import { formatCurrency } from '@/utils/payrollCalculations';
+import { toast } from '@/components/ui/sonner';
 
 interface PayrollHistoryActionsProps {
-  payroll: PayrollRecord;
-  onLock: (id: string) => void;
-  onUnlock: (id: string) => void;
-  onDelete: (id: string) => void;
+  record: PayrollRecord;
+  onLockToggle?: (recordId: string, isLocked: boolean) => Promise<void>;
+  onDelete?: (recordId: string) => Promise<void>;
+  onDownload?: (record: PayrollRecord) => void;
 }
 
-const PayrollHistoryActions = ({ payroll, onLock, onUnlock, onDelete }: PayrollHistoryActionsProps) => {
-  const { user } = useAuth();
-  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isLocking, setIsLocking] = useState(false);
-  const [isUnlocking, setIsUnlocking] = useState(false);
+const PayrollHistoryActions: React.FC<PayrollHistoryActionsProps> = ({
+  record,
+  onLockToggle,
+  onDelete,
+  onDownload
+}) => {
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const isSuperAdmin = user?.role === 'superadmin';
-  const isLocked = payroll.isLocked;
-  const isCurrentPeriod = payroll.status === 'Current';
-
-  const handleLock = async () => {
-    setIsLocking(true);
+  const handleLockToggle = async () => {
+    if (!onLockToggle) return;
+    
+    setIsProcessing(true);
     try {
-      console.log(`Locking payroll record: ${payroll.id}`);
-      await updatePayrollLockStatus(payroll.id, true);
-      onLock(payroll.id);
-      toast.success(`Payroll for ${payroll.period} has been locked`);
+      await onLockToggle(record.id, !record.isLocked);
+      toast.success(record.isLocked ? 'Payroll record unlocked' : 'Payroll record locked');
     } catch (error) {
-      console.error('Error locking payroll record:', error);
-      toast.error('Failed to lock payroll record. Please try again.');
+      console.error('Error toggling lock status:', error);
+      toast.error('Failed to update lock status');
     } finally {
-      setIsLocking(false);
-    }
-  };
-
-  const handleUnlock = async () => {
-    setIsUnlocking(true);
-    try {
-      console.log(`Unlocking payroll record: ${payroll.id}`);
-      await updatePayrollLockStatus(payroll.id, false);
-      onUnlock(payroll.id);
-      setShowUnlockDialog(false);
-      toast.success(`Payroll for ${payroll.period} has been unlocked`);
-    } catch (error) {
-      console.error('Error unlocking payroll record:', error);
-      toast.error('Failed to unlock payroll record. Please try again.');
-    } finally {
-      setIsUnlocking(false);
+      setIsProcessing(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!isSuperAdmin) {
-      toast.error('Only super administrators can delete payroll records.');
-      return;
-    }
+    if (!onDelete) return;
     
-    if (isLocked) {
-      toast.error('Cannot delete locked payroll records. Please unlock first.');
-      return;
-    }
-    
-    setIsDeleting(true);
-    
+    setIsProcessing(true);
     try {
-      console.log(`🚀 Super admin ${user?.name} deleting payroll:`, {
-        id: payroll.id,
-        employeeId: payroll.employeeId,
-        month: payroll.month,
-        year: payroll.year
-      });
-
-      // Show loading toast
-      const loadingToast = toast.loading('Deleting payroll record from Supabase...');
-      
-      // Delete from Supabase
-      await deletePayrollRecord(payroll.id);
-      
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
-      console.log(`✅ Payroll record ${payroll.id} deleted successfully`);
-      
-      // Update UI immediately
-      onDelete(payroll.id);
-      
-      // Show success message
-      toast.success(`Payroll for ${payroll.month} ${payroll.year} deleted successfully`);
-      
+      await onDelete(record.id);
+      setIsDeleteDialogOpen(false);
+      toast.success('Payroll record deleted successfully');
     } catch (error) {
-      console.error('💥 Error deleting payroll:', error);
-      
-      let errorMessage = 'Failed to delete payroll record';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('locked')) {
-          errorMessage = 'Cannot delete locked payroll record. Please unlock it first.';
-        } else {
-          errorMessage = `Deletion failed: ${error.message}`;
-        }
-      }
-      
-      toast.error(errorMessage);
-      
+      console.error('Error deleting record:', error);
+      toast.error('Failed to delete payroll record');
     } finally {
-      setIsDeleting(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (onDownload) {
+      onDownload(record);
     }
   };
 
   return (
     <div className="flex items-center space-x-2">
-      {/* Lock/Unlock Button */}
-      {!isCurrentPeriod && (
-        <>
-          {!isLocked ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLock}
-              disabled={isLocking}
-              className="flex items-center space-x-1"
-            >
-              <Lock className="w-4 h-4" />
-              <span>{isLocking ? 'Locking...' : 'Lock'}</span>
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowUnlockDialog(true)}
-              disabled={isUnlocking}
-              className="flex items-center space-x-1 bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
-            >
-              <Unlock className="w-4 h-4" />
-              <span>{isUnlocking ? 'Unlocking...' : 'Unlock'}</span>
-            </Button>
-          )}
-        </>
-      )}
-
-      {/* Delete Button - Only for Super Admin */}
-      {isSuperAdmin && !isCurrentPeriod && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isDeleting}
-              className="flex items-center space-x-1 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Payroll Record</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete the payroll for {payroll.month} {payroll.year}? 
-                This action cannot be undone and will permanently remove this payroll record from Supabase.
-                {isLocked && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
-                    <strong>Warning:</strong> This payroll is currently locked. You must unlock it first before deletion.
-                  </div>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                disabled={isDeleting || isLocked}
-                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Payroll'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {/* Unlock Confirmation Dialog */}
-      <Dialog open={showUnlockDialog} onOpenChange={setShowUnlockDialog}>
-        <DialogContent>
+      {/* View Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <Eye className="w-4 h-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Unlock Payroll</DialogTitle>
+            <DialogTitle className="flex items-center">
+              <FileText className="w-5 h-5 mr-2" />
+              Payroll Record Details - {record.month} {record.year}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to unlock the payroll for {payroll.period}? 
-              This will allow modifications to the payroll data.
+              Employee ID: {record.employeeId}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowUnlockDialog(false)}
-              disabled={isUnlocking}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUnlock} 
-              disabled={isUnlocking}
-              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
-            >
-              {isUnlocking ? 'Unlocking...' : 'Unlock Payroll'}
-            </Button>
-          </DialogFooter>
+          
+          <div className="space-y-4">
+            {/* Status and Lock Info */}
+            <div className="flex items-center space-x-2">
+              <Badge variant={record.isLocked ? "destructive" : "secondary"}>
+                {record.isLocked ? (
+                  <>
+                    <Lock className="w-3 h-3 mr-1" />
+                    Locked
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="w-3 h-3 mr-1" />
+                    Unlocked
+                  </>
+                )}
+              </Badge>
+              <Badge variant="outline">
+                <Calendar className="w-3 h-3 mr-1" />
+                {new Date(record.updatedAt).toLocaleDateString()}
+              </Badge>
+            </div>
+
+            {/* Payroll Summary */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-gray-600 mb-2">Income</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Base Salary:</span>
+                    <span>{formatCurrency(record.payrollData.baseSalary)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Allowances:</span>
+                    <span>{formatCurrency(record.payrollData.totalAllowances)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Claims:</span>
+                    <span>{formatCurrency(record.payrollData.approvedClaims)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-1">
+                    <span>Gross:</span>
+                    <span>{formatCurrency(record.payrollData.grossSalary)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-gray-600 mb-2">Deductions</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Employee CPF:</span>
+                    <span>{formatCurrency(record.payrollData.employeeCPF)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Other Deductions:</span>
+                    <span>{formatCurrency(record.payrollData.totalDeductions)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-1">
+                    <span>Total Deductions:</span>
+                    <span>{formatCurrency(record.payrollData.employeeCPF + record.payrollData.totalDeductions)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Net Salary */}
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-green-800">Net Salary:</span>
+                <span className="font-bold text-xl text-green-600">
+                  {formatCurrency(record.payrollData.netSalary)}
+                </span>
+              </div>
+              <div className="text-sm text-green-600 mt-1">
+                Employer CPF: {formatCurrency(record.payrollData.employerCPF)}
+              </div>
+            </div>
+
+            {/* Allowances Breakdown */}
+            {record.payrollData.allowances.length > 0 && (
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-blue-800 mb-2">Allowances Breakdown</h4>
+                <div className="space-y-1">
+                  {record.payrollData.allowances.map((allowance, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{allowance.name}:</span>
+                      <span>{formatCurrency(allowance.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Deductions Breakdown */}
+            {record.payrollData.deductions.length > 0 && (
+              <div className="bg-red-50 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-red-800 mb-2">Deductions Breakdown</h4>
+                <div className="space-y-1">
+                  {record.payrollData.deductions.map((deduction, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{deduction.name}:</span>
+                      <span>{formatCurrency(deduction.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
+
+      {/* Download Button */}
+      <Button variant="ghost" size="sm" onClick={handleDownload}>
+        <Download className="w-4 h-4" />
+      </Button>
+
+      {/* Lock/Unlock Button */}
+      {onLockToggle && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleLockToggle}
+          disabled={isProcessing}
+        >
+          {record.isLocked ? (
+            <Unlock className="w-4 h-4" />
+          ) : (
+            <Lock className="w-4 h-4" />
+          )}
+        </Button>
+      )}
+
+      {/* Delete Button with Confirmation Dialog */}
+      {onDelete && (
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              disabled={record.isLocked}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center text-red-600">
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                Delete Payroll Record
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this payroll record for {record.month} {record.year}?
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Alert className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                <div className="font-medium mb-1">This will permanently delete:</div>
+                <ul className="list-disc list-inside text-sm">
+                  <li>Employee: {record.employeeId}</li>
+                  <li>Period: {record.month} {record.year}</li>
+                  <li>Net Salary: {formatCurrency(record.payrollData.netSalary)}</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Deleting...' : 'Delete Record'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

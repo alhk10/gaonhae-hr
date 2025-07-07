@@ -1,112 +1,273 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addMonths, subMonths } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp } from 'lucide-react';
+import { getAllPayrollRecords, PayrollRecord } from '@/services/payrollService';
+import { formatCurrency } from '@/utils/payrollCalculations';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
   onPeriodChange: (period: string) => void;
+  isLoading?: boolean;
 }
 
-const PayrollPeriodSelector = ({ selectedPeriod, onPeriodChange }: PayrollPeriodSelectorProps) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
+  selectedPeriod,
+  onPeriodChange,
+  isLoading = false
+}) => {
+  const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
+  const [periodStats, setPeriodStats] = useState<Record<string, { count: number; total: number }>>({});
+  const [isLoadingPeriods, setIsLoadingPeriods] = useState(false);
 
-  const handlePreviousMonth = () => {
-    const prevMonth = subMonths(currentDate, 1);
-    setCurrentDate(prevMonth);
-    const periodString = format(prevMonth, 'MMMM yyyy');
-    onPeriodChange(periodString);
-  };
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
-  const handleNextMonth = () => {
-    const nextMonth = addMonths(currentDate, 1);
-    setCurrentDate(nextMonth);
-    const periodString = format(nextMonth, 'MMMM yyyy');
-    onPeriodChange(periodString);
-  };
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
-  const handleCurrentMonth = () => {
-    const now = new Date();
-    setCurrentDate(now);
-    const periodString = format(now, 'MMMM yyyy');
-    onPeriodChange(periodString);
-  };
+  // Parse selected period
+  const [selectedMonthName, selectedYearStr] = selectedPeriod.split(' ');
+  const selectedMonthIndex = months.indexOf(selectedMonthName);
+  const selectedYear = parseInt(selectedYearStr);
 
-  // Generate period options for the last 12 months and next 3 months
-  const generatePeriodOptions = () => {
-    const options = [];
-    const now = new Date();
-    
-    // Previous 12 months
-    for (let i = 12; i >= 1; i--) {
-      const date = subMonths(now, i);
-      options.push({
-        value: format(date, 'MMMM yyyy'),
-        label: format(date, 'MMMM yyyy')
+  const loadAvailablePeriodsAndStats = async () => {
+    setIsLoadingPeriods(true);
+    try {
+      const records = await getAllPayrollRecords();
+      
+      // Group records by period
+      const periodMap = new Map<string, PayrollRecord[]>();
+      records.forEach(record => {
+        const period = `${record.month} ${record.year}`;
+        if (!periodMap.has(period)) {
+          periodMap.set(period, []);
+        }
+        periodMap.get(period)!.push(record);
       });
-    }
-    
-    // Current month
-    options.push({
-      value: format(now, 'MMMM yyyy'),
-      label: format(now, 'MMMM yyyy') + ' (Current)'
-    });
-    
-    // Next 3 months
-    for (let i = 1; i <= 3; i++) {
-      const date = addMonths(now, i);
-      options.push({
-        value: format(date, 'MMMM yyyy'),
-        label: format(date, 'MMMM yyyy')
+
+      // Extract unique periods and calculate stats
+      const periods = Array.from(periodMap.keys()).sort((a, b) => {
+        const [monthA, yearA] = a.split(' ');
+        const [monthB, yearB] = b.split(' ');
+        const yearDiff = parseInt(yearB) - parseInt(yearA);
+        if (yearDiff !== 0) return yearDiff;
+        return months.indexOf(monthB) - months.indexOf(monthA);
       });
+
+      const stats: Record<string, { count: number; total: number }> = {};
+      periodMap.forEach((records, period) => {
+        stats[period] = {
+          count: records.length,
+          total: records.reduce((sum, record) => sum + record.payrollData.netSalary, 0)
+        };
+      });
+
+      setAvailablePeriods(periods);
+      setPeriodStats(stats);
+    } catch (error) {
+      console.error('Error loading payroll periods:', error);
+    } finally {
+      setIsLoadingPeriods(false);
     }
-    
-    return options;
   };
 
-  const periodOptions = generatePeriodOptions();
+  useEffect(() => {
+    loadAvailablePeriodsAndStats();
+  }, []);
+
+  const navigatePeriod = (direction: 'prev' | 'next') => {
+    let newMonth = selectedMonthIndex;
+    let newYear = selectedYear;
+
+    if (direction === 'prev') {
+      newMonth = selectedMonthIndex === 0 ? 11 : selectedMonthIndex - 1;
+      newYear = selectedMonthIndex === 0 ? selectedYear - 1 : selectedYear;
+    } else {
+      newMonth = selectedMonthIndex === 11 ? 0 : selectedMonthIndex + 1;
+      newYear = selectedMonthIndex === 11 ? selectedYear + 1 : selectedYear;
+    }
+
+    const newPeriod = `${months[newMonth]} ${newYear}`;
+    onPeriodChange(newPeriod);
+  };
+
+  const isCurrentPeriod = () => {
+    return selectedMonthIndex === currentMonth && selectedYear === currentYear;
+  };
+
+  const isPastPeriod = () => {
+    const selected = new Date(selectedYear, selectedMonthIndex);
+    const current = new Date(currentYear, currentMonth);
+    return selected < current;
+  };
+
+  const getFuturePeriods = () => {
+    const future: string[] = [];
+    for (let year = currentYear; year <= currentYear + 1; year++) {
+      const startMonth = year === currentYear ? currentMonth + 1 : 0;
+      for (let month = startMonth; month < 12; month++) {
+        future.push(`${months[month]} ${year}`);
+      }
+    }
+    return future.slice(0, 6); // Limit to next 6 months
+  };
+
+  const currentPeriodStats = periodStats[selectedPeriod];
+  const hasPeriodData = availablePeriods.includes(selectedPeriod);
 
   return (
     <Card className="mb-6">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center space-x-2">
-          <Calendar className="w-5 h-5" />
-          <span>Payroll Period Selection</span>
-        </CardTitle>
-        <CardDescription>
-          Select the payroll period you want to process or review
-        </CardDescription>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Calendar className="w-5 h-5 mr-2" />
+            Payroll Period
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadAvailablePeriodsAndStats}
+            disabled={isLoadingPeriods}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoadingPeriods ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between space-x-4">
+      <CardContent className="space-y-4">
+        {/* Period Navigation */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigatePeriod('prev')}
+            disabled={isLoading}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleCurrentMonth}>
-              Current
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleNextMonth}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <div className="flex-1 max-w-xs">
-            <Select value={selectedPeriod} onValueChange={onPeriodChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select period" />
+            <Select
+              value={selectedMonthIndex.toString()}
+              onValueChange={(value) => {
+                const month = parseInt(value);
+                const newPeriod = `${months[month]} ${selectedYear}`;
+                onPeriodChange(newPeriod);
+              }}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {periodOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {months.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {month}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(value) => {
+                const year = parseInt(value);
+                const newPeriod = `${months[selectedMonthIndex]} ${year}`;
+                onPeriodChange(newPeriod);
+              }}
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigatePeriod('next')}
+            disabled={isLoading}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Period Status and Stats */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Badge variant={isCurrentPeriod() ? "default" : isPastPeriod() ? "secondary" : "outline"}>
+              {isCurrentPeriod() ? "Current Period" : isPastPeriod() ? "Past Period" : "Future Period"}
+            </Badge>
+            
+            {hasPeriodData && (
+              <Badge variant="outline" className="text-green-600 border-green-200">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                {currentPeriodStats?.count || 0} records
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center text-sm text-gray-500">
+            <Clock className="w-3 h-3 mr-1" />
+            Last updated: {new Date().toLocaleDateString()}
+          </div>
+        </div>
+
+        {/* Period Statistics */}
+        {currentPeriodStats && (
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-800">
+                Period Total: {formatCurrency(currentPeriodStats.total)}
+              </span>
+              <span className="text-xs text-blue-600">
+                {currentPeriodStats.count} employee{currentPeriodStats.count !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Period Access */}
+        <div className="border-t pt-3">
+          <div className="text-xs text-gray-500 mb-2">Quick Access:</div>
+          <div className="flex flex-wrap gap-2">
+            {/* Current and past periods with data */}
+            {availablePeriods.slice(0, 3).map((period) => (
+              <Button
+                key={period}
+                variant={period === selectedPeriod ? "default" : "ghost"}
+                size="sm"
+                onClick={() => onPeriodChange(period)}
+                className="h-8 text-xs"
+              >
+                {period}
+              </Button>
+            ))}
+            
+            {/* Future periods */}
+            {getFuturePeriods().slice(0, 2).map((period) => (
+              <Button
+                key={period}
+                variant={period === selectedPeriod ? "default" : "outline"}
+                size="sm"
+                onClick={() => onPeriodChange(period)}
+                className="h-8 text-xs border-dashed"
+              >
+                {period}
+              </Button>
+            ))}
           </div>
         </div>
       </CardContent>
