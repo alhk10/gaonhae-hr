@@ -27,7 +27,7 @@ const PayrollProcessing = () => {
     updateEmployeeDeductions,
     updateCasualEmployeeHours,
     setPayrollStatus,
-    savePayrollDraft
+    savePayrollToSupabase
   } = usePayroll();
   
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
@@ -294,9 +294,14 @@ const PayrollProcessing = () => {
       .reduce((sum, claim) => sum + claim.amount, 0);
   };
 
-  const handleSaveDraft = () => {
-    savePayrollDraft();
-    toast("Payroll draft saved successfully");
+  const handleSaveDraft = async () => {
+    try {
+      await savePayrollToSupabase();
+      toast.success("Payroll draft saved successfully");
+    } catch (error) {
+      console.error('Error saving payroll draft:', error);
+      toast.error("Error saving payroll draft");
+    }
   };
 
   const handleApprovePayroll = () => {
