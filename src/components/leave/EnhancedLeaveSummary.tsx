@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
-import { Users, Calendar, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, Calendar, AlertTriangle, CheckCircle, Trash2, DollarSign, TrendingUp } from 'lucide-react';
 import { 
   getEligibleEmployeesForLeave, 
   calculateEmployeeLeaveEntitlement,
@@ -12,29 +13,38 @@ import {
   type EligibleEmployee,
   type LeaveEntitlementCalculation 
 } from '@/services/enhancedLeaveService';
+import { 
+  getEmployeesWithUnusedLeave,
+  getAllEncashmentRecords 
+} from '@/services/leaveEncashmentService';
 import { useAuth } from '@/contexts/AuthContext';
 
 const EnhancedLeaveSummary = () => {
   const { user } = useAuth();
   const [eligibleEmployees, setEligibleEmployees] = useState<EligibleEmployee[]>([]);
   const [entitlements, setEntitlements] = useState<Record<string, LeaveEntitlementCalculation>>({});
+  const [unusedLeaveData, setUnusedLeaveData] = useState<any[]>([]);
+  const [encashmentRecords, setEncashmentRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
-    loadEligibleEmployeesData();
-  }, []);
+    loadAllData();
+  }, [selectedYear]);
 
-  const loadEligibleEmployeesData = async () => {
+  const loadAllData = async () => {
     try {
       setLoading(true);
-      const employees = await getEligibleEmployeesForLeave();
+      
+      // Load eligible employees and entitlements
+      const employees = await getEligibleEmployeesForLeave(selectedYear);
       setEligibleEmployees(employees);
 
       // Calculate entitlements for each employee
       const entitlementPromises = employees.map(async (emp) => {
         try {
-          const entitlement = await calculateEmployeeLeaveEntitlement(emp.id);
+          const entitlement = await calculateEmployeeLeaveEntitlement(emp.id, selectedYear);
           return { id: emp.id, entitlement };
         } catch (error) {
           console.error(`Error calculating entitlement for ${emp.id}:`, error);
@@ -60,11 +70,21 @@ const EnhancedLeaveSummary = () => {
       }, {} as Record<string, LeaveEntitlementCalculation>);
 
       setEntitlements(entitlementsMap);
+
+      // Load encashment data
+      const [unusedLeave, encashmentHistory] = await Promise.all([
+        getEmployeesWithUnusedLeave(selectedYear),
+        getAllEncashmentRecords(selectedYear)
+      ]);
+
+      setUnusedLeaveData(unusedLeave);
+      setEncashmentRecords(encashmentHistory);
+
     } catch (error) {
-      console.error('Error loading eligible employees data:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Error",
-        description: "Failed to load employee leave data",
+        description: "Failed to load leave data",
         variant: "destructive",
       });
     } finally {
@@ -96,7 +116,7 @@ const EnhancedLeaveSummary = () => {
       });
 
       // Reload data after cleanup
-      await loadEligibleEmployeesData();
+      await loadAllData();
     } catch (error) {
       console.error('Error during cleanup:', error);
       toast({
@@ -117,6 +137,12 @@ const EnhancedLeaveSummary = () => {
     (total, ent) => total + ent.mondayHolidayBonus, 0
   );
 
+  const totalUnusedDays = unusedLeaveData.reduce((sum, emp) => sum + emp.unused_leave_days, 0);
+  
+  const totalEncashmentAmount = encashmentRecords
+    .filter(record => record.status === 'Processed')
+    .reduce((sum, record) => sum + record.total_encashment_amount, 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -129,7 +155,7 @@ const EnhancedLeaveSummary = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
           <CardContent className="p-4">
             <div className="flex items-center">
@@ -172,11 +198,37 @@ const EnhancedLeaveSummary = () => {
         <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
           <CardContent className="p-4">
             <div className="flex items-center">
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
+              <TrendingUp className="w-6 h-6 text-orange-600" />
               <div className="ml-3">
-                <p className="text-xs text-orange-600">System Status</p>
-                <p className="text-sm font-bold text-orange-900">Validated</p>
-                <p className="text-xs text-orange-500">DB triggers active</p>
+                <p className="text-xs text-orange-600">Unused Leave Days</p>
+                <p className="text-xl font-bold text-orange-900">{totalUnusedDays}</p>
+                <p className="text-xs text-orange-500">Available for encashment</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200">
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <DollarSign className="w-6 h-6 text-emerald-600" />
+              <div className="ml-3">
+                <p className="text-xs text-emerald-600">Encashment Amount</p>
+                <p className="text-xl font-bold text-emerald-900">${totalEncashmentAmount.toFixed(0)}</p>
+                <p className="text-xs text-emerald-500">Total processed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="w-6 h-6 text-gray-600" />
+              <div className="ml-3">
+                <p className="text-xs text-gray-600">System Status</p>
+                <p className="text-sm font-bold text-gray-900">Validated</p>
+                <p className="text-xs text-gray-500">DB triggers active</p>
               </div>
             </div>
           </CardContent>
@@ -226,66 +278,141 @@ const EnhancedLeaveSummary = () => {
         </Card>
       )}
 
-      {/* Employee Entitlements */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Employee Leave Entitlements ({new Date().getFullYear()})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {eligibleEmployees.map((employee) => {
-              const entitlement = entitlements[employee.id];
-              if (!entitlement) return null;
+      <Tabs defaultValue="entitlements" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="entitlements">Employee Entitlements</TabsTrigger>
+          <TabsTrigger value="unused-leave">Unused Leave & Encashment</TabsTrigger>
+        </TabsList>
 
-              return (
-                <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{employee.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {employee.type}{employee.position ? ` - ${employee.position}` : ''}
-                      </Badge>
-                      {!employee.joinDate && (
-                        <Badge variant="secondary" className="text-xs">
-                          No Join Date
-                        </Badge>
-                      )}
+        <TabsContent value="entitlements">
+          <Card>
+            <CardHeader>
+              <CardTitle>Employee Leave Entitlements ({selectedYear})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {eligibleEmployees.map((employee) => {
+                  const entitlement = entitlements[employee.id];
+                  if (!entitlement) return null;
+
+                  return (
+                    <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium">{employee.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {employee.type}{employee.position ? ` - ${employee.position}` : ''}
+                          </Badge>
+                          {!employee.joinDate && (
+                            <Badge variant="secondary" className="text-xs">
+                              No Join Date
+                            </Badge>
+                          )}
+                        </div>
+                        {employee.joinDate && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Joined: {new Date(employee.joinDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex space-x-4 text-sm">
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Base Annual</p>
+                          <p className="font-medium">{entitlement.baseAnnualLeave}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Service Bonus</p>
+                          <p className="font-medium text-green-600">+{entitlement.serviceBonusDays}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Monday Bonus</p>
+                          <p className="font-medium text-purple-600">+{entitlement.mondayHolidayBonus}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Total Annual</p>
+                          <p className="font-bold text-blue-600">{entitlement.finalAnnualLeave}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Medical</p>
+                          <p className="font-medium text-green-600">{entitlement.medicalLeave}</p>
+                        </div>
+                      </div>
                     </div>
-                    {employee.joinDate && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Joined: {new Date(employee.joinDate).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex space-x-4 text-sm">
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Base Annual</p>
-                      <p className="font-medium">{entitlement.baseAnnualLeave}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Service Bonus</p>
-                      <p className="font-medium text-green-600">+{entitlement.serviceBonusDays}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Monday Bonus</p>
-                      <p className="font-medium text-purple-600">+{entitlement.mondayHolidayBonus}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Total Annual</p>
-                      <p className="font-bold text-blue-600">{entitlement.finalAnnualLeave}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Medical</p>
-                      <p className="font-medium text-green-600">{entitlement.medicalLeave}</p>
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="unused-leave">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unused Leave & Encashment Status ({selectedYear})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {unusedLeaveData.length === 0 ? (
+                <div className="text-center p-8">
+                  <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Unused Leave</h3>
+                  <p className="text-gray-600">No employees have unused leave for {selectedYear}.</p>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="space-y-3">
+                  {unusedLeaveData.map((employee) => {
+                    const encashmentRecord = encashmentRecords.find(
+                      record => record.employee_id === employee.employee_id
+                    );
+
+                    return (
+                      <div key={employee.employee_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">{employee.employee_name}</span>
+                            {encashmentRecord && (
+                              <Badge variant="default" className="bg-green-600">
+                                Encashed
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-4 text-sm">
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Total Entitlement</p>
+                            <p className="font-medium">{employee.total_entitlement}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Used</p>
+                            <p className="font-medium text-blue-600">{employee.total_used}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Unused</p>
+                            <p className="font-bold text-orange-600">{employee.unused_leave_days}</p>
+                          </div>
+                          {encashmentRecord && (
+                            <>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Encashed Days</p>
+                                <p className="font-medium text-green-600">{encashmentRecord.encashed_days}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Amount</p>
+                                <p className="font-bold text-green-600">${encashmentRecord.total_encashment_amount.toFixed(2)}</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

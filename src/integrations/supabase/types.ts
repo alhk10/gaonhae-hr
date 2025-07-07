@@ -573,6 +573,103 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_encashment_config: {
+        Row: {
+          created_at: string
+          employee_id: string
+          encashment_rate_per_day: number
+          id: string
+          is_active: boolean
+          max_encashable_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          encashment_rate_per_day?: number
+          id?: string
+          is_active?: boolean
+          max_encashable_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          encashment_rate_per_day?: number
+          id?: string
+          is_active?: boolean
+          max_encashable_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_encashment_config_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_encashment_records: {
+        Row: {
+          created_at: string
+          employee_id: string
+          encashed_days: number
+          id: string
+          payroll_month: string | null
+          payroll_year: number | null
+          processed_by: string | null
+          processed_date: string | null
+          rate_per_day: number
+          status: string
+          total_encashment_amount: number
+          unused_leave_days: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          encashed_days?: number
+          id?: string
+          payroll_month?: string | null
+          payroll_year?: number | null
+          processed_by?: string | null
+          processed_date?: string | null
+          rate_per_day?: number
+          status?: string
+          total_encashment_amount?: number
+          unused_leave_days?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          encashed_days?: number
+          id?: string
+          payroll_month?: string | null
+          payroll_year?: number | null
+          processed_by?: string | null
+          processed_date?: string | null
+          rate_per_day?: number
+          status?: string
+          total_encashment_amount?: number
+          unused_leave_days?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_encashment_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           applied_date: string | null
@@ -1212,6 +1309,14 @@ export type Database = {
           medical_leave: number
         }[]
       }
+      calculate_unused_leave_for_encashment: {
+        Args: { employee_id: string; reference_year?: number }
+        Returns: {
+          unused_annual_leave: number
+          total_entitlement: number
+          total_used: number
+        }[]
+      }
       calculate_years_of_service: {
         Args: { join_date: string; reference_date?: string }
         Returns: number
@@ -1247,6 +1352,10 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: undefined
+      }
+      process_leave_encashment: {
+        Args: { p_employee_id: string; p_year: number; p_processed_by?: string }
+        Returns: string
       }
     }
     Enums: {
