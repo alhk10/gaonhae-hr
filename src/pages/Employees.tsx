@@ -106,17 +106,17 @@ const Employees = () => {
       }
 
       // Type filter
-      if (typeFilter && employee.type !== typeFilter) return false;
+      if (typeFilter && typeFilter !== 'all-types' && employee.type !== typeFilter) return false;
 
       // Status filter
-      if (statusFilter) {
+      if (statusFilter && statusFilter !== 'all-status') {
         const isActive = !employee.resignDate;
         if (statusFilter === 'active' && !isActive) return false;
         if (statusFilter === 'inactive' && isActive) return false;
       }
 
       // Department filter
-      if (departmentFilter) {
+      if (departmentFilter && departmentFilter !== 'all-departments') {
         const empDept = employee.department || employee.branch;
         if (empDept !== departmentFilter) return false;
       }
@@ -236,9 +236,9 @@ const Employees = () => {
 
   const handleClearFilters = () => {
     setSearchTerm('');
-    setTypeFilter('');
-    setStatusFilter('');
-    setDepartmentFilter('');
+    setTypeFilter('all-types');
+    setStatusFilter('all-status');
+    setDepartmentFilter('all-departments');
     setAdvancedFilters({
       salaryRange: { min: '', max: '' },
       joinDateRange: { start: '', end: '' },

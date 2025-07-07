@@ -35,7 +35,9 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
   filteredCount,
   onClearFilters
 }) => {
-  const activeFiltersCount = [typeFilter, statusFilter, departmentFilter].filter(Boolean).length;
+  const activeFiltersCount = [typeFilter, statusFilter, departmentFilter].filter(filter => 
+    filter && filter !== 'all-types' && filter !== 'all-status' && filter !== 'all-departments'
+  ).length;
   const hasActiveFilters = activeFiltersCount > 0 || searchTerm;
 
   return (
@@ -64,7 +66,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all-types">All Types</SelectItem>
             <SelectItem value="Full-Time">Full-Time</SelectItem>
             <SelectItem value="Casual">Casual</SelectItem>
           </SelectContent>
@@ -76,7 +78,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
+            <SelectItem value="all-status">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
@@ -89,7 +91,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
               <SelectValue placeholder="All Departments" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Departments</SelectItem>
+              <SelectItem value="all-departments">All Departments</SelectItem>
               {departments.map((dept) => (
                 <SelectItem key={dept} value={dept}>
                   {dept}
