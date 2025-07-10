@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { generateSecurePassword, generateSalt, hashPassword, logSecurityEvent } from '@/services/securityService';
+import { generateSalt, hashPassword, logSecurityEvent } from '@/services/securityService';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -22,11 +22,13 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   employeeEmail 
 }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  
+  // Default password for all resets
+  const defaultPassword = 'password';
 
-  const handleGenerateAndReset = async () => {
+  const handleResetPassword = async () => {
     console.log('ResetPasswordDialog: Starting password reset for:', employeeEmail);
     
     if (!employeeEmail || !employeeEmail.includes('@')) {
@@ -41,17 +43,13 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     setIsLoading(true);
 
     try {
-      // Generate secure password
-      const generatedPassword = generateSecurePassword();
-      setNewPassword(generatedPassword);
-      
-      // Generate salt and hash the password
+      // Generate salt and hash the default password
       const salt = generateSalt();
-      const hashedPassword = await hashPassword(generatedPassword, salt);
+      const hashedPassword = await hashPassword(defaultPassword, salt);
 
-      console.log('ResetPasswordDialog: Generated password and hash for:', employeeEmail);
+      console.log('ResetPasswordDialog: Generated password hash for:', employeeEmail);
 
-      // Update/insert password in database
+      // Update/insert password in database with mandatory change flag
       const { error: upsertError } = await supabase
         .from('user_passwords')
         .upsert({
@@ -59,11 +57,11 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
           password_hash: hashedPassword,
           salt: salt,
           must_change_password: true,
-          password_complexity_met: true,
+          requires_change: true,
+          password_complexity_met: false, // Default password doesn't meet complexity
           last_password_change: new Date().toISOString(),
           failed_attempts: 0,
-          locked_until: null,
-          requires_change: false
+          locked_until: null
         }, {
           onConflict: 'email'
         });
@@ -80,6 +78,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
         details: { 
           reset_by: 'admin',
           employee_name: employeeName,
+          default_password_used: true,
           timestamp: new Date().toISOString()
         }
       });
@@ -91,7 +90,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
       
       toast({
         title: "Password Reset Complete",
-        description: `New password generated for ${employeeName}. They must change it on next login.`,
+        description: `Password reset to default for ${employeeName}. They must change it on next login.`,
       });
 
     } catch (error) {
@@ -108,10 +107,10 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
 
   const handleCopyPassword = async () => {
     try {
-      await navigator.clipboard.writeText(newPassword);
+      await navigator.clipboard.writeText(defaultPassword);
       toast({
         title: "Password Copied",
-        description: "The new password has been copied to your clipboard.",
+        description: "The default password has been copied to your clipboard.",
       });
     } catch (error) {
       console.error('Failed to copy password:', error);
@@ -124,7 +123,6 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   };
 
   const handleClose = () => {
-    setNewPassword('');
     setShowPassword(false);
     setIsComplete(false);
     onClose();
@@ -139,7 +137,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
             Reset Employee Password
           </DialogTitle>
           <DialogDescription>
-            Generate a new secure password for {employeeName}
+            Reset password to default for {employeeName}
           </DialogDescription>
         </DialogHeader>
         
@@ -153,9 +151,9 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
                   <div className="text-sm">
                     <p className="font-medium text-amber-800 mb-2">Before proceeding:</p>
                     <ul className="text-amber-700 space-y-1">
-                      <li>• A secure random password will be generated</li>
+                      <li>• Password will be reset to the default "password"</li>
                       <li>• {employeeName} must change it on their next login</li>
-                      <li>• The password will meet all complexity requirements</li>
+                      <li>• They cannot use the system until password is changed</li>
                       <li>• This action will be logged for security</li>
                     </ul>
                   </div>
@@ -186,7 +184,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleGenerateAndReset}
+                  onClick={handleResetPassword}
                   className="flex-1 bg-blue-600 hover:bg-blue-700"
                   disabled={isLoading}
                 >
@@ -198,7 +196,7 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Generate & Reset
+                      Reset Password
                     </>
                   )}
                 </Button>
@@ -213,21 +211,21 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
                   <div className="text-sm">
                     <p className="font-medium text-green-800 mb-2">Password Reset Successful!</p>
                     <p className="text-green-700">
-                      New password has been generated for {employeeName}. Please share it securely.
+                      Password has been reset to default for {employeeName}. Please share it securely.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Generated Password Display */}
+              {/* Default Password Display */}
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  New Password
+                  Default Password
                 </label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    value={newPassword}
+                    value={defaultPassword}
                     readOnly
                     className="pr-20 font-mono text-sm bg-gray-50"
                   />

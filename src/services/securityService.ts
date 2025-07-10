@@ -1,10 +1,18 @@
-
 import bcrypt from 'bcryptjs';
 import { supabase } from '@/integrations/supabase/client';
 
-// Password complexity requirements
-export const checkPasswordComplexity = (password: string) => {
+// Password complexity requirements - modified to handle reset context
+export const checkPasswordComplexity = (password: string, isResetContext: boolean = false) => {
   const errors: string[] = [];
+  
+  // Allow "password" in reset contexts (admin resets)
+  if (isResetContext && password === 'password') {
+    return {
+      isValid: true,
+      errors: [],
+      isDefaultPassword: true
+    };
+  }
   
   if (password.length < 8) {
     errors.push('Must be at least 8 characters long');
@@ -32,7 +40,8 @@ export const checkPasswordComplexity = (password: string) => {
   
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
+    isDefaultPassword: false
   };
 };
 
@@ -244,26 +253,6 @@ export const clearFailedLoginAttempts = async (email: string): Promise<void> => 
   } catch (error) {
     console.error('SecurityService: Exception clearing failed login attempts:', error);
   }
-};
-
-// Generate secure password
-export const generateSecurePassword = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@$!%*?&';
-  let password = '';
-  
-  // Ensure at least one of each required character type
-  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]; // uppercase
-  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]; // lowercase
-  password += '0123456789'[Math.floor(Math.random() * 10)]; // number
-  password += '@$!%*?&'[Math.floor(Math.random() * 7)]; // special char
-  
-  // Fill remaining length with random characters
-  for (let i = 4; i < 12; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)];
-  }
-  
-  // Shuffle the password to avoid predictable patterns
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
 // Initialize superadmin user

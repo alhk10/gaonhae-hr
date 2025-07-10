@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -172,8 +171,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      // Check password complexity
-      const complexityResult = checkPasswordComplexity(newPassword);
+      // Check password complexity (not in reset context for user updates)
+      const complexityResult = checkPasswordComplexity(newPassword, false);
       if (!complexityResult.isValid) {
         console.error('AuthContext: Password complexity check failed:', complexityResult.errors);
         return false;
@@ -220,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await logSecurityEvent({
         user_email: user.email,
         action: 'PASSWORD_CHANGE',
-        details: { complexity_met: true }
+        details: { complexity_met: true, changed_from_default: true }
       });
       
       console.log('AuthContext: Password updated successfully');
@@ -287,10 +286,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (passwordValid) {
-        needsPasswordChange = passwordData.requires_change === true || passwordData.must_change_password === true;
+        // Check if password change is required (both flags or default password)
+        needsPasswordChange = passwordData.requires_change === true || 
+                             passwordData.must_change_password === true ||
+                             password === 'password'; // Force change if using default password
       }
     } else {
-      // If no stored password, only allow default password for new users
+      // If no stored password, allow default password for new users
       if (password === 'password') {
         passwordValid = true;
         needsPasswordChange = true;
@@ -363,7 +365,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: userRecord.email,
                 password_hash: hashedPassword,
                 salt: salt,
-                requires_change: false,
+                requires_change: true,
                 must_change_password: true,
                 password_complexity_met: false
               });

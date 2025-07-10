@@ -17,7 +17,8 @@ const PasswordChangeModal: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const passwordComplexity = checkPasswordComplexity(newPassword);
+  // Use non-reset context for user password changes
+  const passwordComplexity = checkPasswordComplexity(newPassword, false);
   const passwordsMatch = newPassword === confirmPassword && newPassword.length > 0;
 
   const handlePasswordUpdate = async () => {
@@ -36,6 +37,16 @@ const PasswordChangeModal: React.FC = () => {
       toast({
         title: "Passwords Don't Match",
         description: "Please ensure both password fields match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent users from setting password to "password"
+    if (newPassword === 'password') {
+      toast({
+        title: "Invalid Password",
+        description: "You cannot use 'password' as your new password. Please choose a secure password.",
         variant: "destructive",
       });
       return;
