@@ -3,7 +3,7 @@ import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInactivityTimer } from '@/hooks/useInactivityTimer';
-import { getCurrentDeviceId } from '@/utils/deviceFingerprint';
+import { getCurrentDeviceId, clearStoredDeviceIds, generateSessionToken } from '@/utils/deviceFingerprint';
 import {
   hashPassword,
   verifyPassword,
@@ -28,7 +28,7 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<boolean>;
 }
 
-// Define session type to include device_id
+// Enhanced session type with additional security fields
 interface UserSession {
   id: string;
   user_id: string;
@@ -102,8 +102,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         details: { reason: 'inactivity_timeout', timeout_seconds: 30 }
       });
 
-      // Clear user-specific session from Supabase
-      await clearUserSession(user.email);
+      // Clear ALL sessions for this user to prevent cross-contamination
+      await clearAllUserSessions(user.email);
     }
     
     setUser(null);
@@ -124,9 +124,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Clear user-specific sessions
+  // Clear ALL user sessions (enhanced security)
+  const clearAllUserSessions = async (email: string) => {
+    console.log('AuthContext: Clearing ALL sessions for user:', email);
+    
+    // Update all sessions with logout reason
+    await supabase
+      .from('user_sessions')
+      .update({ 
+        logout_reason: 'security_logout',
+        last_activity: new Date().toISOString()
+      })
+      .eq('email', email);
+
+    // Delete all sessions for this user
+    await supabase
+      .from('user_sessions')
+      .delete()
+      .eq('email', email);
+      
+    console.log('AuthContext: All sessions cleared for user:', email);
+  };
+
+  // Clear specific user session
   const clearUserSession = async (email: string) => {
     const deviceId = getCurrentDeviceId();
+    
+    console.log('AuthContext: Clearing session for user:', email, 'device:', deviceId);
     
     // Update session with logout reason
     await supabase
@@ -159,14 +183,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('AuthContext: Initializing authentication...');
         
+        // CRITICAL: Clear any stored device IDs to ensure fresh sessions
+        clearStoredDeviceIds();
+        
         // Initialize superadmin user first
         await initializeSuperadmin();
         
-        // Get current device ID for session isolation
+        // Get FRESH device ID for this session (no storage dependency)
         const deviceId = getCurrentDeviceId();
-        console.log('AuthContext: Current device ID:', deviceId);
+        console.log('AuthContext: Generated fresh device ID:', deviceId);
         
-        // Check for active sessions ONLY for this device and not expired
+        // Check for active sessions ONLY for this specific device and not expired
         const { data: sessionsData, error } = await supabase
           .from('user_sessions')
           .select('*')
@@ -181,89 +208,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        // Since we generate fresh device IDs, there should be no existing sessions
         if (sessionsData && sessionsData.length > 0) {
+          console.log('AuthContext: Found existing session, but device ID should be unique. Clearing...');
           const sessionData = sessionsData[0] as UserSession;
-          console.log('AuthContext: Loading stored user session for:', sessionData.email, 'on device:', deviceId);
           
-          // CRITICAL: Verify the session data integrity and re-validate the user
-          const userData = sessionData.session_data as User;
-          
-          // SECURITY CHECK: Ensure session belongs to current device
-          if (sessionData.device_id !== deviceId) {
-            console.error('AuthContext: Session device mismatch - potential security issue');
-            await supabase.from('user_sessions').delete().eq('id', sessionData.id);
-            setIsLoading(false);
-            return;
-          }
-          
-          // Re-validate user role and permissions from database
-          console.log('AuthContext: Re-validating user role for session restore...');
-          const employees = await getEmployees();
-          const employee = employees.find(emp => emp.email === sessionData.email);
-          
-          if (!employee) {
-            console.error('AuthContext: Employee not found during session restore, logging out');
-            await supabase.from('user_sessions').delete().eq('id', sessionData.id);
-            setIsLoading(false);
-            return;
-          }
-
-          // Get fresh admin access data
-          const { data: adminAccess } = await supabase
-            .from('admin_access')
-            .select('*')
-            .eq('employee_id', employee.id)
-            .single();
-
-          // Re-determine role with fresh data
-          const freshRole = await determineUserRole(sessionData.email, adminAccess);
-          
-          // CRITICAL SECURITY CHECK: Validate that the session user matches the employee
-          const userEmployeeId = userData.employeeId || userData.id;
-          if (employee.email !== sessionData.email || employee.id !== userEmployeeId) {
-            console.error('AuthContext: Identity mismatch during session restore', {
-              sessionEmail: sessionData.email,
-              employeeEmail: employee.email,
-              sessionEmployeeId: userEmployeeId,
-              actualEmployeeId: employee.id
-            });
-            await supabase.from('user_sessions').delete().eq('id', sessionData.id);
-            setIsLoading(false);
-            return;
-          }
-          
-          // Create validated user record
-          const validatedUser: User = {
-            id: employee.id,
-            name: employee.name,
-            email: employee.email,
-            role: freshRole,
-            department: employee.branch,
-            employeeId: employee.id
-          };
-          
-          console.log('AuthContext: Session restored with validated role:', freshRole, 'for user:', employee.email);
-          setUser(validatedUser);
-          
-          // Update last activity on session restore
-          await updateLastActivity();
-          
-          // Check password change requirement
-          const { data: passwordData, error: pwError } = await supabase
-            .from('user_passwords')
-            .select('requires_change, must_change_password')
-            .eq('email', sessionData.email)
-            .single();
-          
-          if (!pwError && passwordData) {
-            // Set password change requirement if either flag is true
-            const needsPasswordChange = passwordData.requires_change === true || passwordData.must_change_password === true;
-            console.log('AuthContext: Password change required on init:', needsPasswordChange);
-            setRequiresPasswordChange(needsPasswordChange);
-          }
-        } else {
-          console.log('AuthContext: No active session found for this device');
+          // Clear this potentially stale session
+          await supabase.from('user_sessions').delete().eq('id', sessionData.id);
         }
+        
+        console.log('AuthContext: No active session found - user needs to login');
       } catch (error) {
         console.error('AuthContext: Error initializing auth:', error);
       } finally {
@@ -276,20 +230,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const saveUserSession = async (userData: User, password?: string) => {
     try {
+      // CRITICAL: Generate fresh device ID for this specific login session
       const deviceId = getCurrentDeviceId();
+      const sessionToken = generateSessionToken();
       
-      // Save user session to Supabase with device isolation
+      console.log('AuthContext: Saving session for:', userData.email, 'with device:', deviceId);
+      
+      // SECURITY: Clear any existing sessions for this user first
+      await clearAllUserSessions(userData.email);
+      
+      // Save user session to Supabase with enhanced security
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour session
 
-      // CRITICAL: Create new session instead of upsert to prevent overwriting
+      // Enhanced session data with security token
+      const sessionData = {
+        ...userData,
+        sessionToken,
+        loginTime: new Date().toISOString(),
+        deviceFingerprint: deviceId
+      };
+
       const { error: sessionError } = await supabase
         .from('user_sessions')
         .insert({
           user_id: userData.id,
           email: userData.email,
           device_id: deviceId,
-          session_data: userData as any, // Cast to any to satisfy Json type
+          session_data: sessionData as any, // Cast to any to satisfy Json type
           expires_at: expiresAt.toISOString(),
           last_activity: new Date().toISOString(),
           logout_reason: null
@@ -300,14 +268,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Log successful login with device info
+      // Log successful login with enhanced details
       await logSecurityEvent({
         user_email: userData.email,
         action: 'LOGIN_SUCCESS',
         details: { 
           role: userData.role, 
           device_id: deviceId,
-          employee_id: userData.employeeId 
+          employee_id: userData.employeeId,
+          session_token: sessionToken.substring(0, 8) + '...' // Partial token for logging
         }
       });
       
@@ -397,6 +366,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('AuthContext: Attempting login with:', email);
     
+    // SECURITY: Clear any residual stored device IDs
+    clearStoredDeviceIds();
+    
     // Check if account is locked due to failed attempts
     const isAccountLocked = await checkFailedLoginAttempts(email);
     if (isAccountLocked) {
@@ -479,6 +451,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (employee) {
         console.log('AuthContext: Employee found:', employee.name, 'ID:', employee.id, 'Email:', employee.email);
+        
+        // SECURITY: Clear any existing sessions for this user before creating new one
+        await clearAllUserSessions(email);
         
         // Get admin access permissions for this specific employee
         const { data: adminAccess } = await supabase
@@ -566,9 +541,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         details: { role: user.role }
       });
 
-      // Clear user-specific session
-      await clearUserSession(user.email);
+      // SECURITY: Clear ALL sessions for this user to prevent session reuse
+      await clearAllUserSessions(user.email);
     }
+    
+    // Clear any stored device IDs
+    clearStoredDeviceIds();
     
     setUser(null);
     setRequiresPasswordChange(false);
