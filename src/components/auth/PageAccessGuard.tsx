@@ -6,7 +6,7 @@ import { EmployeeProfile } from '@/types/employee';
 
 interface PageAccessGuardProps {
   children: React.ReactNode;
-  requiredPermission: keyof EmployeeProfile['pageAccess'];
+  requiredPermission: keyof EmployeeProfile['pageAccess'] | keyof EmployeeProfile['adminAccess'];
   fallback?: React.ReactNode;
 }
 
@@ -33,31 +33,45 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
       console.log('PageAccessGuard: Checking access for permission:', requiredPermission);
       console.log('PageAccessGuard: Current user:', user);
       
-      // Superadmin and manager have access to all pages
-      if (user?.role === 'superadmin' || user?.role === 'manager') {
-        console.log('PageAccessGuard: Superadmin/Manager access granted');
+      // Superadmin has access to all pages
+      if (user?.role === 'superadmin') {
+        console.log('PageAccessGuard: Superadmin access granted');
         setHasAccess(true);
         setIsLoading(false);
         return;
       }
 
-      // For employees, check page access permissions
-      if (user?.email && user?.role === 'employee') {
+      // For all other users (including managers), check specific permissions
+      if (user?.email) {
         try {
           const employees = await getEmployees();
           const employee = employees.find(emp => emp.email === user.email);
           
           console.log('PageAccessGuard: Found employee:', employee?.name);
           console.log('PageAccessGuard: Employee page access:', employee?.pageAccess);
+          console.log('PageAccessGuard: Employee admin access:', employee?.adminAccess);
           
           setCurrentEmployee(employee || null);
           
-          if (employee?.pageAccess) {
-            const hasPermission = employee.pageAccess[requiredPermission];
-            console.log(`PageAccessGuard: Permission ${requiredPermission}:`, hasPermission);
-            setHasAccess(hasPermission || false);
+          if (employee) {
+            // Check both page access and admin access permissions
+            let hasPermission = false;
+            
+            // Check page access permissions first
+            if (employee.pageAccess && requiredPermission in employee.pageAccess) {
+              hasPermission = employee.pageAccess[requiredPermission as keyof EmployeeProfile['pageAccess']] || false;
+              console.log(`PageAccessGuard: Page permission ${requiredPermission}:`, hasPermission);
+            }
+            
+            // If not found in page access, check admin access permissions
+            if (!hasPermission && employee.adminAccess && requiredPermission in employee.adminAccess) {
+              hasPermission = employee.adminAccess[requiredPermission as keyof EmployeeProfile['adminAccess']] || false;
+              console.log(`PageAccessGuard: Admin permission ${requiredPermission}:`, hasPermission);
+            }
+            
+            setHasAccess(hasPermission);
           } else {
-            console.log('PageAccessGuard: No page access permissions found');
+            console.log('PageAccessGuard: No employee found');
             setHasAccess(false);
           }
         } catch (error) {

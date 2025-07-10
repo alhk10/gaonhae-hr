@@ -56,14 +56,16 @@ const determineUserRole = async (email: string, adminAccess: any): Promise<'supe
 
   console.log('AuthContext: Admin permissions count:', permissions);
 
-  // If user has some permissions (but not superadmin), they are manager
-  if (permissions > 0) {
-    console.log('AuthContext: User has partial permissions - assigning manager role');
+  // Require at least 4 permissions to be considered a manager (more restrictive)
+  // This prevents users with just 1-2 permissions from getting full manager access
+  if (permissions >= 4) {
+    console.log('AuthContext: User has sufficient permissions - assigning manager role');
     return 'manager';
   }
   
-  // If user has no permissions, they are employee
-  console.log('AuthContext: User has no permissions - assigning employee role');
+  // If user has some permissions but not enough for manager, they remain employee
+  // They'll get individual permission-based access through the sidebar and page guards
+  console.log('AuthContext: User has limited permissions - keeping as employee with specific admin access');
   return 'employee';
 };
 
