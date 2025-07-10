@@ -289,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user_id: userData.id,
           email: userData.email,
           device_id: deviceId,
-          session_data: userData,
+          session_data: userData as any, // Cast to any to satisfy Json type
           expires_at: expiresAt.toISOString(),
           last_activity: new Date().toISOString(),
           logout_reason: null
