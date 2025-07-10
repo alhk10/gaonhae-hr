@@ -1223,6 +1223,8 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          last_activity: string | null
+          logout_reason: string | null
           session_data: Json
           updated_at: string
           user_id: string
@@ -1232,6 +1234,8 @@ export type Database = {
           email: string
           expires_at: string
           id?: string
+          last_activity?: string | null
+          logout_reason?: string | null
           session_data: Json
           updated_at?: string
           user_id: string
@@ -1241,6 +1245,8 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          last_activity?: string | null
+          logout_reason?: string | null
           session_data?: Json
           updated_at?: string
           user_id?: string

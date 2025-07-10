@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
 import { supabase } from '@/integrations/supabase/client';
+import { useInactivityTimer } from '@/hooks/useInactivityTimer';
 import {
   hashPassword,
   verifyPassword,
@@ -74,6 +76,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
+  // Auto-logout handler for inactivity
+  const handleAutoLogout = async () => {
+    console.log('AuthContext: Auto-logout triggered due to inactivity');
+    
+    if (user?.email) {
+      // Log auto-logout event
+      await logSecurityEvent({
+        user_email: user.email,
+        action: 'AUTO_LOGOUT',
+        details: { reason: 'inactivity_timeout', timeout_seconds: 30 }
+      });
+
+      // Update session with logout reason
+      await supabase
+        .from('user_sessions')
+        .update({ 
+          logout_reason: 'auto_inactivity',
+          last_activity: new Date().toISOString()
+        })
+        .eq('email', user.email);
+
+      // Remove session from Supabase
+      await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('email', user.email);
+    }
+    
+    setUser(null);
+    setRequiresPasswordChange(false);
+  };
+
+  // Update last activity in database
+  const updateLastActivity = async () => {
+    if (user?.email) {
+      await supabase
+        .from('user_sessions')
+        .update({ 
+          last_activity: new Date().toISOString()
+        })
+        .eq('email', user.email);
+    }
+  };
+
+  // Initialize inactivity timer - 30 seconds timeout
+  const { resetTimer } = useInactivityTimer({
+    timeout: 30000, // 30 seconds
+    onTimeout: handleAutoLogout,
+    enabled: !!user && !requiresPasswordChange // Only enable when user is logged in and not changing password
+  });
+
   useEffect(() => {
     // Initialize the security system and check for sessions
     const initializeAuth = async () => {
@@ -104,6 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Properly cast the session data to User type
           const userData = sessionData.session_data as unknown as User;
           setUser(userData);
+          
+          // Update last activity on session restore
+          await updateLastActivity();
           
           // Check password change requirement
           const { data: passwordData, error: pwError } = await supabase
@@ -143,7 +199,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user_id: userData.id,
           email: userData.email,
           session_data: userData as any,
-          expires_at: expiresAt.toISOString()
+          expires_at: expiresAt.toISOString(),
+          last_activity: new Date().toISOString(),
+          logout_reason: 'manual'
         });
 
       if (sessionError) {
@@ -407,7 +465,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         details: { role: user.role }
       });
 
-      // Remove session from Supabase
+      // Update session with logout reason and remove it
+      await supabase
+        .from('user_sessions')
+        .update({ 
+          logout_reason: 'manual',
+          last_activity: new Date().toISOString()
+        })
+        .eq('email', user.email);
+
       await supabase
         .from('user_sessions')
         .delete()
@@ -417,6 +483,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setRequiresPasswordChange(false);
   };
+
+  // Periodically update last activity
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      updateLastActivity();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Debug log current user state
   useEffect(() => {
