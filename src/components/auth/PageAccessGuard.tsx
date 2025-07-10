@@ -31,7 +31,12 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
   useEffect(() => {
     const checkAccess = async () => {
       console.log('PageAccessGuard: Checking access for permission:', requiredPermission);
-      console.log('PageAccessGuard: Current user:', user);
+      console.log('PageAccessGuard: Current user:', {
+        id: user?.id,
+        email: user?.email,
+        role: user?.role,
+        employeeId: user?.employeeId
+      });
       
       // Superadmin has access to all pages
       if (user?.role === 'superadmin') {
@@ -42,18 +47,40 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
       }
 
       // For all other users (including managers), check specific permissions
-      if (user?.email) {
+      if (user?.email && user?.employeeId) {
         try {
           const employees = await getEmployees();
-          const employee = employees.find(emp => emp.email === user.email);
+          // CRITICAL: Match by both email AND employeeId for security
+          const employee = employees.find(emp => 
+            emp.email === user.email && emp.id === user.employeeId
+          );
           
-          console.log('PageAccessGuard: Found employee:', employee?.name);
-          console.log('PageAccessGuard: Employee page access:', employee?.pageAccess);
-          console.log('PageAccessGuard: Employee admin access:', employee?.adminAccess);
+          console.log('PageAccessGuard: Employee lookup result:', {
+            found: !!employee,
+            employeeName: employee?.name,
+            employeeId: employee?.id,
+            employeeEmail: employee?.email
+          });
           
           setCurrentEmployee(employee || null);
           
           if (employee) {
+            // CRITICAL: Verify user identity matches employee data
+            if (employee.id !== user.employeeId || employee.email !== user.email) {
+              console.error('PageAccessGuard: Identity mismatch detected!', {
+                employeeId: employee.id,
+                userEmployeeId: user.employeeId,
+                employeeEmail: employee.email,
+                userEmail: user.email
+              });
+              setHasAccess(false);
+              setIsLoading(false);
+              return;
+            }
+
+            console.log('PageAccessGuard: Employee page access:', employee.pageAccess);
+            console.log('PageAccessGuard: Employee admin access:', employee.adminAccess);
+            
             // Check both page access and admin access permissions
             let hasPermission = false;
             
@@ -71,7 +98,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
             
             setHasAccess(hasPermission);
           } else {
-            console.log('PageAccessGuard: No employee found');
+            console.log('PageAccessGuard: No employee found for user');
             setHasAccess(false);
           }
         } catch (error) {
@@ -79,7 +106,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
           setHasAccess(false);
         }
       } else {
-        console.log('PageAccessGuard: No valid user found');
+        console.log('PageAccessGuard: No valid user found or missing employeeId');
         setHasAccess(false);
       }
       

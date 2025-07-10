@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,11 +27,15 @@ const EmployeeProfileForm = () => {
       try {
         if (!user?.employeeId) {
           console.error('No employee ID found for current user');
+          toast.error('Unable to load profile: No employee ID found');
           return;
         }
 
+        console.log('Loading employee data for ID:', user.employeeId);
         const employeeData = await getEmployeeById(user.employeeId);
+        
         if (employeeData) {
+          console.log('Employee data loaded:', employeeData);
           setEmployee(employeeData);
           setFormData({
             name: employeeData.name || '',
@@ -42,10 +45,13 @@ const EmployeeProfileForm = () => {
             bankName: employeeData.bankName || '',
             bankAccount: employeeData.bankAccount || ''
           });
+        } else {
+          console.error('Employee data not found for ID:', user.employeeId);
+          toast.error('Employee profile not found');
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
-        toast('Failed to load profile data');
+        toast.error('Failed to load profile data');
       } finally {
         setLoading(false);
       }
@@ -63,12 +69,15 @@ const EmployeeProfileForm = () => {
 
   const handleSave = async () => {
     try {
-      if (!employee) return;
+      if (!employee || !user?.employeeId) {
+        toast.error('Unable to save: Missing employee data');
+        return;
+      }
 
       setSaving(true);
       
-      const updatedEmployeeData = {
-        name: formData.name,
+      // Only allow superadmins to change the name
+      const updatedEmployeeData: any = {
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
@@ -76,17 +85,25 @@ const EmployeeProfileForm = () => {
         bankAccount: formData.bankAccount
       };
 
+      // Only include name if user is superadmin
+      if (user.role === 'superadmin') {
+        updatedEmployeeData.name = formData.name;
+      }
+
+      console.log('Updating employee with data:', updatedEmployeeData);
       await updateEmployee(employee.id, updatedEmployeeData);
       
       setEmployee({
         ...employee,
-        ...updatedEmployeeData
+        ...updatedEmployeeData,
+        // Keep original name if not superadmin
+        name: user.role === 'superadmin' ? formData.name : employee.name
       });
       
-      toast('Profile updated successfully');
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast('Failed to update profile');
+      toast.error('Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -110,6 +127,21 @@ const EmployeeProfileForm = () => {
     );
   }
 
+  // Verify the logged-in user matches the profile being viewed
+  if (user?.employeeId !== employee.id) {
+    console.error('Profile access denied: User ID mismatch', {
+      userEmployeeId: user?.employeeId,
+      profileEmployeeId: employee.id
+    });
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-red-600">Access denied: Profile mismatch</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -125,7 +157,14 @@ const EmployeeProfileForm = () => {
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter your full name"
+                disabled={user?.role !== 'superadmin'}
+                className={user?.role !== 'superadmin' ? 'bg-gray-100 text-gray-600' : ''}
               />
+              {user?.role !== 'superadmin' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Only administrators can modify the full name
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="email">Email Address</Label>

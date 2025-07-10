@@ -34,14 +34,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const determineUserRole = async (email: string, adminAccess: any): Promise<'superadmin' | 'manager' | 'employee'> => {
   console.log('AuthContext: Determining role for:', email);
   
-  // First check if user is superadmin
+  // First check if user is superadmin - this should be the ONLY way to get superadmin role
   const isUserSuperadmin = await isSuperadmin(email);
+  console.log('AuthContext: Superadmin check result for', email, ':', isUserSuperadmin);
+  
   if (isUserSuperadmin) {
-    console.log('AuthContext: User is superadmin');
+    console.log('AuthContext: User is confirmed superadmin');
     return 'superadmin';
   }
   
   if (!adminAccess) {
+    console.log('AuthContext: No admin access found, assigning employee role');
     return 'employee';
   }
 
@@ -152,11 +155,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (sessions && sessions.length > 0) {
           const sessionData = sessions[0];
-          console.log('AuthContext: Loading stored user session:', sessionData.session_data);
+          console.log('AuthContext: Loading stored user session for:', sessionData.email);
           
-          // Properly cast the session data to User type
+          // CRITICAL: Verify the session data integrity and re-validate the user
           const userData = sessionData.session_data as unknown as User;
-          setUser(userData);
+          
+          // Re-validate user role and permissions from database
+          console.log('AuthContext: Re-validating user role for session restore...');
+          const employees = await getEmployees();
+          const employee = employees.find(emp => emp.email === sessionData.email);
+          
+          if (!employee) {
+            console.error('AuthContext: Employee not found during session restore, logging out');
+            await supabase.from('user_sessions').delete().eq('id', sessionData.id);
+            setIsLoading(false);
+            return;
+          }
+
+          // Get fresh admin access data
+          const { data: adminAccess } = await supabase
+            .from('admin_access')
+            .select('*')
+            .eq('employee_id', employee.id)
+            .single();
+
+          // Re-determine role with fresh data
+          const freshRole = await determineUserRole(sessionData.email, adminAccess);
+          
+          // Create validated user record
+          const validatedUser: User = {
+            id: employee.id,
+            name: employee.name,
+            email: employee.email,
+            role: freshRole,
+            department: employee.branch,
+            employeeId: employee.id
+          };
+          
+          console.log('AuthContext: Session restored with validated role:', freshRole);
+          setUser(validatedUser);
           
           // Update last activity on session restore
           await updateLastActivity();
@@ -379,35 +416,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const employees = await getEmployees();
       console.log('AuthContext: Loaded employees:', employees.length);
       
-      // Find employee with matching email
-      const employee = employees.find(emp => emp.email === email);
+      // Find employee with matching email - STRICT EMAIL MATCHING
+      const employee = employees.find(emp => emp.email?.toLowerCase().trim() === email.toLowerCase().trim());
       
       if (employee) {
-        console.log('AuthContext: Employee found:', employee);
+        console.log('AuthContext: Employee found:', employee.name, 'ID:', employee.id, 'Email:', employee.email);
         
-        // Get admin access permissions for this employee
+        // Get admin access permissions for this specific employee
         const { data: adminAccess } = await supabase
           .from('admin_access')
           .select('*')
           .eq('employee_id', employee.id)
           .single();
 
-        console.log('AuthContext: Admin access for employee:', adminAccess);
+        console.log('AuthContext: Admin access for employee ID', employee.id, ':', adminAccess);
         
         // Determine role based on admin permissions and superadmin status
+        // This should be the ONLY place where roles are determined
         const userRole = await determineUserRole(email, adminAccess);
-        console.log('AuthContext: Determined role:', userRole);
+        console.log('AuthContext: Determined role for', email, ':', userRole);
         
+        // CRITICAL: Ensure employee ID matches between user record and employee data
         const userRecord: User = {
-          id: employee.id,
+          id: employee.id, // Use employee's actual ID
           name: employee.name,
-          email: employee.email,
+          email: employee.email, // Use employee's actual email
           role: userRole,
           department: employee.branch,
-          employeeId: employee.id
+          employeeId: employee.id // Must match the employee's ID exactly
         };
         
-        console.log('AuthContext: Created user record with role:', userRecord.role);
+        console.log('AuthContext: Created user record:', {
+          id: userRecord.id,
+          email: userRecord.email,
+          role: userRecord.role,
+          employeeId: userRecord.employeeId
+        });
         
         setUser(userRecord);
         await saveUserSession(userRecord, password);
@@ -497,11 +541,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Debug log current user state
   useEffect(() => {
-    console.log('AuthContext: Current user state changed:', user);
+    console.log('AuthContext: Current user state changed:', {
+      id: user?.id,
+      email: user?.email,
+      role: user?.role,
+      employeeId: user?.employeeId
+    });
     console.log('AuthContext: requiresPasswordChange state:', requiresPasswordChange);
-    if (user) {
-      console.log('AuthContext: Current user role:', user.role);
-    }
   }, [user, requiresPasswordChange]);
 
   return (
