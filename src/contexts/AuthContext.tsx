@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -27,6 +26,20 @@ interface AuthContextType {
   isLoading: boolean;
   requiresPasswordChange: boolean;
   updatePassword: (newPassword: string) => Promise<boolean>;
+}
+
+// Define session type to include device_id
+interface UserSession {
+  id: string;
+  user_id: string;
+  email: string;
+  device_id: string;
+  session_data: any;
+  expires_at: string;
+  last_activity: string;
+  logout_reason: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -154,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthContext: Current device ID:', deviceId);
         
         // Check for active sessions ONLY for this device and not expired
-        const { data: sessions, error } = await supabase
+        const { data: sessionsData, error } = await supabase
           .from('user_sessions')
           .select('*')
           .eq('device_id', deviceId)
@@ -168,12 +181,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        if (sessions && sessions.length > 0) {
-          const sessionData = sessions[0];
+        if (sessionsData && sessionsData.length > 0) {
+          const sessionData = sessionsData[0] as UserSession;
           console.log('AuthContext: Loading stored user session for:', sessionData.email, 'on device:', deviceId);
           
           // CRITICAL: Verify the session data integrity and re-validate the user
-          const userData = sessionData.session_data as unknown as User;
+          const userData = sessionData.session_data as User;
           
           // SECURITY CHECK: Ensure session belongs to current device
           if (sessionData.device_id !== deviceId) {
@@ -206,11 +219,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const freshRole = await determineUserRole(sessionData.email, adminAccess);
           
           // CRITICAL SECURITY CHECK: Validate that the session user matches the employee
-          if (employee.email !== sessionData.email || employee.id !== (userData.employeeId || userData.id)) {
+          const userEmployeeId = userData.employeeId || userData.id;
+          if (employee.email !== sessionData.email || employee.id !== userEmployeeId) {
             console.error('AuthContext: Identity mismatch during session restore', {
               sessionEmail: sessionData.email,
               employeeEmail: employee.email,
-              sessionEmployeeId: userData.employeeId || userData.id,
+              sessionEmployeeId: userEmployeeId,
               actualEmployeeId: employee.id
             });
             await supabase.from('user_sessions').delete().eq('id', sessionData.id);
@@ -275,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user_id: userData.id,
           email: userData.email,
           device_id: deviceId,
-          session_data: userData as any,
+          session_data: userData,
           expires_at: expiresAt.toISOString(),
           last_activity: new Date().toISOString(),
           logout_reason: null
