@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/auth';
 import { getEmployees } from '@/services/employeeService';
@@ -62,14 +63,11 @@ const determineUserRole = async (email: string, adminAccess: any): Promise<'supe
   console.log('AuthContext: Admin permissions count:', permissions);
 
   // Require at least 4 permissions to be considered a manager (more restrictive)
-  // This prevents users with just 1-2 permissions from getting full manager access
   if (permissions >= 4) {
     console.log('AuthContext: User has sufficient permissions - assigning manager role');
     return 'manager';
   }
   
-  // If user has some permissions but not enough for manager, they remain employee
-  // They'll get individual permission-based access through the sidebar and page guards
   console.log('AuthContext: User has limited permissions - keeping as employee with specific admin access');
   return 'employee';
 };
@@ -139,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { resetTimer } = useInactivityTimer({
     timeout: 30000, // 30 seconds
     onTimeout: handleAutoLogout,
-    enabled: !!user && !requiresPasswordChange // Only enable when user is logged in and not changing password
+    enabled: !!user && !requiresPasswordChange
   });
 
   useEffect(() => {
@@ -208,11 +206,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const freshRole = await determineUserRole(sessionData.email, adminAccess);
           
           // CRITICAL SECURITY CHECK: Validate that the session user matches the employee
-          if (employee.email !== sessionData.email || employee.id !== userData.employeeId) {
+          if (employee.email !== sessionData.email || employee.id !== (userData.employeeId || userData.id)) {
             console.error('AuthContext: Identity mismatch during session restore', {
               sessionEmail: sessionData.email,
               employeeEmail: employee.email,
-              sessionEmployeeId: userData.employeeId,
+              sessionEmployeeId: userData.employeeId || userData.id,
               actualEmployeeId: employee.id
             });
             await supabase.from('user_sessions').delete().eq('id', sessionData.id);
@@ -456,10 +454,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear failed login attempts on successful authentication
     await clearFailedLoginAttempts(email);
     
-    // CRITICAL: Clear any existing sessions for this user on other devices (optional security measure)
-    // Comment out if you want to allow multiple concurrent sessions
-    // await supabase.from('user_sessions').delete().eq('email', email);
-    
     // Load all employees from database for regular employee login
     try {
       console.log('AuthContext: Loading employees from database...');
@@ -482,18 +476,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthContext: Admin access for employee ID', employee.id, ':', adminAccess);
         
         // Determine role based on admin permissions and superadmin status
-        // This should be the ONLY place where roles are determined
         const userRole = await determineUserRole(email, adminAccess);
         console.log('AuthContext: Determined role for', email, ':', userRole);
         
         // CRITICAL: Ensure employee ID matches between user record and employee data
         const userRecord: User = {
-          id: employee.id, // Use employee's actual ID
+          id: employee.id,
           name: employee.name,
-          email: employee.email, // Use employee's actual email
+          email: employee.email,
           role: userRole,
           department: employee.branch,
-          employeeId: employee.id // Must match the employee's ID exactly
+          employeeId: employee.id
         };
         
         console.log('AuthContext: Created user record:', {
