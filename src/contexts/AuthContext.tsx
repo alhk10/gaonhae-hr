@@ -6,8 +6,13 @@ import { getEmployees } from '@/services/employeeService';
 import LoggedOutPage from '@/components/auth/LoggedOutPage';
 
 interface User {
+  id: string;
   email: string;
-  role?: string;
+  name: string;
+  role: 'superadmin' | 'manager' | 'employee';
+  department?: string;
+  employeeId?: string;
+  managerId?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +20,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  requiresPasswordChange: boolean;
+  updatePassword: (newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   console.log('AuthContext: Provider rendered with user:', user?.email);
 
@@ -67,9 +75,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (employee) {
             console.log('AuthContext: Employee found, setting user');
             setUser({ 
+              id: employee.id,
               email: session.user.email,
-              role: employee.type 
+              name: employee.name,
+              role: employee.type === 'Full-Time' ? 'employee' : 'employee',
+              employeeId: employee.id,
+              department: employee.department
             });
+            
+            // Check if password change is required
+            // This would typically come from your password management system
+            setRequiresPasswordChange(false);
           } else {
             console.warn('AuthContext: User email not found in employees table');
             setHasError(true);
@@ -119,8 +135,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (employee) {
           console.log('AuthContext: Login successful for employee:', employee.name);
           setUser({ 
+            id: employee.id,
             email: data.user.email,
-            role: employee.type 
+            name: employee.name,
+            role: employee.type === 'Full-Time' ? 'employee' : 'employee',
+            employeeId: employee.id,
+            department: employee.department
           });
           toast("Login successful!");
           return true;
@@ -143,6 +163,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updatePassword = async (newPassword: string): Promise<boolean> => {
+    try {
+      console.log('AuthContext: Updating password...');
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('AuthContext: Password update error:', error);
+        return false;
+      }
+
+      setRequiresPasswordChange(false);
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Password update error:', error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       console.log('AuthContext: Logging out user');
@@ -152,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setIsLoggedOut(true);
       setHasError(false);
+      setRequiresPasswordChange(false);
       
       console.log('AuthContext: Logout successful');
       toast("Logged out successfully");
@@ -185,6 +226,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isLoading,
+    requiresPasswordChange,
+    updatePassword,
   };
 
   return (
