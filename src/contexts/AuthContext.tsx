@@ -47,6 +47,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuthStatus();
   }, []);
 
+  const checkSuperadminStatus = async (email: string): Promise<boolean> => {
+    try {
+      console.log('AuthContext: Checking superadmin status for:', email);
+      const { data, error } = await supabase.rpc('is_superadmin', { user_email: email });
+      
+      if (error) {
+        console.error('AuthContext: Error checking superadmin status:', error);
+        return false;
+      }
+      
+      console.log('AuthContext: Superadmin status result:', data);
+      return data || false;
+    } catch (error) {
+      console.error('AuthContext: Error in superadmin check:', error);
+      return false;
+    }
+  };
+
   const checkAuthStatus = async () => {
     try {
       console.log('AuthContext: Checking authentication status...');
@@ -73,12 +91,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const employee = employees.find(emp => emp.email === session.user.email);
           
           if (employee) {
-            console.log('AuthContext: Employee found, setting user');
+            console.log('AuthContext: Employee found, checking superadmin status');
+            
+            // Check if user is superadmin
+            const isSuperadmin = await checkSuperadminStatus(session.user.email);
+            const userRole = isSuperadmin ? 'superadmin' : 'employee';
+            
+            console.log('AuthContext: Setting user with role:', userRole);
             setUser({ 
               id: employee.id,
               email: session.user.email,
               name: employee.name,
-              role: employee.type === 'Full-Time' ? 'employee' : 'employee',
+              role: userRole,
               employeeId: employee.id,
               department: employee.department
             });
@@ -134,11 +158,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (employee) {
           console.log('AuthContext: Login successful for employee:', employee.name);
+          
+          // Check if user is superadmin
+          const isSuperadmin = await checkSuperadminStatus(data.user.email);
+          const userRole = isSuperadmin ? 'superadmin' : 'employee';
+          
+          console.log('AuthContext: Setting logged in user with role:', userRole);
           setUser({ 
             id: employee.id,
             email: data.user.email,
             name: employee.name,
-            role: employee.type === 'Full-Time' ? 'employee' : 'employee',
+            role: userRole,
             employeeId: employee.id,
             department: employee.department
           });
