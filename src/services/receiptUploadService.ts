@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface UploadResult {
@@ -170,7 +169,6 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
     fileSize: file.size,
     fileType: file.type,
     employeeId: employeeId,
-    supabaseUrl: supabase.supabaseUrl,
     timestamp: new Date().toISOString()
   });
 
