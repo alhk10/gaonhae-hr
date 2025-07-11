@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +11,7 @@ import { getClaims, updateClaimStatus, type Claim } from '@/services/claimsServi
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import AddClaimDialog from '@/components/claim/AddClaimDialog';
 
 const Claims = () => {
   const { user } = useAuth();
@@ -177,9 +177,16 @@ const Claims = () => {
   return (
     <ResponsiveLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
-          <p className="text-gray-600 mt-2">Manage and approve employee expense claims</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
+            <p className="text-gray-600 mt-2">Manage and approve employee expense claims</p>
+          </div>
+          
+          {/* Add Claim Button - Only show for managers and superadmins */}
+          {user?.role !== 'employee' && (
+            <AddClaimDialog onClaimAdded={loadClaims} />
+          )}
         </div>
 
         {/* Stats Cards */}
