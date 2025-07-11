@@ -1,60 +1,110 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { User, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, Menu } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = '/';
+  console.log('Navbar: Rendering with user:', user?.email);
+
+  const handleLogout = async () => {
+    console.log('Navbar: Logout button clicked');
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Navbar: Error during logout:', error);
+    }
+    setShowMobileMenu(false);
   };
 
+  const toggleMobileMenu = () => {
+    setShowMobileMenu(!showMobileMenu);
+  };
+
+  if (!user) {
+    console.log('Navbar: No user found, not rendering navbar');
+    return null;
+  }
+
   return (
-    <nav className="bg-white border-b border-gray-200 px-3 md:px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
-            <img 
-              src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" 
-              alt="Gaonhae Taekwondo Logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          {!isMobile && (
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Gaonhae HR</h1>
+    <>
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <img 
+                src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
+                alt="Gaonhae HR" 
+                className="h-8 w-auto"
+              />
+              <span className="ml-2 text-xl font-bold text-gray-900">Gaonhae HR</span>
             </div>
-          )}
-        </div>
-        
-        <div className="flex items-center space-x-2 md:space-x-4">
-          <div className={`flex items-center space-x-2 text-sm ${isMobile ? 'flex-col items-end space-x-0 space-y-1' : ''}`}>
-            <div className="flex items-center space-x-2">
-              <User className="w-4 h-4 text-gray-400" />
-              <span className={`text-gray-700 ${isMobile ? 'text-xs' : ''}`}>
-                {isMobile ? user?.name?.split(' ')[0] : user?.name}
-              </span>
-            </div>
-            <span className={`bg-blue-100 text-blue-800 px-2 py-1 rounded-full capitalize ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs'}`}>
-              {user?.role}
-            </span>
+
+            {/* Desktop User Menu */}
+            {!isMobile && (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-700">{user.email}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="flex items-center space-x-1"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </Button>
+              </div>
+            )}
+
+            {/* Mobile Menu Button */}
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleMobileMenu}
+                className="p-2"
+              >
+                {showMobileMenu ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </Button>
+            )}
           </div>
-          <Button 
-            variant="outline" 
-            size={isMobile ? "sm" : "sm"} 
-            onClick={handleLogout}
-            className={isMobile ? 'text-xs px-2 py-1' : ''}
-          >
-            {isMobile ? 'Out' : 'Logout'}
-          </Button>
         </div>
-      </div>
-    </nav>
+
+        {/* Mobile Menu */}
+        {isMobile && showMobileMenu && (
+          <div className="border-t border-gray-200 bg-white">
+            <div className="px-4 py-3 space-y-3">
+              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                <User className="w-4 h-4" />
+                <span>{user.email}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center space-x-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
+          </div>
+        )}
+      </nav>
+    </>
   );
 };
 
