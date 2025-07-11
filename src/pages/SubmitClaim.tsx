@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,7 @@ import { getEmployees } from '@/services/employeeService';
 import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { testUploadFunctionality } from '@/services/receiptUploadService';
 
 const SubmitClaim = () => {
   const { user } = useAuth();
@@ -26,6 +27,8 @@ const SubmitClaim = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [employeeLoadError, setEmployeeLoadError] = useState<string | null>(null);
+  const [uploadTestResult, setUploadTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [formData, setFormData] = useState({
     type: '',
     amount: '',
@@ -35,13 +38,32 @@ const SubmitClaim = () => {
     description: ''
   });
 
+  console.log('SubmitClaim: Component rendered with user:', user?.email);
+
+  // Test upload functionality on component mount
+  useEffect(() => {
+    const runUploadTest = async () => {
+      console.log('SubmitClaim: Running upload functionality test...');
+      try {
+        const result = await testUploadFunctionality();
+        setUploadTestResult(result);
+        console.log('SubmitClaim: Upload test result:', result);
+      } catch (error) {
+        console.error('SubmitClaim: Upload test error:', error);
+        setUploadTestResult({ success: false, message: 'Test failed to run' });
+      }
+    };
+
+    runUploadTest();
+  }, []);
+
   // Load claim types from database
   useEffect(() => {
     const loadClaimTypes = async () => {
       try {
-        console.log('Loading claim types from database...');
+        console.log('SubmitClaim: Loading claim types from database...');
         const types = await getClaimTypes();
-        console.log('Loaded claim types:', types);
+        console.log('SubmitClaim: Loaded claim types:', types);
         setClaimTypes(types);
         
         // Set default type based on employee type
@@ -54,7 +76,7 @@ const SubmitClaim = () => {
           }
         }
       } catch (error) {
-        console.error('Error loading claim types:', error);
+        console.error('SubmitClaim: Error loading claim types:', error);
         toast("Error loading claim types");
       }
     };
@@ -67,31 +89,38 @@ const SubmitClaim = () => {
   // Load current employee and their claims
   useEffect(() => {
     const loadEmployeeAndClaims = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        console.log('SubmitClaim: No user email available');
+        return;
+      }
 
       try {
         setIsLoading(true);
-        console.log('Loading employee data for:', user.email);
+        setEmployeeLoadError(null);
+        console.log('SubmitClaim: Loading employee data for:', user.email);
         
         // Get current employee
         const employees = await getEmployees();
         const employee = employees.find(emp => emp.email === user.email);
         
         if (employee) {
-          console.log('Found employee:', employee);
+          console.log('SubmitClaim: Found employee:', employee);
           setCurrentEmployee(employee);
           
           // Load employee's claims
-          console.log('Loading claims for employee ID:', employee.id);
+          console.log('SubmitClaim: Loading claims for employee ID:', employee.id);
           const employeeClaims = await getEmployeeClaims(employee.id);
-          console.log('Loaded claims:', employeeClaims);
+          console.log('SubmitClaim: Loaded claims:', employeeClaims);
           setClaims(employeeClaims);
         } else {
-          console.log('Employee not found for email:', user.email);
+          const errorMsg = `Employee not found for email: ${user.email}`;
+          console.log('SubmitClaim:', errorMsg);
+          setEmployeeLoadError(errorMsg);
         }
       } catch (error) {
-        console.error('Error loading employee data:', error);
-        toast("Error loading claim history");
+        console.error('SubmitClaim: Error loading employee data:', error);
+        setEmployeeLoadError('Failed to load employee information');
+        toast("Error loading employee data");
       } finally {
         setIsLoading(false);
       }
@@ -101,6 +130,7 @@ const SubmitClaim = () => {
   }, [user]);
 
   const handleInputChange = (field: string, value: string) => {
+    console.log('SubmitClaim: Form field changed:', field, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -108,19 +138,25 @@ const SubmitClaim = () => {
   };
 
   const handleSubmitClaim = async () => {
+    console.log('SubmitClaim: Attempting to submit claim with data:', formData);
+    console.log('SubmitClaim: Receipt URL:', receiptUrl);
+    console.log('SubmitClaim: Current employee:', currentEmployee);
+
     if (!currentEmployee || !formData.type || !formData.amount || !formData.date || !formData.description) {
+      console.error('SubmitClaim: Missing required fields');
       toast("Please fill in all required fields");
       return;
     }
 
     if (!receiptUrl) {
+      console.error('SubmitClaim: No receipt uploaded');
       toast("Please upload a receipt before submitting");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      console.log('Submitting claim:', formData, 'with receipt:', receiptUrl);
+      console.log('SubmitClaim: Submitting claim...');
 
       const newClaim = {
         employeeId: currentEmployee.id,
@@ -133,6 +169,7 @@ const SubmitClaim = () => {
         receipt_url: receiptUrl
       };
 
+      console.log('SubmitClaim: New claim object:', newClaim);
       await createClaim(newClaim);
       
       // Reload claims to show the new one
@@ -150,12 +187,39 @@ const SubmitClaim = () => {
       }));
       setReceiptUrl(null);
 
+      console.log('SubmitClaim: Claim submitted successfully');
       toast("Claim submitted successfully!");
     } catch (error) {
-      console.error('Error submitting claim:', error);
+      console.error('SubmitClaim: Error submitting claim:', error);
       toast("Error submitting claim. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRetryLoadEmployee = async () => {
+    console.log('SubmitClaim: Retrying employee load...');
+    if (!user?.email) return;
+    
+    setEmployeeLoadError(null);
+    setIsLoading(true);
+    
+    try {
+      const employees = await getEmployees();
+      const employee = employees.find(emp => emp.email === user.email);
+      
+      if (employee) {
+        setCurrentEmployee(employee);
+        const employeeClaims = await getEmployeeClaims(employee.id);
+        setClaims(employeeClaims);
+      } else {
+        setEmployeeLoadError(`Employee not found for email: ${user.email}`);
+      }
+    } catch (error) {
+      console.error('SubmitClaim: Retry failed:', error);
+      setEmployeeLoadError('Failed to load employee information');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -208,7 +272,30 @@ const SubmitClaim = () => {
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600">Loading employee information...</p>
+            {uploadTestResult && (
+              <p className="text-xs text-gray-500 mt-2">
+                Upload system: {uploadTestResult.success ? '✅' : '❌'} {uploadTestResult.message}
+              </p>
+            )}
+          </div>
+        </div>
+      </ResponsiveLayout>
+    );
+  }
+
+  if (employeeLoadError) {
+    return (
+      <ResponsiveLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 font-medium mb-2">Unable to load your information</p>
+            <p className="text-gray-600 text-sm mb-4">{employeeLoadError}</p>
+            <Button onClick={handleRetryLoadEmployee} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </div>
       </ResponsiveLayout>
@@ -218,6 +305,17 @@ const SubmitClaim = () => {
   return (
     <ResponsiveLayout>
       <div className={`space-y-4 md:space-y-8 ${isMobile ? 'px-1' : 'max-w-7xl mx-auto'}`}>
+        {/* Upload Test Status */}
+        {uploadTestResult && (
+          <div className={`p-2 rounded-lg text-xs ${
+            uploadTestResult.success 
+              ? 'bg-green-50 text-green-700 border border-green-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            Upload System Status: {uploadTestResult.success ? '✅' : '❌'} {uploadTestResult.message}
+          </div>
+        )}
+
         <div className="flex items-center justify-end">
           <Button 
             onClick={handleSubmitClaim} 
@@ -248,6 +346,13 @@ const SubmitClaim = () => {
           <TabsContent value="submit" className={`space-y-4 md:space-y-6`}>
             <Card className="shadow-lg border-0 bg-white">
               <CardContent className={`space-y-4 md:space-y-6 ${isMobile ? 'p-4' : 'p-8'}`}>
+                {/* Employee Info Debug */}
+                {currentEmployee && (
+                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                    Employee: {currentEmployee.name} (ID: {currentEmployee.id}) - {currentEmployee.email}
+                  </div>
+                )}
+
                 {/* Basic Information */}
                 <div className={`grid gap-4 md:gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                   <div className="space-y-2">
@@ -335,14 +440,12 @@ const SubmitClaim = () => {
                 </div>
 
                 {/* Receipt Upload Section */}
-                {currentEmployee && (
-                  <ReceiptUpload 
-                    onFileUpload={setReceiptUrl}
-                    uploadedFileUrl={receiptUrl}
-                    employeeId={currentEmployee.id}
-                    isRequired={true}
-                  />
-                )}
+                <ReceiptUpload 
+                  onFileUpload={setReceiptUrl}
+                  uploadedFileUrl={receiptUrl}
+                  employeeId={currentEmployee?.id || 'loading'}
+                  isRequired={true}
+                />
               </CardContent>
             </Card>
           </TabsContent>
