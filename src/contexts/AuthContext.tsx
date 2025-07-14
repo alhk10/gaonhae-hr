@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,10 +68,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    let initializationTimeout: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       try {
-        console.log('AuthContext: Starting optimized authentication initialization...');
+        console.log('AuthContext: Starting authentication initialization...');
+        
+        // Set a timeout to prevent infinite loading
+        initializationTimeout = setTimeout(() => {
+          console.warn('AuthContext: Initialization timeout, clearing loading states');
+          if (mounted) {
+            setIsLoading(false);
+            setShowProgressiveLoading(false);
+            setIsInitialized(true);
+          }
+        }, 15000); // 15 second timeout
+        
         authProgress.startLoading();
         setShowProgressiveLoading(true);
         
@@ -103,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessionError) {
           console.error('AuthContext: Session error:', sessionError);
           authProgress.setStageError('session', 'Session error');
+          throw sessionError;
         } else if (session && mounted) {
           console.log('AuthContext: Found existing session for:', session.user?.email);
           await handleUserSession(session);
@@ -115,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (mounted) {
+          clearTimeout(initializationTimeout);
           setIsInitialized(true);
           setIsLoading(false);
           setShowProgressiveLoading(false);
@@ -127,9 +142,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('AuthContext: Error during initialization:', error);
         authProgress.setStageError('init', 'Initialization failed');
         if (mounted) {
+          clearTimeout(initializationTimeout);
           setIsInitialized(true);
           setIsLoading(false);
           setShowProgressiveLoading(false);
+          toast.error('Authentication initialization failed. Please refresh the page.');
         }
       }
     };
@@ -138,6 +155,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
     };
   }, []);
 
@@ -174,9 +194,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authProgress.completeStage('permissions');
           authProgress.completeStage('complete');
           
-          console.log('AuthContext: Optimized user authentication successful');
+          console.log('AuthContext: User authentication successful');
           
-          // Hide progressive loading after successful auth
+          // Clear progressive loading after successful auth
           setTimeout(() => {
             setShowProgressiveLoading(false);
             setIsLoading(false);
@@ -187,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authProgress.setStageError('employee', 'Employee not found');
           setUser(null);
           await supabase.auth.signOut();
-          toast("Access denied: User not found in employee system. Please contact administrator.");
+          toast.error("Access denied: User not found in employee system. Please contact administrator.");
           setShowProgressiveLoading(false);
           setIsLoading(false);
         }
@@ -198,35 +218,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setShowProgressiveLoading(false);
       setIsLoading(false);
+      toast.error('Failed to load user data. Please try again.');
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    let loginTimeout: NodeJS.Timeout;
+    
     try {
-      console.log('AuthContext: Starting optimized login for:', email);
+      console.log('AuthContext: Starting login for:', email);
       setIsLoading(true);
       setShowProgressiveLoading(true);
       loginProgress.startLoading();
 
-      // Normalize email to lowercase
+      // Set a timeout to prevent infinite loading on login
+      loginTimeout = setTimeout(() => {
+        console.warn('AuthContext: Login timeout, clearing loading states');
+        setIsLoading(false);
+        setShowProgressiveLoading(false);
+        toast.error('Login timeout. Please try again.');
+      }, 30000); // 30 second timeout
+
       const normalizedEmail = email.toLowerCase().trim();
       loginProgress.completeStage('validate');
 
-      // Optimized employee check - only get essential data
-      console.log('AuthContext: Checking if employee exists with minimal query...');
+      console.log('AuthContext: Checking if employee exists...');
       const employee = await getCurrentUserEmployee(normalizedEmail);
       
       if (!employee) {
+        clearTimeout(loginTimeout);
         console.error('AuthContext: Employee not found in database:', normalizedEmail);
         loginProgress.setStageError('employee', 'Employee not found');
-        toast("Access denied: Employee not found in system. Please contact administrator.");
+        toast.error("Access denied: Employee not found in system. Please contact administrator.");
+        setIsLoading(false);
+        setShowProgressiveLoading(false);
         return false;
       }
 
       console.log('AuthContext: Employee found in database:', employee.name);
       loginProgress.completeStage('employee');
 
-      // Try to sign in
       console.log('AuthContext: Attempting Supabase sign in...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
@@ -234,42 +265,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        clearTimeout(loginTimeout);
         console.log('AuthContext: Sign in failed:', error.message);
         loginProgress.setStageError('auth', error.message);
         
-        // Handle specific error cases without heavy operations
         if (error.message.includes('Invalid login credentials')) {
-          toast("Invalid email or password. If this is your first login, please check your email for a password reset link.");
+          toast.error("Invalid email or password. If this is your first login, please check your email for a password reset link.");
         } else if (error.message.includes('Email not confirmed')) {
-          toast("Please confirm your email address before signing in. Check your email for the confirmation link.");
+          toast.error("Please confirm your email address before signing in. Check your email for the confirmation link.");
         } else if (error.message.includes('Too many requests')) {
-          toast("Too many login attempts. Please wait a moment before trying again.");
+          toast.error("Too many login attempts. Please wait a moment before trying again.");
         } else {
-          toast(`Login failed: ${error.message}`);
+          toast.error(`Login failed: ${error.message}`);
         }
+        
+        setIsLoading(false);
+        setShowProgressiveLoading(false);
         return false;
       }
 
       if (data.user) {
+        clearTimeout(loginTimeout);
         console.log('AuthContext: Login successful for:', normalizedEmail);
         loginProgress.completeStage('auth');
         loginProgress.completeStage('permissions');
         loginProgress.completeStage('complete');
-        toast("Login successful!");
+        toast.success("Login successful!");
+        
+        // The auth state change handler will take care of the rest
         return true;
       }
 
+      clearTimeout(loginTimeout);
       console.error('AuthContext: Login failed - no user returned');
       loginProgress.setStageError('auth', 'No user returned');
-      return false;
-    } catch (error) {
-      console.error('AuthContext: Login exception:', error);
-      loginProgress.setStageError('validate', 'Login failed');
-      toast("Login failed. Please try again.");
-      return false;
-    } finally {
       setIsLoading(false);
       setShowProgressiveLoading(false);
+      return false;
+    } catch (error) {
+      if (loginTimeout) {
+        clearTimeout(loginTimeout);
+      }
+      console.error('AuthContext: Login exception:', error);
+      loginProgress.setStageError('validate', 'Login failed');
+      toast.error("Login failed. Please try again.");
+      setIsLoading(false);
+      setShowProgressiveLoading(false);
+      return false;
     }
   };
 
@@ -282,16 +324,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthContext: Password update error:', error);
-        toast("Failed to update password. Please try again.");
+        toast.error("Failed to update password. Please try again.");
         return false;
       }
 
       setRequiresPasswordChange(false);
-      toast("Password updated successfully!");
+      toast.success("Password updated successfully!");
       return true;
     } catch (error) {
       console.error('AuthContext: Password update exception:', error);
-      toast("Failed to update password. Please try again.");
+      toast.error("Failed to update password. Please try again.");
       return false;
     }
   };
@@ -311,10 +353,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('AuthContext: Logout error:', error);
-        toast("Error during logout, but you have been logged out locally.");
+        toast.error("Error during logout, but you have been logged out locally.");
       } else {
         console.log('AuthContext: Logout successful');
-        toast("Logged out successfully");
+        toast.success("Logged out successfully");
       }
       
       // Navigate to home page after logout
@@ -322,7 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (error) {
       console.error('AuthContext: Logout exception:', error);
-      toast("Error during logout, but you have been logged out locally.");
+      toast.error("Error during logout, but you have been logged out locally.");
     } finally {
       // Ensure we always clear the loading state and user data
       setUser(null);
