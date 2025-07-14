@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -25,9 +26,11 @@ import {
   updateWeeklySlotConfig,
   cancelSlotBooking,
   updateSlotBookingEmployee,
+  getEmployeeAttendanceStatus,
   type SlotBooking,
   type Branch,
-  type WeeklySlotConfig
+  type WeeklySlotConfig,
+  type EmployeeAttendanceStatus
 } from '@/services/slotBookingService';
 
 const AdminSlotBooking = () => {
@@ -46,6 +49,7 @@ const AdminSlotBooking = () => {
   const [allBookings, setAllBookings] = useState<SlotBooking[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentWeeklySlots, setCurrentWeeklySlots] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
+  const [attendanceStatusMap, setAttendanceStatusMap] = useState<Map<string, EmployeeAttendanceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [autoRefreshActive, setAutoRefreshActive] = useState(true);
@@ -103,6 +107,9 @@ const AdminSlotBooking = () => {
         setAllBookings(bookingsData);
         setCurrentWeeklySlots(weeklyConfigData);
         setCasualEmployees(employeesData);
+
+        // Load attendance data for the current month
+        await loadAttendanceData(bookingsData);
       } catch (error) {
         console.error('AdminSlotBooking: Error loading initial data:', error);
         toast.error('Failed to load slot booking data');
@@ -114,6 +121,35 @@ const AdminSlotBooking = () => {
     loadInitialData();
   }, []);
 
+  const loadAttendanceData = async (bookings: SlotBooking[]) => {
+    try {
+      // Get unique employee IDs and dates from current month bookings
+      const currentMonth = selectedDate;
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      
+      const uniqueEmployeeIds = [...new Set(bookings.map(b => b.employeeId))];
+      const dateStrings = daysInMonth.map(date => format(date, 'yyyy-MM-dd'));
+
+      if (uniqueEmployeeIds.length > 0 && dateStrings.length > 0) {
+        const attendanceData = await getEmployeeAttendanceStatus(uniqueEmployeeIds, dateStrings);
+        
+        // Create a map for quick lookup
+        const statusMap = new Map<string, EmployeeAttendanceStatus>();
+        attendanceData.forEach(status => {
+          const key = `${status.employeeId}-${status.date}`;
+          statusMap.set(key, status);
+        });
+        
+        setAttendanceStatusMap(statusMap);
+        console.log('AdminSlotBooking: Loaded attendance data for', attendanceData.length, 'records');
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error loading attendance data:', error);
+    }
+  };
+
   const refreshData = async () => {
     try {
       const [bookingsData, weeklyConfigData] = await Promise.all([
@@ -122,6 +158,10 @@ const AdminSlotBooking = () => {
       ]);
       setAllBookings(bookingsData);
       setCurrentWeeklySlots(weeklyConfigData);
+      
+      // Refresh attendance data
+      await loadAttendanceData(bookingsData);
+      
       console.log('AdminSlotBooking: Data refreshed successfully');
     } catch (error) {
       console.error('AdminSlotBooking: Error refreshing data:', error);
@@ -136,6 +176,12 @@ const AdminSlotBooking = () => {
       b.status !== 'cancelled' && // Filter out cancelled slots
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
+  };
+
+  const hasEmployeeClockedIn = (employeeId: string, date: Date): boolean => {
+    const dateString = format(date, 'yyyy-MM-dd');
+    const key = `${employeeId}-${dateString}`;
+    return attendanceStatusMap.has(key) && attendanceStatusMap.get(key)?.hasClockedIn === true;
   };
 
   const handleDateClick = (date: Date) => {
@@ -259,6 +305,25 @@ const AdminSlotBooking = () => {
         await refreshData();
         setIsCancelDialogOpen(false);
         setSelectedBookingForCancel(null);
+        toast.success('Booking cancelled successfully');
+      } else {
+        toast.error('Failed to cancel booking');
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
+
+  const handleCancelBookingFromApprovalDialog = async () => {
+    if (!selectedBookingForApproval) return;
+    
+    try {
+      const success = await cancelSlotBooking(selectedBookingForApproval.id, 'Admin');
+      if (success) {
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
         toast.success('Booking cancelled successfully');
       } else {
         toast.error('Failed to cancel booking');
@@ -530,7 +595,7 @@ const AdminSlotBooking = () => {
                       Day: ({ date, ...props }) => {
                         const dayBookings = getBookingsForDate(date);
                         const hasBookings = dayBookings.length > 0;
-                        const maxVisible = isMobile ? 2 : 4; // Increased from 1/3 to 2/4
+                        const maxVisible = isMobile ? 2 : 4;
                         
                         return (
                           <div className="relative w-full h-full overflow-hidden">
@@ -546,6 +611,8 @@ const AdminSlotBooking = () => {
                                   <div className="flex flex-col gap-0.5 w-full flex-1 overflow-hidden">
                                     {dayBookings.slice(0, maxVisible).map((booking, idx) => {
                                       const branch = branches.find(b => b.id === booking.branchId);
+                                      const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, date);
+                                      
                                       return (
                                         <div
                                           key={idx}
@@ -559,7 +626,7 @@ const AdminSlotBooking = () => {
                                             ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
                                             ...(booking.status === 'approved' && { border: '1px solid #10b981' })
                                           }}
-                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status}) - Click to manage booking`}
+                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
                                         >
                                           <span className="truncate">
                                             {isMobile ? 
@@ -567,7 +634,8 @@ const AdminSlotBooking = () => {
                                               booking.employeeName.split(' ')[0].slice(0, 10)
                                             }
                                             {booking.status === 'pending' && ' ⏳'}
-                                            {booking.status === 'approved' && ' ✅'}
+                                            {booking.status === 'approved' && !hasClockedIn && ' ✅'}
+                                            {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
                                           </span>
                                         </div>
                                       );
@@ -607,6 +675,8 @@ const AdminSlotBooking = () => {
                 <div className="space-y-3">
                   {getBookingsForDate(selectedDate).map((booking) => {
                     const branch = branches.find(b => b.id === booking.branchId);
+                    const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
+                    
                     return (
                       <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
                         <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
@@ -616,7 +686,12 @@ const AdminSlotBooking = () => {
                               style={{ backgroundColor: branch?.color || '#6b7280' }}
                             ></div>
                             <div>
-                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.employeeName}</p>
+                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                                {booking.employeeName}
+                                {booking.status === 'approved' && hasClockedIn && (
+                                  <span className="ml-2 text-green-600" title="Employee has clocked in">✅✅</span>
+                                )}
+                              </p>
                               <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{branch?.name}</p>
                               <Badge 
                                 variant={
@@ -690,7 +765,7 @@ const AdminSlotBooking = () => {
               </CardContent>
             </Card>
 
-            {/* Enhanced Approval Dialog with Swap Functionality */}
+            {/* Enhanced Approval Dialog with Cancel Functionality */}
             <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
               setIsApprovalDialogOpen(open);
               if (!open) {
@@ -716,6 +791,9 @@ const AdminSlotBooking = () => {
                     <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
                     <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
                     <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
+                    {selectedBookingForApproval && hasEmployeeClockedIn(selectedBookingForApproval.employeeId, new Date(selectedBookingForApproval.date)) && (
+                      <p><strong>Clock-in Status:</strong> <span className="text-green-600">✅ Clocked In</span></p>
+                    )}
                   </div>
 
                   {/* Swap Employee Section */}
@@ -739,10 +817,19 @@ const AdminSlotBooking = () => {
                 </div>
                 <DialogFooter className="flex justify-between gap-2">
                   <div className="flex space-x-2">
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleCancelBookingFromApprovalDialog}
+                    >
+                      <UserX className="w-4 h-4 mr-2" />
+                      Cancel Booking
+                    </Button>
                     {selectedBookingForApproval?.status === 'pending' && (
                       <Button 
                         type="button" 
-                        variant="destructive" 
+                        variant="outline" 
                         size="sm"
                         onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
                       >

@@ -17,6 +17,7 @@ import {
   getEmployeeSlotBookings,
   getBranchSlotBookings,
   updateBranchColors,
+  checkForExistingBooking,
   type Branch,
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
@@ -36,6 +37,7 @@ const SlotBooking = () => {
   const [filteredBookings, setFilteredBookings] = useState<SlotBookingType[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [approvedBookingDates, setApprovedBookingDates] = useState<Set<string>>(new Set());
+  const [employeeBookingDates, setEmployeeBookingDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
 
@@ -93,7 +95,16 @@ const SlotBooking = () => {
       const bookings = await getEmployeeSlotBookings(user.id);
       setEmployeeBookings(bookings);
       
+      // Create a set of dates where employee has bookings (non-cancelled)
+      const employeeDates = new Set(
+        bookings
+          .filter(booking => booking.status !== 'cancelled')
+          .map(booking => booking.date)
+      );
+      setEmployeeBookingDates(employeeDates);
+      
       console.log('SlotBooking: Employee bookings loaded:', bookings.length);
+      console.log('SlotBooking: Employee booking dates:', employeeDates.size);
     } catch (error) {
       console.error('SlotBooking: Error loading employee bookings:', error);
     }
@@ -169,17 +180,27 @@ const SlotBooking = () => {
     // Disable past dates
     if (date < today) return true;
     
-    // Disable dates with approved bookings for the selected branch
+    // Disable dates where employee already has a booking (prevent double booking)
     const dateString = format(date, 'yyyy-MM-dd');
-    return approvedBookingDates.has(dateString);
+    if (employeeBookingDates.has(dateString)) return true;
+    
+    // Note: We don't disable dates with approved bookings from other employees
+    // as that would prevent multiple employees from booking the same branch/date
+    
+    return false;
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
+  const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     
     // Check if date is disabled
     if (isDateDisabled(date)) {
-      toast.error("This date is not available for booking");
+      const dateString = format(date, 'yyyy-MM-dd');
+      if (employeeBookingDates.has(dateString)) {
+        toast.error("You already have a booking on this date. Double bookings are not allowed.");
+      } else {
+        toast.error("This date is not available for booking");
+      }
       return;
     }
     
@@ -190,9 +211,25 @@ const SlotBooking = () => {
       return;
     }
 
-    // For employees, handle multiple date selection
+    // For employees, handle multiple date selection with double booking check
+    const dateString = format(date, 'yyyy-MM-dd');
+    
+    // Check if this would create a double booking
+    if (user?.id) {
+      try {
+        const hasExistingBooking = await checkForExistingBooking(user.id, dateString);
+        if (hasExistingBooking) {
+          toast.error("You already have a booking on this date. Double bookings are not allowed.");
+          return;
+        }
+      } catch (error) {
+        console.error('SlotBooking: Error checking existing booking:', error);
+        toast.error("Error checking booking availability");
+        return;
+      }
+    }
+
     setSelectedDates(prevDates => {
-      const dateString = format(date, 'yyyy-MM-dd');
       const existingIndex = prevDates.findIndex(d => format(d, 'yyyy-MM-dd') === dateString);
       
       if (existingIndex > -1) {
@@ -213,8 +250,17 @@ const SlotBooking = () => {
 
     setIsBooking(true);
     try {
-      const bookingPromises = selectedDates.map(date => {
+      const bookingPromises = selectedDates.map(async (date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
+        
+        // Double-check for existing booking before creating
+        if (user?.id) {
+          const hasExistingBooking = await checkForExistingBooking(user.id, dateStr);
+          if (hasExistingBooking) {
+            throw new Error(`You already have a booking on ${dateStr}. Double bookings are not allowed.`);
+          }
+        }
+        
         return addSlotBooking({
           employeeId: user?.id || 'CAS001',
           employeeName: user?.name || 'Current User',
@@ -238,7 +284,11 @@ const SlotBooking = () => {
       ]);
     } catch (error) {
       console.error('SlotBooking: Error booking slots:', error);
-      toast.error('Failed to book slots. Please try again.');
+      if (error instanceof Error && error.message.includes('Double bookings are not allowed')) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to book slots. Please try again.');
+      }
     } finally {
       setIsBooking(false);
     }
@@ -362,10 +412,19 @@ const SlotBooking = () => {
                         booked: (date) => {
                           const dateString = format(date, 'yyyy-MM-dd');
                           return approvedBookingDates.has(dateString);
+                        },
+                        myBooking: (date) => {
+                          const dateString = format(date, 'yyyy-MM-dd');
+                          return employeeBookingDates.has(dateString);
                         }
                       }}
                       modifiersStyles={{
                         booked: {
+                          backgroundColor: '#e0f2fe',
+                          color: '#0369a1',
+                          fontWeight: 'normal'
+                        },
+                        myBooking: {
                           backgroundColor: '#fee2e2',
                           color: '#dc2626',
                           textDecoration: 'line-through',
@@ -426,9 +485,15 @@ const SlotBooking = () => {
                       <div className="flex-1">
                         <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
                         <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
-                        <div className="mt-2 text-xs text-gray-500">
-                          <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#fee2e2' }}></span>
-                          Crossed out dates are already booked and approved
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                          <div>
+                            <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#e0f2fe' }}></span>
+                            Blue background: Other employees' approved bookings
+                          </div>
+                          <div>
+                            <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#fee2e2' }}></span>
+                            Red striked dates: Your existing bookings (no double booking allowed)
+                          </div>
                         </div>
                       </div>
                     </div>

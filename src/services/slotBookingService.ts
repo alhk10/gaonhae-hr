@@ -34,6 +34,13 @@ export interface WeeklySlotConfig {
   sunday: number;
 }
 
+export interface EmployeeAttendanceStatus {
+  employeeId: string;
+  date: string;
+  hasClockedIn: boolean;
+  clockInTime?: string;
+}
+
 // Color mapping for branches
 const BRANCH_COLOR_MAP: { [key: string]: string } = {
   'balmoral': '#3b82f6', // Blue
@@ -104,6 +111,100 @@ export const updateBranchColors = async (): Promise<void> => {
   } catch (error) {
     console.error('SlotBookingService: Error in updateBranchColors:', error);
     throw error;
+  }
+};
+
+export const checkForExistingBooking = async (employeeId: string, date: string): Promise<boolean> => {
+  try {
+    console.log('SlotBookingService: Checking for existing booking for employee:', employeeId, 'on date:', date);
+    
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .select('id')
+      .eq('employee_id', employeeId)
+      .eq('date', date)
+      .neq('status', 'cancelled');
+
+    if (error) {
+      console.error('SlotBookingService: Error checking existing booking:', error);
+      throw error;
+    }
+
+    const hasExistingBooking = data && data.length > 0;
+    console.log('SlotBookingService: Existing booking check result:', hasExistingBooking);
+    return hasExistingBooking;
+  } catch (error) {
+    console.error('SlotBookingService: Error in checkForExistingBooking:', error);
+    throw error;
+  }
+};
+
+export const getEmployeeAttendanceStatus = async (employeeIds: string[], dates: string[]): Promise<EmployeeAttendanceStatus[]> => {
+  try {
+    console.log('SlotBookingService: Fetching attendance status for employees:', employeeIds.length, 'dates:', dates.length);
+    
+    // Check both attendance and clock_status tables
+    const [attendanceData, clockStatusData] = await Promise.all([
+      supabase
+        .from('attendance')
+        .select('employee_id, date, check_in')
+        .in('employee_id', employeeIds)
+        .in('date', dates)
+        .not('check_in', 'is', null),
+      
+      supabase
+        .from('clock_status')
+        .select('employee_id, date, clock_in_time, status')
+        .in('employee_id', employeeIds)
+        .in('date', dates)
+        .in('status', ['clocked-in', 'clocked-out'])
+        .not('clock_in_time', 'is', null)
+    ]);
+
+    if (attendanceData.error) {
+      console.error('SlotBookingService: Error fetching attendance data:', attendanceData.error);
+    }
+
+    if (clockStatusData.error) {
+      console.error('SlotBookingService: Error fetching clock status data:', clockStatusData.error);
+    }
+
+    const attendanceStatusMap = new Map<string, EmployeeAttendanceStatus>();
+
+    // Process attendance records
+    if (attendanceData.data) {
+      attendanceData.data.forEach(record => {
+        const key = `${record.employee_id}-${record.date}`;
+        attendanceStatusMap.set(key, {
+          employeeId: record.employee_id,
+          date: record.date,
+          hasClockedIn: true,
+          clockInTime: record.check_in
+        });
+      });
+    }
+
+    // Process clock status records
+    if (clockStatusData.data) {
+      clockStatusData.data.forEach(record => {
+        const key = `${record.employee_id}-${record.date}`;
+        if (!attendanceStatusMap.has(key)) {
+          attendanceStatusMap.set(key, {
+            employeeId: record.employee_id,
+            date: record.date,
+            hasClockedIn: true,
+            clockInTime: record.clock_in_time
+          });
+        }
+      });
+    }
+
+    const result = Array.from(attendanceStatusMap.values());
+    console.log('SlotBookingService: Attendance status result:', result.length, 'records');
+    return result;
+  } catch (error) {
+    console.error('SlotBookingService: Error in getEmployeeAttendanceStatus:', error);
+    return [];
   }
 };
 
@@ -214,6 +315,12 @@ export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn
   try {
     console.log('SlotBookingService: Creating slot booking in Supabase:', booking);
     
+    // Check for existing booking first
+    const hasExistingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
+    if (hasExistingBooking) {
+      throw new Error(`Employee ${booking.employeeName} already has a booking on ${booking.date}. Double bookings are not allowed.`);
+    }
+    
     const bookingId = `SB${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     const { error } = await supabase
@@ -248,6 +355,12 @@ export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn
 export const addAdminSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn' | 'status' | 'approvedBy' | 'approvedOn'>): Promise<string> => {
   try {
     console.log('SlotBookingService: Creating admin auto-approved slot booking:', booking);
+    
+    // Check for existing booking first
+    const hasExistingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
+    if (hasExistingBooking) {
+      throw new Error(`Employee ${booking.employeeName} already has a booking on ${booking.date}. Double bookings are not allowed.`);
+    }
     
     const adminBooking = {
       ...booking,
