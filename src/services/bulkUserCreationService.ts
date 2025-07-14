@@ -10,10 +10,10 @@ interface BulkUserCreationResult {
   created: Array<{ email: string; name: string }>;
 }
 
-interface EmployeeWithValidEmail {
+interface ValidatedEmployee {
   id: string;
   name: string;
-  email: string; // Guaranteed to be a valid string
+  email: string; // Guaranteed to be a valid non-null string
 }
 
 // Generate a secure temporary password
@@ -42,25 +42,112 @@ const generateSecurePassword = (): string => {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 };
 
-// Type guard function to check if employee has valid email
-const hasValidEmail = (employee: EmployeeProfile): employee is EmployeeProfile & { email: string } => {
-  return Boolean(
-    employee.email && 
-    typeof employee.email === 'string' && 
-    employee.email.trim().length > 0 && 
-    employee.email.includes('@')
-  );
+// Validate and extract employees with valid emails
+const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmployee[] => {
+  const validatedEmployees: ValidatedEmployee[] = [];
+  
+  for (const employee of employees) {
+    // Explicit validation without complex type guards
+    const email = employee.email;
+    
+    if (email && 
+        typeof email === 'string' && 
+        email.trim().length > 0 && 
+        email.includes('@') &&
+        email.includes('.')) {
+      
+      validatedEmployees.push({
+        id: employee.id,
+        name: employee.name,
+        email: email.trim()
+      });
+    }
+  }
+  
+  return validatedEmployees;
 };
 
-// Extract employees with valid email addresses
-const extractEmployeesWithEmails = (employees: EmployeeProfile[]): EmployeeWithValidEmail[] => {
-  return employees
-    .filter(hasValidEmail)
-    .map(employee => ({
-      id: employee.id,
-      name: employee.name,
-      email: employee.email.trim()
-    }));
+// Get existing user emails from Supabase
+const getExistingUserEmails = async (): Promise<Set<string>> => {
+  const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+  
+  if (listError) {
+    console.error('BulkUserCreation: Error fetching existing users:', listError);
+    throw new Error(`Failed to fetch existing users: ${listError.message}`);
+  }
+
+  const existingEmails = new Set<string>();
+  
+  for (const user of existingUsers.users) {
+    if (user.email && typeof user.email === 'string') {
+      existingEmails.add(user.email.toLowerCase());
+    }
+  }
+  
+  return existingEmails;
+};
+
+// Filter employees who need auth accounts
+const filterEmployeesNeedingAuth = (validatedEmployees: ValidatedEmployee[], existingEmails: Set<string>): ValidatedEmployee[] => {
+  const employeesToCreate: ValidatedEmployee[] = [];
+  
+  for (const employee of validatedEmployees) {
+    if (!existingEmails.has(employee.email.toLowerCase())) {
+      employeesToCreate.push(employee);
+    }
+  }
+  
+  return employeesToCreate;
+};
+
+// Create a single auth user
+const createAuthUser = async (employee: ValidatedEmployee): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const normalizedEmail = employee.email.toLowerCase().trim();
+    const tempPassword = generateSecurePassword();
+    
+    // Create the user in Supabase Auth
+    const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        name: employee.name,
+        employee_id: employee.id
+      }
+    });
+
+    if (createError) {
+      return { success: false, error: createError.message };
+    }
+
+    if (!authUser.user) {
+      return { success: false, error: 'User creation failed - no user returned' };
+    }
+
+    // Send password reset email
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+          redirectTo: `${window.location.origin}/`
+        }
+      );
+
+      if (resetError) {
+        console.warn(`BulkUserCreation: Failed to send reset email to ${normalizedEmail}:`, resetError);
+      } else {
+        console.log(`BulkUserCreation: Password reset email sent to ${normalizedEmail}`);
+      }
+    } catch (resetEmailError) {
+      console.warn(`BulkUserCreation: Error sending reset email to ${normalizedEmail}:`, resetEmailError);
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
+  }
 };
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
@@ -74,33 +161,22 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
   };
 
   try {
-    // Get all employees and extract those with valid emails
+    // Step 1: Get all employees and validate emails
     const allEmployees = await getEmployees();
-    const employeesWithEmail = extractEmployeesWithEmails(allEmployees);
+    const validatedEmployees = validateAndExtractEmployees(allEmployees);
     
-    console.log(`BulkUserCreation: Found ${employeesWithEmail.length} employees with valid email addresses`);
+    console.log(`BulkUserCreation: Found ${validatedEmployees.length} employees with valid email addresses`);
 
-    if (employeesWithEmail.length === 0) {
+    if (validatedEmployees.length === 0) {
       console.log('BulkUserCreation: No employees with valid emails found');
       return result;
     }
 
-    // Get existing Supabase Auth users to avoid duplicates
-    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error('BulkUserCreation: Error fetching existing users:', listError);
-      throw new Error(`Failed to fetch existing users: ${listError.message}`);
-    }
+    // Step 2: Get existing Supabase Auth users
+    const existingEmails = await getExistingUserEmails();
 
-    const existingEmails = new Set(
-      existingUsers.users.map(user => user.email?.toLowerCase()).filter(Boolean)
-    );
-
-    // Filter out employees who already have Supabase Auth accounts
-    const employeesToCreate = employeesWithEmail.filter(employee => 
-      !existingEmails.has(employee.email.toLowerCase())
-    );
+    // Step 3: Filter employees who need auth accounts
+    const employeesToCreate = filterEmployeesNeedingAuth(validatedEmployees, existingEmails);
 
     console.log(`BulkUserCreation: ${employeesToCreate.length} employees need Supabase Auth accounts`);
 
@@ -109,68 +185,24 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
       return result;
     }
 
-    // Create Supabase Auth users for each employee
+    // Step 4: Create Supabase Auth users
     for (const employee of employeesToCreate) {
-      const normalizedEmail = employee.email.toLowerCase().trim();
-      console.log(`BulkUserCreation: Creating Supabase Auth user for ${employee.name} (${normalizedEmail})`);
+      console.log(`BulkUserCreation: Creating Supabase Auth user for ${employee.name} (${employee.email})`);
 
-      try {
-        // Generate secure temporary password
-        const tempPassword = generateSecurePassword();
-        
-        // Create the user in Supabase Auth
-        const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
-          email: normalizedEmail,
-          password: tempPassword,
-          email_confirm: true, // Auto-confirm email
-          user_metadata: {
-            name: employee.name,
-            employee_id: employee.id
-          }
+      const createResult = await createAuthUser(employee);
+
+      if (createResult.success) {
+        console.log(`BulkUserCreation: Successfully created user ${employee.email}`);
+        result.created.push({
+          email: employee.email,
+          name: employee.name
         });
-
-        if (createError) {
-          console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, createError);
-          result.errors.push({
-            email: normalizedEmail,
-            error: createError.message
-          });
-          result.failed++;
-          continue;
-        }
-
-        if (authUser.user) {
-          console.log(`BulkUserCreation: Successfully created user ${normalizedEmail}`);
-          result.created.push({
-            email: normalizedEmail,
-            name: employee.name
-          });
-          result.success++;
-
-          // Send password reset email so user can set their own password
-          try {
-            const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-              normalizedEmail,
-              {
-                redirectTo: `${window.location.origin}/`
-              }
-            );
-
-            if (resetError) {
-              console.warn(`BulkUserCreation: Failed to send reset email to ${normalizedEmail}:`, resetError);
-            } else {
-              console.log(`BulkUserCreation: Password reset email sent to ${normalizedEmail}`);
-            }
-          } catch (resetEmailError) {
-            console.warn(`BulkUserCreation: Error sending reset email to ${normalizedEmail}:`, resetEmailError);
-          }
-        }
-
-      } catch (userError) {
-        console.error(`BulkUserCreation: Unexpected error for ${normalizedEmail}:`, userError);
+        result.success++;
+      } else {
+        console.error(`BulkUserCreation: Failed to create user ${employee.email}:`, createResult.error);
         result.errors.push({
-          email: normalizedEmail,
-          error: `Unexpected error: ${userError instanceof Error ? userError.message : 'Unknown error'}`
+          email: employee.email,
+          error: createResult.error || 'Unknown error'
         });
         result.failed++;
       }
@@ -191,65 +223,35 @@ export const createSingleSupabaseAuthUser = async (email: string, name: string):
     console.log(`BulkUserCreation: Creating single user: ${normalizedEmail}`);
 
     // Validate email format
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    if (!normalizedEmail || !normalizedEmail.includes('@') || !normalizedEmail.includes('.')) {
       console.error(`BulkUserCreation: Invalid email format: ${normalizedEmail}`);
       return false;
     }
 
     // Check if user already exists
-    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error('BulkUserCreation: Error checking existing users:', listError);
-      return false;
-    }
+    const existingEmails = await getExistingUserEmails();
 
-    const userExists = existingUsers.users.some(user => 
-      user.email?.toLowerCase() === normalizedEmail
-    );
-
-    if (userExists) {
+    if (existingEmails.has(normalizedEmail)) {
       console.log(`BulkUserCreation: User already exists: ${normalizedEmail}`);
       return true; // Return true since user exists
     }
 
-    // Generate secure temporary password
-    const tempPassword = generateSecurePassword();
-    
     // Create the user
-    const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
-      email: normalizedEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        name: name
-      }
-    });
+    const validatedEmployee: ValidatedEmployee = {
+      id: 'single-user', // Temporary ID for single user creation
+      name: name,
+      email: normalizedEmail
+    };
 
-    if (createError) {
-      console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, createError);
+    const createResult = await createAuthUser(validatedEmployee);
+
+    if (createResult.success) {
+      console.log(`BulkUserCreation: Successfully created user ${normalizedEmail}`);
+      return true;
+    } else {
+      console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, createResult.error);
       return false;
     }
-
-    if (authUser.user) {
-      console.log(`BulkUserCreation: Successfully created user ${normalizedEmail}`);
-      
-      // Send password reset email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-          redirectTo: `${window.location.origin}/`
-        }
-      );
-
-      if (resetError) {
-        console.warn(`BulkUserCreation: Failed to send reset email to ${normalizedEmail}:`, resetError);
-      }
-
-      return true;
-    }
-
-    return false;
   } catch (error) {
     console.error(`BulkUserCreation: Error creating single user ${email}:`, error);
     return false;
