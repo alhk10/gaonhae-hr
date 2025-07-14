@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -169,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         authProgress.completeStage('session');
         
-        // Use optimized employee lookup
+        // Use optimized employee lookup with better error handling
         const employee = await getCurrentUserEmployee(normalizedEmail);
         
         if (employee) {
@@ -214,11 +213,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('AuthContext: Error in handleUserSession:', error);
-      authProgress.setStageError('employee', 'Failed to load user data');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to load user data. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+        } else if (error.message.includes('Employee not found')) {
+          errorMessage = 'Employee record not found. Please contact administrator.';
+        }
+      }
+      
+      authProgress.setStageError('employee', errorMessage);
       setUser(null);
       setShowProgressiveLoading(false);
       setIsLoading(false);
-      toast.error('Failed to load user data. Please try again.');
+      toast.error(errorMessage);
     }
   };
 
@@ -236,27 +246,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('AuthContext: Login timeout, clearing loading states');
         setIsLoading(false);
         setShowProgressiveLoading(false);
+        loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 30000); // 30 second timeout
+      }, 25000); // Reduced to 25 seconds
 
       const normalizedEmail = email.toLowerCase().trim();
       loginProgress.completeStage('validate');
 
       console.log('AuthContext: Checking if employee exists...');
-      const employee = await getCurrentUserEmployee(normalizedEmail);
       
-      if (!employee) {
+      try {
+        const employee = await getCurrentUserEmployee(normalizedEmail);
+        
+        if (!employee) {
+          clearTimeout(loginTimeout);
+          console.error('AuthContext: Employee not found in database:', normalizedEmail);
+          loginProgress.setStageError('employee', 'Employee not found');
+          toast.error("Access denied: Employee not found in system. Please contact administrator.");
+          setIsLoading(false);
+          setShowProgressiveLoading(false);
+          return false;
+        }
+
+        console.log('AuthContext: Employee found in database:', employee.name);
+        loginProgress.completeStage('employee');
+      } catch (employeeError) {
         clearTimeout(loginTimeout);
-        console.error('AuthContext: Employee not found in database:', normalizedEmail);
-        loginProgress.setStageError('employee', 'Employee not found');
-        toast.error("Access denied: Employee not found in system. Please contact administrator.");
+        console.error('AuthContext: Error checking employee:', employeeError);
+        
+        let errorMessage = 'Failed to verify employee record. Please try again.';
+        if (employeeError instanceof Error && employeeError.message.includes('timeout')) {
+          errorMessage = 'Database connection timeout. Please check your internet connection and try again.';
+        }
+        
+        loginProgress.setStageError('employee', errorMessage);
+        toast.error(errorMessage);
         setIsLoading(false);
         setShowProgressiveLoading(false);
         return false;
       }
-
-      console.log('AuthContext: Employee found in database:', employee.name);
-      loginProgress.completeStage('employee');
 
       console.log('AuthContext: Attempting Supabase sign in...');
       const { data, error } = await supabase.auth.signInWithPassword({

@@ -6,7 +6,12 @@ export const getCurrentUserEmployee = async (email: string) => {
   console.log('AuthOptimization: Fetching current user employee data only:', email);
   
   try {
-    const { data: employee, error } = await supabase
+    // Add a timeout to prevent hanging queries
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 10000);
+    });
+
+    const queryPromise = supabase
       .from('employees')
       .select(`
         id,
@@ -18,6 +23,8 @@ export const getCurrentUserEmployee = async (email: string) => {
       `)
       .eq('email', email.toLowerCase())
       .maybeSingle();
+
+    const { data: employee, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
     if (error) {
       console.error('AuthOptimization: Error fetching user employee:', error);
@@ -31,26 +38,50 @@ export const getCurrentUserEmployee = async (email: string) => {
 
     console.log('AuthOptimization: Employee data fetched successfully:', employee.name);
 
-    // Fetch admin access separately
-    const { data: adminAccessData, error: adminError } = await supabase
+    // Fetch admin access separately with timeout
+    const adminQueryPromise = supabase
       .from('admin_access')
       .select('*')
       .eq('employee_id', employee.id)
       .maybeSingle();
 
-    if (adminError) {
-      console.error('AuthOptimization: Error fetching admin access:', adminError);
+    const adminTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Admin access query timeout')), 5000);
+    });
+
+    let adminAccessData = null;
+    try {
+      const { data, error: adminError } = await Promise.race([adminQueryPromise, adminTimeoutPromise]) as any;
+      if (!adminError) {
+        adminAccessData = data;
+      } else {
+        console.error('AuthOptimization: Error fetching admin access:', adminError);
+      }
+    } catch (error) {
+      console.error('AuthOptimization: Admin access query timeout or error:', error);
     }
 
-    // Fetch employee page access separately
-    const { data: pageAccessData, error: pageError } = await supabase
+    // Fetch employee page access separately with timeout
+    const pageQueryPromise = supabase
       .from('employee_page_access')
       .select('*')
       .eq('employee_id', employee.id)
       .maybeSingle();
 
-    if (pageError) {
-      console.error('AuthOptimization: Error fetching page access:', pageError);
+    const pageTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Page access query timeout')), 5000);
+    });
+
+    let pageAccessData = null;
+    try {
+      const { data, error: pageError } = await Promise.race([pageQueryPromise, pageTimeoutPromise]) as any;
+      if (!pageError) {
+        pageAccessData = data;
+      } else {
+        console.error('AuthOptimization: Error fetching page access:', pageError);
+      }
+    } catch (error) {
+      console.error('AuthOptimization: Page access query timeout or error:', error);
     }
 
     const result = {
@@ -118,12 +149,25 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
 
   try {
     console.log('AuthOptimization: Checking superadmin status for:', normalizedEmail);
-    const { data: isSuperadmin, error } = await supabase.rpc('is_superadmin', { 
+    
+    // Add timeout for superadmin check
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Superadmin check timeout')), 5000);
+    });
+
+    const queryPromise = supabase.rpc('is_superadmin', { 
       user_email: normalizedEmail 
     });
+
+    const { data: isSuperadmin, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
     
     if (error) {
       console.error('AuthOptimization: Error checking superadmin status:', error);
+      // Cache false result on error to prevent repeated failures
+      superadminCache.set(normalizedEmail, {
+        isSuper: false,
+        timestamp: Date.now()
+      });
       return false;
     }
     
@@ -137,6 +181,11 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
     return isSuperadmin || false;
   } catch (error) {
     console.error('AuthOptimization: Exception checking superadmin status:', error);
+    // Cache false result on timeout/error to prevent repeated failures
+    superadminCache.set(normalizedEmail, {
+      isSuper: false,
+      timestamp: Date.now()
+    });
     return false;
   }
 };
