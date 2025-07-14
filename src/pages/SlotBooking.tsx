@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, MapPin, Users, Plus, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, Plus, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,8 @@ import {
   getBranchSlotBookings,
   updateBranchColors,
   checkForExistingBooking,
+  verifyEmployeeExists,
+  getAvailableSlotsForDate,
   type Branch,
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
@@ -40,6 +42,7 @@ const SlotBooking = () => {
   const [employeeBookingDates, setEmployeeBookingDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
+  const [employeeVerified, setEmployeeVerified] = useState<boolean | null>(null);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -50,6 +53,7 @@ const SlotBooking = () => {
   useEffect(() => {
     if (user?.id) {
       loadEmployeeBookings();
+      verifyCurrentEmployee();
     }
   }, [user?.id]);
 
@@ -87,6 +91,26 @@ const SlotBooking = () => {
     }
   };
 
+  const verifyCurrentEmployee = async () => {
+    if (!user?.id) return;
+    
+    try {
+      console.log('SlotBooking: Verifying current employee:', user.id);
+      const verification = await verifyEmployeeExists(user.id);
+      setEmployeeVerified(verification.exists);
+      
+      if (!verification.exists) {
+        console.error('SlotBooking: Current user not found in employees table:', user.id);
+        toast.error('Your employee record was not found. Please contact administrator.');
+      } else {
+        console.log('SlotBooking: Employee verified successfully:', verification.employeeName);
+      }
+    } catch (error) {
+      console.error('SlotBooking: Error verifying employee:', error);
+      setEmployeeVerified(false);
+    }
+  };
+
   const loadEmployeeBookings = async () => {
     if (!user?.id) return;
     
@@ -107,6 +131,7 @@ const SlotBooking = () => {
       console.log('SlotBooking: Employee booking dates:', employeeDates.size);
     } catch (error) {
       console.error('SlotBooking: Error loading employee bookings:', error);
+      toast.error('Failed to load your booking history');
     }
   };
 
@@ -184,14 +209,17 @@ const SlotBooking = () => {
     const dateString = format(date, 'yyyy-MM-dd');
     if (employeeBookingDates.has(dateString)) return true;
     
-    // Note: We don't disable dates with approved bookings from other employees
-    // as that would prevent multiple employees from booking the same branch/date
-    
     return false;
   };
 
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
+    
+    // Check if employee is verified
+    if (employeeVerified === false) {
+      toast.error('Your employee record was not found. Please contact administrator before booking slots.');
+      return;
+    }
     
     // Check if date is disabled
     if (isDateDisabled(date)) {
@@ -211,10 +239,23 @@ const SlotBooking = () => {
       return;
     }
 
-    // For employees, handle multiple date selection with double booking check
+    // For employees, handle multiple date selection with enhanced validation
     const dateString = format(date, 'yyyy-MM-dd');
     
-    // Check if this would create a double booking
+    // Check available slots for this date and branch
+    try {
+      const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
+      if (availableSlots <= 0) {
+        toast.error(`No slots available for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
+        return;
+      }
+    } catch (error) {
+      console.error('SlotBooking: Error checking available slots:', error);
+      toast.error('Error checking slot availability');
+      return;
+    }
+    
+    // Double check for existing booking
     if (user?.id) {
       try {
         const hasExistingBooking = await checkForExistingBooking(user.id, dateString);
@@ -243,27 +284,28 @@ const SlotBooking = () => {
   };
 
   const handleBookSlots = async () => {
-    if (selectedDates.length === 0 || !currentBranch) {
-      toast.error("Please select at least one date and a branch");
+    if (selectedDates.length === 0 || !currentBranch || !user) {
+      toast.error("Please select at least one date and ensure you're logged in");
+      return;
+    }
+
+    if (employeeVerified === false) {
+      toast.error('Your employee record was not found. Please contact administrator before booking slots.');
       return;
     }
 
     setIsBooking(true);
     try {
+      console.log('SlotBooking: Starting booking process for', selectedDates.length, 'dates');
+      
       const bookingPromises = selectedDates.map(async (date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
         
-        // Double-check for existing booking before creating
-        if (user?.id) {
-          const hasExistingBooking = await checkForExistingBooking(user.id, dateStr);
-          if (hasExistingBooking) {
-            throw new Error(`You already have a booking on ${dateStr}. Double bookings are not allowed.`);
-          }
-        }
+        console.log('SlotBooking: Booking slot for date:', dateStr);
         
         return addSlotBooking({
-          employeeId: user?.id || 'CAS001',
-          employeeName: user?.name || 'Current User',
+          employeeId: user.id,
+          employeeName: user.name,
           branchId: selectedBranch,
           branchName: currentBranch.name,
           date: dateStr,
@@ -284,11 +326,8 @@ const SlotBooking = () => {
       ]);
     } catch (error) {
       console.error('SlotBooking: Error booking slots:', error);
-      if (error instanceof Error && error.message.includes('Double bookings are not allowed')) {
-        toast.error(error.message);
-      } else {
-        toast.error('Failed to book slots. Please try again.');
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Failed to book slots. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsBooking(false);
     }
@@ -324,6 +363,14 @@ const SlotBooking = () => {
         <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-4' : ''}`}>
           <div>
             <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Slot Booking</h2>
+            {user?.role === 'employee' && employeeVerified === false && (
+              <div className="flex items-center space-x-2 mt-2 text-red-600">
+                <AlertCircle className="w-4 h-4" />
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>
+                  Employee record not found. Contact administrator.
+                </p>
+              </div>
+            )}
           </div>
           
           {user?.role !== 'employee' && (
@@ -505,7 +552,7 @@ const SlotBooking = () => {
                   <Button 
                     onClick={handleBookSlots} 
                     className="w-full"
-                    disabled={selectedDates.length === 0 || !currentBranch || isBooking}
+                    disabled={selectedDates.length === 0 || !currentBranch || isBooking || employeeVerified === false}
                     style={{ backgroundColor: getBranchColorStyle(currentBranch?.color || '#3b82f6') }}
                   >
                     {isBooking ? 'Booking...' : `Book ${selectedDates.length > 0 ? selectedDates.length : ''} Slot${selectedDates.length !== 1 ? 's' : ''}`}

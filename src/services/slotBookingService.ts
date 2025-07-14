@@ -114,13 +114,14 @@ export const updateBranchColors = async (): Promise<void> => {
   }
 };
 
+// Enhanced function to check for existing bookings with better logging
 export const checkForExistingBooking = async (employeeId: string, date: string): Promise<boolean> => {
   try {
     console.log('SlotBookingService: Checking for existing booking for employee:', employeeId, 'on date:', date);
     
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .select('id')
+      .select('id, status, employee_id, date')
       .eq('employee_id', employeeId)
       .eq('date', date)
       .neq('status', 'cancelled');
@@ -132,10 +133,42 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
 
     const hasExistingBooking = data && data.length > 0;
     console.log('SlotBookingService: Existing booking check result:', hasExistingBooking);
+    if (hasExistingBooking) {
+      console.log('SlotBookingService: Found existing bookings:', data);
+    }
+    
     return hasExistingBooking;
   } catch (error) {
     console.error('SlotBookingService: Error in checkForExistingBooking:', error);
     throw error;
+  }
+};
+
+// Enhanced function to verify employee exists in database
+export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists: boolean; employeeName?: string }> => {
+  try {
+    console.log('SlotBookingService: Verifying employee exists:', employeeId);
+    
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name, email')
+      .eq('id', employeeId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('SlotBookingService: Employee not found:', employeeId);
+        return { exists: false };
+      }
+      console.error('SlotBookingService: Error verifying employee:', error);
+      throw error;
+    }
+
+    console.log('SlotBookingService: Employee verified:', data);
+    return { exists: true, employeeName: data.name };
+  } catch (error) {
+    console.error('SlotBookingService: Error in verifyEmployeeExists:', error);
+    return { exists: false };
   }
 };
 
@@ -236,6 +269,7 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
       };
     });
 
+    console.log('SlotBookingService: Weekly slot config loaded:', Object.keys(config).length, 'branches');
     return config;
   } catch (error) {
     console.error('SlotBookingService: Error in getWeeklySlotConfig:', error);
@@ -311,14 +345,36 @@ export const getBookedSlotsForDate = async (date: string, branchId: string): Pro
   }
 };
 
+// Enhanced addSlotBooking with better error handling and validation
 export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn'>): Promise<string> => {
   try {
     console.log('SlotBookingService: Creating slot booking in Supabase:', booking);
     
-    // Check for existing booking first
+    // Verify employee exists first
+    const employeeVerification = await verifyEmployeeExists(booking.employeeId);
+    if (!employeeVerification.exists) {
+      throw new Error(`Employee ${booking.employeeId} does not exist in the system. Please contact administrator.`);
+    }
+    
+    // Check for existing booking
     const hasExistingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
     if (hasExistingBooking) {
       throw new Error(`Employee ${booking.employeeName} already has a booking on ${booking.date}. Double bookings are not allowed.`);
+    }
+    
+    // Validate date is not in the past
+    const bookingDate = new Date(booking.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (bookingDate < today) {
+      throw new Error(`Cannot book slots for past dates. Selected date: ${booking.date}`);
+    }
+    
+    // Check if slots are available for the date
+    const availableSlots = await getAvailableSlotsForDate(booking.date, booking.branchId);
+    if (availableSlots <= 0) {
+      throw new Error(`No slots available for ${booking.branchName} on ${booking.date}. Please select a different date.`);
     }
     
     const bookingId = `SB${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -328,7 +384,7 @@ export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn
       .insert({
         id: bookingId,
         employee_id: booking.employeeId,
-        employee_name: booking.employeeName,
+        employee_name: employeeVerification.employeeName || booking.employeeName,
         branch_id: booking.branchId,
         branch_name: booking.branchName,
         date: booking.date,
@@ -341,7 +397,7 @@ export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn
 
     if (error) {
       console.error('SlotBookingService: Error creating slot booking:', error);
-      throw error;
+      throw new Error(`Failed to create booking: ${error.message}`);
     }
 
     console.log('SlotBookingService: Successfully created slot booking:', bookingId);
