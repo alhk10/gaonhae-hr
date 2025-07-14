@@ -14,9 +14,7 @@ export const getCurrentUserEmployee = async (email: string) => {
         email,
         type,
         department,
-        position,
-        admin_access (*),
-        employee_page_access (*)
+        position
       `)
       .eq('email', email.toLowerCase())
       .maybeSingle();
@@ -33,26 +31,26 @@ export const getCurrentUserEmployee = async (email: string) => {
 
     console.log('AuthOptimization: Employee data fetched successfully:', employee.name);
 
-    // Process minimal user data for authentication - handle potential relation issues
-    let adminAccess = null;
-    let pageAccess = null;
+    // Fetch admin access separately
+    const { data: adminAccessData, error: adminError } = await supabase
+      .from('admin_access')
+      .select('*')
+      .eq('employee_id', employee.id)
+      .maybeSingle();
 
-    // Handle admin_access - check if it's an array or object
-    if (employee.admin_access) {
-      if (Array.isArray(employee.admin_access)) {
-        adminAccess = employee.admin_access.length > 0 ? employee.admin_access[0] : null;
-      } else if (typeof employee.admin_access === 'object') {
-        adminAccess = employee.admin_access;
-      }
+    if (adminError) {
+      console.error('AuthOptimization: Error fetching admin access:', adminError);
     }
 
-    // Handle employee_page_access - check if it's an array or object
-    if (employee.employee_page_access) {
-      if (Array.isArray(employee.employee_page_access)) {
-        pageAccess = employee.employee_page_access.length > 0 ? employee.employee_page_access[0] : null;
-      } else if (typeof employee.employee_page_access === 'object') {
-        pageAccess = employee.employee_page_access;
-      }
+    // Fetch employee page access separately
+    const { data: pageAccessData, error: pageError } = await supabase
+      .from('employee_page_access')
+      .select('*')
+      .eq('employee_id', employee.id)
+      .maybeSingle();
+
+    if (pageError) {
+      console.error('AuthOptimization: Error fetching page access:', pageError);
     }
 
     const result = {
@@ -62,14 +60,14 @@ export const getCurrentUserEmployee = async (email: string) => {
       type: employee.type as 'Full-Time' | 'Casual',
       department: employee.department || '',
       position: employee.position || '',
-      adminAccess: adminAccess ? {
-        employees: adminAccess.employees || false,
-        payroll: adminAccess.payroll || false,
-        leaveManagement: adminAccess.leave_management || false,
-        claims: adminAccess.claims || false,
-        attendance: adminAccess.attendance || false,
-        slotBooking: adminAccess.slot_booking || false,
-        reports: adminAccess.reports || false
+      adminAccess: adminAccessData ? {
+        employees: adminAccessData.employees || false,
+        payroll: adminAccessData.payroll || false,
+        leaveManagement: adminAccessData.leave_management || false,
+        claims: adminAccessData.claims || false,
+        attendance: adminAccessData.attendance || false,
+        slotBooking: adminAccessData.slot_booking || false,
+        reports: adminAccessData.reports || false
       } : {
         employees: false,
         payroll: false,
@@ -79,13 +77,13 @@ export const getCurrentUserEmployee = async (email: string) => {
         slotBooking: false,
         reports: false
       },
-      pageAccess: pageAccess ? {
-        profile: pageAccess.profile !== false,
-        applyLeave: pageAccess.apply_leave !== false,
-        submitClaim: pageAccess.submit_claim !== false,
-        payslips: pageAccess.payslips !== false,
-        myAttendance: pageAccess.my_attendance !== false,
-        slotBookingEmployee: pageAccess.slot_booking_employee !== false
+      pageAccess: pageAccessData ? {
+        profile: pageAccessData.profile !== false,
+        applyLeave: pageAccessData.apply_leave !== false,
+        submitClaim: pageAccessData.submit_claim !== false,
+        payslips: pageAccessData.payslips !== false,
+        myAttendance: pageAccessData.my_attendance !== false,
+        slotBookingEmployee: pageAccessData.slot_booking_employee !== false
       } : {
         profile: true,
         applyLeave: true,

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => {
             setShowProgressiveLoading(false);
             setIsLoading(false);
-          }, 500);
+          }, 1000);
           
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
