@@ -45,23 +45,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkAuthStatus();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session) {
+        await handleUserSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const checkSuperadminStatus = async (email: string): Promise<boolean> => {
+  const handleUserSession = async (session: any) => {
     try {
-      console.log('AuthContext: Checking superadmin status for:', email);
-      const { data, error } = await supabase.rpc('is_superadmin', { user_email: email });
-      
-      if (error) {
-        console.error('AuthContext: Error checking superadmin status:', error);
-        return false;
+      if (session?.user?.email) {
+        console.log('AuthContext: Processing session for user:', session.user.email);
+        
+        // Verify user exists in employees table
+        const employees = await getEmployees();
+        const employee = employees.find(emp => emp.email === session.user.email);
+        
+        if (employee) {
+          console.log('AuthContext: Employee found, checking superadmin status');
+          
+          // Check if user is superadmin using the database function
+          const { data: isSuperadmin, error: superadminError } = await supabase.rpc('is_superadmin', { 
+            user_email: session.user.email 
+          });
+          
+          if (superadminError) {
+            console.error('AuthContext: Error checking superadmin status:', superadminError);
+          }
+          
+          const userRole = isSuperadmin ? 'superadmin' : 'employee';
+          
+          console.log('AuthContext: Setting user with role:', userRole);
+          setUser({ 
+            id: employee.id,
+            email: session.user.email,
+            name: employee.name,
+            role: userRole,
+            employeeId: employee.id,
+            department: employee.department
+          });
+          
+          setRequiresPasswordChange(false);
+          setHasError(false);
+        } else {
+          console.warn('AuthContext: User email not found in employees table');
+          setHasError(true);
+          setUser(null);
+          await supabase.auth.signOut();
+          toast("Access denied: User not found in system");
+        }
       }
-      
-      console.log('AuthContext: Superadmin status result:', data);
-      return data || false;
     } catch (error) {
-      console.error('AuthContext: Error in superadmin check:', error);
-      return false;
+      console.error('AuthContext: Error in handleUserSession:', error);
+      setHasError(true);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,53 +132,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (session?.user?.email) {
-        console.log('AuthContext: Found session for user:', session.user.email);
-        
-        try {
-          // Verify user exists in employees table
-          const employees = await getEmployees();
-          const employee = employees.find(emp => emp.email === session.user.email);
-          
-          if (employee) {
-            console.log('AuthContext: Employee found, checking superadmin status');
-            
-            // Check if user is superadmin
-            const isSuperadmin = await checkSuperadminStatus(session.user.email);
-            const userRole = isSuperadmin ? 'superadmin' : 'employee';
-            
-            console.log('AuthContext: Setting user with role:', userRole);
-            setUser({ 
-              id: employee.id,
-              email: session.user.email,
-              name: employee.name,
-              role: userRole,
-              employeeId: employee.id,
-              department: employee.department
-            });
-            
-            // Check if password change is required
-            // This would typically come from your password management system
-            setRequiresPasswordChange(false);
-          } else {
-            console.warn('AuthContext: User email not found in employees table');
-            setHasError(true);
-            setUser(null);
-          }
-        } catch (employeeError) {
-          console.error('AuthContext: Error fetching employee data:', employeeError);
-          setHasError(true);
-          setUser(null);
-        }
+      if (session) {
+        await handleUserSession(session);
       } else {
         console.log('AuthContext: No active session found');
         setUser(null);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('AuthContext: Error in checkAuthStatus:', error);
       setHasError(true);
       setUser(null);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -139,6 +153,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       setHasError(false);
       setIsLoggedOut(false);
+
+      // First verify the user exists in our employees table
+      const employees = await getEmployees();
+      const employee = employees.find(emp => emp.email === email);
+      
+      if (!employee) {
+        console.error('AuthContext: User not found in employees table');
+        toast("Access denied: User not found in system");
+        return false;
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -151,35 +175,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      if (data.user?.email) {
-        // Verify user exists in employees table
-        const employees = await getEmployees();
-        const employee = employees.find(emp => emp.email === data.user.email);
-        
-        if (employee) {
-          console.log('AuthContext: Login successful for employee:', employee.name);
-          
-          // Check if user is superadmin
-          const isSuperadmin = await checkSuperadminStatus(data.user.email);
-          const userRole = isSuperadmin ? 'superadmin' : 'employee';
-          
-          console.log('AuthContext: Setting logged in user with role:', userRole);
-          setUser({ 
-            id: employee.id,
-            email: data.user.email,
-            name: employee.name,
-            role: userRole,
-            employeeId: employee.id,
-            department: employee.department
-          });
-          toast("Login successful!");
-          return true;
-        } else {
-          console.error('AuthContext: User not found in employees table');
-          await supabase.auth.signOut();
-          toast("Access denied: User not found in system");
-          return false;
-        }
+      if (data.user) {
+        console.log('AuthContext: Login successful for:', email);
+        // The session will be handled by the onAuthStateChange listener
+        toast("Login successful!");
+        return true;
       }
 
       return false;
