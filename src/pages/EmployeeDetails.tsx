@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
-import { getEmployee, updateEmployee, deleteEmployee } from '@/services/employeeService';
+import { getEmployeeById, updateEmployee, deleteEmployee } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import { Calendar } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -47,12 +48,15 @@ const EmployeeDetails = () => {
 
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ['employee', id],
-    queryFn: () => getEmployee(id!),
+    queryFn: () => getEmployeeById(id!),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
-    onSuccess: (data) => {
-      setEmployeeData(data);
-      setAdminAccess(data.adminAccess || {
+  });
+
+  useEffect(() => {
+    if (employee) {
+      setEmployeeData(employee);
+      setAdminAccess(employee.adminAccess || {
         employees: false,
         payroll: false,
         leaveManagement: false,
@@ -61,7 +65,7 @@ const EmployeeDetails = () => {
         slotBooking: false,
         reports: false
       });
-      setPageAccess(data.pageAccess || {
+      setPageAccess(employee.pageAccess || {
         profile: true,
         applyLeave: true,
         submitClaim: true,
@@ -69,17 +73,11 @@ const EmployeeDetails = () => {
         myAttendance: true,
         slotBookingEmployee: true
       });
-    },
-  });
-
-  useEffect(() => {
-    if (employee) {
-      setEmployeeData(employee);
     }
   }, [employee]);
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: updateEmployee,
+    mutationFn: ({ id, data }: { id: string; data: EmployeeProfile }) => updateEmployee(id, data),
     onSuccess: () => {
       console.log('Employee updated successfully');
       queryClient.invalidateQueries({ queryKey: ['employee', id] });
@@ -133,7 +131,10 @@ const EmployeeDetails = () => {
     if (!employeeData) return;
 
     try {
-      await updateEmployeeMutation.mutateAsync(employeeData);
+      await updateEmployeeMutation.mutateAsync({
+        id: employeeData.id,
+        data: employeeData
+      });
       await updateEmployeeAdminAccess(employeeData.id, adminAccess);
       await updateEmployeePageAccess(employeeData.id, pageAccess);
       console.log('Employee updated successfully with access permissions');
@@ -195,8 +196,8 @@ const EmployeeDetails = () => {
                   }}>
                     Cancel
                   </Button>
-                  <Button onClick={handleUpdateEmployee} disabled={updateEmployeeMutation.isLoading}>
-                    {updateEmployeeMutation.isLoading ? 'Updating...' : 'Update Employee'}
+                  <Button onClick={handleUpdateEmployee} disabled={updateEmployeeMutation.isPending}>
+                    {updateEmployeeMutation.isPending ? 'Updating...' : 'Update Employee'}
                   </Button>
                 </div>
               ) : (
@@ -205,8 +206,8 @@ const EmployeeDetails = () => {
                     Back to Employees
                   </Button>
                   {isSuperAdmin && (
-                    <Button variant="destructive" onClick={handleDeleteEmployee} disabled={deleteEmployeeMutation.isLoading}>
-                      {deleteEmployeeMutation.isLoading ? 'Deleting...' : 'Remove Employee'}
+                    <Button variant="destructive" onClick={handleDeleteEmployee} disabled={deleteEmployeeMutation.isPending}>
+                      {deleteEmployeeMutation.isPending ? 'Deleting...' : 'Remove Employee'}
                     </Button>
                   )}
                   <Button onClick={() => setIsEditing(true)}>
@@ -265,10 +266,8 @@ const EmployeeDetails = () => {
                   <Label htmlFor="dateOfBirth">Date of Birth</Label>
                   <div className="relative">
                     <DatePicker
-                      id="dateOfBirth"
-                      name="dateOfBirth"
                       onSelect={(date) => handleDateChange('dateOfBirth', date)}
-                      date={employeeData.dateOfBirth ? new Date(employeeData.dateOfBirth) : undefined}
+                      selected={employeeData.dateOfBirth ? new Date(employeeData.dateOfBirth) : undefined}
                       disabled={!isEditing}
                     />
                     <Calendar className="absolute top-2 right-2 w-4 h-4 text-gray-500" />
@@ -278,10 +277,8 @@ const EmployeeDetails = () => {
                   <Label htmlFor="joinDate">Join Date</Label>
                   <div className="relative">
                     <DatePicker
-                      id="joinDate"
-                      name="joinDate"
                       onSelect={(date) => handleDateChange('joinDate', date)}
-                      date={employeeData.joinDate ? new Date(employeeData.joinDate) : undefined}
+                      selected={employeeData.joinDate ? new Date(employeeData.joinDate) : undefined}
                       disabled={!isEditing}
                     />
                     <Calendar className="absolute top-2 right-2 w-4 h-4 text-gray-500" />
