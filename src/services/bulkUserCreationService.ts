@@ -53,7 +53,9 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
     console.log(`BulkUserCreation: Found ${employeesWithEmail.length} employees with email addresses`);
 
     for (const employee of employeesWithEmail) {
-      const normalizedEmail = employee.email!.toLowerCase().trim();
+      if (!employee.email) continue; // Skip if no email (TypeScript safety)
+      
+      const normalizedEmail = employee.email.toLowerCase().trim();
       console.log(`BulkUserCreation: Processing ${employee.name} (${normalizedEmail})`);
 
       try {

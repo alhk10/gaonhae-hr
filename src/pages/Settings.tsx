@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SuperadminManager from '@/components/admin/SuperadminManager';
@@ -7,9 +7,13 @@ import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings
 import PublicHolidayManagement from '@/components/settings/PublicHolidayManagement';
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
 import { useAuth } from '@/contexts/AuthContext';
+import { getEmployees } from '@/services/employeeService';
+import { EmployeeProfile } from '@/types/employee';
 
 const Settings = () => {
   const { user } = useAuth();
+  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
+  const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
 
   // Only superadmins can access settings
   if (user?.role !== 'superadmin') {
@@ -23,6 +27,19 @@ const Settings = () => {
       </ResponsiveLayout>
     );
   }
+
+  const handleEmployeesUpdate = async () => {
+    try {
+      const employeeData = await getEmployees();
+      setEmployees(employeeData);
+    } catch (error) {
+      console.error('Settings: Error fetching employees:', error);
+    }
+  };
+
+  useEffect(() => {
+    handleEmployeesUpdate();
+  }, []);
 
   return (
     <ResponsiveLayout>
@@ -49,7 +66,12 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="employee-modules" className="mt-6">
-            <EmployeeModuleSettings />
+            <EmployeeModuleSettings 
+              open={showEmployeeSettings}
+              onOpenChange={setShowEmployeeSettings}
+              employees={employees}
+              onEmployeesUpdate={handleEmployeesUpdate}
+            />
           </TabsContent>
 
           <TabsContent value="holidays" className="mt-6">
