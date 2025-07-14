@@ -1,10 +1,8 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
 import { checkEmployeeAuthStatus, createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
-import LoginForm from '@/components/auth/LoginForm';
 
 interface User {
   id: string;
@@ -291,11 +289,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
-  }
-
-  // Show login form if no user
-  if (!user) {
-    return <LoginForm />;
   }
 
   const contextValue: AuthContextType = {
