@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, MapPin, Users, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +22,10 @@ import {
   type SlotBooking as SlotBookingType
 } from '@/services/slotBookingService';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
+import EnhancedCalendar from '@/components/slot-booking/EnhancedCalendar';
+import EnhancedBranchSelector from '@/components/slot-booking/EnhancedBranchSelector';
+import SelectedDatesManager from '@/components/slot-booking/SelectedDatesManager';
+import BookingActions from '@/components/slot-booking/BookingActions';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const SlotBooking = () => {
@@ -77,7 +80,6 @@ const SlotBooking = () => {
       setLoading(true);
       console.log('SlotBooking: Loading initial slot booking data from Supabase...');
       
-      // Update branch colors first to ensure they match the new scheme
       await updateBranchColors();
       
       const branchesData = await getBranches();
@@ -120,7 +122,6 @@ const SlotBooking = () => {
       const bookings = await getEmployeeSlotBookings(user.id);
       setEmployeeBookings(bookings);
       
-      // Create a set of dates where employee has bookings (non-cancelled)
       const employeeDates = new Set(
         bookings
           .filter(booking => booking.status !== 'cancelled')
@@ -144,7 +145,6 @@ const SlotBooking = () => {
       console.log('SlotBooking: Loading approved bookings for branch:', selectedBranch);
       const branchBookings = await getBranchSlotBookings(selectedBranch);
       
-      // Filter approved bookings and create a set of dates
       const approvedDates = new Set(
         branchBookings
           .filter(booking => booking.status === 'approved')
@@ -154,7 +154,6 @@ const SlotBooking = () => {
       setApprovedBookingDates(approvedDates);
       console.log('SlotBooking: Approved booking dates loaded for branch', selectedBranch, ':', approvedDates.size);
       
-      // Force calendar re-render by clearing and resetting selected dates
       setSelectedDates([]);
     } catch (error) {
       console.error('SlotBooking: Error loading approved booking dates:', error);
@@ -210,10 +209,8 @@ const SlotBooking = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Disable past dates
     if (date < today) return true;
     
-    // Disable dates where employee already has a booking (prevent double booking)
     const dateString = format(date, 'yyyy-MM-dd');
     if (employeeBookingDates.has(dateString)) return true;
     
@@ -223,13 +220,11 @@ const SlotBooking = () => {
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     
-    // Check if employee is verified
     if (employeeVerified === false) {
       toast.error('Your employee record was not found. Please contact administrator before booking slots.');
       return;
     }
     
-    // Check if date is disabled
     if (isDateDisabled(date)) {
       const dateString = format(date, 'yyyy-MM-dd');
       if (employeeBookingDates.has(dateString)) {
@@ -240,17 +235,14 @@ const SlotBooking = () => {
       return;
     }
     
-    // For non-employee users, show bulk dialog
     if (user?.role !== 'employee') {
       setSelectedDateForBulk(date);
       setIsBulkDialogOpen(true);
       return;
     }
 
-    // For employees, handle multiple date selection with enhanced validation
     const dateString = format(date, 'yyyy-MM-dd');
     
-    // Check available slots for this date and branch
     try {
       const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
       if (availableSlots <= 0) {
@@ -263,7 +255,6 @@ const SlotBooking = () => {
       return;
     }
     
-    // Double check for existing booking
     if (user?.id) {
       try {
         const hasExistingBooking = await checkForExistingBooking(user.id, dateString);
@@ -282,10 +273,8 @@ const SlotBooking = () => {
       const existingIndex = prevDates.findIndex(d => format(d, 'yyyy-MM-dd') === dateString);
       
       if (existingIndex > -1) {
-        // Remove date if already selected
         return prevDates.filter((_, index) => index !== existingIndex);
       } else {
-        // Add date to selection
         return [...prevDates, date];
       }
     });
@@ -294,15 +283,20 @@ const SlotBooking = () => {
   const handleBranchChange = async (branchId: string) => {
     console.log('SlotBooking: Branch change requested from', selectedBranch, 'to', branchId);
     
-    // Clear current selections when branch changes
     setSelectedDates([]);
     setApprovedBookingDates(new Set());
     
-    // Update selected branch
     setSelectedBranch(branchId);
     
-    // Show loading toast for better UX
     toast.info(`Loading ${branches.find(b => b.id === branchId)?.name} booking data...`);
+  };
+
+  const handleRemoveDate = (index: number) => {
+    setSelectedDates(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleClearAllDates = () => {
+    setSelectedDates([]);
   };
 
   const handleBookSlots = async () => {
@@ -340,7 +334,6 @@ const SlotBooking = () => {
       toast.success(`Successfully booked ${selectedDates.length} slot${selectedDates.length > 1 ? 's' : ''} at ${currentBranch.name}`);
       console.log('SlotBooking: Created bookings:', bookingIds);
       
-      // Clear selected dates and reload bookings
       setSelectedDates([]);
       await Promise.all([
         loadEmployeeBookings(),
@@ -364,9 +357,8 @@ const SlotBooking = () => {
     ]);
   };
 
-  // Helper function to get branch color style
   const getBranchColorStyle = (color: string) => {
-    return color || '#3b82f6'; // Default to blue if no color
+    return color || '#3b82f6';
   };
 
   if (loading) {
@@ -403,23 +395,21 @@ const SlotBooking = () => {
           )}
         </div>
 
-        {/* Single stats widget - My Approved Bookings */}
-        <div className="grid gap-6 grid-cols-1">
-          <Card>
-            <CardContent className={isMobile ? 'p-4' : 'p-6'}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Approved Bookings</p>
-                  <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{approvedBookingsCount}</p>
-                  <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
-                </div>
-                <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+        {/* Stats Card */}
+        <Card>
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Approved Bookings</p>
+                <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{approvedBookingsCount}</p>
+                <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Tabs for main content */}
+        {/* Tabs */}
         <Tabs defaultValue="booking" className="w-full">
           <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
             <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>
@@ -427,165 +417,53 @@ const SlotBooking = () => {
           </TabsList>
 
           <TabsContent value="booking" className="mt-6">
-            <Card className={isMobile ? '' : 'min-w-0'}>
-              <CardHeader>
-                <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
-                  <CalendarIcon className="w-5 h-5" />
-                  <span>Select Date & Branch</span>
-                  {isBranchDataLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Branch</label>
-                  <Select value={selectedBranch} onValueChange={handleBranchChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          <div className="flex items-center space-x-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: getBranchColorStyle(branch.color) }}
-                            ></div>
-                            <span>{branch.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Branch Selection - Left Column */}
+              <div className="lg:col-span-1 space-y-6">
+                <EnhancedBranchSelector
+                  branches={branches}
+                  selectedBranch={selectedBranch}
+                  onBranchChange={handleBranchChange}
+                  currentBranch={currentBranch}
+                  isLoading={isBranchDataLoading}
+                />
                 
-                <div>
-                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                    Select Date{selectedDates.length > 0 ? 's' : ''} 
-                    {selectedDates.length > 0 && (
-                      <span className="text-blue-600 ml-2">
-                        ({selectedDates.length} selected)
-                      </span>
-                    )}
-                  </label>
-                  <div className="flex justify-center w-full">
-                    <Calendar
-                      mode="multiple"
-                      selected={selectedDates}
-                      onSelect={(dates) => {
-                        if (user?.role !== 'employee') return;
-                        setSelectedDates(dates || []);
-                      }}
-                      onDayClick={handleDateSelect}
-                      className="rounded-md border w-full max-w-none"
-                      disabled={isDateDisabled}
-                      key={`${selectedBranch}-${approvedBookingDates.size}`} 
-                      modifiers={{
-                        booked: (date) => {
-                          const dateString = format(date, 'yyyy-MM-dd');
-                          return approvedBookingDates.has(dateString);
-                        },
-                        myBooking: (date) => {
-                          const dateString = format(date, 'yyyy-MM-dd');
-                          return employeeBookingDates.has(dateString);
-                        }
-                      }}
-                      modifiersStyles={{
-                        booked: {
-                          backgroundColor: '#e0f2fe',
-                          color: '#0369a1',
-                          fontWeight: 'normal'
-                        },
-                        myBooking: {
-                          backgroundColor: '#fee2e2',
-                          color: '#dc2626',
-                          textDecoration: 'line-through',
-                          fontWeight: 'bold'
-                        }
-                      }}
-                      style={{
-                        minHeight: '400px'
-                      }}
-                    />
-                  </div>
-                </div>
+                <BookingActions
+                  selectedDates={selectedDates}
+                  branchName={currentBranch?.name || ''}
+                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                  isBooking={isBooking}
+                  employeeVerified={employeeVerified}
+                  onBookSlots={handleBookSlots}
+                  onBulkBookingOpen={() => setIsBulkDialogOpen(true)}
+                />
+              </div>
 
-                {/* Selected dates display */}
-                {selectedDates.length > 0 && (
-                  <div 
-                    className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} 
-                    style={{ 
-                      backgroundColor: `${getBranchColorStyle(currentBranch?.color || '#3b82f6')}20`,
-                      border: `1px solid ${getBranchColorStyle(currentBranch?.color || '#3b82f6')}40`
-                    }}
-                  >
-                    <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm' : ''}`}>
-                      Selected Dates ({selectedDates.length}):
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedDates.map((date, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="secondary" 
-                          className={isMobile ? 'text-xs' : 'text-sm'}
-                          style={{ 
-                            backgroundColor: getBranchColorStyle(currentBranch?.color || '#3b82f6'),
-                            color: 'white'
-                          }}
-                        >
-                          {format(date, 'MMM dd, yyyy')}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              {/* Calendar - Middle Column */}
+              <div className="lg:col-span-1">
+                <EnhancedCalendar
+                  selectedDates={selectedDates}
+                  onDateSelect={handleDateSelect}
+                  onDatesChange={setSelectedDates}
+                  isDateDisabled={isDateDisabled}
+                  approvedBookingDates={approvedBookingDates}
+                  employeeBookingDates={employeeBookingDates}
+                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                  isLoading={isBranchDataLoading}
+                />
+              </div>
 
-                {/* Branch info */}
-                {currentBranch && (
-                  <div 
-                    className={`rounded-lg ${isMobile ? 'p-3' : 'p-4'}`} 
-                    style={{ 
-                      backgroundColor: `${getBranchColorStyle(currentBranch.color)}20`,
-                      border: `1px solid ${getBranchColorStyle(currentBranch.color)}40`
-                    }}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div 
-                        className="w-4 h-4 rounded-full mt-1" 
-                        style={{ backgroundColor: getBranchColorStyle(currentBranch.color) }}
-                      ></div>
-                      <div className="flex-1">
-                        <h3 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>{currentBranch.name}</h3>
-                        <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>{currentBranch.address}</p>
-                        <div className="mt-2 text-xs text-gray-500 space-y-1">
-                          <div>
-                            <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#e0f2fe' }}></span>
-                            Blue background: Other employees' approved bookings
-                          </div>
-                          <div>
-                            <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#fee2e2' }}></span>
-                            Red striked dates: Your existing bookings (no double booking allowed)
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Book button - only for employees */}
-                {user?.role === 'employee' && (
-                  <Button 
-                    onClick={handleBookSlots} 
-                    className="w-full"
-                    disabled={selectedDates.length === 0 || !currentBranch || isBooking || employeeVerified === false}
-                    style={{ backgroundColor: getBranchColorStyle(currentBranch?.color || '#3b82f6') }}
-                  >
-                    {isBooking ? 'Booking...' : `Book ${selectedDates.length > 0 ? selectedDates.length : ''} Slot${selectedDates.length !== 1 ? 's' : ''}`}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+              {/* Selected Dates - Right Column */}
+              <div className="lg:col-span-1">
+                <SelectedDatesManager
+                  selectedDates={selectedDates}
+                  onRemoveDate={handleRemoveDate}
+                  onClearAll={handleClearAllDates}
+                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                  branchName={currentBranch?.name || ''}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="history" className="mt-6">
