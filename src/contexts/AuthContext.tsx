@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -73,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('AuthContext: Starting authentication initialization...');
         
-        // Set a timeout to prevent infinite loading
+        // Shorter timeout for initialization
         initializationTimeout = setTimeout(() => {
           console.warn('AuthContext: Initialization timeout, clearing loading states');
           if (mounted) {
@@ -81,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setShowProgressiveLoading(false);
             setIsInitialized(true);
           }
-        }, 12000); // Reduced to 12 seconds
+        }, 8000); // Reduced to 8 seconds
         
         authProgress.startLoading();
         setShowProgressiveLoading(true);
@@ -165,12 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (session?.user?.email) {
         const normalizedEmail = session.user.email.toLowerCase();
-        console.log('AuthContext: Processing session with optimized employee lookup:', normalizedEmail);
+        console.log('AuthContext: Processing session for:', normalizedEmail);
         
         authProgress.completeStage('session');
         
-        // Use optimized employee lookup with better error handling
-        console.log('AuthContext: About to call getCurrentUserEmployee...');
+        // Simplified employee lookup
+        console.log('AuthContext: Calling getCurrentUserEmployee...');
         const employee = await getCurrentUserEmployee(normalizedEmail);
         console.log('AuthContext: getCurrentUserEmployee returned:', employee ? 'Employee found' : 'No employee');
         
@@ -178,7 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('AuthContext: Employee found in database:', employee.name);
           authProgress.completeStage('employee');
           
-          // Check superadmin status with caching
+          // Check superadmin status
           console.log('AuthContext: Checking superadmin status...');
           const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
           const userRole = isSuperadmin ? 'superadmin' : 'employee';
@@ -203,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => {
             setShowProgressiveLoading(false);
             setIsLoading(false);
-          }, 1000);
+          }, 500);
           
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
@@ -253,14 +254,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowProgressiveLoading(true);
       loginProgress.startLoading();
 
-      // Set a timeout to prevent infinite loading on login
+      // Shorter timeout for login
       loginTimeout = setTimeout(() => {
         console.warn('AuthContext: Login timeout, clearing loading states');
         setIsLoading(false);
         setShowProgressiveLoading(false);
         loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 20000); // Reduced to 20 seconds
+      }, 10000); // Reduced to 10 seconds
 
       const normalizedEmail = email.toLowerCase().trim();
       console.log('AuthContext: Normalized email for login:', normalizedEmail);
