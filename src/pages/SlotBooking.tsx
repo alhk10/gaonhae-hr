@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +42,7 @@ const SlotBooking = () => {
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [employeeVerified, setEmployeeVerified] = useState<boolean | null>(null);
+  const [isBranchDataLoading, setIsBranchDataLoading] = useState(false);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -58,10 +58,11 @@ const SlotBooking = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (selectedBranch) {
+    if (selectedBranch && branches.length > 0) {
+      console.log('SlotBooking: Branch changed to:', selectedBranch);
       loadApprovedBookingDates();
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, branches]);
 
   useEffect(() => {
     filterBookingsByMonth();
@@ -139,6 +140,7 @@ const SlotBooking = () => {
     if (!selectedBranch) return;
     
     try {
+      setIsBranchDataLoading(true);
       console.log('SlotBooking: Loading approved bookings for branch:', selectedBranch);
       const branchBookings = await getBranchSlotBookings(selectedBranch);
       
@@ -150,9 +152,15 @@ const SlotBooking = () => {
       );
       
       setApprovedBookingDates(approvedDates);
-      console.log('SlotBooking: Approved booking dates loaded:', approvedDates.size);
+      console.log('SlotBooking: Approved booking dates loaded for branch', selectedBranch, ':', approvedDates.size);
+      
+      // Force calendar re-render by clearing and resetting selected dates
+      setSelectedDates([]);
     } catch (error) {
       console.error('SlotBooking: Error loading approved booking dates:', error);
+      toast.error('Failed to load branch booking data');
+    } finally {
+      setIsBranchDataLoading(false);
     }
   };
 
@@ -283,6 +291,20 @@ const SlotBooking = () => {
     });
   };
 
+  const handleBranchChange = async (branchId: string) => {
+    console.log('SlotBooking: Branch change requested from', selectedBranch, 'to', branchId);
+    
+    // Clear current selections when branch changes
+    setSelectedDates([]);
+    setApprovedBookingDates(new Set());
+    
+    // Update selected branch
+    setSelectedBranch(branchId);
+    
+    // Show loading toast for better UX
+    toast.info(`Loading ${branches.find(b => b.id === branchId)?.name} booking data...`);
+  };
+
   const handleBookSlots = async () => {
     if (selectedDates.length === 0 || !currentBranch || !user) {
       toast.error("Please select at least one date and ensure you're logged in");
@@ -410,12 +432,15 @@ const SlotBooking = () => {
                 <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
                   <CalendarIcon className="w-5 h-5" />
                   <span>Select Date & Branch</span>
+                  {isBranchDataLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>Branch</label>
-                  <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <Select value={selectedBranch} onValueChange={handleBranchChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a branch" />
                     </SelectTrigger>
@@ -455,6 +480,7 @@ const SlotBooking = () => {
                       onDayClick={handleDateSelect}
                       className="rounded-md border w-full max-w-none"
                       disabled={isDateDisabled}
+                      key={`${selectedBranch}-${approvedBookingDates.size}`} 
                       modifiers={{
                         booked: (date) => {
                           const dateString = format(date, 'yyyy-MM-dd');
