@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,18 +65,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleUserSession = async (session: any) => {
     try {
       if (session?.user?.email) {
-        console.log('AuthContext: Processing session for user:', session.user.email);
+        const normalizedEmail = session.user.email.toLowerCase();
+        console.log('AuthContext: Processing session for user:', normalizedEmail);
         
-        // Verify user exists in employees table
+        // Verify user exists in employees table with case-insensitive matching
         const employees = await getEmployees();
-        const employee = employees.find(emp => emp.email === session.user.email);
+        const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
         
         if (employee) {
           console.log('AuthContext: Employee found, checking superadmin status');
           
           // Check if user is superadmin using the database function
           const { data: isSuperadmin, error: superadminError } = await supabase.rpc('is_superadmin', { 
-            user_email: session.user.email 
+            user_email: normalizedEmail 
           });
           
           if (superadminError) {
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('AuthContext: Setting user with role:', userRole);
           setUser({ 
             id: employee.id,
-            email: session.user.email,
+            email: normalizedEmail,
             name: employee.name,
             role: userRole,
             employeeId: employee.id,
@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setRequiresPasswordChange(false);
           setHasError(false);
         } else {
-          console.warn('AuthContext: User email not found in employees table');
+          console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
           setHasError(true);
           setUser(null);
           await supabase.auth.signOut();
@@ -154,29 +154,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setHasError(false);
       setIsLoggedOut(false);
 
+      // Normalize email to lowercase
+      const normalizedEmail = email.toLowerCase().trim();
+
       // First verify the user exists in our employees table
       const employees = await getEmployees();
-      const employee = employees.find(emp => emp.email === email);
+      const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
       
       if (!employee) {
-        console.error('AuthContext: User not found in employees table');
+        console.error('AuthContext: User not found in employees table:', normalizedEmail);
         toast("Access denied: User not found in system");
         return false;
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
       if (error) {
         console.error('AuthContext: Login error:', error);
-        toast(`Login failed: ${error.message}`);
+        
+        // Provide more specific error messages
+        if (error.message.includes('Invalid login credentials')) {
+          toast("Invalid email or password. Please check your credentials.");
+        } else if (error.message.includes('Email not confirmed')) {
+          toast("Please confirm your email address before signing in.");
+        } else {
+          toast(`Login failed: ${error.message}`);
+        }
         return false;
       }
 
       if (data.user) {
-        console.log('AuthContext: Login successful for:', email);
+        console.log('AuthContext: Login successful for:', normalizedEmail);
         // The session will be handled by the onAuthStateChange listener
         toast("Login successful!");
         return true;
