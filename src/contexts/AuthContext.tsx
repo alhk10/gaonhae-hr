@@ -4,7 +4,7 @@ import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
 import { checkEmployeeAuthStatus, createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
-import LoggedOutPage from '@/components/auth/LoggedOutPage';
+import LoginForm from '@/components/auth/LoginForm';
 
 interface User {
   id: string;
@@ -38,8 +38,6 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedOut, setIsLoggedOut] = useState(false);
-  const [hasError, setHasError] = useState(false);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -72,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (sessionError) {
           console.error('AuthContext: Session error:', sessionError);
-          setHasError(true);
         } else if (session && mounted) {
           console.log('AuthContext: Found existing session for:', session.user?.email);
           await handleUserSession(session);
@@ -92,7 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('AuthContext: Error during initialization:', error);
         if (mounted) {
-          setHasError(true);
           setIsInitialized(true);
           setIsLoading(false);
         }
@@ -141,12 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           
           setRequiresPasswordChange(false);
-          setHasError(false);
           
           console.log('AuthContext: User authentication successful');
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
-          setHasError(true);
           setUser(null);
           await supabase.auth.signOut();
           toast("Access denied: User not found in employee system. Please contact administrator.");
@@ -154,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('AuthContext: Error in handleUserSession:', error);
-      setHasError(true);
       setUser(null);
     }
   };
@@ -163,8 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Attempting login for:', email);
       setIsLoading(true);
-      setHasError(false);
-      setIsLoggedOut(false);
 
       // Normalize email to lowercase
       const normalizedEmail = email.toLowerCase().trim();
@@ -244,7 +235,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     } catch (error) {
       console.error('AuthContext: Login exception:', error);
-      setHasError(true);
       toast("Login failed. Please try again.");
       return false;
     } finally {
@@ -282,8 +272,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       await supabase.auth.signOut();
       setUser(null);
-      setIsLoggedOut(true);
-      setHasError(false);
       setRequiresPasswordChange(false);
       
       console.log('AuthContext: Logout successful');
@@ -291,27 +279,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('AuthContext: Logout error:', error);
       setUser(null);
-      setIsLoggedOut(true);
-      setHasError(true);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleLoginClick = () => {
-    setIsLoggedOut(false);
-    setHasError(false);
-  };
-
-  // Show logged out page if user is logged out or there's an error
-  if (isLoggedOut || hasError) {
-    return (
-      <LoggedOutPage 
-        onLoginClick={handleLoginClick}
-        hasError={hasError}
-      />
-    );
-  }
 
   // Show loading screen while initializing
   if (!isInitialized || isLoading) {
@@ -320,6 +291,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
+  }
+
+  // Show login form if no user
+  if (!user) {
+    return <LoginForm />;
   }
 
   const contextValue: AuthContextType = {
