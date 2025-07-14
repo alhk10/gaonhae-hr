@@ -10,6 +10,12 @@ interface BulkUserCreationResult {
   created: Array<{ email: string; name: string }>;
 }
 
+interface EmployeeWithValidEmail {
+  id: string;
+  name: string;
+  email: string; // Guaranteed to be a valid string
+}
+
 // Generate a secure temporary password
 const generateSecurePassword = (): string => {
   const length = 12;
@@ -36,8 +42,26 @@ const generateSecurePassword = (): string => {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 };
 
-// Type for employees that definitely have email addresses
-type EmployeeWithEmail = EmployeeProfile & { email: string };
+// Extract employees with valid email addresses
+const extractEmployeesWithEmails = (employees: EmployeeProfile[]): EmployeeWithValidEmail[] => {
+  const validEmployees: EmployeeWithValidEmail[] = [];
+  
+  for (const employee of employees) {
+    // Check if email exists and is a valid string
+    if (employee.email && 
+        typeof employee.email === 'string' && 
+        employee.email.trim().length > 0 && 
+        employee.email.includes('@')) {
+      validEmployees.push({
+        id: employee.id,
+        name: employee.name,
+        email: employee.email.trim()
+      });
+    }
+  }
+  
+  return validEmployees;
+};
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
   console.log('BulkUserCreation: Starting bulk user creation process...');
@@ -50,13 +74,16 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
   };
 
   try {
-    // Get all employees with email addresses
-    const employees = await getEmployees();
-    const employeesWithEmail: EmployeeWithEmail[] = employees.filter(
-      (emp): emp is EmployeeWithEmail => emp.email !== null && emp.email !== undefined && emp.email.trim() !== ''
-    );
+    // Get all employees and extract those with valid emails
+    const allEmployees = await getEmployees();
+    const employeesWithEmail = extractEmployeesWithEmails(allEmployees);
     
-    console.log(`BulkUserCreation: Found ${employeesWithEmail.length} employees with email addresses`);
+    console.log(`BulkUserCreation: Found ${employeesWithEmail.length} employees with valid email addresses`);
+
+    if (employeesWithEmail.length === 0) {
+      console.log('BulkUserCreation: No employees with valid emails found');
+      return result;
+    }
 
     for (const employee of employeesWithEmail) {
       const normalizedEmail = employee.email.toLowerCase().trim();
@@ -161,6 +188,12 @@ export const createSingleSupabaseAuthUser = async (email: string, name: string):
   try {
     const normalizedEmail = email.toLowerCase().trim();
     console.log(`BulkUserCreation: Creating single user: ${normalizedEmail}`);
+
+    // Validate email format
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      console.error(`BulkUserCreation: Invalid email format: ${normalizedEmail}`);
+      return false;
+    }
 
     // Check if user already exists
     const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();

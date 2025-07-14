@@ -43,7 +43,8 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     
     console.log(`EmployeeService: Processing employee ${emp.name}:`, {
       adminAccess: emp.admin_access?.[0],
-      pageAccess: pageAccess
+      pageAccess: pageAccess,
+      email: emp.email || 'No email'
     });
     
     return {
@@ -66,7 +67,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       position: emp.position || '',
       phone: emp.phone || '',
       address: emp.address || '',
-      email: emp.email || '',
+      email: emp.email || null, // Properly handle nullable email
       joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
       resignDate: emp.resign_date || undefined,
       allowances: emp.allowances?.map(a => ({
@@ -107,7 +108,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         reports: false
       },
       pageAccess: pageAccess ? {
-        profile: pageAccess.profile !== false, // Default to true if not explicitly false
+        profile: pageAccess.profile !== false,
         applyLeave: pageAccess.apply_leave !== false,
         submitClaim: pageAccess.submit_claim !== false,
         payslips: pageAccess.payslips !== false,
@@ -138,7 +139,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       certificates (*)
     `)
     .eq('type', 'Casual')
-    .is('resign_date', null); // Only get active casual employees
+    .is('resign_date', null);
 
   if (error) {
     console.error('EmployeeService: Error fetching casual employees:', error);
@@ -147,7 +148,6 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
 
   console.log('EmployeeService: Fetched casual employees:', employees);
 
-  // Fetch page access permissions for casual employees
   const employeeIds = employees?.map(emp => emp.id) || [];
   const { data: pageAccessData, error: pageAccessError } = await supabase
     .from('employee_page_access')
@@ -176,12 +176,12 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily',
       bankName: emp.bank_name || '',
       bankAccount: emp.bank_account || '',
-      branch: emp.department || 'Main Office', // Map department to branch for consistency
-      department: emp.department || '', // Keep original department field
+      branch: emp.department || 'Main Office',
+      department: emp.department || '',
       position: emp.position || '',
       phone: emp.phone || '',
       address: emp.address || '',
-      email: emp.email || '',
+      email: emp.email || null, // Handle nullable email
       joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
       resignDate: emp.resign_date || undefined,
       allowances: emp.allowances?.map(a => ({
@@ -265,9 +265,8 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     return null;
   }
 
-  console.log('EmployeeService: Found employee:', employee.name, employee.email);
+  console.log('EmployeeService: Found employee:', employee.name, employee.email || 'No email');
 
-  // Fetch page access permissions for the employee
   const { data: pageAccess, error: pageAccessError } = await supabase
     .from('employee_page_access')
     .select('*')
@@ -293,12 +292,12 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     paymentType: employee.payment_type as 'Monthly' | 'Hourly' | 'Daily',
     bankName: employee.bank_name || '',
     bankAccount: employee.bank_account || '',
-    branch: employee.department || 'Main Office', // Map department to branch for consistency
-    department: employee.department || '', // Keep original department field
+    branch: employee.department || 'Main Office',
+    department: employee.department || '',
     position: employee.position || '',
     phone: employee.phone || '',
     address: employee.address || '',
-    email: employee.email || '',
+    email: employee.email || null, // Handle nullable email
     joinDate: employee.join_date || (employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined),
     resignDate: employee.resign_date || undefined,
     allowances: employee.allowances?.map(a => ({
@@ -360,7 +359,6 @@ export const createEmployee = async (employeeData: any) => {
   console.log('EmployeeService: Creating employee with data:', employeeData);
   
   try {
-    // Validate required fields
     const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
     const missingFields = requiredFields.filter(field => !employeeData[field]);
     
@@ -368,7 +366,6 @@ export const createEmployee = async (employeeData: any) => {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
 
-    // Generate employee ID
     const employeeId = `EMP${Date.now()}`;
     
     console.log('EmployeeService: Inserting employee with ID:', employeeId);
@@ -390,7 +387,7 @@ export const createEmployee = async (employeeData: any) => {
         payment_type: employeeData.paymentType || 'Monthly',
         bank_name: employeeData.bankName,
         bank_account: employeeData.bankAccount,
-        department: employeeData.branch || employeeData.department || '', // Store as department in DB
+        department: employeeData.branch || employeeData.department || '',
         position: employeeData.position || '',
         phone: employeeData.phone || '',
         address: employeeData.address || '',
@@ -421,7 +418,6 @@ export const addEmployee = async (employeeData: any) => {
 export const updateEmployee = async (id: string, employeeData: any) => {
   console.log('EmployeeService: Updating employee in Supabase:', id, employeeData);
   
-  // Ensure proper number conversion and null handling for salary fields
   const updateData = {
     name: employeeData.name,
     nric: employeeData.nric,
@@ -436,7 +432,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     payment_type: employeeData.paymentType,
     bank_name: employeeData.bankName,
     bank_account: employeeData.bankAccount,
-    department: employeeData.branch || employeeData.department, // Store as department in DB
+    department: employeeData.branch || employeeData.department,
     position: employeeData.position,
     phone: employeeData.phone,
     address: employeeData.address,
@@ -462,7 +458,6 @@ export const updateEmployee = async (id: string, employeeData: any) => {
   return employee;
 };
 
-// Updated deleteEmployee to use soft delete instead of hard delete
 export const deleteEmployee = async (id: string) => {
   console.log('EmployeeService: Soft deleting employee (setting resign date) in Supabase:', id);
   
@@ -498,7 +493,6 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
 export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess: AdminAccessPermissions) => {
   console.log('EmployeeService: Updating employee admin access in Supabase:', employeeId, adminAccess);
   
-  // First, check if admin access record exists
   const { data: existingAccess, error: fetchError } = await supabase
     .from('admin_access')
     .select('*')
@@ -522,7 +516,6 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
   };
 
   if (existingAccess) {
-    // Update existing record
     const { error } = await supabase
       .from('admin_access')
       .update(accessData)
@@ -533,7 +526,6 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
       throw error;
     }
   } else {
-    // Create new record
     const { error } = await supabase
       .from('admin_access')
       .insert([accessData]);
@@ -550,7 +542,6 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
 export const updateEmployeePageAccess = async (employeeId: string, pageAccess: EmployeePageAccessPermissions) => {
   console.log('EmployeeService: Updating employee page access in Supabase:', employeeId, pageAccess);
   
-  // First, check if page access record exists
   const { data: existingAccess, error: fetchError } = await supabase
     .from('employee_page_access')
     .select('*')
@@ -573,7 +564,6 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
   };
 
   if (existingAccess) {
-    // Update existing record
     const { error } = await supabase
       .from('employee_page_access')
       .update(accessData)
@@ -584,7 +574,6 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
       throw error;
     }
   } else {
-    // Create new record
     const { error } = await supabase
       .from('employee_page_access')
       .insert([accessData]);

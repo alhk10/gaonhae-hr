@@ -114,11 +114,11 @@ export interface EmployeeProfile {
   bankName: string;
   bankAccount: string;
   branch: string;
-  department?: string; // Added department property for database consistency
+  department?: string;
   position: string;
   phone: string;
   address: string;
-  email: string;
+  email?: string | null; // Updated to match database schema - can be null/undefined
   joinDate?: string;
   resignDate?: string;
   profilePhoto?: string;

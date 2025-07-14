@@ -1,4 +1,3 @@
-
 import type { EmployeeProfile, AdminAccessPermissions } from '@/types/employee';
 
 const mockEmployees: EmployeeProfile[] = [
@@ -333,7 +332,7 @@ const mockEmployees: EmployeeProfile[] = [
     position: 'Team Lead',
     phone: '+65 9901 2345',
     address: '159 Marina Boulevard, Singapore 018971',
-    email: 'kim.hasung@company.com',
+    email: 'hasung534@gmail.com',
     joinDate: '2020-08-01',
     allowances: [
       { id: '6', name: 'Leadership Allowance', amount: 500, type: 'Fixed' },
