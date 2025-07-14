@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   console.log('ReceiptUpload: Component rendered with props:', {
     employeeId,
@@ -82,6 +83,15 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       await handleFileUpload(file);
     } else {
       console.log('ReceiptUpload: No file selected from input');
+    }
+  };
+
+  const handleChooseFileClick = () => {
+    console.log('ReceiptUpload: Choose file button clicked');
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      console.error('ReceiptUpload: File input ref is null');
     }
   };
 
@@ -186,9 +196,8 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     setError(null);
     
     // If we have a file input, try to get the last selected file
-    const fileInput = document.getElementById('receipt-upload') as HTMLInputElement;
-    if (fileInput?.files?.[0]) {
-      await handleFileUpload(fileInput.files[0]);
+    if (fileInputRef.current?.files?.[0]) {
+      await handleFileUpload(fileInputRef.current.files[0]);
     } else {
       toast("Please select a file to upload");
     }
@@ -201,9 +210,8 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     toast("Receipt removed");
     
     // Clear file input
-    const fileInput = document.getElementById('receipt-upload') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -317,20 +325,15 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                   >
                     Retry Upload
                   </Button>
-                  <Label htmlFor="receipt-upload">
-                    <Button variant="outline" size="sm" className="cursor-pointer">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Choose New File
-                    </Button>
-                    <Input
-                      id="receipt-upload"
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      disabled={isUploading}
-                    />
-                  </Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleChooseFileClick}
+                    className="cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose New File
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -339,20 +342,16 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                 <p className="text-sm font-medium text-gray-700 mb-2">
                   Upload Receipt {isRequired && <span className="text-red-500">*</span>}
                 </p>
-                <Label htmlFor="receipt-upload">
-                  <Button variant="outline" size="sm" className="cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Choose File
-                  </Button>
-                  <Input
-                    id="receipt-upload"
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
-                </Label>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleChooseFileClick}
+                  className="cursor-pointer"
+                  disabled={isUploading}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Choose File
+                </Button>
                 <p className="text-xs text-gray-400 mt-2">
                   JPG, PNG, PDF (Max 5MB) • Drag & drop supported
                 </p>
@@ -366,6 +365,16 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           )}
         </div>
       )}
+      
+      {/* Hidden file input */}
+      <Input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={isUploading}
+      />
     </div>
   );
 };
