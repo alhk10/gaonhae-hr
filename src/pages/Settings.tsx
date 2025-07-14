@@ -6,6 +6,7 @@ import SuperadminManager from '@/components/admin/SuperadminManager';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import PublicHolidayManagement from '@/components/settings/PublicHolidayManagement';
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
+import AuthenticationMonitor from '@/components/admin/AuthenticationMonitor';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -49,20 +50,25 @@ const Settings = () => {
           <p className="text-gray-600">Manage system configuration and user access</p>
         </div>
 
-        <Tabs defaultValue="user-management" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="user-management">User Management</TabsTrigger>
+        <Tabs defaultValue="auth-monitor" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="auth-monitor">Auth Monitor</TabsTrigger>
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
+            <TabsTrigger value="user-management">User Management</TabsTrigger>
             <TabsTrigger value="employee-modules">Employee Modules</TabsTrigger>
             <TabsTrigger value="holidays">Public Holidays</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="user-management" className="mt-6">
-            <SuperadminManager />
+          <TabsContent value="auth-monitor" className="mt-6">
+            <AuthenticationMonitor />
           </TabsContent>
 
           <TabsContent value="auth-users" className="mt-6">
             <BulkUserCreationManager />
+          </TabsContent>
+
+          <TabsContent value="user-management" className="mt-6">
+            <SuperadminManager />
           </TabsContent>
 
           <TabsContent value="employee-modules" className="mt-6">

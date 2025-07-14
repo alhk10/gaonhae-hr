@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
+import { checkEmployeeAuthStatus } from '@/services/bulkUserCreationService';
 import LoggedOutPage from '@/components/auth/LoggedOutPage';
 
 interface User {
@@ -52,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_IN' && session) {
         await handleUserSession(session);
       } else if (event === 'SIGNED_OUT') {
+        console.log('AuthContext: User signed out, clearing state');
         setUser(null);
         setIsLoading(false);
       }
@@ -73,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
         
         if (employee) {
-          console.log('AuthContext: Employee found, checking superadmin status');
+          console.log('AuthContext: Employee found in database:', employee.name);
           
           // Check if user is superadmin using the database function
           const { data: isSuperadmin, error: superadminError } = await supabase.rpc('is_superadmin', { 
@@ -98,12 +101,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           setRequiresPasswordChange(false);
           setHasError(false);
+          
+          console.log('AuthContext: User authentication successful');
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
           setHasError(true);
           setUser(null);
           await supabase.auth.signOut();
-          toast("Access denied: User not found in system");
+          toast("Access denied: User not found in employee system. Please contact administrator.");
         }
       }
     } catch (error) {
@@ -133,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (session) {
+        console.log('AuthContext: Found existing session for:', session.user?.email);
         await handleUserSession(session);
       } else {
         console.log('AuthContext: No active session found');
@@ -158,14 +164,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const normalizedEmail = email.toLowerCase().trim();
 
       // First verify the user exists in our employees table
+      console.log('AuthContext: Checking if employee exists in database...');
       const employees = await getEmployees();
       const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
       
       if (!employee) {
-        console.error('AuthContext: User not found in employees table:', normalizedEmail);
-        toast("Access denied: User not found in system");
+        console.error('AuthContext: Employee not found in database:', normalizedEmail);
+        toast("Access denied: Employee not found in system. Please contact administrator.");
         return false;
       }
+
+      console.log('AuthContext: Employee found in database:', employee.name);
+
+      // Check if employee has Supabase Auth account
+      console.log('AuthContext: Checking if employee has Supabase Auth account...');
+      const hasAuthAccount = await checkEmployeeAuthStatus(normalizedEmail);
+      
+      if (!hasAuthAccount) {
+        console.error('AuthContext: Employee exists but has no Supabase Auth account:', normalizedEmail);
+        toast("Authentication setup incomplete. Please contact administrator to complete your account setup. (Employee found but no auth account)");
+        return false;
+      }
+
+      console.log('AuthContext: Employee has Supabase Auth account, attempting sign in...');
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
@@ -177,9 +198,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Provide more specific error messages
         if (error.message.includes('Invalid login credentials')) {
-          toast("Invalid email or password. Please check your credentials.");
+          toast("Invalid email or password. If this is your first login, please check your email for a password reset link.");
         } else if (error.message.includes('Email not confirmed')) {
           toast("Please confirm your email address before signing in.");
+        } else if (error.message.includes('Too many requests')) {
+          toast("Too many login attempts. Please wait a moment before trying again.");
         } else {
           toast(`Login failed: ${error.message}`);
         }
@@ -193,9 +216,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
 
+      console.error('AuthContext: Login failed - no user returned');
       return false;
     } catch (error) {
-      console.error('AuthContext: Login error:', error);
+      console.error('AuthContext: Login exception:', error);
       setHasError(true);
       toast("Login failed. Please try again.");
       return false;
@@ -213,13 +237,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthContext: Password update error:', error);
+        toast("Failed to update password. Please try again.");
         return false;
       }
 
       setRequiresPasswordChange(false);
+      toast("Password updated successfully!");
       return true;
     } catch (error) {
-      console.error('AuthContext: Password update error:', error);
+      console.error('AuthContext: Password update exception:', error);
+      toast("Failed to update password. Please try again.");
       return false;
     }
   };

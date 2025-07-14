@@ -46,8 +46,9 @@ const generateSecurePassword = (): string => {
 const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmployee[] => {
   const validatedEmployees: ValidatedEmployee[] = [];
   
+  console.log('BulkUserCreation: Validating employees for auth creation...');
+  
   for (const employee of employees) {
-    // Explicit validation without complex type guards
     const email = employee.email;
     
     if (email && 
@@ -56,19 +57,25 @@ const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmp
         email.includes('@') &&
         email.includes('.')) {
       
+      console.log(`BulkUserCreation: Employee ${employee.name} has valid email: ${email}`);
       validatedEmployees.push({
         id: employee.id,
         name: employee.name,
-        email: email.trim()
+        email: email.trim().toLowerCase()
       });
+    } else {
+      console.warn(`BulkUserCreation: Employee ${employee.name} has invalid email:`, email);
     }
   }
   
+  console.log(`BulkUserCreation: Found ${validatedEmployees.length} employees with valid emails`);
   return validatedEmployees;
 };
 
-// Get existing user emails from Supabase
+// Get existing user emails from Supabase Auth
 const getExistingUserEmails = async (): Promise<Set<string>> => {
+  console.log('BulkUserCreation: Fetching existing Supabase Auth users...');
+  
   const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
   
   if (listError) {
@@ -84,6 +91,7 @@ const getExistingUserEmails = async (): Promise<Set<string>> => {
     }
   }
   
+  console.log(`BulkUserCreation: Found ${existingEmails.size} existing Supabase Auth users`);
   return existingEmails;
 };
 
@@ -93,18 +101,23 @@ const filterEmployeesNeedingAuth = (validatedEmployees: ValidatedEmployee[], exi
   
   for (const employee of validatedEmployees) {
     if (!existingEmails.has(employee.email.toLowerCase())) {
+      console.log(`BulkUserCreation: Employee ${employee.name} (${employee.email}) needs Supabase Auth account`);
       employeesToCreate.push(employee);
+    } else {
+      console.log(`BulkUserCreation: Employee ${employee.name} (${employee.email}) already has Supabase Auth account`);
     }
   }
   
   return employeesToCreate;
 };
 
-// Create a single auth user
+// Create a single auth user with enhanced error handling
 const createAuthUser = async (employee: ValidatedEmployee): Promise<{ success: boolean; error?: string }> => {
   try {
     const normalizedEmail = employee.email.toLowerCase().trim();
     const tempPassword = generateSecurePassword();
+    
+    console.log(`BulkUserCreation: Creating Supabase Auth user for ${employee.name} (${normalizedEmail})`);
     
     // Create the user in Supabase Auth
     const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
@@ -118,12 +131,16 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<{ success: b
     });
 
     if (createError) {
+      console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, createError);
       return { success: false, error: createError.message };
     }
 
     if (!authUser.user) {
+      console.error(`BulkUserCreation: User creation failed for ${normalizedEmail} - no user returned`);
       return { success: false, error: 'User creation failed - no user returned' };
     }
+
+    console.log(`BulkUserCreation: Successfully created auth user for ${normalizedEmail}, sending password reset email...`);
 
     // Send password reset email
     try {
@@ -146,12 +163,13 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<{ success: b
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`BulkUserCreation: Exception creating user for ${employee.email}:`, error);
     return { success: false, error: errorMessage };
   }
 };
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
-  console.log('BulkUserCreation: Starting bulk user creation process...');
+  console.log('BulkUserCreation: Starting comprehensive bulk user creation process...');
   
   const result: BulkUserCreationResult = {
     success: 0,
@@ -162,20 +180,23 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
 
   try {
     // Step 1: Get all employees and validate emails
+    console.log('BulkUserCreation: Step 1 - Fetching all employees...');
     const allEmployees = await getEmployees();
+    console.log(`BulkUserCreation: Retrieved ${allEmployees.length} employees from database`);
+    
     const validatedEmployees = validateAndExtractEmployees(allEmployees);
     
-    console.log(`BulkUserCreation: Found ${validatedEmployees.length} employees with valid email addresses`);
-
     if (validatedEmployees.length === 0) {
       console.log('BulkUserCreation: No employees with valid emails found');
       return result;
     }
 
     // Step 2: Get existing Supabase Auth users
+    console.log('BulkUserCreation: Step 2 - Checking existing Supabase Auth users...');
     const existingEmails = await getExistingUserEmails();
 
     // Step 3: Filter employees who need auth accounts
+    console.log('BulkUserCreation: Step 3 - Filtering employees who need auth accounts...');
     const employeesToCreate = filterEmployeesNeedingAuth(validatedEmployees, existingEmails);
 
     console.log(`BulkUserCreation: ${employeesToCreate.length} employees need Supabase Auth accounts`);
@@ -186,29 +207,38 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
     }
 
     // Step 4: Create Supabase Auth users
+    console.log('BulkUserCreation: Step 4 - Creating Supabase Auth users...');
     for (const employee of employeesToCreate) {
-      console.log(`BulkUserCreation: Creating Supabase Auth user for ${employee.name} (${employee.email})`);
+      console.log(`BulkUserCreation: Processing ${employee.name} (${employee.email})`);
 
       const createResult = await createAuthUser(employee);
 
       if (createResult.success) {
-        console.log(`BulkUserCreation: Successfully created user ${employee.email}`);
+        console.log(`BulkUserCreation: ✓ Successfully created user ${employee.email}`);
         result.created.push({
           email: employee.email,
           name: employee.name
         });
         result.success++;
       } else {
-        console.error(`BulkUserCreation: Failed to create user ${employee.email}:`, createResult.error);
+        console.error(`BulkUserCreation: ✗ Failed to create user ${employee.email}:`, createResult.error);
         result.errors.push({
           email: employee.email,
           error: createResult.error || 'Unknown error'
         });
         result.failed++;
       }
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    console.log('BulkUserCreation: Bulk creation completed:', result);
+    console.log('BulkUserCreation: Bulk creation completed successfully:', {
+      success: result.success,
+      failed: result.failed,
+      totalProcessed: result.success + result.failed
+    });
+    
     return result;
 
   } catch (error) {
@@ -238,7 +268,7 @@ export const createSingleSupabaseAuthUser = async (email: string, name: string):
 
     // Create the user
     const validatedEmployee: ValidatedEmployee = {
-      id: 'single-user', // Temporary ID for single user creation
+      id: 'single-user-' + Date.now(),
       name: name,
       email: normalizedEmail
     };
@@ -254,6 +284,22 @@ export const createSingleSupabaseAuthUser = async (email: string, name: string):
     }
   } catch (error) {
     console.error(`BulkUserCreation: Error creating single user ${email}:`, error);
+    return false;
+  }
+};
+
+// Check if a specific employee has a Supabase Auth account
+export const checkEmployeeAuthStatus = async (email: string): Promise<boolean> => {
+  try {
+    if (!email) return false;
+    
+    const existingEmails = await getExistingUserEmails();
+    const hasAuth = existingEmails.has(email.toLowerCase().trim());
+    
+    console.log(`BulkUserCreation: Employee ${email} auth status:`, hasAuth ? 'EXISTS' : 'MISSING');
+    return hasAuth;
+  } catch (error) {
+    console.error(`BulkUserCreation: Error checking auth status for ${email}:`, error);
     return false;
   }
 };

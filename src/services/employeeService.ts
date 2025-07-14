@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
+import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees with permissions from database...');
@@ -403,6 +404,23 @@ export const createEmployee = async (employeeData: any) => {
     }
 
     console.log('EmployeeService: Employee created successfully:', employee);
+
+    // Automatically create Supabase Auth user for the new employee
+    if (employeeData.email) {
+      console.log('EmployeeService: Creating Supabase Auth user for new employee...');
+      try {
+        const authCreated = await createSingleSupabaseAuthUser(employeeData.email, employeeData.name);
+        if (authCreated) {
+          console.log('EmployeeService: Supabase Auth user created successfully for:', employeeData.email);
+        } else {
+          console.warn('EmployeeService: Failed to create Supabase Auth user for:', employeeData.email);
+        }
+      } catch (authError) {
+        console.error('EmployeeService: Error creating Supabase Auth user:', authError);
+        // Don't fail the employee creation if auth creation fails
+      }
+    }
+
     return employee;
   } catch (error) {
     console.error('EmployeeService: Error in createEmployee:', error);
