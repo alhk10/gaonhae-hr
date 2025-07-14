@@ -5,78 +5,103 @@ import { supabase } from '@/integrations/supabase/client';
 export const getCurrentUserEmployee = async (email: string) => {
   console.log('AuthOptimization: Fetching current user employee data only:', email);
   
-  const { data: employee, error } = await supabase
-    .from('employees')
-    .select(`
-      id,
-      name,
-      email,
-      type,
-      department,
-      position,
-      admin_access (*),
-      employee_page_access (*)
-    `)
-    .eq('email', email.toLowerCase())
-    .maybeSingle();
+  try {
+    const { data: employee, error } = await supabase
+      .from('employees')
+      .select(`
+        id,
+        name,
+        email,
+        type,
+        department,
+        position,
+        admin_access (*),
+        employee_page_access (*)
+      `)
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-  if (error) {
-    console.error('AuthOptimization: Error fetching user employee:', error);
+    if (error) {
+      console.error('AuthOptimization: Error fetching user employee:', error);
+      throw error;
+    }
+
+    if (!employee) {
+      console.log('AuthOptimization: No employee found for email:', email);
+      return null;
+    }
+
+    console.log('AuthOptimization: Employee data fetched successfully:', employee.name);
+
+    // Process minimal user data for authentication - handle potential relation issues
+    let adminAccess = null;
+    let pageAccess = null;
+
+    // Handle admin_access - check if it's an array or object
+    if (employee.admin_access) {
+      if (Array.isArray(employee.admin_access)) {
+        adminAccess = employee.admin_access.length > 0 ? employee.admin_access[0] : null;
+      } else if (typeof employee.admin_access === 'object') {
+        adminAccess = employee.admin_access;
+      }
+    }
+
+    // Handle employee_page_access - check if it's an array or object
+    if (employee.employee_page_access) {
+      if (Array.isArray(employee.employee_page_access)) {
+        pageAccess = employee.employee_page_access.length > 0 ? employee.employee_page_access[0] : null;
+      } else if (typeof employee.employee_page_access === 'object') {
+        pageAccess = employee.employee_page_access;
+      }
+    }
+
+    const result = {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      type: employee.type as 'Full-Time' | 'Casual',
+      department: employee.department || '',
+      position: employee.position || '',
+      adminAccess: adminAccess ? {
+        employees: adminAccess.employees || false,
+        payroll: adminAccess.payroll || false,
+        leaveManagement: adminAccess.leave_management || false,
+        claims: adminAccess.claims || false,
+        attendance: adminAccess.attendance || false,
+        slotBooking: adminAccess.slot_booking || false,
+        reports: adminAccess.reports || false
+      } : {
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      pageAccess: pageAccess ? {
+        profile: pageAccess.profile !== false,
+        applyLeave: pageAccess.apply_leave !== false,
+        submitClaim: pageAccess.submit_claim !== false,
+        payslips: pageAccess.payslips !== false,
+        myAttendance: pageAccess.my_attendance !== false,
+        slotBookingEmployee: pageAccess.slot_booking_employee !== false
+      } : {
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
+      }
+    };
+
+    console.log('AuthOptimization: Employee processing completed successfully');
+    return result;
+  } catch (error) {
+    console.error('AuthOptimization: Exception in getCurrentUserEmployee:', error);
     throw error;
   }
-
-  if (!employee) {
-    console.log('AuthOptimization: No employee found for email:', email);
-    return null;
-  }
-
-  // Process minimal user data for authentication
-  const adminAccessArray = Array.isArray(employee.admin_access) ? employee.admin_access : [];
-  const pageAccessArray = Array.isArray(employee.employee_page_access) ? employee.employee_page_access : [];
-  
-  const adminAccess = adminAccessArray.length > 0 ? adminAccessArray[0] : null;
-  const pageAccess = pageAccessArray.length > 0 ? pageAccessArray[0] : null;
-
-  return {
-    id: employee.id,
-    name: employee.name,
-    email: employee.email,
-    type: employee.type as 'Full-Time' | 'Casual',
-    department: employee.department || '',
-    position: employee.position || '',
-    adminAccess: adminAccess ? {
-      employees: adminAccess.employees || false,
-      payroll: adminAccess.payroll || false,
-      leaveManagement: adminAccess.leave_management || false,
-      claims: adminAccess.claims || false,
-      attendance: adminAccess.attendance || false,
-      slotBooking: adminAccess.slot_booking || false,
-      reports: adminAccess.reports || false
-    } : {
-      employees: false,
-      payroll: false,
-      leaveManagement: false,
-      claims: false,
-      attendance: false,
-      slotBooking: false,
-      reports: false
-    },
-    pageAccess: pageAccess ? {
-      profile: pageAccess.profile !== false,
-      applyLeave: pageAccess.apply_leave !== false,
-      submitClaim: pageAccess.submit_claim !== false,
-      payslips: pageAccess.payslips !== false,
-      myAttendance: pageAccess.my_attendance !== false,
-      slotBookingEmployee: pageAccess.slot_booking_employee !== false
-    } : {
-      profile: true,
-      applyLeave: true,
-      submitClaim: true,
-      payslips: true,
-      myAttendance: true,
-      slotBookingEmployee: true
-    }
-  };
 };
 
 // Cache for superadmin status to avoid repeated DB calls
@@ -94,6 +119,7 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
   }
 
   try {
+    console.log('AuthOptimization: Checking superadmin status for:', normalizedEmail);
     const { data: isSuperadmin, error } = await supabase.rpc('is_superadmin', { 
       user_email: normalizedEmail 
     });
@@ -109,7 +135,7 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
       timestamp: Date.now()
     });
     
-    console.log('AuthOptimization: Cached superadmin status for:', normalizedEmail, isSuperadmin);
+    console.log('AuthOptimization: Superadmin status determined:', normalizedEmail, isSuperadmin);
     return isSuperadmin || false;
   } catch (error) {
     console.error('AuthOptimization: Exception checking superadmin status:', error);

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -172,18 +171,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authProgress.completeStage('complete');
           
           console.log('AuthContext: Optimized user authentication successful');
+          
+          // Hide progressive loading after successful auth
+          setTimeout(() => {
+            setShowProgressiveLoading(false);
+            setIsLoading(false);
+          }, 500);
+          
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
           authProgress.setStageError('employee', 'Employee not found');
           setUser(null);
           await supabase.auth.signOut();
           toast("Access denied: User not found in employee system. Please contact administrator.");
+          setShowProgressiveLoading(false);
+          setIsLoading(false);
         }
       }
     } catch (error) {
       console.error('AuthContext: Error in handleUserSession:', error);
       authProgress.setStageError('employee', 'Failed to load user data');
       setUser(null);
+      setShowProgressiveLoading(false);
+      setIsLoading(false);
     }
   };
 
