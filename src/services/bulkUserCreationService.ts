@@ -42,25 +42,25 @@ const generateSecurePassword = (): string => {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 };
 
+// Type guard function to check if employee has valid email
+const hasValidEmail = (employee: EmployeeProfile): employee is EmployeeProfile & { email: string } => {
+  return Boolean(
+    employee.email && 
+    typeof employee.email === 'string' && 
+    employee.email.trim().length > 0 && 
+    employee.email.includes('@')
+  );
+};
+
 // Extract employees with valid email addresses
 const extractEmployeesWithEmails = (employees: EmployeeProfile[]): EmployeeWithValidEmail[] => {
-  const validEmployees: EmployeeWithValidEmail[] = [];
-  
-  for (const employee of employees) {
-    // Check if email exists and is a valid string
-    if (employee.email && 
-        typeof employee.email === 'string' && 
-        employee.email.trim().length > 0 && 
-        employee.email.includes('@')) {
-      validEmployees.push({
-        id: employee.id,
-        name: employee.name,
-        email: employee.email.trim()
-      });
-    }
-  }
-  
-  return validEmployees;
+  return employees
+    .filter(hasValidEmail)
+    .map(employee => ({
+      id: employee.id,
+      name: employee.name,
+      email: employee.email.trim()
+    }));
 };
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
@@ -85,38 +85,39 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
       return result;
     }
 
-    for (const employee of employeesWithEmail) {
+    // Get existing Supabase Auth users to avoid duplicates
+    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('BulkUserCreation: Error fetching existing users:', listError);
+      throw new Error(`Failed to fetch existing users: ${listError.message}`);
+    }
+
+    const existingEmails = new Set(
+      existingUsers.users.map(user => user.email?.toLowerCase()).filter(Boolean)
+    );
+
+    // Filter out employees who already have Supabase Auth accounts
+    const employeesToCreate = employeesWithEmail.filter(employee => 
+      !existingEmails.has(employee.email.toLowerCase())
+    );
+
+    console.log(`BulkUserCreation: ${employeesToCreate.length} employees need Supabase Auth accounts`);
+
+    if (employeesToCreate.length === 0) {
+      console.log('BulkUserCreation: All employees already have Supabase Auth accounts');
+      return result;
+    }
+
+    // Create Supabase Auth users for each employee
+    for (const employee of employeesToCreate) {
       const normalizedEmail = employee.email.toLowerCase().trim();
-      console.log(`BulkUserCreation: Processing ${employee.name} (${normalizedEmail})`);
+      console.log(`BulkUserCreation: Creating Supabase Auth user for ${employee.name} (${normalizedEmail})`);
 
       try {
-        // Check if user already exists in Supabase Auth
-        const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-        
-        if (listError) {
-          console.error('BulkUserCreation: Error checking existing users:', listError);
-          result.errors.push({
-            email: normalizedEmail,
-            error: `Failed to check existing users: ${listError.message}`
-          });
-          result.failed++;
-          continue;
-        }
-
-        const userExists = existingUsers.users.some(user => 
-          user.email?.toLowerCase() === normalizedEmail
-        );
-
-        if (userExists) {
-          console.log(`BulkUserCreation: User already exists: ${normalizedEmail}`);
-          continue;
-        }
-
         // Generate secure temporary password
         const tempPassword = generateSecurePassword();
         
-        console.log(`BulkUserCreation: Creating Supabase Auth user for ${normalizedEmail}`);
-
         // Create the user in Supabase Auth
         const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
           email: normalizedEmail,
