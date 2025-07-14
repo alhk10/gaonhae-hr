@@ -229,24 +229,24 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
       const batchResults = await Promise.allSettled(batchPromises);
       
       // Process batch results
-      batchResults.forEach((result, batchIndex) => {
+      batchResults.forEach((promiseResult, batchIndex) => {
         const employee = batch[batchIndex];
         
-        if (result.status === 'fulfilled' && result.value.success) {
+        if (promiseResult.status === 'fulfilled' && promiseResult.value.success) {
           console.log(`BulkUserCreation: ✓ Successfully created user ${employee.email}`);
-          result.value.created.push({
+          result.created.push({
             email: employee.email,
             name: employee.name
           });
-          result.value.success++;
+          result.success++;
         } else {
-          const error = result.status === 'fulfilled' ? result.value.error : result.reason;
+          const error = promiseResult.status === 'fulfilled' ? promiseResult.value.error : promiseResult.reason;
           console.error(`BulkUserCreation: ✗ Failed to create user ${employee.email}:`, error);
-          result.value.errors.push({
+          result.errors.push({
             email: employee.email,
             error: error || 'Unknown error'
           });
-          result.value.failed++;
+          result.failed++;
         }
       });
       
