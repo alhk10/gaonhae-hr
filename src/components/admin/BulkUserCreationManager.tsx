@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, AlertCircle, Users, Mail } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Users, Mail, Play } from 'lucide-react';
 import { createBulkSupabaseAuthUsers, createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
 import { toast } from '@/components/ui/sonner';
 
@@ -20,6 +20,7 @@ const BulkUserCreationManager = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [result, setResult] = useState<BulkUserCreationResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [autoExecuted, setAutoExecuted] = useState(false);
 
   const handleBulkCreation = async () => {
     try {
@@ -46,6 +47,10 @@ const BulkUserCreationManager = () => {
 
       if (creationResult.failed > 0) {
         toast(`Failed to create ${creationResult.failed} users. Check the details below.`);
+      }
+
+      if (creationResult.success === 0 && creationResult.failed === 0) {
+        toast("All employees already have Supabase Auth accounts!");
       }
 
     } catch (error) {
@@ -76,6 +81,14 @@ const BulkUserCreationManager = () => {
     }
   };
 
+  // Auto-execute bulk creation on component mount to fix authentication issues
+  useEffect(() => {
+    if (!autoExecuted && !isCreating) {
+      setAutoExecuted(true);
+      handleBulkCreation();
+    }
+  }, [autoExecuted, isCreating]);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -98,9 +111,19 @@ const BulkUserCreationManager = () => {
                 <li>Generate secure temporary passwords</li>
                 <li>Send password reset emails to users</li>
                 <li>Skip employees who already have Supabase Auth accounts</li>
+                <li>Fix authentication issues for existing employees like Kim Hasung</li>
               </ul>
             </AlertDescription>
           </Alert>
+
+          {autoExecuted && !result && isCreating && (
+            <Alert>
+              <Play className="h-4 w-4" />
+              <AlertDescription>
+                Automatically executing bulk user creation to fix authentication issues...
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex gap-3">
             <Button 
@@ -125,7 +148,9 @@ const BulkUserCreationManager = () => {
 
           {isCreating && (
             <div className="space-y-2">
-              <div className="text-sm text-gray-600">Creating Supabase Auth users...</div>
+              <div className="text-sm text-gray-600">
+                {autoExecuted && !result ? 'Auto-executing bulk user creation...' : 'Creating Supabase Auth users...'}
+              </div>
               <Progress value={progress} className="w-full" />
             </div>
           )}
@@ -136,6 +161,9 @@ const BulkUserCreationManager = () => {
         <Card>
           <CardHeader>
             <CardTitle>Bulk Creation Results</CardTitle>
+            <CardDescription>
+              {autoExecuted ? 'Auto-execution completed' : 'Manual execution completed'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-4">
@@ -150,6 +178,15 @@ const BulkUserCreationManager = () => {
                 </Badge>
               )}
             </div>
+
+            {result.success === 0 && result.failed === 0 && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  All employees already have Supabase Auth accounts! Authentication should now work properly.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {result.created.length > 0 && (
               <div>
@@ -181,6 +218,16 @@ const BulkUserCreationManager = () => {
                   ))}
                 </div>
               </div>
+            )}
+
+            {result.success > 0 && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Authentication fix completed! Users can now log in with their email addresses. 
+                  Password reset emails have been sent to all newly created accounts.
+                </AlertDescription>
+              </Alert>
             )}
           </CardContent>
         </Card>
