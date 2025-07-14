@@ -224,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error.message.includes('Invalid login credentials')) {
           toast("Invalid email or password. If this is your first login, please check your email for a password reset link.");
         } else if (error.message.includes('Email not confirmed')) {
-          toast("Please confirm your email address before signing in.");
+          toast("Please confirm your email address before signing in. Check your email for the confirmation link.");
         } else if (error.message.includes('Too many requests')) {
           toast("Too many login attempts. Please wait a moment before trying again.");
         } else {
