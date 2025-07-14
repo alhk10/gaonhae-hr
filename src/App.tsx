@@ -30,7 +30,7 @@ import './App.css';
 
 const queryClient = new QueryClient();
 
-// Create a separate component for the main app content
+// Create a separate component for the main app content that runs inside AuthProvider
 const AppContent = () => {
   const [authInitialized, setAuthInitialized] = useState(false);
 
