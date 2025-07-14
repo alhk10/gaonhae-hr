@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
-import { checkEmployeeAuthStatus } from '@/services/bulkUserCreationService';
+import { checkEmployeeAuthStatus, createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
 import LoggedOutPage from '@/components/auth/LoggedOutPage';
 
 interface User {
@@ -181,9 +181,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const hasAuthAccount = await checkEmployeeAuthStatus(normalizedEmail);
       
       if (!hasAuthAccount) {
-        console.error('AuthContext: Employee exists but has no Supabase Auth account:', normalizedEmail);
-        toast("Authentication setup incomplete. Please contact administrator to complete your account setup. (Employee found but no auth account)");
-        return false;
+        console.log('AuthContext: Employee has no Supabase Auth account, creating one...');
+        toast("Setting up your authentication account, please wait...");
+        
+        const authCreated = await createSingleSupabaseAuthUser(normalizedEmail, employee.name);
+        
+        if (authCreated) {
+          console.log('AuthContext: Supabase Auth account created successfully');
+          toast("Authentication account created! A password reset email has been sent. Please check your email and set your password before logging in.");
+          return false; // Don't proceed with login, user needs to set password first
+        } else {
+          console.error('AuthContext: Failed to create Supabase Auth account');
+          toast("Failed to create authentication account. Please contact administrator.");
+          return false;
+        }
       }
 
       console.log('AuthContext: Employee has Supabase Auth account, attempting sign in...');

@@ -76,23 +76,28 @@ const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmp
 const getExistingUserEmails = async (): Promise<Set<string>> => {
   console.log('BulkUserCreation: Fetching existing Supabase Auth users...');
   
-  const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-  
-  if (listError) {
-    console.error('BulkUserCreation: Error fetching existing users:', listError);
-    throw new Error(`Failed to fetch existing users: ${listError.message}`);
-  }
-
-  const existingEmails = new Set<string>();
-  
-  for (const user of existingUsers.users) {
-    if (user.email && typeof user.email === 'string') {
-      existingEmails.add(user.email.toLowerCase());
+  try {
+    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('BulkUserCreation: Error fetching existing users:', listError);
+      throw new Error(`Failed to fetch existing users: ${listError.message}`);
     }
+
+    const existingEmails = new Set<string>();
+    
+    for (const user of existingUsers.users) {
+      if (user.email && typeof user.email === 'string') {
+        existingEmails.add(user.email.toLowerCase());
+      }
+    }
+    
+    console.log(`BulkUserCreation: Found ${existingEmails.size} existing Supabase Auth users`);
+    return existingEmails;
+  } catch (error) {
+    console.error('BulkUserCreation: Exception in getExistingUserEmails:', error);
+    return new Set<string>(); // Return empty set on error to allow creation attempts
   }
-  
-  console.log(`BulkUserCreation: Found ${existingEmails.size} existing Supabase Auth users`);
-  return existingEmails;
 };
 
 // Filter employees who need auth accounts
@@ -206,31 +211,49 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
       return result;
     }
 
-    // Step 4: Create Supabase Auth users
+    // Step 4: Create Supabase Auth users with better error handling
     console.log('BulkUserCreation: Step 4 - Creating Supabase Auth users...');
-    for (const employee of employeesToCreate) {
-      console.log(`BulkUserCreation: Processing ${employee.name} (${employee.email})`);
-
-      const createResult = await createAuthUser(employee);
-
-      if (createResult.success) {
-        console.log(`BulkUserCreation: ✓ Successfully created user ${employee.email}`);
-        result.created.push({
-          email: employee.email,
-          name: employee.name
-        });
-        result.success++;
-      } else {
-        console.error(`BulkUserCreation: ✗ Failed to create user ${employee.email}:`, createResult.error);
-        result.errors.push({
-          email: employee.email,
-          error: createResult.error || 'Unknown error'
-        });
-        result.failed++;
+    
+    // Process in smaller batches to avoid rate limiting
+    const batchSize = 3;
+    for (let i = 0; i < employeesToCreate.length; i += batchSize) {
+      const batch = employeesToCreate.slice(i, i + batchSize);
+      
+      console.log(`BulkUserCreation: Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(employeesToCreate.length/batchSize)}`);
+      
+      const batchPromises = batch.map(async (employee) => {
+        console.log(`BulkUserCreation: Processing ${employee.name} (${employee.email})`);
+        return await createAuthUser(employee);
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Process batch results
+      batchResults.forEach((result, batchIndex) => {
+        const employee = batch[batchIndex];
+        
+        if (result.status === 'fulfilled' && result.value.success) {
+          console.log(`BulkUserCreation: ✓ Successfully created user ${employee.email}`);
+          result.value.created.push({
+            email: employee.email,
+            name: employee.name
+          });
+          result.value.success++;
+        } else {
+          const error = result.status === 'fulfilled' ? result.value.error : result.reason;
+          console.error(`BulkUserCreation: ✗ Failed to create user ${employee.email}:`, error);
+          result.value.errors.push({
+            email: employee.email,
+            error: error || 'Unknown error'
+          });
+          result.value.failed++;
+        }
+      });
+      
+      // Add delay between batches to respect rate limits
+      if (i + batchSize < employeesToCreate.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     console.log('BulkUserCreation: Bulk creation completed successfully:', {

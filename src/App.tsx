@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { PayrollProvider } from './contexts/PayrollContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
+import { useState, useEffect } from 'react';
+import AuthenticationInitializer from './components/auth/AuthenticationInitializer';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
 import EmployeeDetails from './pages/EmployeeDetails';
@@ -29,6 +31,31 @@ import './App.css';
 const queryClient = new QueryClient();
 
 function App() {
+  const [authInitialized, setAuthInitialized] = useState(false);
+
+  // Check if auth initialization has been completed before
+  useEffect(() => {
+    const initialized = localStorage.getItem('auth_initialized');
+    if (initialized === 'true') {
+      setAuthInitialized(true);
+    }
+  }, []);
+
+  const handleAuthInitializationComplete = () => {
+    localStorage.setItem('auth_initialized', 'true');
+    setAuthInitialized(true);
+  };
+
+  // Show initialization screen only on first load
+  if (!authInitialized) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthenticationInitializer onComplete={handleAuthInitializationComplete} />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
