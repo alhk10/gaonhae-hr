@@ -4,33 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Users, FileText, Clock, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getEmployees } from '@/services/employeeService';
-import { getClaims } from '@/services/claimsService';
-import { getAttendanceRecords } from '@/services/attendanceService';
+import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
 
-  // Fetch real data from services with proper error handling
-  const { data: employees = [], isLoading: employeesLoading, error: employeesError } = useQuery({
-    queryKey: ['employees'],
-    queryFn: getEmployees,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 3,
+  // Use optimized dashboard stats service
+  const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: getDashboardStats,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    retry: 2,
   });
 
-  const { data: claims = [], isLoading: claimsLoading, error: claimsError } = useQuery({
-    queryKey: ['claims'],
-    queryFn: getClaims,
-    staleTime: 5 * 60 * 1000,
-    retry: 3,
-  });
-
-  const { data: attendanceRecords = [], isLoading: attendanceLoading, error: attendanceError } = useQuery({
-    queryKey: ['attendance'],
-    queryFn: getAttendanceRecords,
-    staleTime: 5 * 60 * 1000,
-    retry: 3,
+  // Load recent activity separately for progressive loading
+  const { data: recentActivity = [], isLoading: activityLoading } = useQuery({
+    queryKey: ['recent-activity'],
+    queryFn: () => getRecentActivity(3),
+    staleTime: 1 * 60 * 1000, // Cache for 1 minute
+    retry: 2,
+    enabled: !!dashboardStats, // Only load after stats are loaded
   });
 
   useEffect(() => {
@@ -46,49 +40,48 @@ const SuperadminDashboard = () => {
     setPayrollDue(calculatePayrollDue());
   }, []);
 
-  // Calculate real stats with proper error handling
-  const totalEmployees = employees.length;
-  const pendingClaims = claims.filter(claim => claim.status === 'Pending').length;
-  const leaveRequests = 0; // This would need a leave requests service
-  const recentLeaveRequests = []; // This would come from leave service
-
   const statsConfig = [
-    { title: 'Total Employees', value: totalEmployees.toString(), icon: Users, color: 'bg-blue-500' },
-    { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
-    { title: 'Leave Requests', value: leaveRequests.toString(), icon: Clock, color: 'bg-green-500' },
-    { title: 'Payroll Due', value: payrollDue, icon: Calendar, color: 'bg-purple-500' },
+    { 
+      title: 'Total Employees', 
+      value: statsLoading ? '...' : (dashboardStats?.totalEmployees?.toString() || '0'), 
+      icon: Users, 
+      color: 'bg-blue-500' 
+    },
+    { 
+      title: 'Pending Claims', 
+      value: statsLoading ? '...' : (dashboardStats?.pendingClaims?.toString() || '0'), 
+      icon: FileText, 
+      color: 'bg-orange-500' 
+    },
+    { 
+      title: 'Active Claims', 
+      value: statsLoading ? '...' : (dashboardStats?.activeClaims?.toString() || '0'), 
+      icon: Clock, 
+      color: 'bg-green-500' 
+    },
+    { 
+      title: 'Payroll Due', 
+      value: payrollDue, 
+      icon: Calendar, 
+      color: 'bg-purple-500' 
+    },
   ];
 
   // Debug logging
-  console.log('SuperadminDashboard: Employees loaded:', employees.length);
-  console.log('SuperadminDashboard: Claims loaded:', claims.length);
-  console.log('SuperadminDashboard: Attendance records loaded:', attendanceRecords.length);
+  console.log('SuperadminDashboard: Optimized loading - Stats loading:', statsLoading);
+  console.log('SuperadminDashboard: Dashboard stats:', dashboardStats);
 
-  if (employeesError) {
-    console.error('SuperadminDashboard: Error loading employees:', employeesError);
-  }
-  if (claimsError) {
-    console.error('SuperadminDashboard: Error loading claims:', claimsError);
-  }
-  if (attendanceError) {
-    console.error('SuperadminDashboard: Error loading attendance:', attendanceError);
+  if (statsError) {
+    console.error('SuperadminDashboard: Error loading stats:', statsError);
   }
 
-  if (employeesLoading || claimsLoading || attendanceLoading) {
+  // Show error state if critical data fails to load
+  if (statsError) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Superadmin Dashboard</h2>
-          <p className="text-gray-600">Loading system data...</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-16 bg-gray-200 rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
+          <p className="text-red-600">Error loading dashboard data. Please refresh the page.</p>
         </div>
       </div>
     );
@@ -108,7 +101,11 @@ const SuperadminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-16 mt-1" />
+                  ) : (
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  )}
                 </div>
                 <div className={`${stat.color} p-3 rounded-lg`}>
                   <stat.icon className="w-6 h-6 text-white" />
@@ -127,19 +124,32 @@ const SuperadminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {claims.slice(0, 3).map((claim) => (
-                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{claim.employee}</p>
-                    <p className="text-sm text-gray-600">{claim.type} • S${claim.amount}</p>
-                  </div>
-                  <Badge variant={claim.status === 'Approved' ? 'default' : 'secondary'}>
-                    {claim.status}
-                  </Badge>
+              {activityLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {claims.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">No claims submitted yet</p>
+              ) : recentActivity.length > 0 ? (
+                recentActivity.map((claim) => (
+                  <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{claim.employee}</p>
+                      <p className="text-sm text-gray-600">{claim.type} • S${claim.amount}</p>
+                    </div>
+                    <Badge variant={claim.status === 'Approved' ? 'default' : 'secondary'}>
+                      {claim.status}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No recent claims</p>
               )}
             </div>
           </CardContent>
@@ -160,8 +170,8 @@ const SuperadminDashboard = () => {
                 <Badge className="bg-green-100 text-green-800">Active</Badge>
               </div>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>• Active employees: {totalEmployees}</p>
-                <p>• Pending approvals: {pendingClaims}</p>
+                <p>• Active employees: {statsLoading ? 'Loading...' : dashboardStats?.totalEmployees || 0}</p>
+                <p>• Pending approvals: {statsLoading ? 'Loading...' : dashboardStats?.pendingClaims || 0}</p>
                 <p>• Data sync: Connected</p>
                 <p>• Last updated: {new Date().toLocaleString()}</p>
               </div>

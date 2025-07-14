@@ -1,8 +1,11 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getEmployees } from '@/services/employeeService';
-import { checkEmployeeAuthStatus, createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
+import { getCurrentUserEmployee, checkSuperadminStatusCached, clearAuthCache } from '@/services/authOptimizationService';
+import { createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
+import { useProgressiveLoading } from '@/hooks/useProgressiveLoading';
+import { ProgressiveLoading } from '@/components/ui/progressive-loading';
 
 interface User {
   id: string;
@@ -33,11 +36,31 @@ export const useAuth = () => {
   return context;
 };
 
+const AUTH_STAGES = [
+  { id: 'init', label: 'Initializing authentication...' },
+  { id: 'session', label: 'Checking existing session...' },
+  { id: 'employee', label: 'Loading employee data...' },
+  { id: 'permissions', label: 'Setting up permissions...' },
+  { id: 'complete', label: 'Authentication complete' }
+];
+
+const LOGIN_STAGES = [
+  { id: 'validate', label: 'Validating credentials...' },
+  { id: 'employee', label: 'Verifying employee record...' },
+  { id: 'auth', label: 'Authenticating with Supabase...' },
+  { id: 'permissions', label: 'Loading permissions...' },
+  { id: 'complete', label: 'Login successful' }
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showProgressiveLoading, setShowProgressiveLoading] = useState(false);
+
+  const authProgress = useProgressiveLoading(AUTH_STAGES);
+  const loginProgress = useProgressiveLoading(LOGIN_STAGES);
 
   console.log('AuthContext: Provider rendered with user:', user?.email);
 
@@ -46,7 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initializeAuth = async () => {
       try {
-        console.log('AuthContext: Initializing authentication...');
+        console.log('AuthContext: Starting optimized authentication initialization...');
+        authProgress.startLoading();
+        setShowProgressiveLoading(true);
+        
+        authProgress.completeStage('init');
         
         // Set up auth state listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -59,26 +86,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else if (event === 'SIGNED_OUT') {
             console.log('AuthContext: User signed out, clearing state');
             setUser(null);
+            clearAuthCache();
             setIsLoading(false);
+            setShowProgressiveLoading(false);
           }
         });
+
+        authProgress.completeStage('session');
 
         // Then check for existing session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('AuthContext: Session error:', sessionError);
+          authProgress.setStageError('session', 'Session error');
         } else if (session && mounted) {
           console.log('AuthContext: Found existing session for:', session.user?.email);
           await handleUserSession(session);
         } else {
           console.log('AuthContext: No active session found');
           setUser(null);
+          authProgress.completeStage('employee');
+          authProgress.completeStage('permissions');
+          authProgress.completeStage('complete');
         }
 
         if (mounted) {
           setIsInitialized(true);
           setIsLoading(false);
+          setShowProgressiveLoading(false);
         }
 
         return () => {
@@ -86,9 +122,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       } catch (error) {
         console.error('AuthContext: Error during initialization:', error);
+        authProgress.setStageError('init', 'Initialization failed');
         if (mounted) {
           setIsInitialized(true);
           setIsLoading(false);
+          setShowProgressiveLoading(false);
         }
       }
     };
@@ -104,24 +142,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (session?.user?.email) {
         const normalizedEmail = session.user.email.toLowerCase();
-        console.log('AuthContext: Processing session for user:', normalizedEmail);
+        console.log('AuthContext: Processing session with optimized employee lookup:', normalizedEmail);
         
-        // Verify user exists in employees table with case-insensitive matching
-        const employees = await getEmployees();
-        const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
+        authProgress.completeStage('session');
+        
+        // Use optimized employee lookup
+        const employee = await getCurrentUserEmployee(normalizedEmail);
         
         if (employee) {
           console.log('AuthContext: Employee found in database:', employee.name);
+          authProgress.completeStage('employee');
           
-          // Check if user is superadmin using the database function
-          const { data: isSuperadmin, error: superadminError } = await supabase.rpc('is_superadmin', { 
-            user_email: normalizedEmail 
-          });
-          
-          if (superadminError) {
-            console.error('AuthContext: Error checking superadmin status:', superadminError);
-          }
-          
+          // Check superadmin status with caching
+          const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
           const userRole = isSuperadmin ? 'superadmin' : 'employee';
           
           console.log('AuthContext: Setting user with role:', userRole);
@@ -135,10 +168,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           
           setRequiresPasswordChange(false);
+          authProgress.completeStage('permissions');
+          authProgress.completeStage('complete');
           
-          console.log('AuthContext: User authentication successful');
+          console.log('AuthContext: Optimized user authentication successful');
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
+          authProgress.setStageError('employee', 'Employee not found');
           setUser(null);
           await supabase.auth.signOut();
           toast("Access denied: User not found in employee system. Please contact administrator.");
@@ -146,33 +182,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('AuthContext: Error in handleUserSession:', error);
+      authProgress.setStageError('employee', 'Failed to load user data');
       setUser(null);
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('AuthContext: Attempting login for:', email);
+      console.log('AuthContext: Starting optimized login for:', email);
       setIsLoading(true);
+      setShowProgressiveLoading(true);
+      loginProgress.startLoading();
 
       // Normalize email to lowercase
       const normalizedEmail = email.toLowerCase().trim();
+      loginProgress.completeStage('validate');
 
-      // First verify the user exists in our employees table
-      console.log('AuthContext: Checking if employee exists in database...');
-      const employees = await getEmployees();
-      const employee = employees.find(emp => emp.email?.toLowerCase() === normalizedEmail);
+      // Optimized employee check - only get essential data
+      console.log('AuthContext: Checking if employee exists with minimal query...');
+      const employee = await getCurrentUserEmployee(normalizedEmail);
       
       if (!employee) {
         console.error('AuthContext: Employee not found in database:', normalizedEmail);
+        loginProgress.setStageError('employee', 'Employee not found');
         toast("Access denied: Employee not found in system. Please contact administrator.");
         return false;
       }
 
       console.log('AuthContext: Employee found in database:', employee.name);
+      loginProgress.completeStage('employee');
 
-      // Try to sign in first
-      console.log('AuthContext: Attempting sign in...');
+      // Try to sign in
+      console.log('AuthContext: Attempting Supabase sign in...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -180,36 +221,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.log('AuthContext: Sign in failed:', error.message);
+        loginProgress.setStageError('auth', error.message);
         
-        // If login failed due to invalid credentials, check if user doesn't exist yet
-        if (error.message.includes('Invalid login credentials') || 
-            error.message.includes('Email not confirmed') ||
-            error.message.includes('User not found')) {
-          
-          console.log('AuthContext: Checking if employee has auth account...');
-          const hasAuthAccount = await checkEmployeeAuthStatus(normalizedEmail);
-          
-          if (!hasAuthAccount) {
-            console.log('AuthContext: Employee has no auth account, creating one...');
-            toast("Setting up your authentication account, please wait...");
-            
-            const authCreated = await createSingleSupabaseAuthUser(normalizedEmail, employee.name);
-            
-            if (authCreated) {
-              console.log('AuthContext: Auth account created successfully');
-              toast("Authentication account created! Please check your email for a password reset link to set your password.");
-              setIsLoading(false);
-              return false; // Don't proceed with login, user needs to set password first
-            } else {
-              console.error('AuthContext: Failed to create auth account');
-              toast("Failed to create authentication account. Please contact administrator.");
-              setIsLoading(false);
-              return false;
-            }
-          }
-        }
-        
-        // Provide more specific error messages for other cases
+        // Handle specific error cases without heavy operations
         if (error.message.includes('Invalid login credentials')) {
           toast("Invalid email or password. If this is your first login, please check your email for a password reset link.");
         } else if (error.message.includes('Email not confirmed')) {
@@ -224,19 +238,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         console.log('AuthContext: Login successful for:', normalizedEmail);
-        // The session will be handled by the onAuthStateChange listener
+        loginProgress.completeStage('auth');
+        loginProgress.completeStage('permissions');
+        loginProgress.completeStage('complete');
         toast("Login successful!");
         return true;
       }
 
       console.error('AuthContext: Login failed - no user returned');
+      loginProgress.setStageError('auth', 'No user returned');
       return false;
     } catch (error) {
       console.error('AuthContext: Login exception:', error);
+      loginProgress.setStageError('validate', 'Login failed');
       toast("Login failed. Please try again.");
       return false;
     } finally {
       setIsLoading(false);
+      setShowProgressiveLoading(false);
     }
   };
 
@@ -271,19 +290,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       setUser(null);
       setRequiresPasswordChange(false);
+      clearAuthCache();
       
       console.log('AuthContext: Logout successful');
       toast("Logged out successfully");
     } catch (error) {
       console.error('AuthContext: Logout error:', error);
       setUser(null);
+      clearAuthCache();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading screen while initializing
-  if (!isInitialized || isLoading) {
+  // Show progressive loading during authentication
+  if (showProgressiveLoading) {
+    const currentProgress = isLoading && !user ? loginProgress : authProgress;
+    return (
+      <ProgressiveLoading
+        stages={currentProgress.loadingStages}
+        currentStage={currentProgress.currentStage}
+        progress={currentProgress.progress}
+        title={isLoading && !user ? "Signing In..." : "Initializing..."}
+      />
+    );
+  }
+
+  // Show simple loading for quick operations
+  if (!isInitialized || (isLoading && !showProgressiveLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>

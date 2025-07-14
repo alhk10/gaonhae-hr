@@ -5,65 +5,39 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, FileText, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getEmployees } from '@/services/employeeService';
-import { getClaims } from '@/services/claimsService';
+import { getManagerDashboardData } from '@/services/dashboardOptimizationService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ManagerDashboard = () => {
-  // Fetch real data from services with proper error handling
-  const { data: employees = [], isLoading: employeesLoading, error: employeesError } = useQuery({
-    queryKey: ['employees'],
-    queryFn: getEmployees,
-    staleTime: 5 * 60 * 1000,
-    retry: 3,
+  // Use optimized manager dashboard service
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['manager-dashboard'],
+    queryFn: getManagerDashboardData,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    retry: 2,
   });
 
-  const { data: claims = [], isLoading: claimsLoading, error: claimsError } = useQuery({
-    queryKey: ['claims'],
-    queryFn: getClaims,
-    staleTime: 5 * 60 * 1000,
-    retry: 3,
-  });
-
-  // Calculate real stats
-  const teamMembers = employees.length;
-  const pendingApprovals = claims.filter(claim => claim.status === 'Pending').length;
-  const activeClaims = claims.filter(claim => claim.status !== 'Rejected').length;
-  const completedThisMonth = claims.filter(claim => claim.status === 'Approved').length;
+  const stats = dashboardData?.stats;
+  const recentClaims = dashboardData?.recentClaims || [];
 
   const teamStats = [
-    { title: 'Team Members', value: teamMembers.toString(), icon: Users, color: 'bg-blue-500' },
-    { title: 'Pending Approvals', value: pendingApprovals.toString(), icon: Clock, color: 'bg-orange-500' },
-    { title: 'Active Claims', value: activeClaims.toString(), icon: FileText, color: 'bg-green-500' },
-    { title: 'Completed This Month', value: completedThisMonth.toString(), icon: CheckCircle, color: 'bg-purple-500' },
+    { title: 'Team Members', value: stats?.totalEmployees?.toString() || '0', icon: Users, color: 'bg-blue-500' },
+    { title: 'Pending Approvals', value: stats?.pendingClaims?.toString() || '0', icon: Clock, color: 'bg-orange-500' },
+    { title: 'Active Claims', value: stats?.activeClaims?.toString() || '0', icon: FileText, color: 'bg-green-500' },
+    { title: 'Completed This Month', value: stats?.approvedClaims?.toString() || '0', icon: CheckCircle, color: 'bg-purple-500' },
   ];
 
   // Debug logging
-  console.log('ManagerDashboard: Team members:', teamMembers);
-  console.log('ManagerDashboard: Pending approvals:', pendingApprovals);
-  console.log('ManagerDashboard: Active claims:', activeClaims);
+  console.log('ManagerDashboard: Optimized loading - Data:', dashboardData);
+  console.log('ManagerDashboard: Loading state:', isLoading);
 
-  if (employeesError) {
-    console.error('ManagerDashboard: Error loading employees:', employeesError);
-  }
-  if (claimsError) {
-    console.error('ManagerDashboard: Error loading claims:', claimsError);
-  }
-
-  if (employeesLoading || claimsLoading) {
+  if (error) {
+    console.error('ManagerDashboard: Error loading dashboard:', error);
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Manager Dashboard</h2>
-          <p className="text-gray-600">Loading team data...</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-16 bg-gray-200 rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
+          <p className="text-red-600">Error loading dashboard data. Please refresh the page.</p>
         </div>
       </div>
     );
@@ -83,7 +57,11 @@ const ManagerDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-16 mt-1" />
+                  ) : (
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  )}
                 </div>
                 <div className={`${stat.color} p-3 rounded-lg`}>
                   <stat.icon className="w-6 h-6 text-white" />
@@ -102,22 +80,38 @@ const ManagerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {claims.filter(claim => claim.status === 'Pending').slice(0, 3).map((claim) => (
-                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <p className="font-medium text-gray-900">{claim.employee}</p>
-                      {claim.amount > 200 && <Badge variant="destructive" className="text-xs">High Amount</Badge>}
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                      <div className="space-x-2">
+                        <Skeleton className="h-8 w-16" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600">{claim.type} • S${claim.amount}</p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button size="sm" variant="outline">Reject</Button>
-                    <Button size="sm">Approve</Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-              {claims.filter(claim => claim.status === 'Pending').length === 0 && (
+              ) : recentClaims.filter(claim => claim.status === 'Pending').length > 0 ? (
+                recentClaims.filter(claim => claim.status === 'Pending').map((claim) => (
+                  <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-gray-900">{claim.employee}</p>
+                        {claim.amount > 200 && <Badge variant="destructive" className="text-xs">High Amount</Badge>}
+                      </div>
+                      <p className="text-sm text-gray-600">{claim.type} • S${claim.amount}</p>
+                    </div>
+                    <div className="space-x-2">
+                      <Button size="sm" variant="outline">Reject</Button>
+                      <Button size="sm">Approve</Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
                 <p className="text-sm text-gray-500 text-center py-4">No pending approvals</p>
               )}
             </div>
@@ -137,16 +131,20 @@ const ManagerDashboard = () => {
                   <p className="text-sm text-gray-600">Attendance Rate</p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{teamMembers}</p>
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-8 mx-auto mb-2" />
+                  ) : (
+                    <p className="text-2xl font-bold text-green-600">{stats?.totalEmployees || 0}</p>
+                  )}
                   <p className="text-sm text-gray-600">Team Size</p>
                 </div>
               </div>
               <div className="pt-4 border-t">
                 <h4 className="font-medium text-gray-900 mb-2">Recent Activity</h4>
                 <div className="space-y-2 text-sm">
-                  <p>• {completedThisMonth} claims processed this month</p>
-                  <p>• {pendingApprovals} items awaiting approval</p>
-                  <p>• {teamMembers} active team members</p>
+                  <p>• {stats?.approvedClaims || 0} claims processed this month</p>
+                  <p>• {stats?.pendingClaims || 0} items awaiting approval</p>
+                  <p>• {stats?.totalEmployees || 0} active team members</p>
                   <p>• Data last updated: {new Date().toLocaleTimeString()}</p>
                 </div>
               </div>
