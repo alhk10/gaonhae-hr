@@ -30,7 +30,8 @@ import './App.css';
 
 const queryClient = new QueryClient();
 
-function App() {
+// Create a separate component for the main app content
+const AppContent = () => {
   const [authInitialized, setAuthInitialized] = useState(false);
 
   // Check if auth initialization has been completed before
@@ -49,45 +50,51 @@ function App() {
   // Show initialization screen only on first load
   if (!authInitialized) {
     return (
-      <QueryClientProvider client={queryClient}>
+      <div>
         <AuthenticationInitializer onComplete={handleAuthInitializationComplete} />
         <Toaster />
-      </QueryClientProvider>
+      </div>
     );
   }
 
   return (
+    <PayrollProvider>
+      <Router>
+        <div className="min-h-screen bg-background">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/employees/:id" element={<EmployeeDetails />} />
+            <Route path="/payroll" element={<Payroll />} />
+            <Route path="/payroll-processing" element={<PayrollProcessing />} />
+            <Route path="/payment-summary" element={<PaymentSummary />} />
+            <Route path="/increment-planning" element={<IncrementPlanning />} />
+            <Route path="/leave-management" element={<LeaveManagement />} />
+            <Route path="/apply-leave" element={<ApplyLeave />} />
+            <Route path="/claims" element={<Claims />} />
+            <Route path="/submit-claim" element={<SubmitClaim />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/my-attendance" element={<MyAttendance />} />
+            <Route path="/casual-employees" element={<CasualEmployees />} />
+            <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
+            <Route path="/slot-booking" element={<SlotBooking />} />
+            <Route path="/payslips" element={<Payslips />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </div>
+      </Router>
+    </PayrollProvider>
+  );
+};
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <PayrollProvider>
-          <Router>
-            <div className="min-h-screen bg-background">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/employees" element={<Employees />} />
-                <Route path="/employees/:id" element={<EmployeeDetails />} />
-                <Route path="/payroll" element={<Payroll />} />
-                <Route path="/payroll-processing" element={<PayrollProcessing />} />
-                <Route path="/payment-summary" element={<PaymentSummary />} />
-                <Route path="/increment-planning" element={<IncrementPlanning />} />
-                <Route path="/leave-management" element={<LeaveManagement />} />
-                <Route path="/apply-leave" element={<ApplyLeave />} />
-                <Route path="/claims" element={<Claims />} />
-                <Route path="/submit-claim" element={<SubmitClaim />} />
-                <Route path="/attendance" element={<Attendance />} />
-                <Route path="/my-attendance" element={<MyAttendance />} />
-                <Route path="/casual-employees" element={<CasualEmployees />} />
-                <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
-                <Route path="/slot-booking" element={<SlotBooking />} />
-                <Route path="/payslips" element={<Payslips />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-            </div>
-          </Router>
-        </PayrollProvider>
+        <AppContent />
       </AuthProvider>
     </QueryClientProvider>
   );
