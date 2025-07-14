@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +5,7 @@ import { getCurrentUserEmployee, checkSuperadminStatusCached, clearAuthCache } f
 import { createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
 import { useProgressiveLoading } from '@/hooks/useProgressiveLoading';
 import { ProgressiveLoading } from '@/components/ui/progressive-loading';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
@@ -58,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showProgressiveLoading, setShowProgressiveLoading] = useState(false);
+  const navigate = useNavigate();
 
   const authProgress = useProgressiveLoading(AUTH_STAGES);
   const loginProgress = useProgressiveLoading(LOGIN_STAGES);
@@ -316,6 +317,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast("Logged out successfully");
       }
       
+      // Navigate to home page after logout
+      navigate('/', { replace: true });
+      
     } catch (error) {
       console.error('AuthContext: Logout exception:', error);
       toast("Error during logout, but you have been logged out locally.");
@@ -325,6 +329,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRequiresPasswordChange(false);
       clearAuthCache();
       setIsLoading(false);
+      navigate('/', { replace: true });
     }
   };
 

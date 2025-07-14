@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+import AuthGuard from '@/components/auth/AuthGuard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -232,262 +233,264 @@ const Employees = () => {
   }
 
   return (
-    <ResponsiveLayout>
-      <div className="space-y-6">
-        {/* Simplified Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
-            <p className="text-gray-600">
-              {filteredEmployees.length} employees
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowModuleSettings(true)}
-              className="w-full sm:w-auto"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-            <Button 
-              onClick={() => setShowAddForm(true)}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Employee
-            </Button>
-          </div>
-        </div>
-
-        {/* Simple Status Filter */}
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Filter by status:</label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-60">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current-all">All current employees</SelectItem>
-                <SelectItem value="current-fulltime">Current full-time</SelectItem>
-                <SelectItem value="current-casual">Current casual</SelectItem>
-                <SelectItem value="resigned">Resigned</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Employee List */}
-        <EmployeeListView
-          employees={filteredEmployees}
-          onView={(id) => navigate(`/employees/${id}`)}
-          onEdit={(id) => navigate(`/employees/${id}/edit`)}
-          onResetPassword={handleResetPassword}
-          onDelete={handleDeleteEmployee}
-          onToggleStatus={handleToggleStatus}
-          isSuperAdmin={isSuperAdmin}
-        />
-
-        {/* Empty State */}
-        {filteredEmployees.length === 0 && (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-gray-500 text-lg mb-2">No employees found</p>
-              <p className="text-gray-400 mb-4">
-                No employees match the selected filter criteria
+    <AuthGuard>
+      <ResponsiveLayout>
+        <div className="space-y-6">
+          {/* Simplified Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
+              <p className="text-gray-600">
+                {filteredEmployees.length} employees
               </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Dialogs */}
-      {showModuleSettings && (
-        <EmployeeModuleSettings
-          open={showModuleSettings}
-          onOpenChange={setShowModuleSettings}
-          employees={employees}
-          onEmployeesUpdate={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
-        />
-      )}
-
-      {showResetPasswordDialog && selectedEmployee && (
-        <ResetPasswordDialog
-          open={showResetPasswordDialog}
-          onClose={() => {
-            setShowResetPasswordDialog(false);
-            setSelectedEmployee(null);
-          }}
-          employeeName={selectedEmployee.name}
-          employeeEmail={selectedEmployee.email}
-        />
-      )}
-
-      {/* Add Employee Form Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Add New Employee</h2>
-                  <p className="text-gray-600">Fill out the employee information</p>
-                </div>
-                <Button variant="outline" onClick={handleCloseAddForm}>
-                  Cancel
-                </Button>
-              </div>
             </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowModuleSettings(true)}
+                className="w-full sm:w-auto"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+              <Button 
+                onClick={() => setShowAddForm(true)}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Employee
+              </Button>
+            </div>
+          </div>
 
-            <div className="p-6">
-              <form onSubmit={handleAddEmployee} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-                    <Input name="name" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                    <Input name="email" type="email" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <Input name="phone" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
-                    <Input name="nric" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
-                    <Input name="dateOfBirth" type="date" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
-                    <Input name="joinDate" type="date" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                    <Input name="position" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-                    <Input name="branch" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
-                    <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                      <option value="">Select Type</option>
-                      <option value="Full-Time">Full-Time</option>
-                      <option value="Casual">Casual</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
-                    <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
-                      <option value="">Select Status</option>
-                      <option value="Citizen">Citizen</option>
-                      <option value="PR">Permanent Resident</option>
-                      <option value="Work Permit">Work Permit</option>
-                      <option value="S Pass">S Pass</option>
-                      <option value="Employment Pass">Employment Pass</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
-                    <Input name="bankName" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
-                    <Input name="bankAccount" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
-                    <select 
-                      name="paymentType" 
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                      value={paymentType}
-                      onChange={(e) => setPaymentType(e.target.value)}
-                    >
-                      <option value="Monthly">Monthly</option>
-                      <option value="Hourly">Hourly</option>
-                      <option value="Daily">Daily</option>
-                    </select>
-                  </div>
+          {/* Simple Status Filter */}
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium text-gray-700">Filter by status:</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current-all">All current employees</SelectItem>
+                  <SelectItem value="current-fulltime">Current full-time</SelectItem>
+                  <SelectItem value="current-casual">Current casual</SelectItem>
+                  <SelectItem value="resigned">Resigned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-                  {paymentType === 'Monthly' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
-                      <Input name="baseSalary" type="number" step="0.01" />
-                    </div>
-                  )}
+          {/* Employee List */}
+          <EmployeeListView
+            employees={filteredEmployees}
+            onView={(id) => navigate(`/employees/${id}`)}
+            onEdit={(id) => navigate(`/employees/${id}/edit`)}
+            onResetPassword={handleResetPassword}
+            onDelete={handleDeleteEmployee}
+            onToggleStatus={handleToggleStatus}
+            isSuperAdmin={isSuperAdmin}
+          />
 
-                  {paymentType === 'Hourly' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
-                      <Input name="hourlyRate" type="number" step="0.01" />
-                    </div>
-                  )}
+          {/* Empty State */}
+          {filteredEmployees.length === 0 && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-gray-500 text-lg mb-2">No employees found</p>
+                <p className="text-gray-400 mb-4">
+                  No employees match the selected filter criteria
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-                  {paymentType === 'Daily' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
-                        <Input name="dailyWeekdayRate" type="number" step="0.01" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
-                        <Input name="dailyWeekendRate" type="number" step="0.01" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                  <textarea 
-                    name="address"
-                    rows={3} 
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Enter full address..."
-                  ></textarea>
-                </div>
+        {/* Dialogs */}
+        {showModuleSettings && (
+          <EmployeeModuleSettings
+            open={showModuleSettings}
+            onOpenChange={setShowModuleSettings}
+            employees={employees}
+            onEmployeesUpdate={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
+          />
+        )}
 
-                <div className="border-t pt-6">
-                  <AdminAccessManager
-                    adminAccess={newEmployeeAdminAccess}
-                    pageAccess={newEmployeePageAccess}
-                    onAdminAccessChange={handleAdminAccessChange}
-                    onPageAccessChange={handlePageAccessChange}
-                    isEditing={true}
-                  />
-                </div>
+        {showResetPasswordDialog && selectedEmployee && (
+          <ResetPasswordDialog
+            open={showResetPasswordDialog}
+            onClose={() => {
+              setShowResetPasswordDialog(false);
+              setSelectedEmployee(null);
+            }}
+            employeeName={selectedEmployee.name}
+            employeeEmail={selectedEmployee.email}
+          />
+        )}
 
-                <div className="flex space-x-4">
-                  <Button 
-                    type="submit" 
-                    className="flex-1"
-                    disabled={addEmployeeMutation.isPending}
-                  >
-                    {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
-                  </Button>
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleCloseAddForm}
-                  >
+        {/* Add Employee Form Modal */}
+        {showAddForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Add New Employee</h2>
+                    <p className="text-gray-600">Fill out the employee information</p>
+                  </div>
+                  <Button variant="outline" onClick={handleCloseAddForm}>
                     Cancel
                   </Button>
                 </div>
-              </form>
+              </div>
+
+              <div className="p-6">
+                <form onSubmit={handleAddEmployee} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                      <Input name="name" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                      <Input name="email" type="email" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <Input name="phone" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">NRIC *</label>
+                      <Input name="nric" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+                      <Input name="dateOfBirth" type="date" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
+                      <Input name="joinDate" type="date" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                      <Input name="position" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                      <Input name="branch" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
+                      <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                        <option value="">Select Type</option>
+                        <option value="Full-Time">Full-Time</option>
+                        <option value="Casual">Casual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Residency Status *</label>
+                      <select name="residencyStatus" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                        <option value="">Select Status</option>
+                        <option value="Citizen">Citizen</option>
+                        <option value="PR">Permanent Resident</option>
+                        <option value="Work Permit">Work Permit</option>
+                        <option value="S Pass">S Pass</option>
+                        <option value="Employment Pass">Employment Pass</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
+                      <Input name="bankName" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account *</label>
+                      <Input name="bankAccount" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                      <select 
+                        name="paymentType" 
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        value={paymentType}
+                        onChange={(e) => setPaymentType(e.target.value)}
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Hourly">Hourly</option>
+                        <option value="Daily">Daily</option>
+                      </select>
+                    </div>
+
+                    {paymentType === 'Monthly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
+                        <Input name="baseSalary" type="number" step="0.01" />
+                      </div>
+                    )}
+
+                    {paymentType === 'Hourly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
+                        <Input name="hourlyRate" type="number" step="0.01" />
+                      </div>
+                    )}
+
+                    {paymentType === 'Daily' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
+                          <Input name="dailyWeekdayRate" type="number" step="0.01" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
+                          <Input name="dailyWeekendRate" type="number" step="0.01" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <textarea 
+                      name="address"
+                      rows={3} 
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      placeholder="Enter full address..."
+                    ></textarea>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <AdminAccessManager
+                      adminAccess={newEmployeeAdminAccess}
+                      pageAccess={newEmployeePageAccess}
+                      onAdminAccessChange={handleAdminAccessChange}
+                      onPageAccessChange={handlePageAccessChange}
+                      isEditing={true}
+                    />
+                  </div>
+
+                  <div className="flex space-x-4">
+                    <Button 
+                      type="submit" 
+                      className="flex-1"
+                      disabled={addEmployeeMutation.isPending}
+                    >
+                      {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={handleCloseAddForm}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </ResponsiveLayout>
+        )}
+      </ResponsiveLayout>
+    </AuthGuard>
   );
 };
 

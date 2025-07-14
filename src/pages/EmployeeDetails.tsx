@@ -1,182 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AuthGuard from '@/components/auth/AuthGuard';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEmployeeById, updateEmployee, deleteEmployee, updateEmployeeResignDate, getEmployees } from '@/services/employeeService';
+import { toast } from '@/components/ui/sonner';
+import { getEmployee, updateEmployee, deleteEmployee } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
+import { Calendar } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
+import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const [isResigning, setIsResigning] = useState(false);
-  const [resignDate, setResignDate] = useState<Date | undefined>(undefined);
+  const [isEditing, setIsEditing] = useState(false);
+  const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
+  const [adminAccess, setAdminAccess] = useState<AdminAccessPermissions>({
+    employees: false,
+    payroll: false,
+    leaveManagement: false,
+    claims: false,
+    attendance: false,
+    slotBooking: false,
+    reports: false
+  });
+  const [pageAccess, setPageAccess] = useState<EmployeePageAccessPermissions>({
+    profile: true,
+    applyLeave: true,
+    submitClaim: true,
+    payslips: true,
+    myAttendance: true,
+    slotBookingEmployee: true
+  });
 
-  // Get filtered employee IDs from localStorage for navigation
-  const [filteredEmployeeIds, setFilteredEmployeeIds] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(-1);
-
-  useEffect(() => {
-    const storedIds = localStorage.getItem('filteredEmployeeIds');
-    if (storedIds) {
-      const ids = JSON.parse(storedIds);
-      setFilteredEmployeeIds(ids);
-      setCurrentIndex(ids.indexOf(id));
-    }
-  }, [id]);
-
-  const { data: employee, isLoading, isError } = useQuery({
+  const { data: employee, isLoading, error } = useQuery({
     queryKey: ['employee', id],
-    queryFn: () => getEmployeeById(id!),
+    queryFn: () => getEmployee(id!),
     enabled: !!id,
-  });
-
-  const [employeeData, setEmployeeData] = useState<Partial<EmployeeProfile>>({
-    name: '',
-    nric: '',
-    dateOfBirth: '',
-    residencyStatus: 'Citizen',
-    type: 'Full-Time',
-    baseSalary: undefined,
-    hourlyRate: undefined,
-    dailyRate: undefined,
-    dailyWeekdayRate: undefined,
-    dailyWeekendRate: undefined,
-    paymentType: 'Monthly',
-    bankName: '',
-    bankAccount: '',
-    branch: 'Main Office',
-    department: '',
-    position: '',
-    phone: '',
-    address: '',
-    email: '',
-    joinDate: undefined,
-    resignDate: undefined,
-  });
-
-  useEffect(() => {
-    if (employee) {
-      setEmployeeData({
-        name: employee.name,
-        nric: employee.nric,
-        dateOfBirth: employee.dateOfBirth,
-        residencyStatus: employee.residencyStatus,
-        type: employee.type,
-        baseSalary: employee.baseSalary,
-        hourlyRate: employee.hourlyRate,
-        dailyRate: employee.dailyRate,
-        dailyWeekdayRate: employee.dailyWeekdayRate,
-        dailyWeekendRate: employee.dailyWeekendRate,
-        paymentType: employee.paymentType,
-        bankName: employee.bankName,
-        bankAccount: employee.bankAccount,
-        branch: employee.branch,
-        department: employee.department,
-        position: employee.position,
-        phone: employee.phone,
-        address: employee.address,
-        email: employee.email,
-        joinDate: employee.joinDate,
-        resignDate: employee.resignDate,
-      });
-    }
-  }, [employee]);
-
-  const updateEmployeeMutation = useMutation({
-    mutationFn: (updatedData: EmployeeProfile) => updateEmployee(id!, updatedData),
-    onSuccess: () => {
-      toast.success('Employee details updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['employee', id] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update employee details: ${error.message}`);
-    },
-  });
-
-  const deleteEmployeeMutation = useMutation({
-    mutationFn: () => deleteEmployee(id!),
-    onSuccess: () => {
-      toast.success('Employee deleted successfully!');
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      navigate('/employees');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to delete employee: ${error.message}`);
-    },
-  });
-
-  const updateResignDateMutation = useMutation({
-    mutationFn: (resignDate: string) => updateEmployeeResignDate(id!, resignDate),
-    onSuccess: () => {
-      toast.success('Employee resign date updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['employee', id] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      setIsResigning(false);
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update resign date: ${error.message}`);
-      setIsResigning(false);
-    },
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setEmployeeData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-
-  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEmployeeData(prevData => ({
-      ...prevData,
-      [name]: value === '' ? undefined : parseFloat(value),
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const employeeProfile: EmployeeProfile = {
-      id: id!,
-      name: employeeData.name || '',
-      nric: employeeData.nric || '',
-      dateOfBirth: employeeData.dateOfBirth || '',
-      residencyStatus: employeeData.residencyStatus as 'Citizen' | 'Permanent Resident' | 'Foreigner',
-      type: employeeData.type as 'Full-Time' | 'Casual',
-      baseSalary: employeeData.baseSalary,
-      hourlyRate: employeeData.hourlyRate,
-      dailyRate: employeeData.dailyRate,
-      dailyWeekdayRate: employeeData.dailyWeekdayRate,
-      dailyWeekendRate: employeeData.dailyWeekendRate,
-      paymentType: employeeData.paymentType as 'Monthly' | 'Hourly' | 'Daily',
-      bankName: employeeData.bankName || '',
-      bankAccount: employeeData.bankAccount || '',
-      branch: employeeData.branch || '',
-      department: employeeData.department || '',
-      position: employeeData.position || '',
-      phone: employeeData.phone || '',
-      address: employeeData.address || '',
-      email: employeeData.email || '',
-      joinDate: employeeData.joinDate,
-      resignDate: employeeData.resignDate,
-      allowances: employee?.allowances || [],
-      deductions: employee?.deductions || [],
-      certificates: employee?.certificates || [],
-      adminAccess: employee?.adminAccess || {
+    staleTime: 5 * 60 * 1000,
+    onSuccess: (data) => {
+      setEmployeeData(data);
+      setAdminAccess(data.adminAccess || {
         employees: false,
         payroll: false,
         leaveManagement: false,
@@ -184,145 +60,165 @@ const EmployeeDetails = () => {
         attendance: false,
         slotBooking: false,
         reports: false
-      },
-      pageAccess: employee?.pageAccess || {
+      });
+      setPageAccess(data.pageAccess || {
         profile: true,
         applyLeave: true,
         submitClaim: true,
         payslips: true,
         myAttendance: true,
         slotBookingEmployee: true
-      }
-    };
+      });
+    },
+  });
 
-    updateEmployeeMutation.mutate(employeeProfile);
+  useEffect(() => {
+    if (employee) {
+      setEmployeeData(employee);
+    }
+  }, [employee]);
+
+  const updateEmployeeMutation = useMutation({
+    mutationFn: updateEmployee,
+    onSuccess: () => {
+      console.log('Employee updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['employee', id] });
+      toast("Employee updated successfully");
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      console.error('Error updating employee:', error);
+      toast("Error updating employee. Please try again.");
+    }
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: deleteEmployee,
+    onSuccess: () => {
+      console.log('Employee deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast("Employee removed successfully");
+      navigate('/employees');
+    },
+    onError: (error) => {
+      console.error('Error deleting employee:', error);
+      toast("Error removing employee. Please try again.");
+    }
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEmployeeData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    } as EmployeeProfile));
   };
 
-  const handleDelete = () => {
-    deleteEmployeeMutation.mutate();
+  const handleDateChange = (name: string, date: Date | undefined) => {
+    setEmployeeData((prevData) => ({
+      ...prevData,
+      [name]: date ? format(date, 'yyyy-MM-dd') : null,
+    } as EmployeeProfile));
   };
 
-  const handlePreviousEmployee = () => {
-    if (currentIndex > 0) {
-      const previousId = filteredEmployeeIds[currentIndex - 1];
-      navigate(`/employees/${previousId}`);
+  const handleAdminAccessChange = (permissions: AdminAccessPermissions) => {
+    setAdminAccess(permissions);
+  };
+
+  const handlePageAccessChange = (permissions: EmployeePageAccessPermissions) => {
+    setPageAccess(permissions);
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!employeeData) return;
+
+    try {
+      await updateEmployeeMutation.mutateAsync(employeeData);
+      await updateEmployeeAdminAccess(employeeData.id, adminAccess);
+      await updateEmployeePageAccess(employeeData.id, pageAccess);
+      console.log('Employee updated successfully with access permissions');
+    } catch (error) {
+      console.error('Failed to update employee:', error);
     }
   };
 
-  const handleNextEmployee = () => {
-    if (currentIndex < filteredEmployeeIds.length - 1) {
-      const nextId = filteredEmployeeIds[currentIndex + 1];
-      navigate(`/employees/${nextId}`);
+  const handleDeleteEmployee = () => {
+    if (window.confirm(`Are you sure you want to remove ${employeeData?.name}? This will set their resign date to today.`)) {
+      deleteEmployeeMutation.mutate(id!);
     }
   };
+
+  const isSuperAdmin = user?.role === 'superadmin';
 
   if (isLoading) {
     return (
-      <ResponsiveLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading employee details...</p>
+      <AuthGuard>
+        <ResponsiveLayout>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading employee details...</p>
+            </div>
           </div>
-        </div>
-      </ResponsiveLayout>
+        </ResponsiveLayout>
+      </AuthGuard>
     );
   }
 
-  if (isError || !employee) {
+  if (error || !employeeData) {
     return (
-      <ResponsiveLayout>
-        <div className="text-center">
-          <p className="text-red-600">Error loading employee details.</p>
-          <Button onClick={() => navigate('/employees')} className="mt-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Employees
-          </Button>
-        </div>
-      </ResponsiveLayout>
+      <AuthGuard>
+        <ResponsiveLayout>
+          <div className="text-center">
+            <p className="text-red-600">Error loading employee details. Please try again.</p>
+          </div>
+        </ResponsiveLayout>
+      </AuthGuard>
     );
   }
 
   return (
-    <ResponsiveLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Clean Header with Navigation */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/employees')}
-              className="flex items-center"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
+    <AuthGuard>
+      <ResponsiveLayout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
-              <p className="text-gray-600">Employee ID: {employee.id}</p>
+              <h2 className="text-2xl font-bold text-gray-900">{employeeData.name}</h2>
+              <p className="text-gray-600">Employee Details</p>
+            </div>
+            <div>
+              {isEditing ? (
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={() => {
+                    setIsEditing(false);
+                    queryClient.invalidateQueries({ queryKey: ['employee', id] });
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUpdateEmployee} disabled={updateEmployeeMutation.isLoading}>
+                    {updateEmployeeMutation.isLoading ? 'Updating...' : 'Update Employee'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={() => navigate('/employees')}>
+                    Back to Employees
+                  </Button>
+                  {isSuperAdmin && (
+                    <Button variant="destructive" onClick={handleDeleteEmployee} disabled={deleteEmployeeMutation.isLoading}>
+                      {deleteEmployeeMutation.isLoading ? 'Deleting...' : 'Remove Employee'}
+                    </Button>
+                  )}
+                  <Button onClick={() => setIsEditing(true)}>
+                    Edit Employee
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            {/* Previous/Next Navigation */}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handlePreviousEmployee}
-              disabled={currentIndex <= 0}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleNextEmployee}
-              disabled={currentIndex >= filteredEmployeeIds.length - 1}
-            >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-            
-            <Button 
-              type="submit" 
-              form="employee-form"
-              disabled={updateEmployeeMutation.isPending}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {updateEmployeeMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this employee? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
 
-        {/* Employee Details Form */}
-        <form id="employee-form" onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
           <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Full Name</Label>
@@ -331,7 +227,28 @@ const EmployeeDetails = () => {
                     name="name"
                     value={employeeData.name || ''}
                     onChange={handleInputChange}
-                    required
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={employeeData.email || ''}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={employeeData.phone || ''}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </div>
                 <div>
@@ -341,50 +258,64 @@ const EmployeeDetails = () => {
                     name="nric"
                     value={employeeData.nric || ''}
                     onChange={handleInputChange}
-                    required
+                    disabled={!isEditing}
                   />
                 </div>
                 <div>
                   <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                  <Input
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    type="date"
-                    value={employeeData.dateOfBirth || ''}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <div className="relative">
+                    <DatePicker
+                      id="dateOfBirth"
+                      name="dateOfBirth"
+                      onSelect={(date) => handleDateChange('dateOfBirth', date)}
+                      date={employeeData.dateOfBirth ? new Date(employeeData.dateOfBirth) : undefined}
+                      disabled={!isEditing}
+                    />
+                    <Calendar className="absolute top-2 right-2 w-4 h-4 text-gray-500" />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="joinDate">Join Date</Label>
+                  <div className="relative">
+                    <DatePicker
+                      id="joinDate"
+                      name="joinDate"
+                      onSelect={(date) => handleDateChange('joinDate', date)}
+                      date={employeeData.joinDate ? new Date(employeeData.joinDate) : undefined}
+                      disabled={!isEditing}
+                    />
+                    <Calendar className="absolute top-2 right-2 w-4 h-4 text-gray-500" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="position">Position</Label>
                   <Input
-                    id="joinDate"
-                    name="joinDate"
-                    type="date"
-                    value={employeeData.joinDate || ''}
+                    id="position"
+                    name="position"
+                    value={employeeData.position || ''}
                     onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Employment Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Employment Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="branch">Branch</Label>
+                  <Input
+                    id="branch"
+                    name="branch"
+                    value={employeeData.branch || ''}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="type">Employee Type</Label>
                   <Select
-                    name="type"
-                    value={employeeData.type || 'Full-Time'}
-                    onValueChange={(value) => setEmployeeData(prev => ({ ...prev, type: value as 'Full-Time' | 'Casual' }))}
+                    value={employeeData.type || ''}
+                    onValueChange={(value) => handleInputChange({ target: { name: 'type', value } } as any)}
+                    disabled={!isEditing}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Full-Time">Full-Time</SelectItem>
@@ -395,132 +326,22 @@ const EmployeeDetails = () => {
                 <div>
                   <Label htmlFor="residencyStatus">Residency Status</Label>
                   <Select
-                    name="residencyStatus"
-                    value={employeeData.residencyStatus || 'Citizen'}
-                    onValueChange={(value) => setEmployeeData(prev => ({ ...prev, residencyStatus: value }))}
+                    value={employeeData.residencyStatus || ''}
+                    onValueChange={(value) => handleInputChange({ target: { name: 'residencyStatus', value } } as any)}
+                    disabled={!isEditing}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Citizen">Citizen</SelectItem>
-                      <SelectItem value="Permanent Resident">Permanent Resident</SelectItem>
-                      <SelectItem value="Foreigner">Foreigner</SelectItem>
+                      <SelectItem value="PR">Permanent Resident</SelectItem>
+                      <SelectItem value="Work Permit">Work Permit</SelectItem>
+                      <SelectItem value="S Pass">S Pass</SelectItem>
+                      <SelectItem value="Employment Pass">Employment Pass</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="position">Position</Label>
-                  <Input
-                    id="position"
-                    name="position"
-                    value={employeeData.position || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="branch">Branch</Label>
-                  <Input
-                    id="branch"
-                    name="branch"
-                    value={employeeData.branch || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Compensation */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Compensation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="paymentType">Payment Type</Label>
-                  <Select
-                    name="paymentType"
-                    value={employeeData.paymentType || 'Monthly'}
-                    onValueChange={(value) => setEmployeeData(prev => ({ ...prev, paymentType: value as 'Monthly' | 'Hourly' | 'Daily' }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Hourly">Hourly</SelectItem>
-                      <SelectItem value="Daily">Daily</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {employeeData.paymentType === 'Monthly' && (
-                  <div>
-                    <Label htmlFor="baseSalary">Base Salary (S$)</Label>
-                    <Input
-                      id="baseSalary"
-                      name="baseSalary"
-                      type="number"
-                      step="0.01"
-                      value={employeeData.baseSalary === undefined ? '' : employeeData.baseSalary.toString()}
-                      onChange={handleNumberInputChange}
-                    />
-                  </div>
-                )}
-
-                {employeeData.paymentType === 'Hourly' && (
-                  <div>
-                    <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
-                    <Input
-                      id="hourlyRate"
-                      name="hourlyRate"
-                      type="number"
-                      step="0.01"
-                      value={employeeData.hourlyRate === undefined ? '' : employeeData.hourlyRate.toString()}
-                      onChange={handleNumberInputChange}
-                    />
-                  </div>
-                )}
-
-                {employeeData.paymentType === 'Daily' && (
-                  <>
-                    <div>
-                      <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
-                      <Input
-                        id="dailyWeekdayRate"
-                        name="dailyWeekdayRate"
-                        type="number"
-                        step="0.01"
-                        value={employeeData.dailyWeekdayRate === undefined ? '' : employeeData.dailyWeekdayRate.toString()}
-                        onChange={handleNumberInputChange}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
-                      <Input
-                        id="dailyWeekendRate"
-                        name="dailyWeekendRate"
-                        type="number"
-                        step="0.01"
-                        value={employeeData.dailyWeekendRate === undefined ? '' : employeeData.dailyWeekendRate.toString()}
-                        onChange={handleNumberInputChange}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Banking Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Banking Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bankName">Bank Name</Label>
                   <Input
@@ -528,6 +349,7 @@ const EmployeeDetails = () => {
                     name="bankName"
                     value={employeeData.bankName || ''}
                     onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </div>
                 <div>
@@ -537,59 +359,113 @@ const EmployeeDetails = () => {
                     name="bankAccount"
                     value={employeeData.bankAccount || ''}
                     onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={employeeData.email || ''}
-                    onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    value={employeeData.phone || ''}
-                    onChange={handleInputChange}
-                  />
+                  <Label htmlFor="paymentType">Payment Type</Label>
+                  <Select
+                    value={employeeData.paymentType || ''}
+                    onValueChange={(value) => handleInputChange({ target: { name: 'paymentType', value } } as any)}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Hourly">Hourly</SelectItem>
+                      <SelectItem value="Daily">Daily</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={employeeData.address || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                {employeeData.paymentType === 'Monthly' && (
+                  <div>
+                    <Label htmlFor="baseSalary">Base Salary (S$)</Label>
+                    <Input
+                      id="baseSalary"
+                      name="baseSalary"
+                      type="number"
+                      step="0.01"
+                      value={employeeData.baseSalary?.toString() || ''}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                )}
+                {employeeData.paymentType === 'Hourly' && (
+                  <div>
+                    <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
+                    <Input
+                      id="hourlyRate"
+                      name="hourlyRate"
+                      type="number"
+                      step="0.01"
+                      value={employeeData.hourlyRate?.toString() || ''}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                )}
+                {employeeData.paymentType === 'Daily' && (
+                  <>
+                    <div>
+                      <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
+                      <Input
+                        id="dailyWeekdayRate"
+                        name="dailyWeekdayRate"
+                        type="number"
+                        step="0.01"
+                        value={employeeData.dailyWeekdayRate?.toString() || ''}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
+                      <Input
+                        id="dailyWeekendRate"
+                        name="dailyWeekendRate"
+                        type="number"
+                        step="0.01"
+                        value={employeeData.dailyWeekendRate?.toString() || ''}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <textarea
+                  id="address"
+                  name="address"
+                  rows={3}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  value={employeeData.address || ''}
+                  onChange={handleInputChange}
+                  disabled={!isEditing}
+                />
+              </div>
+
+              {isEditing && (
+                <div className="border-t pt-6">
+                  <AdminAccessManager
+                    adminAccess={adminAccess}
+                    pageAccess={pageAccess}
+                    onAdminAccessChange={handleAdminAccessChange}
+                    onPageAccessChange={handlePageAccessChange}
+                    isEditing={isEditing}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
-        </form>
-
-        {/* Location Exception Management */}
-        <LocationExceptionManager 
-          employeeId={id} 
-          employeeName={employee?.name}
-        />
-      </div>
-    </ResponsiveLayout>
+        </div>
+      </ResponsiveLayout>
+    </AuthGuard>
   );
 };
 
