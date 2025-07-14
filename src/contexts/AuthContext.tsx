@@ -41,27 +41,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   console.log('AuthContext: Provider rendered with user:', user?.email);
 
   useEffect(() => {
-    checkAuthStatus();
-    
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
-      
-      if (event === 'SIGNED_IN' && session) {
-        await handleUserSession(session);
-      } else if (event === 'SIGNED_OUT') {
-        console.log('AuthContext: User signed out, clearing state');
-        setUser(null);
-        setIsLoading(false);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        console.log('AuthContext: Initializing authentication...');
+        
+        // Set up auth state listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+          
+          console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+          
+          if (event === 'SIGNED_IN' && session) {
+            await handleUserSession(session);
+          } else if (event === 'SIGNED_OUT') {
+            console.log('AuthContext: User signed out, clearing state');
+            setUser(null);
+            setIsLoading(false);
+          }
+        });
+
+        // Then check for existing session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('AuthContext: Session error:', sessionError);
+          setHasError(true);
+        } else if (session && mounted) {
+          console.log('AuthContext: Found existing session for:', session.user?.email);
+          await handleUserSession(session);
+        } else {
+          console.log('AuthContext: No active session found');
+          setUser(null);
+        }
+
+        if (mounted) {
+          setIsInitialized(true);
+          setIsLoading(false);
+        }
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('AuthContext: Error during initialization:', error);
+        if (mounted) {
+          setHasError(true);
+          setIsInitialized(true);
+          setIsLoading(false);
+        }
       }
-    });
+    };
+
+    initializeAuth();
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
     };
   }, []);
 
@@ -115,41 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('AuthContext: Error in handleUserSession:', error);
       setHasError(true);
       setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const checkAuthStatus = async () => {
-    try {
-      console.log('AuthContext: Checking authentication status...');
-      setIsLoading(true);
-      setHasError(false);
-
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('AuthContext: Session error:', sessionError);
-        setHasError(true);
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      if (session) {
-        console.log('AuthContext: Found existing session for:', session.user?.email);
-        await handleUserSession(session);
-      } else {
-        console.log('AuthContext: No active session found');
-        setUser(null);
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('AuthContext: Error in checkAuthStatus:', error);
-      setHasError(true);
-      setUser(null);
-      setIsLoading(false);
     }
   };
 
@@ -184,7 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        console.log('AuthContext: Sign in failed, checking if user needs to be created:', error.message);
+        console.log('AuthContext: Sign in failed:', error.message);
         
         // If login failed due to invalid credentials, check if user doesn't exist yet
         if (error.message.includes('Invalid login credentials') || 
@@ -304,6 +310,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onLoginClick={handleLoginClick}
         hasError={hasError}
       />
+    );
+  }
+
+  // Show loading screen while initializing
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
     );
   }
 
