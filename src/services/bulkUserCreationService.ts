@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from './employeeService';
+import { EmployeeProfile } from '@/types/employee';
 
 interface BulkUserCreationResult {
   success: number;
@@ -35,6 +36,9 @@ const generateSecurePassword = (): string => {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 };
 
+// Type for employees that definitely have email addresses
+type EmployeeWithEmail = EmployeeProfile & { email: string };
+
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
   console.log('BulkUserCreation: Starting bulk user creation process...');
   
@@ -48,13 +52,13 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
   try {
     // Get all employees with email addresses
     const employees = await getEmployees();
-    const employeesWithEmail = employees.filter(emp => emp.email && emp.email.trim() !== '');
+    const employeesWithEmail: EmployeeWithEmail[] = employees.filter(
+      (emp): emp is EmployeeWithEmail => emp.email !== null && emp.email !== undefined && emp.email.trim() !== ''
+    );
     
     console.log(`BulkUserCreation: Found ${employeesWithEmail.length} employees with email addresses`);
 
     for (const employee of employeesWithEmail) {
-      if (!employee.email) continue; // Skip if no email (TypeScript safety)
-      
       const normalizedEmail = employee.email.toLowerCase().trim();
       console.log(`BulkUserCreation: Processing ${employee.name} (${normalizedEmail})`);
 
