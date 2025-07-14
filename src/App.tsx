@@ -30,8 +30,7 @@ import './App.css';
 
 const queryClient = new QueryClient();
 
-// Create a separate component for the main app content that runs inside AuthProvider
-const AppContent = () => {
+function App() {
   const [authInitialized, setAuthInitialized] = useState(false);
 
   // Check if auth initialization has been completed before
@@ -50,51 +49,49 @@ const AppContent = () => {
   // Show initialization screen only on first load
   if (!authInitialized) {
     return (
-      <div>
-        <AuthenticationInitializer onComplete={handleAuthInitializationComplete} />
-        <Toaster />
-      </div>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <div>
+            <AuthenticationInitializer onComplete={handleAuthInitializationComplete} />
+            <Toaster />
+          </div>
+        </AuthProvider>
+      </QueryClientProvider>
     );
   }
 
   return (
-    <PayrollProvider>
-      <Router>
-        <div className="min-h-screen bg-background">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/employees/:id" element={<EmployeeDetails />} />
-            <Route path="/payroll" element={<Payroll />} />
-            <Route path="/payroll-processing" element={<PayrollProcessing />} />
-            <Route path="/payment-summary" element={<PaymentSummary />} />
-            <Route path="/increment-planning" element={<IncrementPlanning />} />
-            <Route path="/leave-management" element={<LeaveManagement />} />
-            <Route path="/apply-leave" element={<ApplyLeave />} />
-            <Route path="/claims" element={<Claims />} />
-            <Route path="/submit-claim" element={<SubmitClaim />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/my-attendance" element={<MyAttendance />} />
-            <Route path="/casual-employees" element={<CasualEmployees />} />
-            <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
-            <Route path="/slot-booking" element={<SlotBooking />} />
-            <Route path="/payslips" element={<Payslips />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </div>
-      </Router>
-    </PayrollProvider>
-  );
-};
-
-function App() {
-  return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppContent />
+        <PayrollProvider>
+          <Router>
+            <div className="min-h-screen bg-background">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/employees" element={<Employees />} />
+                <Route path="/employees/:id" element={<EmployeeDetails />} />
+                <Route path="/payroll" element={<Payroll />} />
+                <Route path="/payroll-processing" element={<PayrollProcessing />} />
+                <Route path="/payment-summary" element={<PaymentSummary />} />
+                <Route path="/increment-planning" element={<IncrementPlanning />} />
+                <Route path="/leave-management" element={<LeaveManagement />} />
+                <Route path="/apply-leave" element={<ApplyLeave />} />
+                <Route path="/claims" element={<Claims />} />
+                <Route path="/submit-claim" element={<SubmitClaim />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/my-attendance" element={<MyAttendance />} />
+                <Route path="/casual-employees" element={<CasualEmployees />} />
+                <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
+                <Route path="/slot-booking" element={<SlotBooking />} />
+                <Route path="/payslips" element={<Payslips />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <Toaster />
+            </div>
+          </Router>
+        </PayrollProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
