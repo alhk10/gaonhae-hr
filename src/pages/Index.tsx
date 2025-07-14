@@ -2,6 +2,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
+import LoggedOutPage from '@/components/auth/LoggedOutPage';
 import PasswordChangeModal from '@/components/auth/PasswordChangeModal';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import SuperadminDashboard from '@/components/dashboard/SuperadminDashboard';
@@ -9,7 +10,7 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 
 const Index = () => {
-  const { user, requiresPasswordChange, isLoading } = useAuth();
+  const { user, requiresPasswordChange, isLoading, login } = useAuth();
 
   console.log('Index: Rendering with state:', { 
     user: !!user, 
