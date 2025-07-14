@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -10,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
@@ -27,6 +26,7 @@ import {
   cancelSlotBooking,
   updateSlotBookingEmployee,
   getEmployeeAttendanceStatus,
+  checkForExistingBooking,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig,
@@ -57,6 +57,10 @@ const AdminSlotBooking = () => {
   // New state for swap functionality in approval dialog
   const [swapEmployeeId, setSwapEmployeeId] = useState('');
   const [isSwappingInDialog, setIsSwappingInDialog] = useState(false);
+  
+  // New state for branch editing functionality
+  const [selectedBranchForUpdate, setSelectedBranchForUpdate] = useState('');
+  const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -193,6 +197,7 @@ const AdminSlotBooking = () => {
     event.stopPropagation();
     setSelectedBookingForApproval(booking);
     setSwapEmployeeId(''); // Reset swap selection
+    setSelectedBranchForUpdate(booking.branchId); // Set current branch as default
     setIsApprovalDialogOpen(true);
   };
 
@@ -214,6 +219,71 @@ const AdminSlotBooking = () => {
 
   const handleBulkBookingSuccess = async () => {
     await refreshData();
+  };
+
+  // New function to handle branch updates
+  const handleBranchUpdate = async () => {
+    if (!selectedBookingForApproval || !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval.branchId) {
+      return;
+    }
+
+    const targetBranch = branches.find(b => b.id === selectedBranchForUpdate);
+    if (!targetBranch) {
+      toast.error('Selected branch not found');
+      return;
+    }
+
+    try {
+      setIsUpdatingBranch(true);
+      
+      // Check if target branch has available slots for the date
+      const bookingDate = selectedBookingForApproval.date;
+      const dayOfWeek = new Date(bookingDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
+      const totalSlots = currentWeeklySlots[selectedBranchForUpdate]?.[dayOfWeek] || 0;
+      const existingBookings = allBookings.filter(b => 
+        b.date === bookingDate && 
+        b.branchId === selectedBranchForUpdate && 
+        b.status !== 'cancelled' && 
+        b.status !== 'rejected' &&
+        b.id !== selectedBookingForApproval.id // Exclude current booking
+      );
+
+      if (existingBookings.length >= totalSlots) {
+        toast.error(`Target branch "${targetBranch.name}" is at full capacity for ${format(new Date(bookingDate), 'MMM dd, yyyy')}`);
+        return;
+      }
+
+      // Update the booking with new branch information
+      const success = await updateSlotBookingEmployee(
+        selectedBookingForApproval.id,
+        selectedBookingForApproval.employeeId,
+        selectedBookingForApproval.employeeName,
+        `Branch changed from ${selectedBookingForApproval.branchName} to ${targetBranch.name} by Admin`
+      );
+
+      if (success) {
+        // Update the booking record with new branch details
+        const updatedBookings = allBookings.map(booking => 
+          booking.id === selectedBookingForApproval.id 
+            ? { ...booking, branchId: selectedBranchForUpdate, branchName: targetBranch.name }
+            : booking
+        );
+        setAllBookings(updatedBookings);
+        
+        toast.success(`Successfully moved booking to ${targetBranch.name}`);
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        setSelectedBranchForUpdate('');
+      } else {
+        toast.error('Failed to update branch');
+      }
+    } catch (error) {
+      console.error('AdminSlotBooking: Error updating branch:', error);
+      toast.error('Failed to update branch');
+    } finally {
+      setIsUpdatingBranch(false);
+    }
   };
 
   const getSlotSummary = () => {
@@ -765,12 +835,13 @@ const AdminSlotBooking = () => {
               </CardContent>
             </Card>
 
-            {/* Enhanced Approval Dialog with Cancel Functionality */}
+            {/* Enhanced Approval Dialog with Branch Edit and Cancel Functionality */}
             <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
               setIsApprovalDialogOpen(open);
               if (!open) {
                 setSelectedBookingForApproval(null);
                 setSwapEmployeeId('');
+                setSelectedBranchForUpdate('');
               }
             }}>
               <DialogContent className="sm:max-w-lg">
@@ -788,12 +859,45 @@ const AdminSlotBooking = () => {
                 <div className="py-4 space-y-4">
                   <div className="space-y-2">
                     <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
-                    <p><strong>Branch:</strong> {selectedBookingForApproval?.branchName}</p>
+                    <p><strong>Current Branch:</strong> {selectedBookingForApproval?.branchName}</p>
                     <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
                     <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
                     {selectedBookingForApproval && hasEmployeeClockedIn(selectedBookingForApproval.employeeId, new Date(selectedBookingForApproval.date)) && (
                       <p><strong>Clock-in Status:</strong> <span className="text-green-600">✅ Clocked In</span></p>
                     )}
+                  </div>
+
+                  {/* Branch Selection Section */}
+                  <div className="border-t pt-4">
+                    <Label htmlFor="branch-select" className="text-sm font-medium flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      Change Branch (Optional)
+                    </Label>
+                    <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select branch to move booking" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem 
+                            key={branch.id} 
+                            value={branch.id}
+                            disabled={branch.id === selectedBookingForApproval?.branchId}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: branch.color }}
+                              ></div>
+                              <span>{branch.name}</span>
+                              {branch.id === selectedBookingForApproval?.branchId && (
+                                <span className="text-gray-500">(Current)</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Swap Employee Section */}
@@ -843,9 +947,21 @@ const AdminSlotBooking = () => {
                       setIsApprovalDialogOpen(false);
                       setSelectedBookingForApproval(null);
                       setSwapEmployeeId('');
+                      setSelectedBranchForUpdate('');
                     }}>
                       Close
                     </Button>
+                    {selectedBranchForUpdate && selectedBranchForUpdate !== selectedBookingForApproval?.branchId && (
+                      <Button 
+                        type="button"
+                        variant="secondary"
+                        onClick={handleBranchUpdate}
+                        disabled={isUpdatingBranch}
+                      >
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {isUpdatingBranch ? 'Updating...' : 'Update Branch'}
+                      </Button>
+                    )}
                     {swapEmployeeId && (
                       <Button 
                         type="button"

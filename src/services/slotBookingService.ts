@@ -556,6 +556,7 @@ export const cancelSlotBooking = async (
   }
 };
 
+// Enhanced updateSlotBookingEmployee function to also support branch updates
 export const updateSlotBookingEmployee = async (
   bookingId: string,
   newEmployeeId: string,
@@ -563,7 +564,7 @@ export const updateSlotBookingEmployee = async (
   notes?: string
 ): Promise<boolean> => {
   try {
-    console.log('SlotBookingService: Swapping employee for booking:', bookingId);
+    console.log('SlotBookingService: Updating slot booking employee/details:', bookingId);
     
     const updateData: any = {
       employee_id: newEmployeeId,
@@ -577,14 +578,48 @@ export const updateSlotBookingEmployee = async (
       .eq('id', bookingId);
 
     if (error) {
-      console.error('SlotBookingService: Error swapping employee:', error);
+      console.error('SlotBookingService: Error updating booking employee:', error);
       return false;
     }
 
-    console.log('SlotBookingService: Successfully swapped employee for booking:', bookingId);
+    console.log('SlotBookingService: Successfully updated booking employee:', bookingId);
     return true;
   } catch (error) {
     console.error('SlotBookingService: Error in updateSlotBookingEmployee:', error);
+    return false;
+  }
+};
+
+// New function specifically for updating branch information
+export const updateSlotBookingBranch = async (
+  bookingId: string,
+  newBranchId: string,
+  newBranchName: string,
+  notes?: string
+): Promise<boolean> => {
+  try {
+    console.log('SlotBookingService: Updating slot booking branch:', bookingId);
+    
+    const updateData: any = {
+      branch_id: newBranchId,
+      branch_name: newBranchName,
+      notes: notes || null
+    };
+
+    const { error } = await supabase
+      .from('slot_bookings_new')
+      .update(updateData)
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('SlotBookingService: Error updating booking branch:', error);
+      return false;
+    }
+
+    console.log('SlotBookingService: Successfully updated booking branch:', bookingId);
+    return true;
+  } catch (error) {
+    console.error('SlotBookingService: Error in updateSlotBookingBranch:', error);
     return false;
   }
 };
