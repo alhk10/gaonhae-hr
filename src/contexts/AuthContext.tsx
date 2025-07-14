@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setShowProgressiveLoading(false);
             setIsInitialized(true);
           }
-        }, 8000); // Reduced to 8 seconds
+        }, 10000); // Increased to 10 seconds to give more time
         
         authProgress.startLoading();
         setShowProgressiveLoading(true);
@@ -170,18 +170,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         authProgress.completeStage('session');
         
-        // Simplified employee lookup
+        // Simple employee lookup with better timeout handling
         console.log('AuthContext: Calling getCurrentUserEmployee...');
-        const employee = await getCurrentUserEmployee(normalizedEmail);
+        
+        // Add a race condition with timeout to prevent hanging
+        const employeePromise = getCurrentUserEmployee(normalizedEmail);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Employee lookup timeout')), 8000);
+        });
+        
+        const employee = await Promise.race([employeePromise, timeoutPromise]) as any;
         console.log('AuthContext: getCurrentUserEmployee returned:', employee ? 'Employee found' : 'No employee');
         
         if (employee) {
           console.log('AuthContext: Employee found in database:', employee.name);
           authProgress.completeStage('employee');
           
-          // Check superadmin status
+          // Check superadmin status with timeout
           console.log('AuthContext: Checking superadmin status...');
-          const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
+          const superadminPromise = checkSuperadminStatusCached(normalizedEmail);
+          const superadminTimeoutPromise = new Promise((resolve) => {
+            setTimeout(() => resolve(false), 3000); // Default to false if timeout
+          });
+          
+          const isSuperadmin = await Promise.race([superadminPromise, superadminTimeoutPromise]) as boolean;
           const userRole = isSuperadmin ? 'superadmin' : 'employee';
           
           console.log('AuthContext: Setting user with role:', userRole);
@@ -228,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           stack: error.stack
         });
         
-        if (error.message.includes('timeout')) {
+        if (error.message.includes('timeout') || error.message.includes('Employee lookup timeout')) {
           errorMessage = 'Connection timeout. Please check your internet connection and try again.';
         } else if (error.message.includes('Employee not found')) {
           errorMessage = 'Employee record not found. Please contact administrator.';
@@ -261,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShowProgressiveLoading(false);
         loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 10000); // Reduced to 10 seconds
+      }, 15000); // Increased to 15 seconds
 
       const normalizedEmail = email.toLowerCase().trim();
       console.log('AuthContext: Normalized email for login:', normalizedEmail);
@@ -270,7 +282,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Checking if employee exists...');
       
       try {
-        const employee = await getCurrentUserEmployee(normalizedEmail);
+        // Add timeout to employee check
+        const employeePromise = getCurrentUserEmployee(normalizedEmail);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Employee check timeout')), 10000);
+        });
+        
+        const employee = await Promise.race([employeePromise, timeoutPromise]);
         
         if (!employee) {
           clearTimeout(loginTimeout);
@@ -282,7 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
         }
 
-        console.log('AuthContext: Employee found in database:', employee.name);
+        console.log('AuthContext: Employee found in database:', (employee as any).name);
         loginProgress.completeStage('employee');
       } catch (employeeError) {
         clearTimeout(loginTimeout);
@@ -290,7 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         let errorMessage = 'Failed to verify employee record. Please try again.';
         if (employeeError instanceof Error) {
-          if (employeeError.message.includes('timeout')) {
+          if (employeeError.message.includes('timeout') || employeeError.message.includes('Employee check timeout')) {
             errorMessage = 'Database connection timeout. Please check your internet connection and try again.';
           } else if (employeeError.message.includes('Database connection failed')) {
             errorMessage = 'Database connection failed. Please try again later.';

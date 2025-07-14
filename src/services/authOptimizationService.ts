@@ -9,7 +9,7 @@ export const getCurrentUserEmployee = async (email: string) => {
     const normalizedEmail = email.toLowerCase().trim();
     console.log('AuthOptimization: Normalized email:', normalizedEmail);
     
-    // Simple query with shorter timeout
+    // Simple query with error handling
     console.log('AuthOptimization: Querying employees table for:', normalizedEmail);
     const { data: employee, error } = await supabase
       .from('employees')
@@ -68,14 +68,22 @@ export const getCurrentUserEmployee = async (email: string) => {
       }
     };
 
-    // Try to fetch admin access - simplified approach
+    // Try to fetch admin access - with timeout protection
     try {
       console.log('AuthOptimization: Fetching admin access for employee:', employee.id);
-      const { data: adminAccessData } = await supabase
+      
+      // Add timeout promise
+      const adminAccessPromise = supabase
         .from('admin_access')
         .select('*')
         .eq('employee_id', employee.id)
         .maybeSingle();
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Admin access query timeout')), 3000);
+      });
+      
+      const { data: adminAccessData } = await Promise.race([adminAccessPromise, timeoutPromise]) as any;
       
       if (adminAccessData) {
         console.log('AuthOptimization: Admin access data found:', adminAccessData);
@@ -93,16 +101,25 @@ export const getCurrentUserEmployee = async (email: string) => {
       }
     } catch (error) {
       console.warn('AuthOptimization: Admin access query error (non-critical):', error);
+      // Continue with default admin access (all false)
     }
 
-    // Try to fetch employee page access - simplified approach
+    // Try to fetch employee page access - with timeout protection
     try {
       console.log('AuthOptimization: Fetching page access for employee:', employee.id);
-      const { data: pageAccessData } = await supabase
+      
+      // Add timeout promise
+      const pageAccessPromise = supabase
         .from('employee_page_access')
         .select('*')
         .eq('employee_id', employee.id)
         .maybeSingle();
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Page access query timeout')), 3000);
+      });
+      
+      const { data: pageAccessData } = await Promise.race([pageAccessPromise, timeoutPromise]) as any;
       
       if (pageAccessData) {
         console.log('AuthOptimization: Page access data found:', pageAccessData);
@@ -119,6 +136,7 @@ export const getCurrentUserEmployee = async (email: string) => {
       }
     } catch (error) {
       console.warn('AuthOptimization: Page access query error (non-critical):', error);
+      // Continue with default page access (all true)
     }
 
     console.log('AuthOptimization: Employee processing completed successfully for:', employee.name);
@@ -144,14 +162,21 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 };
 
-// Simplified superadmin check
+// Simplified superadmin check with timeout protection
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
-    const { data: isSuperadmin, error } = await supabase.rpc('is_superadmin', { 
+    // Add timeout promise
+    const superadminPromise = supabase.rpc('is_superadmin', { 
       user_email: email.toLowerCase() 
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Superadmin check timeout')), 3000);
+    });
+    
+    const { data: isSuperadmin, error } = await Promise.race([superadminPromise, timeoutPromise]) as any;
     
     if (error) {
       console.error('AuthOptimization: Error checking superadmin status:', error);
@@ -163,7 +188,7 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
     return superadminStatus;
   } catch (error) {
     console.error('AuthOptimization: Exception checking superadmin status:', error);
-    return false;
+    return false; // Default to false if there's any error
   }
 };
 
