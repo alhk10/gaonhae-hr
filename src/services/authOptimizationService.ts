@@ -31,8 +31,11 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 
   // Process minimal user data for authentication
-  const adminAccess = employee.admin_access?.[0];
-  const pageAccess = employee.employee_page_access?.[0];
+  const adminAccessArray = employee.admin_access as any[];
+  const pageAccessArray = employee.employee_page_access as any[];
+  
+  const adminAccess = adminAccessArray && adminAccessArray.length > 0 ? adminAccessArray[0] : null;
+  const pageAccess = pageAccessArray && pageAccessArray.length > 0 ? pageAccessArray[0] : null;
 
   return {
     id: employee.id,
