@@ -1,14 +1,16 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Menu, X } from 'lucide-react';
+import { User, LogOut, Menu, X, Key } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import UserPasswordChangeDialog from '@/components/auth/UserPasswordChangeDialog';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   console.log('Navbar: Rendering with user:', user?.email);
 
@@ -19,6 +21,12 @@ const Navbar = () => {
     } catch (error) {
       console.error('Navbar: Error during logout:', error);
     }
+    setShowMobileMenu(false);
+  };
+
+  const handlePasswordChange = () => {
+    console.log('Navbar: Password change button clicked');
+    setShowPasswordDialog(true);
     setShowMobileMenu(false);
   };
 
@@ -53,6 +61,19 @@ const Navbar = () => {
                   <User className="w-4 h-4 text-gray-600" />
                   <span className="text-sm text-gray-700">{user.email}</span>
                 </div>
+                
+                {/* Password Change Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePasswordChange}
+                  className="flex items-center space-x-1"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Change Password</span>
+                </Button>
+                
+                {/* Logout Button */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -91,6 +112,19 @@ const Navbar = () => {
                 <User className="w-4 h-4" />
                 <span>{user.email}</span>
               </div>
+              
+              {/* Mobile Password Change Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePasswordChange}
+                className="w-full flex items-center justify-center space-x-2"
+              >
+                <Key className="w-4 h-4" />
+                <span>Change Password</span>
+              </Button>
+              
+              {/* Mobile Logout Button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -104,6 +138,12 @@ const Navbar = () => {
           </div>
         )}
       </nav>
+
+      {/* Password Change Dialog */}
+      <UserPasswordChangeDialog 
+        open={showPasswordDialog} 
+        onOpenChange={setShowPasswordDialog} 
+      />
     </>
   );
 };
