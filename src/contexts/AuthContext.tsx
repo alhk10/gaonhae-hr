@@ -81,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setShowProgressiveLoading(false);
             setIsInitialized(true);
           }
-        }, 15000); // 15 second timeout
+        }, 12000); // Reduced to 12 seconds
         
         authProgress.startLoading();
         setShowProgressiveLoading(true);
@@ -110,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authProgress.completeStage('session');
 
         // Then check for existing session
+        console.log('AuthContext: Checking for existing session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -169,13 +170,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authProgress.completeStage('session');
         
         // Use optimized employee lookup with better error handling
+        console.log('AuthContext: About to call getCurrentUserEmployee...');
         const employee = await getCurrentUserEmployee(normalizedEmail);
+        console.log('AuthContext: getCurrentUserEmployee returned:', employee ? 'Employee found' : 'No employee');
         
         if (employee) {
           console.log('AuthContext: Employee found in database:', employee.name);
           authProgress.completeStage('employee');
           
           // Check superadmin status with caching
+          console.log('AuthContext: Checking superadmin status...');
           const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
           const userRole = isSuperadmin ? 'superadmin' : 'employee';
           
@@ -217,10 +221,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Provide more specific error messages
       let errorMessage = 'Failed to load user data. Please try again.';
       if (error instanceof Error) {
+        console.error('AuthContext: Detailed error info:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
         if (error.message.includes('timeout')) {
           errorMessage = 'Connection timeout. Please check your internet connection and try again.';
         } else if (error.message.includes('Employee not found')) {
           errorMessage = 'Employee record not found. Please contact administrator.';
+        } else if (error.message.includes('Database connection failed')) {
+          errorMessage = 'Database connection failed. Please try again later.';
         }
       }
       
@@ -248,9 +260,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShowProgressiveLoading(false);
         loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 25000); // Reduced to 25 seconds
+      }, 20000); // Reduced to 20 seconds
 
       const normalizedEmail = email.toLowerCase().trim();
+      console.log('AuthContext: Normalized email for login:', normalizedEmail);
       loginProgress.completeStage('validate');
 
       console.log('AuthContext: Checking if employee exists...');
@@ -275,8 +288,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('AuthContext: Error checking employee:', employeeError);
         
         let errorMessage = 'Failed to verify employee record. Please try again.';
-        if (employeeError instanceof Error && employeeError.message.includes('timeout')) {
-          errorMessage = 'Database connection timeout. Please check your internet connection and try again.';
+        if (employeeError instanceof Error) {
+          if (employeeError.message.includes('timeout')) {
+            errorMessage = 'Database connection timeout. Please check your internet connection and try again.';
+          } else if (employeeError.message.includes('Database connection failed')) {
+            errorMessage = 'Database connection failed. Please try again later.';
+          }
         }
         
         loginProgress.setStageError('employee', errorMessage);

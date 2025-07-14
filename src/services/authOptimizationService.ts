@@ -3,14 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Optimized service for authentication-specific data loading
 export const getCurrentUserEmployee = async (email: string) => {
-  console.log('AuthOptimization: Fetching current user employee data only:', email);
+  console.log('AuthOptimization: Starting getCurrentUserEmployee for:', email);
   
   try {
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log('AuthOptimization: Normalized email:', normalizedEmail);
+    
+    // First, let's check if we can connect to the database at all
+    console.log('AuthOptimization: Testing database connection...');
+    const { data: testData, error: testError } = await supabase
+      .from('employees')
+      .select('count')
+      .limit(1);
+    
+    if (testError) {
+      console.error('AuthOptimization: Database connection test failed:', testError);
+      throw new Error(`Database connection failed: ${testError.message}`);
+    }
+    
+    console.log('AuthOptimization: Database connection successful');
+
     // Add a timeout to prevent hanging queries
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 10000);
+      setTimeout(() => reject(new Error('Employee query timeout after 8 seconds')), 8000);
     });
 
+    console.log('AuthOptimization: Querying employees table for:', normalizedEmail);
     const queryPromise = supabase
       .from('employees')
       .select(`
@@ -21,69 +39,41 @@ export const getCurrentUserEmployee = async (email: string) => {
         department,
         position
       `)
-      .eq('email', email.toLowerCase())
+      .eq('email', normalizedEmail)
       .maybeSingle();
 
     const { data: employee, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
     if (error) {
-      console.error('AuthOptimization: Error fetching user employee:', error);
-      throw error;
+      console.error('AuthOptimization: Error fetching employee:', error);
+      throw new Error(`Employee lookup failed: ${error.message}`);
     }
 
     if (!employee) {
-      console.log('AuthOptimization: No employee found for email:', email);
+      console.log('AuthOptimization: No employee found for email:', normalizedEmail);
+      
+      // Let's also check if there are any employees in the table at all
+      const { data: allEmployees, error: countError } = await supabase
+        .from('employees')
+        .select('email')
+        .limit(10);
+      
+      if (!countError && allEmployees) {
+        console.log('AuthOptimization: Sample employee emails in database:', 
+          allEmployees.map(emp => emp.email).slice(0, 5));
+      }
+      
       return null;
     }
 
-    console.log('AuthOptimization: Employee data fetched successfully:', employee.name);
-
-    // Fetch admin access separately with timeout
-    const adminQueryPromise = supabase
-      .from('admin_access')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .maybeSingle();
-
-    const adminTimeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Admin access query timeout')), 5000);
+    console.log('AuthOptimization: Employee found:', {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      type: employee.type
     });
 
-    let adminAccessData = null;
-    try {
-      const { data, error: adminError } = await Promise.race([adminQueryPromise, adminTimeoutPromise]) as any;
-      if (!adminError) {
-        adminAccessData = data;
-      } else {
-        console.error('AuthOptimization: Error fetching admin access:', adminError);
-      }
-    } catch (error) {
-      console.error('AuthOptimization: Admin access query timeout or error:', error);
-    }
-
-    // Fetch employee page access separately with timeout
-    const pageQueryPromise = supabase
-      .from('employee_page_access')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .maybeSingle();
-
-    const pageTimeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Page access query timeout')), 5000);
-    });
-
-    let pageAccessData = null;
-    try {
-      const { data, error: pageError } = await Promise.race([pageQueryPromise, pageTimeoutPromise]) as any;
-      if (!pageError) {
-        pageAccessData = data;
-      } else {
-        console.error('AuthOptimization: Error fetching page access:', pageError);
-      }
-    } catch (error) {
-      console.error('AuthOptimization: Page access query timeout or error:', error);
-    }
-
+    // Initialize result with basic employee data
     const result = {
       id: employee.id,
       name: employee.name,
@@ -91,15 +81,7 @@ export const getCurrentUserEmployee = async (email: string) => {
       type: employee.type as 'Full-Time' | 'Casual',
       department: employee.department || '',
       position: employee.position || '',
-      adminAccess: adminAccessData ? {
-        employees: adminAccessData.employees || false,
-        payroll: adminAccessData.payroll || false,
-        leaveManagement: adminAccessData.leave_management || false,
-        claims: adminAccessData.claims || false,
-        attendance: adminAccessData.attendance || false,
-        slotBooking: adminAccessData.slot_booking || false,
-        reports: adminAccessData.reports || false
-      } : {
+      adminAccess: {
         employees: false,
         payroll: false,
         leaveManagement: false,
@@ -108,14 +90,7 @@ export const getCurrentUserEmployee = async (email: string) => {
         slotBooking: false,
         reports: false
       },
-      pageAccess: pageAccessData ? {
-        profile: pageAccessData.profile !== false,
-        applyLeave: pageAccessData.apply_leave !== false,
-        submitClaim: pageAccessData.submit_claim !== false,
-        payslips: pageAccessData.payslips !== false,
-        myAttendance: pageAccessData.my_attendance !== false,
-        slotBookingEmployee: pageAccessData.slot_booking_employee !== false
-      } : {
+      pageAccess: {
         profile: true,
         applyLeave: true,
         submitClaim: true,
@@ -125,10 +100,94 @@ export const getCurrentUserEmployee = async (email: string) => {
       }
     };
 
-    console.log('AuthOptimization: Employee processing completed successfully');
+    // Try to fetch admin access but don't fail if it times out
+    try {
+      console.log('AuthOptimization: Fetching admin access for employee:', employee.id);
+      const adminTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Admin access query timeout')), 3000);
+      });
+
+      const adminQueryPromise = supabase
+        .from('admin_access')
+        .select('*')
+        .eq('employee_id', employee.id)
+        .maybeSingle();
+
+      const { data: adminAccessData, error: adminError } = await Promise.race([adminQueryPromise, adminTimeoutPromise]) as any;
+      
+      if (!adminError && adminAccessData) {
+        console.log('AuthOptimization: Admin access data found:', adminAccessData);
+        result.adminAccess = {
+          employees: adminAccessData.employees || false,
+          payroll: adminAccessData.payroll || false,
+          leaveManagement: adminAccessData.leave_management || false,
+          claims: adminAccessData.claims || false,
+          attendance: adminAccessData.attendance || false,
+          slotBooking: adminAccessData.slot_booking || false,
+          reports: adminAccessData.reports || false
+        };
+      } else if (adminError) {
+        console.warn('AuthOptimization: Admin access query error (non-critical):', adminError);
+      } else {
+        console.log('AuthOptimization: No admin access data found for employee');
+      }
+    } catch (error) {
+      console.warn('AuthOptimization: Admin access query timeout (non-critical):', error);
+    }
+
+    // Try to fetch employee page access but don't fail if it times out
+    try {
+      console.log('AuthOptimization: Fetching page access for employee:', employee.id);
+      const pageTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Page access query timeout')), 3000);
+      });
+
+      const pageQueryPromise = supabase
+        .from('employee_page_access')
+        .select('*')
+        .eq('employee_id', employee.id)
+        .maybeSingle();
+
+      const { data: pageAccessData, error: pageError } = await Promise.race([pageQueryPromise, pageTimeoutPromise]) as any;
+      
+      if (!pageError && pageAccessData) {
+        console.log('AuthOptimization: Page access data found:', pageAccessData);
+        result.pageAccess = {
+          profile: pageAccessData.profile !== false,
+          applyLeave: pageAccessData.apply_leave !== false,
+          submitClaim: pageAccessData.submit_claim !== false,
+          payslips: pageAccessData.payslips !== false,
+          myAttendance: pageAccessData.my_attendance !== false,
+          slotBookingEmployee: pageAccessData.slot_booking_employee !== false
+        };
+      } else if (pageError) {
+        console.warn('AuthOptimization: Page access query error (non-critical):', pageError);
+      } else {
+        console.log('AuthOptimization: No page access data found for employee, using defaults');
+      }
+    } catch (error) {
+      console.warn('AuthOptimization: Page access query timeout (non-critical):', error);
+    }
+
+    console.log('AuthOptimization: Employee processing completed successfully for:', employee.name);
+    console.log('AuthOptimization: Final result:', {
+      id: result.id,
+      name: result.name,
+      adminAccess: result.adminAccess,
+      pageAccess: result.pageAccess
+    });
+    
     return result;
   } catch (error) {
-    console.error('AuthOptimization: Exception in getCurrentUserEmployee:', error);
+    console.error('AuthOptimization: Critical error in getCurrentUserEmployee:', error);
+    
+    // Log the exact error details
+    if (error instanceof Error) {
+      console.error('AuthOptimization: Error name:', error.name);
+      console.error('AuthOptimization: Error message:', error.message);
+      console.error('AuthOptimization: Error stack:', error.stack);
+    }
+    
     throw error;
   }
 };
@@ -152,7 +211,7 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
     
     // Add timeout for superadmin check
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Superadmin check timeout')), 5000);
+      setTimeout(() => reject(new Error('Superadmin check timeout')), 3000);
     });
 
     const queryPromise = supabase.rpc('is_superadmin', { 
@@ -172,13 +231,14 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
     }
     
     // Cache the result
+    const superadminStatus = isSuperadmin || false;
     superadminCache.set(normalizedEmail, {
-      isSuper: isSuperadmin || false,
+      isSuper: superadminStatus,
       timestamp: Date.now()
     });
     
-    console.log('AuthOptimization: Superadmin status determined:', normalizedEmail, isSuperadmin);
-    return isSuperadmin || false;
+    console.log('AuthOptimization: Superadmin status determined:', normalizedEmail, superadminStatus);
+    return superadminStatus;
   } catch (error) {
     console.error('AuthOptimization: Exception checking superadmin status:', error);
     // Cache false result on timeout/error to prevent repeated failures
