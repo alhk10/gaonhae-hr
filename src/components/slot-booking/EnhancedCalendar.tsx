@@ -29,40 +29,41 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   isLoading = false
 }) => {
   return (
-    <Card className="w-full h-fit">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <CalendarIcon className="w-5 h-5" />
+    <Card className="w-full h-fit flex flex-col">
+      <CardHeader className="pb-3 flex-shrink-0">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarIcon className="w-4 h-4" />
           Select Dates
           {selectedDates.length > 0 && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-2 text-xs">
               {selectedDates.length} selected
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      
+      <CardContent className="flex-1 flex flex-col space-y-3 p-4 pt-0">
         {/* Compact Calendar Legend */}
-        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg text-xs">
+        <div className="grid grid-cols-1 gap-1.5 p-2 bg-muted/20 rounded text-xs flex-shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-200 border border-blue-400"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-200 border border-blue-400"></div>
             <span>Others' approved bookings</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-200 border border-red-400"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-red-200 border border-red-400"></div>
             <span>Your existing bookings</span>
           </div>
           <div className="flex items-center gap-2">
             <div 
-              className="w-3 h-3 rounded-full border-2" 
+              className="w-2.5 h-2.5 rounded-full border-2" 
               style={{ backgroundColor: branchColor, borderColor: branchColor }}
             ></div>
             <span>Your selections</span>
           </div>
         </div>
 
-        {/* Calendar with Full Width */}
-        <div className="w-full">
+        {/* Calendar with Dynamic Stretching */}
+        <div className="flex-1 flex flex-col min-h-0">
           <Calendar
             mode="multiple"
             selected={selectedDates}
@@ -73,7 +74,7 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
             }}
             onDayClick={onDateSelect}
             className={cn(
-              "rounded-md border w-full",
+              "rounded-md border w-full flex-1 h-full",
               isLoading && "opacity-50 pointer-events-none"
             )}
             disabled={isDateDisabled}
@@ -104,11 +105,11 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
         </div>
 
         {/* Compact Help text */}
-        <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
-          <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
+        <div className="flex items-start gap-2 p-2 bg-blue-50 rounded text-xs flex-shrink-0">
+          <Info className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="text-blue-800">
             <p className="font-medium mb-1">How to select dates:</p>
-            <ul className="text-xs space-y-1 text-blue-700">
+            <ul className="text-xs space-y-0.5 text-blue-700">
               <li>• Click dates to select multiple slots</li>
               <li>• Click again to deselect</li>
               <li>• Red strikethrough = your existing bookings</li>

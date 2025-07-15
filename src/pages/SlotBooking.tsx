@@ -417,10 +417,10 @@ const SlotBooking = () => {
           </TabsList>
 
           <TabsContent value="booking" className="mt-6">
-            {/* New 2-Column Layout */}
-            <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-5'}`}>
+            {/* Enhanced 2-Column Layout with Dynamic Calendar */}
+            <div className={`grid gap-6 h-[600px] ${isMobile ? 'grid-cols-1 h-auto' : 'grid-cols-5'}`}>
               {/* Left Column - Controls (40% width = 2/5) */}
-              <div className={`${isMobile ? 'col-span-1' : 'col-span-2'} space-y-6`}>
+              <div className={`${isMobile ? 'col-span-1' : 'col-span-2'} space-y-6 flex flex-col`}>
                 <EnhancedBranchSelector
                   branches={branches}
                   selectedBranch={selectedBranch}
@@ -448,8 +448,8 @@ const SlotBooking = () => {
                 />
               </div>
 
-              {/* Right Column - Calendar (60% width = 3/5) */}
-              <div className={`${isMobile ? 'col-span-1' : 'col-span-3'}`}>
+              {/* Right Column - Calendar (60% width = 3/5) with Dynamic Stretching */}
+              <div className={`${isMobile ? 'col-span-1 h-[500px]' : 'col-span-3 h-full'} flex flex-col`}>
                 <EnhancedCalendar
                   selectedDates={selectedDates}
                   onDateSelect={handleDateSelect}
