@@ -9,9 +9,11 @@ export const getCurrentUserEmployee = async (email: string) => {
     const normalizedEmail = email.toLowerCase().trim();
     console.log('AuthOptimization: Normalized email:', normalizedEmail);
     
-    // Simple query with error handling
+    // Simple query with extended timeout for all operations
     console.log('AuthOptimization: Querying employees table for:', normalizedEmail);
-    const { data: employee, error } = await supabase
+    
+    // Create timeout promise with extended timeout (180 seconds for all operations)
+    const employeePromise = supabase
       .from('employees')
       .select(`
         id,
@@ -23,6 +25,12 @@ export const getCurrentUserEmployee = async (email: string) => {
       `)
       .eq('email', normalizedEmail)
       .maybeSingle();
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Employee lookup timeout')), 180000); // 180 seconds = 3 minutes
+    });
+    
+    const { data: employee, error } = await Promise.race([employeePromise, timeoutPromise]) as any;
 
     if (error) {
       console.error('AuthOptimization: Error fetching employee:', error);
@@ -68,11 +76,11 @@ export const getCurrentUserEmployee = async (email: string) => {
       }
     };
 
-    // Try to fetch admin access - with timeout protection
+    // Try to fetch admin access - with extended timeout protection (180 seconds)
     try {
       console.log('AuthOptimization: Fetching admin access for employee:', employee.id);
       
-      // Add timeout promise
+      // Add timeout promise with extended timeout
       const adminAccessPromise = supabase
         .from('admin_access')
         .select('*')
@@ -80,7 +88,7 @@ export const getCurrentUserEmployee = async (email: string) => {
         .maybeSingle();
       
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Admin access query timeout')), 3000);
+        setTimeout(() => reject(new Error('Admin access query timeout')), 180000); // Extended to 180 seconds
       });
       
       const { data: adminAccessData } = await Promise.race([adminAccessPromise, timeoutPromise]) as any;
@@ -104,11 +112,11 @@ export const getCurrentUserEmployee = async (email: string) => {
       // Continue with default admin access (all false)
     }
 
-    // Try to fetch employee page access - with timeout protection
+    // Try to fetch employee page access - with extended timeout protection (180 seconds)
     try {
       console.log('AuthOptimization: Fetching page access for employee:', employee.id);
       
-      // Add timeout promise
+      // Add timeout promise with extended timeout
       const pageAccessPromise = supabase
         .from('employee_page_access')
         .select('*')
@@ -116,7 +124,7 @@ export const getCurrentUserEmployee = async (email: string) => {
         .maybeSingle();
       
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Page access query timeout')), 3000);
+        setTimeout(() => reject(new Error('Page access query timeout')), 180000); // Extended to 180 seconds
       });
       
       const { data: pageAccessData } = await Promise.race([pageAccessPromise, timeoutPromise]) as any;
@@ -167,13 +175,13 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
-    // Add timeout promise with extended timeout for superadmin connections (180 seconds)
+    // Add timeout promise with extended timeout for superadmin connections (300 seconds = 5 minutes)
     const superadminPromise = supabase.rpc('is_superadmin', { 
       user_email: email.toLowerCase() 
     });
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Superadmin check timeout')), 180000); // 180 seconds = 3 minutes
+      setTimeout(() => reject(new Error('Superadmin check timeout')), 300000); // 300 seconds = 5 minutes
     });
     
     const { data: isSuperadmin, error } = await Promise.race([superadminPromise, timeoutPromise]) as any;
