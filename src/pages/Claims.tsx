@@ -24,7 +24,6 @@ const Claims = () => {
   const [claimTypes, setClaimTypes] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,10 +112,6 @@ const Claims = () => {
               <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
               <p className="text-gray-600 mt-1">Manage employee expense claims and reimbursements</p>
             </div>
-            <Button onClick={() => setIsAddClaimOpen(true)} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Claim
-            </Button>
           </div>
 
           {/* Summary Cards */}
@@ -399,10 +394,7 @@ const Claims = () => {
             </TabsContent>
           </Tabs>
 
-          <AddClaimDialog
-            onClose={() => setIsAddClaimOpen(false)}
-            onSuccess={loadData}
-          />
+          <AddClaimDialog onClaimAdded={loadData} />
 
           <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
             <DialogContent className="max-w-2xl">
