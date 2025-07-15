@@ -93,7 +93,7 @@ const PayrollContent = () => {
         </TabsContent>
 
         <TabsContent value="employees" className="space-y-6">
-          <PayrollEmployeeManager onEmployeeCountChange={setHasEmployees} />
+          <PayrollEmployeeManager payrollPeriod="January 2025" />
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-6">

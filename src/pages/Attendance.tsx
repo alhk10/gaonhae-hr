@@ -25,6 +25,7 @@ const Attendance = () => {
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -89,10 +90,20 @@ const Attendance = () => {
               <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
               <p className="text-gray-600 mt-1">Track and manage employee attendance records</p>
             </div>
-            <Button onClick={() => setIsBulkDialogOpen(true)} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Bulk Attendance
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline"
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex items-center"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+              <Button onClick={() => setIsBulkDialogOpen(true)} className="flex items-center">
+                <Plus className="w-4 h-4 mr-2" />
+                Bulk Attendance
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}
@@ -333,7 +344,20 @@ const Attendance = () => {
             </TabsContent>
 
             <TabsContent value="settings">
-              <AttendanceSettings />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Attendance Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Configure working hours and grace periods for each branch.
+                  </p>
+                  <Button onClick={() => setIsSettingsOpen(true)}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Open Settings
+                  </Button>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
 
@@ -356,6 +380,11 @@ const Attendance = () => {
               onSuccess={loadData}
             />
           )}
+
+          <AttendanceSettings
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          />
         </div>
       </ResponsiveLayout>
     </AuthGuard>

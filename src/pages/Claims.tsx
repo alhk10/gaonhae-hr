@@ -55,7 +55,7 @@ const Claims = () => {
 
   const handleApproveClaim = async (claimId: number) => {
     try {
-      await updateClaimStatus(claimId, 'Approved', user?.name || 'System');
+      await updateClaimStatus(claimId, 'Approved');
       toast('Claim approved successfully');
       await loadData();
     } catch (error) {
@@ -65,7 +65,7 @@ const Claims = () => {
 
   const handleRejectClaim = async (claimId: number) => {
     try {
-      await updateClaimStatus(claimId, 'Rejected', user?.name || 'System');
+      await updateClaimStatus(claimId, 'Rejected');
       toast('Claim rejected');
       await loadData();
     } catch (error) {
@@ -247,7 +247,7 @@ const Claims = () => {
                               <Badge variant="secondary">{claim.type}</Badge>
                             </div>
                             <p className="text-sm text-gray-600 mt-1">
-                              S${claim.amount.toLocaleString()} • {new Date(claim.submittedDate).toLocaleDateString()}
+                              S${claim.amount.toLocaleString()} • {new Date(claim.date).toLocaleDateString()}
                             </p>
                             <p className="text-sm text-gray-500 mt-1">{claim.description}</p>
                           </div>
@@ -329,7 +329,7 @@ const Claims = () => {
                               <Badge variant="outline">{claim.type}</Badge>
                             </div>
                             <p className="text-sm text-gray-600 mt-1">
-                              S${claim.amount.toLocaleString()} • {new Date(claim.submittedDate).toLocaleDateString()}
+                              S${claim.amount.toLocaleString()} • {new Date(claim.date).toLocaleDateString()}
                             </p>
                             <p className="text-sm text-gray-500 mt-1">{claim.description}</p>
                           </div>
@@ -400,7 +400,6 @@ const Claims = () => {
           </Tabs>
 
           <AddClaimDialog
-            isOpen={isAddClaimOpen}
             onClose={() => setIsAddClaimOpen(false)}
             onSuccess={loadData}
           />
@@ -445,15 +444,15 @@ const Claims = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Submitted Date</p>
-                    <p className="mt-1">{new Date(selectedClaim.submittedDate).toLocaleDateString()}</p>
+                    <p className="mt-1">{new Date(selectedClaim.date).toLocaleDateString()}</p>
                   </div>
-                  {selectedClaim.receiptUrl && (
+                  {selectedClaim.receipt_url && (
                     <div>
                       <p className="text-sm font-medium text-gray-500">Receipt</p>
                       <Button
                         variant="outline"
                         className="mt-1"
-                        onClick={() => window.open(selectedClaim.receiptUrl, '_blank')}
+                        onClick={() => window.open(selectedClaim.receipt_url, '_blank')}
                       >
                         View Receipt
                       </Button>
