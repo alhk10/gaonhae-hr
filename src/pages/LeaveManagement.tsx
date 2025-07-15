@@ -6,99 +6,123 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, FileText, Users, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
+import { getLeaveRequests, updateLeaveRequest } from '@/services/leaveService';
+import { getEmployees } from '@/services/employeeService';
+import BulkLeaveDialog from '@/components/leave/BulkLeaveDialog';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 import EnhancedLeaveSummary from '@/components/leave/EnhancedLeaveSummary';
-import LeaveEncashmentManager from '@/components/leave/LeaveEncashmentManager';
-import BulkLeaveDialog from '@/components/leave/BulkLeaveDialog';
-import { Calendar, Users, Clock, Settings, DollarSign, Plus, Search, Filter } from 'lucide-react';
-import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
-import { getEmployees } from '@/services/employeeService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/components/ui/sonner';
+import LeaveSettings from '@/components/leave/LeaveSettings';
+
+interface LeaveRequestWithEmployee {
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  daysRequested: number;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  appliedDate: string;
+  reviewedBy?: string;
+  reviewedDate?: string;
+}
 
 const LeaveManagement = () => {
-  const { user } = useAuth();
+  console.log('🏖️ Leave Management page loading - comprehensive version');
+  
   const [activeTab, setActiveTab] = useState('overview');
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestWithEmployee[]>([]);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
       const [requestsData, employeesData] = await Promise.all([
-        getAllLeaveRequests(),
+        getLeaveRequests(),
         getEmployees()
       ]);
-      setLeaveRequests(requestsData);
+
+      // Map employee names to leave requests
+      const requestsWithEmployees = requestsData.map(request => ({
+        ...request,
+        employeeName: employeesData.find(emp => emp.id === request.employeeId)?.name || 'Unknown Employee'
+      }));
+
+      setLeaveRequests(requestsWithEmployees);
       setEmployees(employeesData);
+      console.log('📋 Loaded leave requests:', requestsWithEmployees.length);
+      console.log('👥 Loaded employees:', employeesData.length);
     } catch (error) {
       console.error('Error loading leave data:', error);
-      toast.error('Error loading leave data');
+      toast.error('Failed to load leave data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleApproveLeave = async (requestId: number) => {
+  const handleApproveRequest = async (requestId: number) => {
     try {
-      await updateLeaveStatus(requestId, 'Approved', user?.name || 'System');
+      await updateLeaveRequest(requestId, 'Approved');
       toast.success('Leave request approved');
-      await loadData();
+      loadData();
     } catch (error) {
-      console.error('Error approving leave:', error);
-      toast.error('Error approving leave request');
+      console.error('Error approving leave request:', error);
+      toast.error('Failed to approve leave request');
     }
   };
 
-  const handleRejectLeave = async (requestId: number) => {
+  const handleRejectRequest = async (requestId: number) => {
     try {
-      await updateLeaveStatus(requestId, 'Rejected', user?.name || 'System');
+      await updateLeaveRequest(requestId, 'Rejected');
       toast.success('Leave request rejected');
-      await loadData();
+      loadData();
     } catch (error) {
-      console.error('Error rejecting leave:', error);
-      toast.error('Error rejecting leave request');
+      console.error('Error rejecting leave request:', error);
+      toast.error('Failed to reject leave request');
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'Rejected':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return 'bg-green-100 text-green-800';
+      case 'Rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
     }
   };
 
   const filteredRequests = leaveRequests.filter(request => {
-    const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.type.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    const matchesType = typeFilter === 'all' || request.type === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
+    if (filterStatus === 'all') return true;
+    return request.status.toLowerCase() === filterStatus.toLowerCase();
   });
 
   const pendingRequests = leaveRequests.filter(req => req.status === 'Pending');
   const approvedRequests = leaveRequests.filter(req => req.status === 'Approved');
   const rejectedRequests = leaveRequests.filter(req => req.status === 'Rejected');
-
-  const leaveTypes = [...new Set(leaveRequests.map(req => req.type))];
-
-  if (loading) {
-    return (
-      <AuthGuard>
-        <ResponsiveLayout>
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading leave management...</span>
-          </div>
-        </ResponsiveLayout>
-      </AuthGuard>
-    );
-  }
 
   return (
     <AuthGuard>
@@ -109,256 +133,200 @@ const LeaveManagement = () => {
               <h1 className="text-3xl font-bold text-gray-900">Leave Management</h1>
               <p className="text-gray-600 mt-1">Manage employee leave requests and policies</p>
             </div>
-            <Button onClick={() => setIsBulkLeaveOpen(true)} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Bulk Leave
-            </Button>
+            <div className="flex items-center space-x-4">
+              <Button onClick={() => setIsBulkDialogOpen(true)}>
+                <FileText className="w-4 h-4 mr-2" />
+                Bulk Actions
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Pending Requests</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{leaveRequests.length}</div>
+                <p className="text-xs text-muted-foreground">All time</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Approved</p>
-                    <p className="text-2xl font-bold text-green-600">{approvedRequests.length}</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-green-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</div>
+                <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">{rejectedRequests.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-red-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{approvedRequests.length}</div>
+                <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Total Employees</p>
-                    <p className="text-2xl font-bold">{employees.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-blue-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                <XCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{rejectedRequests.length}</div>
+                <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="requests">Requests</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="encashment">Encashment</TabsTrigger>
-              <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="requests">
+                <FileText className="w-4 h-4 mr-2" />
+                Requests
+              </TabsTrigger>
+              <TabsTrigger value="calendar">
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Users className="w-4 h-4 mr-2" />
+                Settings
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Leave Requests</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {pendingRequests.slice(0, 5).map((request) => (
-                        <div key={request.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{request.employeeName}</p>
-                            <p className="text-sm text-gray-600">
-                              {request.type} • {request.days} day(s)
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApproveLeave(request.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRejectLeave(request.id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {pendingRequests.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No pending requests</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Leave Statistics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {leaveTypes.map(type => (
-                        <div key={type} className="flex justify-between items-center">
-                          <span>{type}</span>
-                          <Badge variant="secondary">
-                            {leaveRequests.filter(r => r.type === type).length}
-                          </Badge>
-                        </div>
-                      ))}
-                      {leaveTypes.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No leave types found</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <EnhancedLeaveSummary />
             </TabsContent>
 
             <TabsContent value="requests" className="space-y-6">
-              {/* Filters */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center space-x-4 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Search className="w-4 h-4 text-gray-500" />
-                      <Input
-                        placeholder="Search employees or leave types..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-64"
-                      />
-                    </div>
-                    
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Approved">Approved</SelectItem>
-                        <SelectItem value="Rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        {leaveTypes.map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Leave Requests List */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Leave Requests ({filteredRequests.length})</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Leave Requests</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant={filterStatus === 'all' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilterStatus('all')}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={filterStatus === 'pending' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilterStatus('pending')}
+                      >
+                        Pending
+                      </Button>
+                      <Button
+                        variant={filterStatus === 'approved' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilterStatus('approved')}
+                      >
+                        Approved
+                      </Button>
+                      <Button
+                        variant={filterStatus === 'rejected' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilterStatus('rejected')}
+                      >
+                        Rejected
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {filteredRequests.map((request) => (
-                      <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <p className="font-medium">{request.employeeName}</p>
-                            <Badge variant={
-                              request.status === 'Approved' ? 'default' :
-                              request.status === 'Pending' ? 'secondary' : 'destructive'
-                            }>
-                              {request.status}
-                            </Badge>
+                  {isLoading ? (
+                    <div className="text-center py-8">Loading leave requests...</div>
+                  ) : filteredRequests.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No leave requests found
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredRequests.map((request) => (
+                        <div key={request.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                {getStatusIcon(request.status)}
+                                <div>
+                                  <h3 className="font-semibold">{request.employeeName}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {request.type} • {request.daysRequested} days
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <p className="text-sm text-gray-600">
+                                  {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
+                                </p>
+                                {request.reason && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Reason: {request.reason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <Badge className={getStatusColor(request.status)}>
+                                {request.status}
+                              </Badge>
+                              {request.status === 'Pending' && (
+                                <div className="flex space-x-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveRequest(request.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleRejectRequest(request.id)}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {request.type} • {new Date(request.startDate).toLocaleDateString()} to {new Date(request.endDate).toLocaleDateString()} • {request.days} day(s)
-                          </p>
-                          {request.reason && (
-                            <p className="text-sm text-gray-500 mt-1">Reason: {request.reason}</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-1">
-                            Applied: {new Date(request.appliedOn).toLocaleDateString()}
-                            {request.approvedBy && ` • Reviewed by: ${request.approvedBy}`}
-                          </p>
                         </div>
-                        {request.status === 'Pending' && (
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApproveLeave(request.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRejectLeave(request.id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {filteredRequests.length === 0 && (
-                      <p className="text-gray-500 text-center py-8">No leave requests found matching your criteria</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="calendar">
+            <TabsContent value="calendar" className="space-y-6">
               <LeaveCalendarView />
             </TabsContent>
 
-            <TabsContent value="encashment">
-              <LeaveEncashmentManager />
-            </TabsContent>
-
-            <TabsContent value="summary">
-              <EnhancedLeaveSummary />
+            <TabsContent value="settings" className="space-y-6">
+              <LeaveSettings />
             </TabsContent>
           </Tabs>
 
           <BulkLeaveDialog
-            isOpen={isBulkLeaveOpen}
-            onClose={() => setIsBulkLeaveOpen(false)}
-            selectedDate={new Date()}
+            isOpen={isBulkDialogOpen}
+            onClose={() => setIsBulkDialogOpen(false)}
+            employees={employees}
             onSuccess={loadData}
           />
         </div>

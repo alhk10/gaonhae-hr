@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -7,84 +8,80 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import AttendanceCalendarView from '@/components/attendance/AttendanceCalendarView';
-import AttendanceSettings from '@/components/attendance/AttendanceSettings';
+import { 
+  Clock, 
+  Users, 
+  Calendar, 
+  TrendingUp, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle,
+  Search,
+  Settings,
+  Plus,
+  Edit,
+  Trash2
+} from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
+import { 
+  getAttendanceRecords, 
+  updateAttendanceRecord, 
+  deleteAttendanceRecord,
+  AttendanceRecord 
+} from '@/services/attendanceService';
+import { getEmployees } from '@/services/employeeService';
 import BulkAttendanceDialog from '@/components/attendance/BulkAttendanceDialog';
 import EditAttendanceDialog from '@/components/attendance/EditAttendanceDialog';
-import { Clock, Users, Calendar, Settings, Search, Filter, Edit, Plus, Download } from 'lucide-react';
-import { getAttendanceRecords, deleteAttendanceRecord } from '@/services/attendanceService';
-import { getEmployees } from '@/services/employeeService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/components/ui/sonner';
+import AttendanceCalendarView from '@/components/attendance/AttendanceCalendarView';
+import AttendanceSettings from '@/components/attendance/AttendanceSettings';
 
-interface AttendanceRecord {
-  id: number;
-  employeeId: string;
+interface AttendanceWithEmployee extends AttendanceRecord {
   employeeName: string;
-  date: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  breakStart: string | null;
-  breakEnd: string | null;
-  hoursWorked: number;
-  status: string;
-  location: string | null;
-  clockInLocation: string | null;
-  clockOutLocation: string | null;
 }
 
 const Attendance = () => {
-  const { user } = useAuth();
+  console.log('⏰ Attendance page loading - comprehensive version');
+  
   const [activeTab, setActiveTab] = useState('overview');
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('today');
-  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+  const [filterEmployee, setFilterEmployee] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
       const [attendanceData, employeesData] = await Promise.all([
         getAttendanceRecords(),
         getEmployees()
       ]);
-      
-      // Transform attendance data to match our interface
-      const transformedAttendance = attendanceData.map((record: any) => ({
-        id: record.id,
-        employeeId: record.employee_id,
-        employeeName: employeesData.find(emp => emp.id === record.employee_id)?.name || 'Unknown',
-        date: record.date,
-        checkIn: record.check_in,
-        checkOut: record.check_out,
-        breakStart: record.break_start,
-        breakEnd: record.break_end,
-        hoursWorked: Number(record.hours_worked) || 0,
-        status: record.status,
-        location: record.location,
-        clockInLocation: record.clock_in_location,
-        clockOutLocation: record.clock_out_location
+
+      // Map employee names to attendance records
+      const recordsWithEmployees = attendanceData.map(record => ({
+        ...record,
+        employeeName: employeesData.find(emp => emp.id === record.employeeId)?.name || 'Unknown Employee'
       }));
-      
-      setAttendanceRecords(transformedAttendance);
+
+      setAttendanceRecords(recordsWithEmployees);
       setEmployees(employeesData);
+      console.log('📊 Loaded attendance records:', recordsWithEmployees.length);
+      console.log('👥 Loaded employees:', employeesData.length);
     } catch (error) {
       console.error('Error loading attendance data:', error);
-      toast.error('Error loading attendance data');
+      toast.error('Failed to load attendance data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -94,81 +91,72 @@ const Attendance = () => {
   };
 
   const handleDeleteRecord = async (recordId: number) => {
-    if (window.confirm('Are you sure you want to delete this attendance record?')) {
-      try {
-        await deleteAttendanceRecord(recordId);
-        toast.success('Attendance record deleted successfully');
-        await loadData();
-      } catch (error) {
-        console.error('Error deleting record:', error);
-        toast.error('Error deleting attendance record');
-      }
+    if (!confirm('Are you sure you want to delete this attendance record?')) {
+      return;
+    }
+
+    try {
+      await deleteAttendanceRecord(recordId);
+      toast.success('Attendance record deleted');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting attendance record:', error);
+      toast.error('Failed to delete attendance record');
     }
   };
 
-  const getFilteredRecords = () => {
-    let filtered = attendanceRecords;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(record =>
-        record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(record => record.status === statusFilter);
-    }
-
-    // Date filter
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-
-    switch (dateFilter) {
-      case 'today':
-        filtered = filtered.filter(record => record.date === today);
-        break;
-      case 'yesterday':
-        filtered = filtered.filter(record => record.date === yesterday);
-        break;
-      case 'week':
-        filtered = filtered.filter(record => record.date >= weekAgo);
-        break;
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'present':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'absent':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'late':
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default:
-        break;
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
-
-    return filtered;
   };
 
-  const filteredRecords = getFilteredRecords();
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'present':
+        return 'bg-green-100 text-green-800';
+      case 'absent':
+        return 'bg-red-100 text-red-800';
+      case 'late':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  // Calculate statistics
+  const filteredRecords = attendanceRecords.filter(record => {
+    const matchesEmployee = filterEmployee === 'all' || record.employeeId === filterEmployee;
+    const matchesStatus = filterStatus === 'all' || record.status.toLowerCase() === filterStatus.toLowerCase();
+    const matchesSearch = searchTerm === '' || 
+      record.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesEmployee && matchesStatus && matchesSearch;
+  });
+
   const todayRecords = attendanceRecords.filter(record => 
-    record.date === new Date().toISOString().split('T')[0]
+    new Date(record.date).toDateString() === new Date().toDateString()
   );
-  const presentToday = todayRecords.filter(record => record.status === 'Present').length;
-  const absentToday = todayRecords.filter(record => record.status === 'Absent').length;
-  const lateToday = todayRecords.filter(record => record.status === 'Late').length;
-  const totalHoursToday = todayRecords.reduce((sum, record) => sum + record.hoursWorked, 0);
 
-  const uniqueStatuses = [...new Set(attendanceRecords.map(record => record.status))];
+  const presentToday = todayRecords.filter(record => record.status.toLowerCase() === 'present').length;
+  const absentToday = todayRecords.filter(record => record.status.toLowerCase() === 'absent').length;
+  const lateToday = todayRecords.filter(record => record.status.toLowerCase() === 'late').length;
 
-  if (loading) {
-    return (
-      <AuthGuard>
-        <ResponsiveLayout>
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading attendance data...</span>
-          </div>
-        </ResponsiveLayout>
-      </AuthGuard>
-    );
-  }
+  const thisMonthRecords = attendanceRecords.filter(record => {
+    const recordDate = new Date(record.date);
+    const now = new Date();
+    return recordDate.getMonth() === now.getMonth() && recordDate.getFullYear() === now.getFullYear();
+  });
+
+  const avgHoursThisMonth = thisMonthRecords.length > 0 
+    ? thisMonthRecords.reduce((sum, record) => sum + (record.hoursWorked || 0), 0) / thisMonthRecords.length
+    : 0;
 
   return (
     <AuthGuard>
@@ -179,12 +167,12 @@ const Attendance = () => {
               <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
               <p className="text-gray-600 mt-1">Track and manage employee attendance records</p>
             </div>
-            <div className="flex space-x-2">
-              <Button onClick={() => setIsBulkDialogOpen(true)} className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <Button onClick={() => setIsBulkDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
-                Bulk Entry
+                Bulk Actions
               </Button>
-              <Button variant="outline" onClick={() => setIsSettingsOpen(true)} className="flex items-center">
+              <Button onClick={() => setIsSettingsOpen(true)} variant="outline">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </Button>
@@ -192,88 +180,95 @@ const Attendance = () => {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Present Today</p>
-                    <p className="text-2xl font-bold text-green-600">{presentToday}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-green-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{presentToday}</div>
+                <p className="text-xs text-muted-foreground">
+                  {employees.length > 0 ? `${((presentToday / employees.length) * 100).toFixed(1)}%` : '0%'} of employees
+                </p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Absent Today</p>
-                    <p className="text-2xl font-bold text-red-600">{absentToday}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-red-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Late Today</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{lateToday}</div>
+                <p className="text-xs text-muted-foreground">Late arrivals</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Late Today</p>
-                    <p className="text-2xl font-bold text-yellow-600">{lateToday}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Absent Today</CardTitle>
+                <XCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{absentToday}</div>
+                <p className="text-xs text-muted-foreground">Not present</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Total Hours</p>
-                    <p className="text-2xl font-bold">{totalHoursToday.toFixed(1)}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-blue-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Hours</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{avgHoursThisMonth.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="records">Records</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="overview">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="records">
+                <Users className="w-4 h-4 mr-2" />
+                Records
+              </TabsTrigger>
+              <TabsTrigger value="calendar">
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Analytics
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Today's Attendance</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {todayRecords.slice(0, 8).map((record) => (
-                        <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{record.employeeName}</p>
-                            <p className="text-sm text-gray-600">
-                              {record.checkIn ? `In: ${record.checkIn}` : 'No check-in'}
-                              {record.checkOut && ` • Out: ${record.checkOut}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Hours: {record.hoursWorked.toFixed(1)}
-                            </p>
+                    <div className="space-y-4">
+                      {todayRecords.slice(0, 5).map((record) => (
+                        <div key={record.id} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {getStatusIcon(record.status)}
+                            <div>
+                              <p className="font-medium">{record.employeeName}</p>
+                              <p className="text-sm text-gray-500">
+                                {record.checkIn ? `In: ${record.checkIn}` : 'No check-in'}
+                                {record.checkOut ? ` | Out: ${record.checkOut}` : ''}
+                              </p>
+                            </div>
                           </div>
-                          <Badge variant={
-                            record.status === 'Present' ? 'default' :
-                            record.status === 'Late' ? 'secondary' : 'destructive'
-                          }>
+                          <Badge className={getStatusColor(record.status)} variant="secondary">
                             {record.status}
                           </Badge>
                         </div>
@@ -291,23 +286,27 @@ const Attendance = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <p className="text-2xl font-bold text-green-600">{presentToday}</p>
-                          <p className="text-sm text-green-700">Present</p>
-                        </div>
-                        <div className="text-center p-3 bg-red-50 rounded-lg">
-                          <p className="text-2xl font-bold text-red-600">{absentToday}</p>
-                          <p className="text-sm text-red-700">Absent</p>
-                        </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Total Employees</span>
+                        <span className="text-sm">{employees.length}</span>
                       </div>
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <p className="text-2xl font-bold text-blue-600">{totalHoursToday.toFixed(1)}</p>
-                        <p className="text-sm text-blue-700">Total Hours Today</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Present Rate</span>
+                        <span className="text-sm text-green-600">
+                          {employees.length > 0 ? `${((presentToday / employees.length) * 100).toFixed(1)}%` : '0%'}
+                        </span>
                       </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-600">{employees.length}</p>
-                        <p className="text-sm text-gray-700">Total Employees</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Late Rate</span>
+                        <span className="text-sm text-yellow-600">
+                          {employees.length > 0 ? `${((lateToday / employees.length) * 100).toFixed(1)}%` : '0%'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Absent Rate</span>
+                        <span className="text-sm text-red-600">
+                          {employees.length > 0 ? `${((absentToday / employees.length) * 100).toFixed(1)}%` : '0%'}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -316,165 +315,166 @@ const Attendance = () => {
             </TabsContent>
 
             <TabsContent value="records" className="space-y-6">
-              {/* Filters */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center space-x-4 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Search className="w-4 h-4 text-gray-500" />
-                      <Input
-                        placeholder="Search employees..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-64"
-                      />
-                    </div>
-                    
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        {uniqueStatuses.map(status => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={dateFilter} onValueChange={setDateFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Date" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Dates</SelectItem>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="yesterday">Yesterday</SelectItem>
-                        <SelectItem value="week">This Week</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Records List */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Attendance Records ({filteredRecords.length})</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Attendance Records</CardTitle>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <Search className="w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search employees..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-64"
+                        />
+                      </div>
+                      <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="All Employees" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Employees</SelectItem>
+                          {employees.map((employee: any) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="present">Present</SelectItem>
+                          <SelectItem value="absent">Absent</SelectItem>
+                          <SelectItem value="late">Late</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {filteredRecords.map((record) => (
-                      <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <p className="font-medium">{record.employeeName}</p>
-                            <Badge variant={
-                              record.status === 'Present' ? 'default' :
-                              record.status === 'Late' ? 'secondary' : 'destructive'
-                            }>
-                              {record.status}
-                            </Badge>
+                  {isLoading ? (
+                    <div className="text-center py-8">Loading attendance records...</div>
+                  ) : filteredRecords.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No attendance records found
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredRecords.map((record) => (
+                        <div key={record.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                {getStatusIcon(record.status)}
+                                <div>
+                                  <h3 className="font-semibold">{record.employeeName}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {new Date(record.date).toLocaleDateString()} • {record.hoursWorked?.toFixed(1) || 0}h worked
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                  {record.checkIn && (
+                                    <span>Check-in: {record.checkIn}</span>
+                                  )}
+                                  {record.checkOut && (
+                                    <span>Check-out: {record.checkOut}</span>
+                                  )}
+                                  {record.location && (
+                                    <span>Location: {record.location}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <Badge className={getStatusColor(record.status)}>
+                                {record.status}
+                              </Badge>
+                              <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditRecord(record)}
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteRecord(record.id)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Date: {new Date(record.date).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {record.checkIn ? `Check-in: ${record.checkIn}` : 'No check-in'}
-                            {record.checkOut && ` • Check-out: ${record.checkOut}`}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            Hours worked: {record.hoursWorked.toFixed(1)}
-                            {record.location && ` • Location: ${record.location}`}
-                          </p>
                         </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditRecord(record)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteRecord(record.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {filteredRecords.length === 0 && (
-                      <p className="text-gray-500 text-center py-8">No attendance records found matching your criteria</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="calendar">
+            <TabsContent value="calendar" className="space-y-6">
               <AttendanceCalendarView />
             </TabsContent>
 
-            <TabsContent value="reports" className="space-y-6">
+            <TabsContent value="analytics" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Weekly Summary</CardTitle>
+                    <CardTitle>Monthly Trends</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">Attendance summary for the past week</p>
-                    <div className="space-y-2">
-                      {/* Calculate weekly stats */}
-                      {Array.from({ length: 7 }, (_, i) => {
-                        const date = new Date();
-                        date.setDate(date.getDate() - i);
-                        const dateStr = date.toISOString().split('T')[0];
-                        const dayRecords = attendanceRecords.filter(record => record.date === dateStr);
-                        const presentCount = dayRecords.filter(record => record.status === 'Present').length;
-                        return (
-                          <div key={dateStr} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                            <span className="text-sm">{date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-                            <div className="text-right">
-                              <p className="font-semibold">{presentCount}</p>
-                              <p className="text-xs text-gray-500">present</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">This Month Records</span>
+                        <span className="text-sm">{thisMonthRecords.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Average Hours/Day</span>
+                        <span className="text-sm">{avgHoursThisMonth.toFixed(1)}h</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Perfect Attendance</span>
+                        <span className="text-sm">
+                          {employees.filter((emp: any) => {
+                            const empRecords = thisMonthRecords.filter(r => r.employeeId === emp.id);
+                            return empRecords.every(r => r.status.toLowerCase() === 'present');
+                          }).length} employees
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Employee Statistics</CardTitle>
+                    <CardTitle>Top Performers</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">Top performing employees</p>
-                    <div className="space-y-2">
-                      {/* Calculate employee stats */}
-                      {employees.slice(0, 5).map(employee => {
-                        const empRecords = attendanceRecords.filter(record => record.employeeId === employee.id);
-                        const presentDays = empRecords.filter(record => record.status === 'Present').length;
-                        const totalHours = empRecords.reduce((sum, record) => sum + record.hoursWorked, 0);
-                        return (
-                          <div key={employee.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                            <span className="text-sm">{employee.name}</span>
-                            <div className="text-right">
-                              <p className="font-semibold">{totalHours.toFixed(1)}h</p>
-                              <p className="text-xs text-gray-500">{presentDays} days</p>
-                            </div>
+                    <div className="space-y-4">
+                      {employees
+                        .map((emp: any) => {
+                          const empRecords = thisMonthRecords.filter(r => r.employeeId === emp.id);
+                          const totalHours = empRecords.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+                          return { name: emp.name, hours: totalHours };
+                        })
+                        .sort((a, b) => b.hours - a.hours)
+                        .slice(0, 5)
+                        .map((emp) => (
+                          <div key={emp.name} className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{emp.name}</span>
+                            <span className="text-sm">{emp.hours.toFixed(1)}h</span>
                           </div>
-                        );
-                      })}
+                        ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -482,12 +482,6 @@ const Attendance = () => {
             </TabsContent>
           </Tabs>
 
-          {/* Dialogs */}
-          <AttendanceSettings 
-            isOpen={isSettingsOpen} 
-            onClose={() => setIsSettingsOpen(false)} 
-          />
-          
           <BulkAttendanceDialog
             isOpen={isBulkDialogOpen}
             onClose={() => setIsBulkDialogOpen(false)}
@@ -496,11 +490,21 @@ const Attendance = () => {
             onSuccess={loadData}
           />
 
-          <EditAttendanceDialog
-            isOpen={isEditDialogOpen}
-            onClose={() => setIsEditDialogOpen(false)}
-            record={selectedRecord}
-            onSuccess={loadData}
+          {selectedRecord && (
+            <EditAttendanceDialog
+              isOpen={isEditDialogOpen}
+              onClose={() => {
+                setIsEditDialogOpen(false);
+                setSelectedRecord(null);
+              }}
+              record={selectedRecord}
+              onSuccess={loadData}
+            />
+          )}
+
+          <AttendanceSettings
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
           />
         </div>
       </ResponsiveLayout>

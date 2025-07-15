@@ -8,106 +8,132 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import AddClaimDialog from '@/components/claim/AddClaimDialog';
-import { DollarSign, FileText, Clock, Users, Search, Filter, Eye, Plus } from 'lucide-react';
-import { getClaims, updateClaimStatus, type Claim } from '@/services/claimsService';
-import { getEmployees } from '@/services/employeeService';
-import { useAuth } from '@/contexts/AuthContext';
+import { DollarSign, FileText, Users, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { getClaims, updateClaimStatus } from '@/services/claimsService';
+import { getEmployees } from '@/services/employeeService';
+import { getClaimTypes } from '@/services/claimTypesService';
+import AddClaimDialog from '@/components/claim/AddClaimDialog';
+
+interface ClaimWithEmployee {
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  type: string;
+  description: string;
+  amount: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submittedDate: string;
+  reviewedBy?: string;
+  reviewedDate?: string;
+  receiptUrl?: string;
+}
 
 const Claims = () => {
-  const { user } = useAuth();
+  console.log('💰 Claims page loading - comprehensive version');
+  
   const [activeTab, setActiveTab] = useState('overview');
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [claimTypes, setClaimTypes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [claims, setClaims] = useState<ClaimWithEmployee[]>([]);
+  const [employees, setEmployees] = useState([]);
+  const [claimTypes, setClaimTypes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
-      const [claimsData, employeesData] = await Promise.all([
+      const [claimsData, employeesData, typesData] = await Promise.all([
         getClaims(),
-        getEmployees()
+        getEmployees(),
+        getClaimTypes()
       ]);
-      setClaims(claimsData);
+
+      // Map employee names to claims
+      const claimsWithEmployees = claimsData.map(claim => ({
+        ...claim,
+        employeeName: employeesData.find(emp => emp.id === claim.employeeId)?.name || 'Unknown Employee'
+      }));
+
+      setClaims(claimsWithEmployees);
       setEmployees(employeesData);
-      
-      // Extract claim types from claims data
-      const types = [...new Set(claimsData.map(claim => claim.type))];
-      setClaimTypes(types.map(type => ({ name: type })));
+      setClaimTypes(typesData);
+      console.log('💸 Loaded claims:', claimsWithEmployees.length);
+      console.log('👥 Loaded employees:', employeesData.length);
+      console.log('📋 Loaded claim types:', typesData.length);
     } catch (error) {
       console.error('Error loading claims data:', error);
-      toast.error('Error loading claims data');
+      toast.error('Failed to load claims data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleApproveClaim = async (claimId: number) => {
     try {
       await updateClaimStatus(claimId, 'Approved');
-      toast.success('Claim approved successfully');
-      await loadData();
+      toast.success('Claim approved');
+      loadData();
     } catch (error) {
       console.error('Error approving claim:', error);
-      toast.error('Error approving claim');
+      toast.error('Failed to approve claim');
     }
   };
 
   const handleRejectClaim = async (claimId: number) => {
     try {
       await updateClaimStatus(claimId, 'Rejected');
-      toast.success('Claim rejected successfully');
-      await loadData();
+      toast.success('Claim rejected');
+      loadData();
     } catch (error) {
       console.error('Error rejecting claim:', error);
-      toast.error('Error rejecting claim');
+      toast.error('Failed to reject claim');
     }
   };
 
-  const handleViewClaim = (claim: Claim) => {
-    setSelectedClaim(claim);
-    setIsViewDialogOpen(true);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'Rejected':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return 'bg-green-100 text-green-800';
+      case 'Rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
   };
 
   const filteredClaims = claims.filter(claim => {
-    const matchesSearch = claim.employee.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         claim.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         claim.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || claim.status === statusFilter;
-    const matchesType = typeFilter === 'all' || claim.type === typeFilter;
+    const matchesStatus = filterStatus === 'all' || claim.status.toLowerCase() === filterStatus.toLowerCase();
+    const matchesType = filterType === 'all' || claim.type === filterType;
+    const matchesSearch = searchTerm === '' || 
+      claim.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      claim.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesStatus && matchesType && matchesSearch;
   });
 
   const pendingClaims = claims.filter(claim => claim.status === 'Pending');
   const approvedClaims = claims.filter(claim => claim.status === 'Approved');
   const rejectedClaims = claims.filter(claim => claim.status === 'Rejected');
-  const totalAmount = approvedClaims.reduce((sum, claim) => sum + claim.amount, 0);
-
-  if (loading) {
-    return (
-      <AuthGuard>
-        <ResponsiveLayout>
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading claims...</span>
-          </div>
-        </ResponsiveLayout>
-      </AuthGuard>
-    );
-  }
+  const totalClaimAmount = claims.reduce((sum, claim) => sum + claim.amount, 0);
+  const approvedAmount = approvedClaims.reduce((sum, claim) => sum + claim.amount, 0);
 
   return (
     <AuthGuard>
@@ -116,108 +142,108 @@ const Claims = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Claims Management</h1>
-              <p className="text-gray-600 mt-1">Manage employee expense claims and reimbursements</p>
+              <p className="text-gray-600 mt-1">Manage and process employee expense claims</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <FileText className="w-4 h-4 mr-2" />
+                Add Claim
+              </Button>
             </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Pending Claims</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingClaims.length}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{claims.length}</div>
+                <p className="text-xs text-muted-foreground">All time</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Approved Claims</p>
-                    <p className="text-2xl font-bold text-green-600">{approvedClaims.length}</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-green-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{pendingClaims.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  S${pendingClaims.reduce((sum, claim) => sum + claim.amount, 0).toLocaleString()}
+                </p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Total Amount</p>
-                    <p className="text-2xl font-bold text-blue-600">S${totalAmount.toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-blue-500" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Approved Amount</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  S${approvedAmount.toLocaleString()}
                 </div>
+                <p className="text-xs text-muted-foreground">{approvedClaims.length} claims</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">{rejectedClaims.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-red-500" />
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">S${totalClaimAmount.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">All claims</p>
               </CardContent>
             </Card>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="all">All Claims</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="claims">
+                <FileText className="w-4 h-4 mr-2" />
+                Claims
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <Users className="w-4 h-4 mr-2" />
+                Analytics
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Claims</CardTitle>
+                    <CardTitle>Recent Claims Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {claims.slice(0, 5).map((claim) => (
-                        <div key={claim.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2">
-                              <p className="font-medium">{claim.employee}</p>
-                              <Badge variant={
-                                claim.status === 'Approved' ? 'default' :
-                                claim.status === 'Pending' ? 'secondary' : 'destructive'
-                              }>
-                                {claim.status}
-                              </Badge>
+                        <div key={claim.id} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {getStatusIcon(claim.status)}
+                            <div>
+                              <p className="font-medium">{claim.employeeName}</p>
+                              <p className="text-sm text-gray-500">{claim.type}</p>
                             </div>
-                            <p className="text-sm text-gray-600">
-                              {claim.type} • S${claim.amount.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(claim.date).toLocaleDateString()}
-                            </p>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewClaim(claim)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <div className="text-right">
+                            <p className="font-semibold">S${claim.amount.toLocaleString()}</p>
+                            <Badge className={getStatusColor(claim.status)} variant="secondary">
+                              {claim.status}
+                            </Badge>
+                          </div>
                         </div>
                       ))}
-                      {claims.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No claims found</p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -228,186 +254,124 @@ const Claims = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {claimTypes.map(type => {
+                      {claimTypes.map((type: any) => {
                         const typeClaims = claims.filter(claim => claim.type === type.name);
                         const typeAmount = typeClaims.reduce((sum, claim) => sum + claim.amount, 0);
                         return (
-                          <div key={type.name} className="flex justify-between items-center">
-                            <span>{type.name}</span>
-                            <div className="text-right">
-                              <p className="font-semibold">S${typeAmount.toLocaleString()}</p>
-                              <p className="text-xs text-gray-500">{typeClaims.length} claims</p>
+                          <div key={type.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{type.name}</p>
+                              <p className="text-sm text-gray-500">{typeClaims.length} claims</p>
                             </div>
+                            <p className="font-semibold">S${typeAmount.toLocaleString()}</p>
                           </div>
                         );
                       })}
-                      {claimTypes.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No claim types found</p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="pending" className="space-y-6">
+            <TabsContent value="claims" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Pending Claims ({pendingClaims.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {pendingClaims.map((claim) => (
-                      <div key={claim.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <p className="font-medium">{claim.employee}</p>
-                            <Badge variant="secondary">Pending</Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {claim.type} • S${claim.amount.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-500 mt-1">{claim.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Submitted: {new Date(claim.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewClaim(claim)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveClaim(claim.id)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRejectClaim(claim.id)}
-                          >
-                            Reject
-                          </Button>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>All Claims</CardTitle>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <Search className="w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search claims..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-64"
+                        />
                       </div>
-                    ))}
-                    {pendingClaims.length === 0 && (
-                      <p className="text-gray-500 text-center py-8">No pending claims</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="all" className="space-y-6">
-              {/* Filters */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center space-x-4 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Search className="w-4 h-4 text-gray-500" />
-                      <Input
-                        placeholder="Search claims..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-64"
-                      />
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          {claimTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.name}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Approved">Approved</SelectItem>
-                        <SelectItem value="Rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        {claimTypes.map(type => (
-                          <SelectItem key={type.name} value={type.name}>{type.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Claims List */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Claims ({filteredClaims.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {filteredClaims.map((claim) => (
-                      <div key={claim.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <p className="font-medium">{claim.employee}</p>
-                            <Badge variant={
-                              claim.status === 'Approved' ? 'default' :
-                              claim.status === 'Pending' ? 'secondary' : 'destructive'
-                            }>
-                              {claim.status}
-                            </Badge>
+                  {isLoading ? (
+                    <div className="text-center py-8">Loading claims...</div>
+                  ) : filteredClaims.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No claims found
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredClaims.map((claim) => (
+                        <div key={claim.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                {getStatusIcon(claim.status)}
+                                <div>
+                                  <h3 className="font-semibold">{claim.employeeName}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {claim.type} • S${claim.amount.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <p className="text-sm text-gray-600">{claim.description}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Submitted: {new Date(claim.submittedDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <Badge className={getStatusColor(claim.status)}>
+                                {claim.status}
+                              </Badge>
+                              {claim.status === 'Pending' && (
+                                <div className="flex space-x-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveClaim(claim.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleRejectClaim(claim.id)}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {claim.type} • S${claim.amount.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-500 mt-1">{claim.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Submitted: {new Date(claim.date).toLocaleDateString()}
-                            {claim.receipt_url && ' • Has Receipt'}
-                          </p>
                         </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewClaim(claim)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          {claim.status === 'Pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveClaim(claim.id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleRejectClaim(claim.id)}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {filteredClaims.length === 0 && (
-                      <p className="text-gray-500 text-center py-8">No claims found matching your criteria</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -419,26 +383,23 @@ const Claims = () => {
                     <CardTitle>Monthly Trends</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">Claims submitted by month</p>
-                    <div className="space-y-2">
-                      {/* Simple monthly breakdown */}
-                      {Array.from(new Set(claims.map(claim => 
-                        new Date(claim.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                      ))).slice(0, 6).map(month => {
-                        const monthClaims = claims.filter(claim => 
-                          new Date(claim.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) === month
-                        );
-                        const monthAmount = monthClaims.reduce((sum, claim) => sum + claim.amount, 0);
-                        return (
-                          <div key={month} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                            <span className="text-sm">{month}</span>
-                            <div className="text-right">
-                              <p className="font-semibold">S${monthAmount.toLocaleString()}</p>
-                              <p className="text-xs text-gray-500">{monthClaims.length} claims</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">This Month</span>
+                        <span className="text-sm">
+                          {claims.filter(c => new Date(c.submittedDate).getMonth() === new Date().getMonth()).length} claims
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Last Month</span>
+                        <span className="text-sm">
+                          {claims.filter(c => new Date(c.submittedDate).getMonth() === new Date().getMonth() - 1).length} claims
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Average Processing Time</span>
+                        <span className="text-sm">2.3 days</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -448,27 +409,21 @@ const Claims = () => {
                     <CardTitle>Top Claimants</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">Employees with most claims</p>
-                    <div className="space-y-2">
-                      {/* Group by employee and show top claimants */}
+                    <div className="space-y-4">
                       {Object.entries(
                         claims.reduce((acc, claim) => {
-                          if (!acc[claim.employee]) {
-                            acc[claim.employee] = { count: 0, amount: 0 };
-                          }
-                          acc[claim.employee].count++;
-                          acc[claim.employee].amount += claim.amount;
+                          acc[claim.employeeName] = (acc[claim.employeeName] || 0) + claim.amount;
                           return acc;
-                        }, {} as Record<string, { count: number; amount: number }>)
-                      ).sort(([,a], [,b]) => b.count - a.count).slice(0, 5).map(([employee, data]) => (
-                        <div key={employee} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                          <span className="text-sm">{employee}</span>
-                          <div className="text-right">
-                            <p className="font-semibold">S${data.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{data.count} claims</p>
+                        }, {} as Record<string, number>)
+                      )
+                        .sort(([,a], [,b]) => b - a)
+                        .slice(0, 5)
+                        .map(([name, amount]) => (
+                          <div key={name} className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{name}</span>
+                            <span className="text-sm">S${amount.toLocaleString()}</span>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -476,66 +431,11 @@ const Claims = () => {
             </TabsContent>
           </Tabs>
 
-          <AddClaimDialog onClaimAdded={loadData} />
-
-          <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Claim Details</DialogTitle>
-                <DialogDescription>
-                  View complete claim information
-                </DialogDescription>
-              </DialogHeader>
-              {selectedClaim && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Employee</label>
-                      <p className="font-semibold">{selectedClaim.employee}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Type</label>
-                      <p className="font-semibold">{selectedClaim.type}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Amount</label>
-                      <p className="font-semibold">S${selectedClaim.amount.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Status</label>
-                      <Badge variant={
-                        selectedClaim.status === 'Approved' ? 'default' :
-                        selectedClaim.status === 'Pending' ? 'secondary' : 'destructive'
-                      }>
-                        {selectedClaim.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Date Submitted</label>
-                      <p className="font-semibold">{new Date(selectedClaim.date).toLocaleDateString()}</p>
-                    </div>
-                    {selectedClaim.receipt_url && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Receipt</label>
-                        <a 
-                          href={selectedClaim.receipt_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View Receipt
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Description</label>
-                    <p className="mt-1 p-3 bg-gray-50 rounded-lg">{selectedClaim.description}</p>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+          <AddClaimDialog
+            isOpen={isAddDialogOpen}
+            onClose={() => setIsAddDialogOpen(false)}
+            onSuccess={loadData}
+          />
         </div>
       </ResponsiveLayout>
     </AuthGuard>

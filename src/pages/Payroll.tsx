@@ -4,7 +4,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { PayrollProvider } from '@/contexts/PayrollContext';
 import PayrollSummaryCards from '@/components/payroll/PayrollSummaryCards';
-import PayrollPeriodManager from '@/components/payroll/PayrollPeriodManager';
+import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
 import PayrollEmployeeManager from '@/components/payroll/PayrollEmployeeManager';
 import PayrollActionButtons from '@/components/payroll/PayrollActionButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +16,10 @@ import { toast } from '@/components/ui/sonner';
 import { getAllPayrollRecords } from '@/services/payrollService';
 
 const PayrollContent = () => {
+  console.log('🚀 Payroll page loading - comprehensive version');
+  
   const { user } = useAuth();
-  const { payrollState, calculatePayrollTotal, savePayrollToSupabase } = usePayroll();
+  const { payrollState, calculatePayrollTotal, savePayrollToSupabase, setCurrentPeriod } = usePayroll();
   const [activeTab, setActiveTab] = useState('overview');
   const [hasEmployees, setHasEmployees] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -36,6 +38,7 @@ const PayrollContent = () => {
     try {
       const records = await getAllPayrollRecords();
       setPayrollRecords(records);
+      console.log('📊 Loaded payroll records:', records.length);
     } catch (error) {
       console.error('Error loading payroll records:', error);
     }
@@ -67,6 +70,11 @@ const PayrollContent = () => {
     }
   };
 
+  const handlePeriodChange = (period: string) => {
+    setCurrentPeriod(period);
+    loadPayrollRecords();
+  };
+
   const currentTotal = calculatePayrollTotal();
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
 
@@ -89,7 +97,12 @@ const PayrollContent = () => {
         </div>
       </div>
 
-      <PayrollPeriodManager />
+      <PayrollPeriodSelector
+        selectedPeriod={payrollState.currentPeriod}
+        onPeriodChange={handlePeriodChange}
+        isLoading={payrollState.isLoading}
+      />
+
       <PayrollSummaryCards 
         currentTotal={currentTotal} 
         totalEmployees={totalEmployees} 
@@ -265,6 +278,8 @@ const PayrollContent = () => {
 };
 
 const Payroll = () => {
+  console.log('💼 Payroll page component mounted');
+  
   return (
     <AuthGuard>
       <ResponsiveLayout>
