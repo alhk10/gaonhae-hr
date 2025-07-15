@@ -39,6 +39,19 @@ export type EmployeeAttendanceStatus = {
   hasClockedIn: boolean;
 };
 
+// Transform database row to SlotBooking type
+const transformSlotBookingFromDB = (dbRow: any): SlotBooking => ({
+  id: dbRow.id,
+  created_at: dbRow.created_at,
+  employeeId: dbRow.employee_id,
+  employeeName: dbRow.employee_name,
+  date: dbRow.date,
+  branchId: dbRow.branch_id,
+  branchName: dbRow.branch_name,
+  status: dbRow.status,
+  notes: dbRow.notes
+});
+
 // Function to get all slot bookings
 export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
   try {
@@ -52,7 +65,7 @@ export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
       return [];
     }
 
-    return data || [];
+    return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
     console.error('Error in getAllSlotBookings:', error);
     return [];
@@ -171,7 +184,7 @@ export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotB
       return [];
     }
 
-    return data || [];
+    return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
     console.error('Error in getEmployeeSlotBookings:', error);
     return [];
@@ -192,7 +205,7 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
       return [];
     }
 
-    return data || [];
+    return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
     console.error('Error in getBranchSlotBookings:', error);
     return [];
@@ -313,8 +326,18 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
     }
 
     const config: { [branchId: string]: WeeklySlotConfig } = {};
-    data.forEach(item => {
-      config[item.branch_id] = item;
+    (data || []).forEach(item => {
+      config[item.branch_id] = {
+        id: item.id,
+        branchId: item.branch_id,
+        monday: item.monday,
+        tuesday: item.tuesday,
+        wednesday: item.wednesday,
+        thursday: item.thursday,
+        friday: item.friday,
+        saturday: item.saturday,
+        sunday: item.sunday
+      };
     });
 
     return config;
@@ -446,10 +469,11 @@ export const getEmployeeAttendanceStatus = async (
   try {
     console.log('Fetching employee attendance status:', { employeeIds, dates });
 
+    // Since employee_attendance_status table doesn't exist, we'll check attendance table
     const { data, error } = await supabase
-      .from('employee_attendance_status')
-      .select('*')
-      .in('employeeId', employeeIds)
+      .from('attendance')
+      .select('employee_id, date, check_in')
+      .in('employee_id', employeeIds)
       .in('date', dates);
 
     if (error) {
@@ -457,8 +481,14 @@ export const getEmployeeAttendanceStatus = async (
       return [];
     }
 
+    const attendanceStatus: EmployeeAttendanceStatus[] = (data || []).map(record => ({
+      employeeId: record.employee_id,
+      date: record.date,
+      hasClockedIn: !!record.check_in
+    }));
+
     console.log('Employee attendance status fetched successfully');
-    return data || [];
+    return attendanceStatus;
   } catch (error) {
     console.error('Error in getEmployeeAttendanceStatus:', error);
     return [];
