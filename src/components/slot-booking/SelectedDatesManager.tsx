@@ -27,48 +27,48 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
 
   return (
     <Card className="w-full">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="w-5 h-5" />
-            Selected Dates ({selectedDates.length})
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calendar className="w-4 h-4" />
+            Selected ({selectedDates.length})
           </CardTitle>
           <Button
             variant="outline"
             size="sm"
             onClick={onClearAll}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2"
           >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Clear All
+            <Trash2 className="w-3 h-3 mr-1" />
+            Clear
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="text-sm text-gray-600 mb-3">
-            Booking slots at <span className="font-medium">{branchName}</span>
+      <CardContent className="pt-0">
+        <div className="space-y-2">
+          <div className="text-xs text-gray-600 mb-2">
+            Booking at <span className="font-medium">{branchName}</span>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="space-y-2 max-h-48 overflow-y-auto">
             {selectedDates.map((date, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 rounded-lg border"
+                className="flex items-center justify-between p-2 rounded border text-sm"
                 style={{ 
-                  backgroundColor: `${branchColor}10`,
+                  backgroundColor: `${branchColor}08`,
                   borderColor: `${branchColor}30`
                 }}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div 
-                    className="w-3 h-3 rounded-full flex-shrink-0" 
+                    className="w-2 h-2 rounded-full flex-shrink-0" 
                     style={{ backgroundColor: branchColor }}
                   ></div>
-                  <span className="text-sm font-medium">
-                    {format(date, 'MMM dd, yyyy')}
+                  <span className="font-medium truncate">
+                    {format(date, 'MMM dd')}
                   </span>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs px-1 py-0">
                     {format(date, 'EEE')}
                   </Badge>
                 </div>
@@ -76,7 +76,7 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onRemoveDate(index)}
-                  className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                  className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </Button>

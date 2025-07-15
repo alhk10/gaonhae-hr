@@ -29,7 +29,7 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   isLoading = false
 }) => {
   return (
-    <Card className="w-full">
+    <Card className="w-full h-fit">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg">
           <CalendarIcon className="w-5 h-5" />
@@ -42,8 +42,8 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Calendar Legend */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-3 bg-muted/30 rounded-lg text-xs">
+        {/* Compact Calendar Legend */}
+        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-200 border border-blue-400"></div>
             <span>Others' approved bookings</span>
@@ -61,20 +61,19 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
           </div>
         </div>
 
-        {/* Calendar */}
-        <div className="flex justify-center">
+        {/* Calendar with Full Width */}
+        <div className="w-full">
           <Calendar
             mode="multiple"
             selected={selectedDates}
             onSelect={(dates) => {
-              // Handle the selection properly for react-day-picker
               if (dates) {
                 onDatesChange(dates);
               }
             }}
             onDayClick={onDateSelect}
             className={cn(
-              "rounded-md border w-full max-w-none",
+              "rounded-md border w-full",
               isLoading && "opacity-50 pointer-events-none"
             )}
             disabled={isDateDisabled}
@@ -101,22 +100,19 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
                 fontWeight: 'bold'
               }
             }}
-            style={{
-              minHeight: '350px'
-            }}
           />
         </div>
 
-        {/* Help text */}
+        {/* Compact Help text */}
         <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
           <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">How to select dates:</p>
             <ul className="text-xs space-y-1 text-blue-700">
-              <li>• Click on available dates to select multiple slots</li>
-              <li>• Click again on selected dates to deselect them</li>
-              <li>• Dates with red strikethrough are your existing bookings</li>
-              <li>• Blue highlighted dates have other approved bookings</li>
+              <li>• Click dates to select multiple slots</li>
+              <li>• Click again to deselect</li>
+              <li>• Red strikethrough = your existing bookings</li>
+              <li>• Blue = other approved bookings</li>
             </ul>
           </div>
         </div>

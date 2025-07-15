@@ -417,15 +417,24 @@ const SlotBooking = () => {
           </TabsList>
 
           <TabsContent value="booking" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Branch Selection - Left Column */}
-              <div className="lg:col-span-1 space-y-6">
+            {/* New 2-Column Layout */}
+            <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-5'}`}>
+              {/* Left Column - Controls (40% width = 2/5) */}
+              <div className={`${isMobile ? 'col-span-1' : 'col-span-2'} space-y-6`}>
                 <EnhancedBranchSelector
                   branches={branches}
                   selectedBranch={selectedBranch}
                   onBranchChange={handleBranchChange}
                   currentBranch={currentBranch}
                   isLoading={isBranchDataLoading}
+                />
+                
+                <SelectedDatesManager
+                  selectedDates={selectedDates}
+                  onRemoveDate={handleRemoveDate}
+                  onClearAll={handleClearAllDates}
+                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                  branchName={currentBranch?.name || ''}
                 />
                 
                 <BookingActions
@@ -439,8 +448,8 @@ const SlotBooking = () => {
                 />
               </div>
 
-              {/* Calendar - Middle Column */}
-              <div className="lg:col-span-1">
+              {/* Right Column - Calendar (60% width = 3/5) */}
+              <div className={`${isMobile ? 'col-span-1' : 'col-span-3'}`}>
                 <EnhancedCalendar
                   selectedDates={selectedDates}
                   onDateSelect={handleDateSelect}
@@ -450,17 +459,6 @@ const SlotBooking = () => {
                   employeeBookingDates={employeeBookingDates}
                   branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
                   isLoading={isBranchDataLoading}
-                />
-              </div>
-
-              {/* Selected Dates - Right Column */}
-              <div className="lg:col-span-1">
-                <SelectedDatesManager
-                  selectedDates={selectedDates}
-                  onRemoveDate={handleRemoveDate}
-                  onClearAll={handleClearAllDates}
-                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
-                  branchName={currentBranch?.name || ''}
                 />
               </div>
             </div>
