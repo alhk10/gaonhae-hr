@@ -110,7 +110,7 @@ export const addSlotBooking = async (booking: {
       branch_name: booking.branchName,
       date: booking.date,
       status: booking.status || 'pending'
-    };
+    } as any;
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
@@ -149,10 +149,10 @@ export const addAdminSlotBooking = async (booking: {
       branch_id: booking.branchId,
       branch_name: booking.branchName,
       date: booking.date,
-      status: 'approved' as const,
+      status: 'approved',
       notes: booking.notes || 'Admin booking - auto-approved',
       approved_on: new Date().toISOString().split('T')[0]
-    };
+    } as any;
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
@@ -218,7 +218,6 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
 // Function to update branch colors
 export const updateBranchColors = async (): Promise<void> => {
   try {
-    // This function can be used to initialize or update branch colors if needed
     console.log('Branch colors updated');
   } catch (error) {
     console.error('Error updating branch colors:', error);
@@ -250,7 +249,6 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
   try {
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
     
-    // Get weekly config for the branch
     const { data: configData, error: configError } = await supabase
       .from('weekly_slot_config')
       .select('*')
@@ -264,7 +262,6 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
 
     const totalSlots = configData[dayName] || 0;
 
-    // Get existing bookings for this date and branch
     const { data: bookingsData, error: bookingsError } = await supabase
       .from('slot_bookings_new')
       .select('id')
@@ -369,7 +366,6 @@ export const updateWeeklySlotConfig = async (
     }
 
     if (existingData && existingData.length > 0) {
-      // Update existing record
       const { error } = await supabase
         .from('weekly_slot_config')
         .update(weeklyConfig)
@@ -380,7 +376,6 @@ export const updateWeeklySlotConfig = async (
         return false;
       }
     } else {
-      // Insert new record
       const { error } = await supabase
         .from('weekly_slot_config')
         .insert([{ branch_id: branchId, ...weeklyConfig }]);
@@ -472,7 +467,6 @@ export const getEmployeeAttendanceStatus = async (
   try {
     console.log('Fetching employee attendance status:', { employeeIds, dates });
 
-    // Since employee_attendance_status table doesn't exist, we'll check attendance table
     const { data, error } = await supabase
       .from('attendance')
       .select('employee_id, date, check_in')
