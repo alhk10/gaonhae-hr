@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -48,6 +47,7 @@ const Attendance = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     loadData();
@@ -491,6 +491,8 @@ const Attendance = () => {
           <BulkAttendanceDialog
             isOpen={isBulkDialogOpen}
             onClose={() => setIsBulkDialogOpen(false)}
+            employees={employees}
+            selectedDate={selectedDate}
             onSuccess={loadData}
           />
 

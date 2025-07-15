@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
 import { getAllSlotBookings } from './slotBookingService';
@@ -131,6 +130,20 @@ export const updateAttendanceRecord = async (id: number, updates: Partial<Attend
 
   if (error) {
     console.error('Error updating attendance record:', error);
+    throw error;
+  }
+};
+
+export const deleteAttendanceRecord = async (recordId: number): Promise<void> => {
+  console.log('Deleting attendance record:', recordId);
+  
+  const { error } = await supabase
+    .from('attendance')
+    .delete()
+    .eq('id', recordId);
+
+  if (error) {
+    console.error('Error deleting attendance record:', error);
     throw error;
   }
 };
