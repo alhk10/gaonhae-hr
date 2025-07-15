@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('AuthContext: Starting authentication initialization...');
         
-        // Shorter timeout for initialization
+        // Extended timeout for initialization - 300 seconds to match service timeouts
         initializationTimeout = setTimeout(() => {
           console.warn('AuthContext: Initialization timeout, clearing loading states');
           if (mounted) {
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setShowProgressiveLoading(false);
             setIsInitialized(true);
           }
-        }, 10000); // Increased to 10 seconds to give more time
+        }, 300000); // Extended to 300 seconds (5 minutes)
         
         authProgress.startLoading();
         setShowProgressiveLoading(true);
@@ -170,13 +170,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         authProgress.completeStage('session');
         
-        // Simple employee lookup with better timeout handling
+        // Extended employee lookup with longer timeout to match service configuration
         console.log('AuthContext: Calling getCurrentUserEmployee...');
         
-        // Add a race condition with timeout to prevent hanging
+        // Extended timeout to 180 seconds to match service configuration
         const employeePromise = getCurrentUserEmployee(normalizedEmail);
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Employee lookup timeout')), 8000);
+          setTimeout(() => reject(new Error('Employee lookup timeout')), 180000); // 180 seconds
         });
         
         const employee = await Promise.race([employeePromise, timeoutPromise]) as any;
@@ -186,11 +186,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('AuthContext: Employee found in database:', employee.name);
           authProgress.completeStage('employee');
           
-          // Check superadmin status with timeout
+          // Check superadmin status with extended timeout to match service configuration
           console.log('AuthContext: Checking superadmin status...');
           const superadminPromise = checkSuperadminStatusCached(normalizedEmail);
           const superadminTimeoutPromise = new Promise((resolve) => {
-            setTimeout(() => resolve(false), 3000); // Default to false if timeout
+            setTimeout(() => resolve(false), 300000); // Extended to 300 seconds to match service timeout
           });
           
           const isSuperadmin = await Promise.race([superadminPromise, superadminTimeoutPromise]) as boolean;
@@ -266,14 +266,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowProgressiveLoading(true);
       loginProgress.startLoading();
 
-      // Shorter timeout for login
+      // Extended timeout for login - 300 seconds to match service timeouts
       loginTimeout = setTimeout(() => {
         console.warn('AuthContext: Login timeout, clearing loading states');
         setIsLoading(false);
         setShowProgressiveLoading(false);
         loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 15000); // Increased to 15 seconds
+      }, 300000); // Extended to 300 seconds (5 minutes)
 
       const normalizedEmail = email.toLowerCase().trim();
       console.log('AuthContext: Normalized email for login:', normalizedEmail);
@@ -282,10 +282,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Checking if employee exists...');
       
       try {
-        // Add timeout to employee check
+        // Extended timeout to employee check - 180 seconds to match service configuration
         const employeePromise = getCurrentUserEmployee(normalizedEmail);
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Employee check timeout')), 10000);
+          setTimeout(() => reject(new Error('Employee check timeout')), 180000); // Extended to 180 seconds
         });
         
         const employee = await Promise.race([employeePromise, timeoutPromise]);
