@@ -253,7 +253,7 @@ const AdminSlotBooking = () => {
         return;
       }
 
-      // Update the booking with new branch information
+      // Update the booking record with new branch details
       const success = await updateSlotBookingEmployee(
         selectedBookingForApproval.id,
         selectedBookingForApproval.employeeId,
@@ -457,6 +457,16 @@ const AdminSlotBooking = () => {
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  // Helper function to determine branch update button state
+  const getBranchUpdateButtonState = () => {
+    const isSameBranch = !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId;
+    return {
+      disabled: isSameBranch,
+      text: isSameBranch ? 'Select Different Branch' : 'Update Branch',
+      variant: isSameBranch ? 'outline' as const : 'secondary' as const
+    };
   };
 
   if (loading) {
@@ -835,7 +845,7 @@ const AdminSlotBooking = () => {
               </CardContent>
             </Card>
 
-            {/* Enhanced Approval Dialog with Branch Edit and Cancel Functionality */}
+            {/* Enhanced Approval Dialog with improved Branch Edit functionality */}
             <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
               setIsApprovalDialogOpen(open);
               if (!open) {
@@ -871,7 +881,7 @@ const AdminSlotBooking = () => {
                   <div className="border-t pt-4">
                     <Label htmlFor="branch-select" className="text-sm font-medium flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      Change Branch (Optional)
+                      Change Branch
                     </Label>
                     <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
                       <SelectTrigger className="mt-2">
@@ -882,7 +892,6 @@ const AdminSlotBooking = () => {
                           <SelectItem 
                             key={branch.id} 
                             value={branch.id}
-                            disabled={branch.id === selectedBookingForApproval?.branchId}
                           >
                             <div className="flex items-center space-x-2">
                               <div 
@@ -891,13 +900,18 @@ const AdminSlotBooking = () => {
                               ></div>
                               <span>{branch.name}</span>
                               {branch.id === selectedBookingForApproval?.branchId && (
-                                <span className="text-gray-500">(Current)</span>
+                                <span className="text-gray-500 text-xs">(Current)</span>
                               )}
                             </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {!selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId ? (
+                      <p className="text-xs text-gray-500 mt-1">Select a different branch to enable the update button</p>
+                    ) : (
+                      <p className="text-xs text-blue-600 mt-1">Ready to move booking to selected branch</p>
+                    )}
                   </div>
 
                   {/* Swap Employee Section */}
@@ -951,17 +965,20 @@ const AdminSlotBooking = () => {
                     }}>
                       Close
                     </Button>
-                    {selectedBranchForUpdate && selectedBranchForUpdate !== selectedBookingForApproval?.branchId && (
-                      <Button 
-                        type="button"
-                        variant="secondary"
-                        onClick={handleBranchUpdate}
-                        disabled={isUpdatingBranch}
-                      >
-                        <MapPin className="w-4 h-4 mr-2" />
-                        {isUpdatingBranch ? 'Updating...' : 'Update Branch'}
-                      </Button>
-                    )}
+                    {(() => {
+                      const buttonState = getBranchUpdateButtonState();
+                      return (
+                        <Button 
+                          type="button"
+                          variant={buttonState.variant}
+                          onClick={handleBranchUpdate}
+                          disabled={buttonState.disabled || isUpdatingBranch}
+                        >
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {isUpdatingBranch ? 'Updating...' : buttonState.text}
+                        </Button>
+                      );
+                    })()}
                     {swapEmployeeId && (
                       <Button 
                         type="button"
