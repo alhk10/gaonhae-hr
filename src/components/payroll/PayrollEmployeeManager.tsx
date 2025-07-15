@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { toast } from '@/components/ui/sonner';
 import PayrollCalculationDetails from './PayrollCalculationDetails';
 import PayrollValidationSummary from './PayrollValidationSummary';
 import { validateEmployeeForPayroll } from '@/utils/payrollCalculations';
+import type { EmployeeProfile } from '@/types/employee';
 
 interface PayrollEmployeeManagerProps {
   payrollPeriod: string;
@@ -23,13 +25,13 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
   // Validate all employees and collect issues
   const validationIssues = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]
     .map(emp => {
-      const employeeProfile = payrollState.availableEmployees.find(e => e.id === emp.id);
+      const employeeProfile = payrollState.availableEmployees.find(e => e.id === emp.employeeId);
       if (!employeeProfile) return null;
       
       const validation = validateEmployeeForPayroll(employeeProfile);
       if (!validation.isValid || validation.errors.length > 0) {
         return {
-          employeeId: emp.id,
+          employeeId: emp.employeeId,
           employeeName: emp.name,
           errors: validation.errors,
           warnings: []
@@ -80,8 +82,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
   };
 
   const availableForAdd = payrollState.availableEmployees.filter(emp => 
-    !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
-    !payrollState.casualEmployees.some(existing => existing.id === emp.id)
+    !payrollState.fullTimeEmployees.some(existing => existing.employeeId === emp.id) &&
+    !payrollState.casualEmployees.some(existing => existing.employeeId === emp.id)
   );
 
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
@@ -159,8 +161,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 </div>
               ) : (
                 payrollState.fullTimeEmployees.map((employee) => {
-                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.id);
-                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.id);
+                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.employeeId);
+                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.employeeId);
                   
                   return (
                     <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -195,7 +197,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemoveEmployee(employee.id, employee.name)}
+                        onClick={() => handleRemoveEmployee(employee.employeeId, employee.name)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -245,8 +247,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 </div>
               ) : (
                 payrollState.casualEmployees.map((employee) => {
-                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.id);
-                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.id);
+                  const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.employeeId);
+                  const validationIssue = validationIssues.find(issue => issue.employeeId === employee.employeeId);
                   
                   const paymentType = employee.paymentType || 'Hourly';
                   const rateDisplay = paymentType === 'Hourly' 
@@ -285,7 +287,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemoveEmployee(employee.id, employee.name)}
+                        onClick={() => handleRemoveEmployee(employee.employeeId, employee.name)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -310,19 +312,13 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
           </DialogHeader>
           <div className="space-y-4">
             <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
-              {(payrollState.availableEmployees || []).filter(emp => 
-                !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
-                !payrollState.casualEmployees.some(existing => existing.id === emp.id)
-              ).length === 0 ? (
+              {availableForAdd.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">All employees are already in payroll</p>
                 </div>
               ) : (
-                (payrollState.availableEmployees || []).filter(emp => 
-                  !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
-                  !payrollState.casualEmployees.some(existing => existing.id === emp.id)
-                ).map((employee) => {
+                availableForAdd.map((employee) => {
                   const validation = validateEmployeeForPayroll(employee);
                   const hasErrors = !validation.isValid;
                   

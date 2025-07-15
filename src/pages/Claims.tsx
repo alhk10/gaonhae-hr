@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -24,14 +25,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from 'lucide-react';
-import { CalendarDate } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Listbox, ListboxContent, ListboxItem, ListboxTrigger } from "@/components/ui/listbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
@@ -50,7 +49,6 @@ import {
   getAllClaims
 } from '@/data/claimsData';
 import { getEmployeeById } from '@/services/employeeService';
-import AddClaimDialog from '@/components/claims/AddClaimDialog';
 
 interface Claim {
   id: number;
@@ -64,6 +62,8 @@ interface Claim {
   receipt_url?: string;
   reviewed_by?: string;
   reviewed_date?: string;
+  submitted_date?: string;
+  created_at?: string;
 }
 
 interface ClaimWithEmployee {
@@ -104,7 +104,7 @@ const Claims = () => {
       const employeeNames = await Promise.all(
         data.map(async (claim) => {
           try {
-            const employee = await getEmployeeById(claim.employee_id || '');
+            const employee = await getEmployeeById(claim.employeeId || '');
             return employee?.name || 'Unknown Employee';
           } catch (error) {
             console.error(`Error fetching employee for claim ${claim.id}:`, error);
@@ -115,7 +115,7 @@ const Claims = () => {
 
       const transformedClaims: ClaimWithEmployee[] = data.map((claim, index) => ({
         id: claim.id,
-        employeeId: claim.employee_id || '',
+        employeeId: claim.employeeId || '',
         employee: employeeNames[index],
         employeeName: employeeNames[index],
         type: claim.type,
@@ -148,7 +148,7 @@ const Claims = () => {
     await loadClaims();
   };
 
-  const handleStatusChange = async (claimId: number, newStatus: 'Pending' | 'Approved' | 'Rejected') => {
+  const handleStatusChange = async (claimId: number, newStatus: 'Approved' | 'Rejected') => {
     try {
       await updateClaimStatus(claimId, newStatus);
       toast.success(`Claim status updated to ${newStatus}`);
@@ -254,18 +254,29 @@ const Claims = () => {
                           <TableCell>S${claim.amount.toLocaleString()}</TableCell>
                           <TableCell>{new Date(claim.date).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <Badge variant={claim.status === 'Approved' ? 'success' : claim.status === 'Rejected' ? 'destructive' : 'secondary'}>
+                            <Badge variant={claim.status === 'Approved' ? 'default' : claim.status === 'Rejected' ? 'destructive' : 'secondary'}>
                               {claim.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStatusChange(claim.id, claim.status === 'Pending' ? 'Approved' : 'Rejected')}
-                            >
-                              {claim.status === 'Pending' ? 'Approve' : 'Reject'}
-                            </Button>
+                            {claim.status === 'Pending' && (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleStatusChange(claim.id, 'Approved')}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleStatusChange(claim.id, 'Rejected')}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -276,11 +287,30 @@ const Claims = () => {
             </CardContent>
           </Card>
 
-          <AddClaimDialog
-            open={isAddDialogOpen}
-            onOpenChange={setIsAddDialogOpen}
-            onSuccess={handleClaimSuccess}
-          />
+          {/* Simple Add Claim Dialog */}
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Claim</DialogTitle>
+                <DialogDescription>
+                  Create a new claim for an employee
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  This is a placeholder for the claim form. The AddClaimDialog component needs to be implemented.
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleClaimSuccess}>
+                    Add Claim
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </ResponsiveLayout>
     </AuthGuard>

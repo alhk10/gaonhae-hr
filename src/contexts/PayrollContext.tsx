@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
+import type { EmployeeProfile } from '@/types/employee';
 
 export interface FullTimeEmployee {
   id: string;
@@ -31,16 +31,6 @@ export interface CasualEmployee {
   paymentType?: string;
   dailyRate?: number;
   baseSalary?: number;
-}
-
-export interface EmployeeProfile {
-  id: string;
-  name: string;
-  type: string;
-  baseSalary?: number;
-  hourlyRate?: number;
-  dailyRate?: number;
-  paymentType?: string;
 }
 
 export interface PayrollState {
@@ -215,18 +205,49 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const { data: employees, error } = await supabase
         .from('employees')
-        .select('id, name, type, base_salary, hourly_rate, daily_rate, payment_type');
+        .select('id, name, type, base_salary, hourly_rate, daily_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
 
       if (error) throw error;
 
       const availableEmployees: EmployeeProfile[] = employees?.map(emp => ({
         id: emp.id,
         name: emp.name,
-        type: emp.type,
+        nric: emp.nric,
+        dateOfBirth: emp.date_of_birth,
+        residencyStatus: emp.residency_status,
+        type: emp.type as 'Full-Time' | 'Casual',
         baseSalary: emp.base_salary || undefined,
         hourlyRate: emp.hourly_rate || undefined,
         dailyRate: emp.daily_rate || undefined,
-        paymentType: emp.payment_type || undefined,
+        paymentType: (emp.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
+        bankName: emp.bank_name,
+        bankAccount: emp.bank_account,
+        branch: '', // Default empty since not in DB
+        position: emp.position || '',
+        phone: emp.phone || '',
+        address: emp.address || '',
+        email: emp.email,
+        joinDate: emp.join_date,
+        allowances: [],
+        deductions: [],
+        certificates: [],
+        adminAccess: {
+          employees: false,
+          payroll: false,
+          leaveManagement: false,
+          claims: false,
+          attendance: false,
+          slotBooking: false,
+          reports: false
+        },
+        pageAccess: {
+          profile: true,
+          applyLeave: true,
+          submitClaim: true,
+          payslips: true,
+          myAttendance: true,
+          slotBookingEmployee: true
+        }
       })) || [];
 
       setPayrollState(prevState => ({
@@ -283,16 +304,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const { data, error } = await supabase
         .from('payroll_records')
-        .insert([
-          {
-            id: uuidv4(),
-            employee_id: 'system',
-            month: payrollData.month,
-            year: parseInt(payrollData.year),
-            payroll_data: payrollData,
-            is_locked: false,
-          },
-        ]);
+        .insert({
+          id: uuidv4(),
+          employee_id: 'system',
+          month: payrollData.month,
+          year: parseInt(payrollData.year),
+          payroll_data: payrollData as any,
+          is_locked: false,
+        });
 
       if (error) {
         console.error('Error saving payroll data to Supabase:', error);
@@ -315,7 +334,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .from('payroll_records')
         .select('*')
         .eq('month', payrollState.currentPeriod.split(' ')[0])
-        .eq('year', payrollState.currentPeriod.split(' ')[1])
+        .eq('year', parseInt(payrollState.currentPeriod.split(' ')[1]))
         .single();
 
       if (error) {
