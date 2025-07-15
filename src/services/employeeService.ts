@@ -357,63 +357,93 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
 };
 
 export const createEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Creating employee with data:', employeeData);
+  console.log('EmployeeService: Starting employee creation process...');
+  console.log('EmployeeService: Employee data received:', employeeData);
   
   try {
     const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
     const missingFields = requiredFields.filter(field => !employeeData[field]);
     
     if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      const error = `Missing required fields: ${missingFields.join(', ')}`;
+      console.error('EmployeeService: Validation error:', error);
+      throw new Error(error);
     }
 
     const employeeId = `EMP${Date.now()}`;
+    console.log('EmployeeService: Generated employee ID:', employeeId);
     
-    console.log('EmployeeService: Inserting employee with ID:', employeeId);
+    const insertData = {
+      id: employeeId,
+      name: employeeData.name,
+      nric: employeeData.nric,
+      date_of_birth: employeeData.dateOfBirth,
+      residency_status: employeeData.residencyStatus,
+      type: employeeData.type,
+      base_salary: employeeData.baseSalary,
+      hourly_rate: employeeData.hourlyRate,
+      daily_rate: employeeData.dailyRate,
+      daily_weekday_rate: employeeData.dailyWeekdayRate,
+      daily_weekend_rate: employeeData.dailyWeekendRate,
+      payment_type: employeeData.paymentType || 'Monthly',
+      bank_name: employeeData.bankName,
+      bank_account: employeeData.bankAccount,
+      department: employeeData.branch || employeeData.department || '',
+      position: employeeData.position || '',
+      phone: employeeData.phone || '',
+      address: employeeData.address || '',
+      email: employeeData.email,
+      join_date: employeeData.joinDate || null
+    };
+
+    console.log('EmployeeService: Prepared data for insertion:', insertData);
+    console.log('EmployeeService: Starting database insertion...');
     
-    const { data: employee, error } = await supabase
+    // Add timeout to the database operation
+    const insertPromise = supabase
       .from('employees')
-      .insert([{
-        id: employeeId,
-        name: employeeData.name,
-        nric: employeeData.nric,
-        date_of_birth: employeeData.dateOfBirth,
-        residency_status: employeeData.residencyStatus,
-        type: employeeData.type,
-        base_salary: employeeData.baseSalary,
-        hourly_rate: employeeData.hourlyRate,
-        daily_rate: employeeData.dailyRate,
-        daily_weekday_rate: employeeData.dailyWeekdayRate,
-        daily_weekend_rate: employeeData.dailyWeekendRate,
-        payment_type: employeeData.paymentType || 'Monthly',
-        bank_name: employeeData.bankName,
-        bank_account: employeeData.bankAccount,
-        department: employeeData.branch || employeeData.department || '',
-        position: employeeData.position || '',
-        phone: employeeData.phone || '',
-        address: employeeData.address || '',
-        email: employeeData.email,
-        join_date: employeeData.joinDate || null
-      }])
+      .insert([insertData])
       .select()
       .single();
 
-    if (error) {
-      console.error('EmployeeService: Supabase error creating employee:', error);
-      throw error;
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Database insertion timeout after 180 seconds'));
+      }, 180000);
+    });
+
+    const employee = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+    if (employee.error) {
+      console.error('EmployeeService: Database insertion error:', employee.error);
+      throw new Error(`Database error: ${employee.error.message}`);
     }
 
-    console.log('EmployeeService: Employee created successfully:', employee);
+    if (!employee.data) {
+      console.error('EmployeeService: No data returned from insertion');
+      throw new Error('No employee data returned from database');
+    }
 
-    // Automatically create Supabase Auth user for the new employee
+    console.log('EmployeeService: Employee inserted successfully:', employee.data);
+
+    // Create Supabase Auth user with timeout
     if (employeeData.email) {
-      console.log('EmployeeService: Creating Supabase Auth user for new employee...');
+      console.log('EmployeeService: Creating Supabase Auth user...');
       try {
-        const authCreated = await createSingleSupabaseAuthUser(employeeData.email, employeeData.name);
+        const authPromise = createSingleSupabaseAuthUser(employeeData.email, employeeData.name);
+        const authTimeoutPromise = new Promise((resolve) => {
+          setTimeout(() => {
+            console.warn('EmployeeService: Auth user creation timeout, continuing...');
+            resolve(false);
+          }, 30000); // Shorter timeout for auth creation
+        });
+
+        const authCreated = await Promise.race([authPromise, authTimeoutPromise]);
+        
         if (authCreated) {
-          console.log('EmployeeService: Supabase Auth user created successfully for:', employeeData.email);
+          console.log('EmployeeService: Supabase Auth user created successfully');
         } else {
-          console.warn('EmployeeService: Failed to create Supabase Auth user for:', employeeData.email);
+          console.warn('EmployeeService: Auth user creation timed out or failed');
         }
       } catch (authError) {
         console.error('EmployeeService: Error creating Supabase Auth user:', authError);
@@ -421,10 +451,26 @@ export const createEmployee = async (employeeData: any) => {
       }
     }
 
-    return employee;
+    console.log('EmployeeService: Employee creation process completed successfully');
+    return employee.data;
+    
   } catch (error) {
-    console.error('EmployeeService: Error in createEmployee:', error);
-    throw error;
+    console.error('EmployeeService: Critical error in createEmployee:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        throw new Error('Connection timeout - please check your internet connection and try again');
+      } else if (error.message.includes('duplicate') || error.message.includes('unique')) {
+        throw new Error('An employee with this email or NRIC already exists');
+      } else if (error.message.includes('permission') || error.message.includes('RLS')) {
+        throw new Error('Permission denied - please contact your administrator');
+      } else {
+        throw new Error(`Failed to create employee: ${error.message}`);
+      }
+    } else {
+      throw new Error('An unexpected error occurred while creating the employee');
+    }
   }
 };
 

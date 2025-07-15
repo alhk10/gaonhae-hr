@@ -33,6 +33,7 @@ const Employees = () => {
   
   // Form States
   const [paymentType, setPaymentType] = useState('Monthly');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -81,24 +82,51 @@ const Employees = () => {
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
-      const newEmployee = await createEmployee(employeeData);
+      console.log('Employees: Starting employee creation with data:', employeeData);
+      setSubmitError(null);
       
-      if (newEmployee && newEmployee.id) {
-        await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
-        await updateEmployeePageAccess(newEmployee.id, newEmployeePageAccess);
+      try {
+        const newEmployee = await createEmployee(employeeData);
+        console.log('Employees: Employee created successfully:', newEmployee);
+        
+        if (newEmployee && newEmployee.id) {
+          console.log('Employees: Setting up access permissions...');
+          
+          // Set up permissions with individual error handling
+          try {
+            await updateEmployeeAdminAccess(newEmployee.id, newEmployeeAdminAccess);
+            console.log('Employees: Admin access permissions set successfully');
+          } catch (adminError) {
+            console.error('Employees: Error setting admin access:', adminError);
+            // Continue with page access even if admin access fails
+          }
+          
+          try {
+            await updateEmployeePageAccess(newEmployee.id, newEmployeePageAccess);
+            console.log('Employees: Page access permissions set successfully');
+          } catch (pageError) {
+            console.error('Employees: Error setting page access:', pageError);
+            // Don't fail the whole process if page access fails
+          }
+        }
+        
+        return newEmployee;
+      } catch (error) {
+        console.error('Employees: Error in employee creation process:', error);
+        throw error;
       }
-      
-      return newEmployee;
     },
     onSuccess: () => {
-      console.log('Employee added successfully with access permissions');
+      console.log('Employees: Employee creation completed successfully');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      toast("Employee added successfully");
+      toast.success("Employee added successfully");
       handleCloseAddForm();
     },
-    onError: (error) => {
-      console.error('Error adding employee:', error);
-      toast("Error adding employee. Please try again.");
+    onError: (error: Error) => {
+      console.error('Employees: Employee creation failed:', error);
+      const errorMessage = error.message || 'Failed to add employee. Please try again.';
+      setSubmitError(errorMessage);
+      toast.error(errorMessage);
     }
   });
 
@@ -137,6 +165,7 @@ const Employees = () => {
   const handleCloseAddForm = () => {
     setShowAddForm(false);
     setPaymentType('Monthly');
+    setSubmitError(null);
     setNewEmployeeAdminAccess({
       employees: false,
       payroll: false,
@@ -158,7 +187,8 @@ const Employees = () => {
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Add employee form submitted');
+    console.log('Employees: Form submitted, starting validation...');
+    setSubmitError(null);
     
     const formData = new FormData(e.target as HTMLFormElement);
     
@@ -166,7 +196,9 @@ const Employees = () => {
     const missingFields = requiredFields.filter(field => !formData.get(field));
     
     if (missingFields.length > 0) {
-      toast(`Please fill in required fields: ${missingFields.join(', ')}`);
+      const errorMessage = `Please fill in required fields: ${missingFields.join(', ')}`;
+      setSubmitError(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
@@ -192,10 +224,10 @@ const Employees = () => {
         joinDate: formData.get('joinDate') as string,
       };
 
-      console.log('Creating employee with data:', newEmployee);
+      console.log('Employees: Validated employee data:', newEmployee);
       await addEmployeeMutation.mutateAsync(newEmployee);
     } catch (error) {
-      console.error('Failed to add employee:', error);
+      console.error('Employees: Failed to process employee creation:', error);
     }
   };
 
@@ -344,6 +376,16 @@ const Employees = () => {
               </div>
 
               <div className="p-6">
+                {submitError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="text-red-600 text-sm font-medium">
+                        Error: {submitError}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleAddEmployee} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -473,13 +515,21 @@ const Employees = () => {
                       className="flex-1"
                       disabled={addEmployeeMutation.isPending}
                     >
-                      {addEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
+                      {addEmployeeMutation.isPending ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Adding Employee...
+                        </div>
+                      ) : (
+                        'Add Employee'
+                      )}
                     </Button>
                     <Button 
                       type="button"
                       variant="outline" 
                       className="flex-1"
                       onClick={handleCloseAddForm}
+                      disabled={addEmployeeMutation.isPending}
                     >
                       Cancel
                     </Button>
