@@ -32,10 +32,7 @@ export const migrateSlotBookingData = async (): Promise<{ success: boolean; migr
           branchId: booking.branchId,
           branchName: booking.branchName,
           date: booking.date,
-          status: booking.status,
-          approvedBy: booking.approvedBy,
-          approvedOn: booking.approvedOn,
-          notes: booking.notes
+          status: booking.status
         });
         migrated++;
         console.log(`Migrated booking: ${booking.id}`);

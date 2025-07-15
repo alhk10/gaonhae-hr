@@ -106,14 +106,14 @@ export const addSlotBooking = async (booking: {
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .insert([{
+      .insert({
         employee_id: booking.employeeId,
         employee_name: booking.employeeName,
         branch_id: booking.branchId,
         branch_name: booking.branchName,
         date: booking.date,
         status: booking.status || 'pending'
-      }])
+      })
       .select('id')
       .single();
 
@@ -144,7 +144,7 @@ export const addAdminSlotBooking = async (booking: {
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .insert([{
+      .insert({
         employee_id: booking.employeeId,
         employee_name: booking.employeeName,
         branch_id: booking.branchId,
@@ -153,7 +153,7 @@ export const addAdminSlotBooking = async (booking: {
         status: 'approved',
         notes: booking.notes || 'Admin booking - auto-approved',
         approved_on: new Date().toISOString().split('T')[0]
-      }])
+      })
       .select('id')
       .single();
 
