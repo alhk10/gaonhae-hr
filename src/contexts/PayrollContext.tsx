@@ -15,6 +15,7 @@ export interface FullTimeEmployee {
   grossPay: number;
   cpfEmployee: number;
   cpfEmployer: number;
+  paymentType?: 'Monthly' | 'Hourly' | 'Daily';
 }
 
 export interface CasualEmployee {
@@ -30,6 +31,7 @@ export interface CasualEmployee {
   daysWorked?: number;
   paymentType?: string;
   dailyRate?: number;
+  dailyWeekdayRate?: number;
   baseSalary?: number;
 }
 
@@ -63,6 +65,11 @@ export interface PayrollContextType {
   removeEmployeeFromPayroll: (employeeId: string) => void;
   refreshAvailableEmployees: () => Promise<void>;
   isLoading: boolean;
+  // Additional methods needed by PayrollProcessing
+  updateEmployeeSalary?: (employeeId: string, salary: number) => void;
+  updateEmployeeAllowances?: (employeeId: string, allowances: any[]) => void;
+  updateEmployeeDeductions?: (employeeId: string, deductions: any[]) => void;
+  updateCasualEmployeeHours?: (employeeId: string, hours: number) => void;
 }
 
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
@@ -205,23 +212,25 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const { data: employees, error } = await supabase
         .from('employees')
-        .select('id, name, type, base_salary, hourly_rate, daily_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
+        .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
 
       if (error) throw error;
 
       const availableEmployees: EmployeeProfile[] = employees?.map(emp => ({
         id: emp.id,
         name: emp.name,
-        nric: emp.nric,
-        dateOfBirth: emp.date_of_birth,
-        residencyStatus: emp.residency_status,
+        nric: emp.nric || '',
+        dateOfBirth: emp.date_of_birth || '',
+        residencyStatus: emp.residency_status || '',
         type: emp.type as 'Full-Time' | 'Casual',
         baseSalary: emp.base_salary || undefined,
         hourlyRate: emp.hourly_rate || undefined,
         dailyRate: emp.daily_rate || undefined,
+        dailyWeekdayRate: emp.daily_weekday_rate || undefined,
+        dailyWeekendRate: emp.daily_weekend_rate || undefined,
         paymentType: (emp.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
-        bankName: emp.bank_name,
-        bankAccount: emp.bank_account,
+        bankName: emp.bank_name || '',
+        bankAccount: emp.bank_account || '',
         branch: '', // Default empty since not in DB
         position: emp.position || '',
         phone: emp.phone || '',
@@ -287,9 +296,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [payrollState.availableEmployees, addFullTimeEmployee, addCasualEmployee]);
 
   const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
-    removeFullTimeEmployee(employeeId);
-    removeCasualEmployee(employeeId);
-  }, [removeFullTimeEmployee, removeCasualEmployee]);
+    // Remove from both full-time and casual employees
+    setPayrollState(prevState => ({
+      ...prevState,
+      fullTimeEmployees: prevState.fullTimeEmployees.filter(emp => emp.employeeId !== employeeId),
+      casualEmployees: prevState.casualEmployees.filter(emp => emp.employeeId !== employeeId),
+      lastUpdated: new Date(),
+    }));
+  }, []);
 
   const savePayrollToSupabase = async () => {
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
@@ -304,14 +318,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const { data, error } = await supabase
         .from('payroll_records')
-        .insert({
+        .insert([{
           id: uuidv4(),
           employee_id: 'system',
           month: payrollData.month,
           year: parseInt(payrollData.year),
           payroll_data: payrollData as any,
           is_locked: false,
-        });
+        }]);
 
       if (error) {
         console.error('Error saving payroll data to Supabase:', error);

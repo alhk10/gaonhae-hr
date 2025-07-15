@@ -22,10 +22,6 @@ const PayrollProcessing = () => {
   const navigate = useNavigate();
   const { 
     payrollState, 
-    updateEmployeeSalary,
-    updateEmployeeAllowances,
-    updateEmployeeDeductions,
-    updateCasualEmployeeHours,
     setPayrollStatus,
     savePayrollToSupabase
   } = usePayroll();
@@ -771,7 +767,7 @@ const PayrollProcessing = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Full-Time</TableCell>
-                  <TableCell>{employee.paymentType}</TableCell>
+                  <TableCell>Monthly</TableCell>
                   <TableCell>S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>Loading...</TableCell>
@@ -786,20 +782,12 @@ const PayrollProcessing = () => {
             })}
             {payrollState.casualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
-              let rateDisplay = '';
-              if (employee.paymentType === 'Hourly') {
-                rateDisplay = `S${(employee.hourlyRate || 0).toFixed(2)}/hr`;
-              } else if (employee.paymentType === 'Daily') {
-                rateDisplay = `S${(employee.dailyWeekdayRate || employee.dailyRate || 0).toFixed(2)}/day`;
-              } else {
-                rateDisplay = `S${(employee.baseSalary || 0).toFixed(2)}/month`;
-              }
               
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Casual</TableCell>
-                  <TableCell>{employee.paymentType}</TableCell>
+                  <TableCell>{employee.paymentType || 'Hourly'}</TableCell>
                   <TableCell>S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>Loading...</TableCell>
@@ -855,17 +843,15 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const totalAllowances = employee.allowances.reduce((sum, a) => sum + a.amount, 0);
-              const grossSalary = (employee.baseSalary || 0) + totalAllowances;
               const approvedClaims = getApprovedClaimsTotal(employee.id);
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Loading...</TableCell>
                   <TableCell>Full-Time</TableCell>
-                  <TableCell>{employee.paymentType}</TableCell>
+                  <TableCell>Monthly</TableCell>
                   <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
-                  <TableCell>S${grossSalary.toFixed(2)}</TableCell>
+                  <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
@@ -879,22 +865,14 @@ const PayrollProcessing = () => {
             })}
             {payrollState.casualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
-              let rateDisplay = '';
-              if (employee.paymentType === 'Hourly') {
-                rateDisplay = `S${(employee.hourlyRate || 0).toFixed(2)}/hr`;
-              } else if (employee.paymentType === 'Daily') {
-                rateDisplay = `S${(employee.dailyWeekdayRate || employee.dailyRate || 0).toFixed(2)}/day`;
-              } else {
-                rateDisplay = `S${(employee.baseSalary || 0).toFixed(2)}/month`;
-              }
               
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>Loading...</TableCell>
                   <TableCell>Casual</TableCell>
-                  <TableCell>{employee.paymentType}</TableCell>
-                  <TableCell>{rateDisplay}</TableCell>
+                  <TableCell>{employee.paymentType || 'Hourly'}</TableCell>
+                  <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}</TableCell>
                   <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>

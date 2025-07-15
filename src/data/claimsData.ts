@@ -11,6 +11,11 @@ export interface Claim {
   date: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   description: string;
+  receipt_url?: string;
+  reviewed_by?: string;
+  reviewed_date?: string;
+  submitted_date?: string;
+  created_at?: string;
 }
 
 // Re-export the service functions for backward compatibility

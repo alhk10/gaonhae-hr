@@ -177,7 +177,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           <div className="flex items-center space-x-2">
                             <Badge variant="secondary">Full-Time</Badge>
                             <PayrollCalculationDetails 
-                              employee={employee}
+                              employee={employee as any}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                             />
@@ -254,7 +254,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   const rateDisplay = paymentType === 'Hourly' 
                     ? `${employee.hoursWorked}h @ S$${(employee.hourlyRate || 0).toFixed(2)}/hr`
                     : paymentType === 'Daily'
-                    ? `${employee.daysWorked || 0} days @ S$${(employee.dailyRate || 0).toFixed(2)}/day`
+                    ? `${employee.daysWorked || 0} days @ S$${(employee.dailyWeekdayRate || employee.dailyRate || 0).toFixed(2)}/day`
                     : `Monthly: S$${(employee.baseSalary || 0).toFixed(2)}`;
 
                   return (
@@ -270,7 +270,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           <div className="flex items-center space-x-2">
                             <Badge variant="outline">{paymentType}</Badge>
                             <PayrollCalculationDetails 
-                              employee={employee}
+                              employee={employee as any}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                             />
