@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -104,16 +103,18 @@ export const addSlotBooking = async (booking: {
   try {
     console.log('Adding slot booking:', booking);
 
+    const insertData = {
+      employee_id: booking.employeeId,
+      employee_name: booking.employeeName,
+      branch_id: booking.branchId,
+      branch_name: booking.branchName,
+      date: booking.date,
+      status: booking.status || 'pending'
+    };
+
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .insert({
-        employee_id: booking.employeeId,
-        employee_name: booking.employeeName,
-        branch_id: booking.branchId,
-        branch_name: booking.branchName,
-        date: booking.date,
-        status: booking.status || 'pending'
-      })
+      .insert(insertData)
       .select('id')
       .single();
 
@@ -142,18 +143,20 @@ export const addAdminSlotBooking = async (booking: {
   try {
     console.log('Adding admin slot booking:', booking);
 
+    const insertData = {
+      employee_id: booking.employeeId,
+      employee_name: booking.employeeName,
+      branch_id: booking.branchId,
+      branch_name: booking.branchName,
+      date: booking.date,
+      status: 'approved' as const,
+      notes: booking.notes || 'Admin booking - auto-approved',
+      approved_on: new Date().toISOString().split('T')[0]
+    };
+
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .insert({
-        employee_id: booking.employeeId,
-        employee_name: booking.employeeName,
-        branch_id: booking.branchId,
-        branch_name: booking.branchName,
-        date: booking.date,
-        status: 'approved',
-        notes: booking.notes || 'Admin booking - auto-approved',
-        approved_on: new Date().toISOString().split('T')[0]
-      })
+      .insert(insertData)
       .select('id')
       .single();
 
