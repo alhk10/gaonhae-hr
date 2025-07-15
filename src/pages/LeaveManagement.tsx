@@ -6,11 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 import EnhancedLeaveSummary from '@/components/leave/EnhancedLeaveSummary';
 import LeaveEncashmentManager from '@/components/leave/LeaveEncashmentManager';
 import BulkLeaveDialog from '@/components/leave/BulkLeaveDialog';
-import { Calendar, Users, Clock, Settings, DollarSign, Plus } from 'lucide-react';
+import { Calendar, Users, Clock, Settings, DollarSign, Plus, Search, Filter } from 'lucide-react';
 import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
 import { getEmployees } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +25,9 @@ const LeaveManagement = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     loadData();
@@ -39,7 +44,7 @@ const LeaveManagement = () => {
       setEmployees(employeesData);
     } catch (error) {
       console.error('Error loading leave data:', error);
-      toast('Error loading leave data');
+      toast.error('Error loading leave data');
     } finally {
       setLoading(false);
     }
@@ -48,26 +53,39 @@ const LeaveManagement = () => {
   const handleApproveLeave = async (requestId: number) => {
     try {
       await updateLeaveStatus(requestId, 'Approved', user?.name || 'System');
-      toast('Leave request approved');
+      toast.success('Leave request approved');
       await loadData();
     } catch (error) {
-      toast('Error approving leave request');
+      console.error('Error approving leave:', error);
+      toast.error('Error approving leave request');
     }
   };
 
   const handleRejectLeave = async (requestId: number) => {
     try {
       await updateLeaveStatus(requestId, 'Rejected', user?.name || 'System');
-      toast('Leave request rejected');
+      toast.success('Leave request rejected');
       await loadData();
     } catch (error) {
-      toast('Error rejecting leave request');
+      console.error('Error rejecting leave:', error);
+      toast.error('Error rejecting leave request');
     }
   };
+
+  const filteredRequests = leaveRequests.filter(request => {
+    const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         request.type.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    const matchesType = typeFilter === 'all' || request.type === typeFilter;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
 
   const pendingRequests = leaveRequests.filter(req => req.status === 'Pending');
   const approvedRequests = leaveRequests.filter(req => req.status === 'Approved');
   const rejectedRequests = leaveRequests.filter(req => req.status === 'Rejected');
+
+  const leaveTypes = [...new Set(leaveRequests.map(req => req.type))];
 
   if (loading) {
     return (
@@ -104,7 +122,7 @@ const LeaveManagement = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Pending Requests</p>
-                    <p className="text-2xl font-bold">{pendingRequests.length}</p>
+                    <p className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</p>
                   </div>
                   <Clock className="w-8 h-8 text-yellow-500" />
                 </div>
@@ -151,8 +169,8 @@ const LeaveManagement = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
               <TabsTrigger value="requests">Requests</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
               <TabsTrigger value="encashment">Encashment</TabsTrigger>
               <TabsTrigger value="summary">Summary</TabsTrigger>
             </TabsList>
@@ -171,6 +189,9 @@ const LeaveManagement = () => {
                             <p className="font-medium">{request.employeeName}</p>
                             <p className="text-sm text-gray-600">
                               {request.type} • {request.days} day(s)
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
                             </p>
                           </div>
                           <div className="flex space-x-2">
@@ -204,43 +225,74 @@ const LeaveManagement = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span>Annual Leave Requests</span>
-                        <Badge variant="secondary">
-                          {leaveRequests.filter(r => r.type === 'Annual Leave').length}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>Medical Leave Requests</span>
-                        <Badge variant="secondary">
-                          {leaveRequests.filter(r => r.type === 'Medical Leave').length}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>Maternity Leave Requests</span>
-                        <Badge variant="secondary">
-                          {leaveRequests.filter(r => r.type === 'Maternity Leave').length}
-                        </Badge>
-                      </div>
+                      {leaveTypes.map(type => (
+                        <div key={type} className="flex justify-between items-center">
+                          <span>{type}</span>
+                          <Badge variant="secondary">
+                            {leaveRequests.filter(r => r.type === type).length}
+                          </Badge>
+                        </div>
+                      ))}
+                      {leaveTypes.length === 0 && (
+                        <p className="text-gray-500 text-center py-4">No leave types found</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="calendar">
-              <LeaveCalendarView />
-            </TabsContent>
-
             <TabsContent value="requests" className="space-y-6">
+              {/* Filters */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center space-x-4 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Search className="w-4 h-4 text-gray-500" />
+                      <Input
+                        placeholder="Search employees or leave types..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-64"
+                      />
+                    </div>
+                    
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Approved">Approved</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        {leaveTypes.map(type => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Leave Requests List */}
               <Card>
                 <CardHeader>
-                  <CardTitle>All Leave Requests</CardTitle>
+                  <CardTitle>Leave Requests ({filteredRequests.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {leaveRequests.map((request) => (
-                      <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {filteredRequests.map((request) => (
+                      <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3">
                             <p className="font-medium">{request.employeeName}</p>
@@ -257,6 +309,10 @@ const LeaveManagement = () => {
                           {request.reason && (
                             <p className="text-sm text-gray-500 mt-1">Reason: {request.reason}</p>
                           )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            Applied: {new Date(request.appliedOn).toLocaleDateString()}
+                            {request.approvedBy && ` • Reviewed by: ${request.approvedBy}`}
+                          </p>
                         </div>
                         {request.status === 'Pending' && (
                           <div className="flex space-x-2">
@@ -278,9 +334,16 @@ const LeaveManagement = () => {
                         )}
                       </div>
                     ))}
+                    {filteredRequests.length === 0 && (
+                      <p className="text-gray-500 text-center py-8">No leave requests found matching your criteria</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="calendar">
+              <LeaveCalendarView />
             </TabsContent>
 
             <TabsContent value="encashment">
