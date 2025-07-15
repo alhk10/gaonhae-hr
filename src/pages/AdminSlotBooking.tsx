@@ -30,7 +30,8 @@ import {
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig,
-  type EmployeeAttendanceStatus
+  type EmployeeAttendanceStatus,
+  updateSlotBookingBranch
 } from '@/services/slotBookingService';
 
 const AdminSlotBooking = () => {
@@ -221,7 +222,7 @@ const AdminSlotBooking = () => {
     await refreshData();
   };
 
-  // New function to handle branch updates
+  // New function to handle branch updates with proper database update
   const handleBranchUpdate = async () => {
     if (!selectedBookingForApproval || !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval.branchId) {
       return;
@@ -253,23 +254,15 @@ const AdminSlotBooking = () => {
         return;
       }
 
-      // Update the booking record with new branch details
-      const success = await updateSlotBookingEmployee(
+      // Update the booking record in database with new branch details
+      const success = await updateSlotBookingBranch(
         selectedBookingForApproval.id,
-        selectedBookingForApproval.employeeId,
-        selectedBookingForApproval.employeeName,
+        selectedBranchForUpdate,
+        targetBranch.name,
         `Branch changed from ${selectedBookingForApproval.branchName} to ${targetBranch.name} by Admin`
       );
 
       if (success) {
-        // Immediately update the local booking data with new branch info
-        const updatedBookings = allBookings.map(booking => 
-          booking.id === selectedBookingForApproval.id 
-            ? { ...booking, branchId: selectedBranchForUpdate, branchName: targetBranch.name }
-            : booking
-        );
-        setAllBookings(updatedBookings);
-        
         toast.success(`Successfully moved booking to ${targetBranch.name}`);
         
         // Force refresh the data to ensure calendar displays correctly
@@ -848,7 +841,7 @@ const AdminSlotBooking = () => {
               </CardContent>
             </Card>
 
-            {/* Enhanced Approval Dialog with improved Branch Edit functionality */}
+            {/* Enhanced Approval Dialog with improved formatting and Branch Edit functionality */}
             <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
               setIsApprovalDialogOpen(open);
               if (!open) {
@@ -857,7 +850,7 @@ const AdminSlotBooking = () => {
                 setSelectedBranchForUpdate('');
               }
             }}>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center space-x-2">
                     <Users className="w-5 h-5" />
@@ -865,29 +858,44 @@ const AdminSlotBooking = () => {
                   </DialogTitle>
                   <DialogDescription>
                     {selectedBookingForApproval && 
-                      `Review booking for ${selectedBookingForApproval.employeeName} on ${new Date(selectedBookingForApproval.date).toLocaleDateString()}`
+                      `Review booking for ${selectedBookingForApproval.employeeName} on ${format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}`
                     }
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                  <div className="space-y-2">
-                    <p><strong>Employee:</strong> {selectedBookingForApproval?.employeeName}</p>
-                    <p><strong>Current Branch:</strong> {selectedBookingForApproval?.branchName}</p>
-                    <p><strong>Date:</strong> {selectedBookingForApproval && new Date(selectedBookingForApproval.date).toLocaleDateString()}</p>
-                    <p><strong>Status:</strong> <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge></p>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="font-medium">Employee:</span>
+                      <span>{selectedBookingForApproval?.employeeName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Current Branch:</span>
+                      <span>{selectedBookingForApproval?.branchName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Date:</span>
+                      <span>{selectedBookingForApproval && format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Status:</span>
+                      <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge>
+                    </div>
                     {selectedBookingForApproval && hasEmployeeClockedIn(selectedBookingForApproval.employeeId, new Date(selectedBookingForApproval.date)) && (
-                      <p><strong>Clock-in Status:</strong> <span className="text-green-600">✅ Clocked In</span></p>
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Clock-in Status:</span>
+                        <span className="text-green-600 text-sm">✅ Clocked In</span>
+                      </div>
                     )}
                   </div>
 
                   {/* Branch Selection Section */}
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-4 space-y-3">
                     <Label htmlFor="branch-select" className="text-sm font-medium flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       Change Branch
                     </Label>
                     <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select branch to move booking" />
                       </SelectTrigger>
                       <SelectContent>
@@ -911,17 +919,17 @@ const AdminSlotBooking = () => {
                       </SelectContent>
                     </Select>
                     {!selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId ? (
-                      <p className="text-xs text-gray-500 mt-1">Select a different branch to enable the update button</p>
+                      <p className="text-xs text-gray-500">Select a different branch to enable the update button</p>
                     ) : (
-                      <p className="text-xs text-blue-600 mt-1">Ready to move booking to selected branch</p>
+                      <p className="text-xs text-blue-600">Ready to move booking to selected branch</p>
                     )}
                   </div>
 
                   {/* Swap Employee Section */}
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-4 space-y-3">
                     <Label htmlFor="swap-employee" className="text-sm font-medium">Swap Employee (Optional)</Label>
                     <Select value={swapEmployeeId} onValueChange={setSwapEmployeeId}>
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select new employee to swap" />
                       </SelectTrigger>
                       <SelectContent>
@@ -936,16 +944,16 @@ const AdminSlotBooking = () => {
                     </Select>
                   </div>
                 </div>
-                <DialogFooter className="flex justify-between gap-2">
-                  <div className="flex space-x-2">
+                <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                  <div className="flex flex-wrap gap-2 justify-start">
                     <Button 
                       type="button" 
                       variant="destructive" 
                       size="sm"
                       onClick={handleCancelBookingFromApprovalDialog}
                     >
-                      <UserX className="w-4 h-4 mr-2" />
-                      Cancel Booking
+                      <UserX className="w-4 h-4 mr-1" />
+                      Cancel
                     </Button>
                     {selectedBookingForApproval?.status === 'pending' && (
                       <Button 
@@ -954,13 +962,13 @@ const AdminSlotBooking = () => {
                         size="sm"
                         onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
                       >
-                        <X className="w-4 h-4 mr-2" />
+                        <X className="w-4 h-4 mr-1" />
                         Reject
                       </Button>
                     )}
                   </div>
-                  <div className="flex space-x-2">
-                    <Button type="button" variant="outline" onClick={() => {
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <Button type="button" variant="outline" size="sm" onClick={() => {
                       setIsApprovalDialogOpen(false);
                       setSelectedBookingForApproval(null);
                       setSwapEmployeeId('');
@@ -974,10 +982,11 @@ const AdminSlotBooking = () => {
                         <Button 
                           type="button"
                           variant={buttonState.variant}
+                          size="sm"
                           onClick={handleBranchUpdate}
                           disabled={buttonState.disabled || isUpdatingBranch}
                         >
-                          <MapPin className="w-4 h-4 mr-2" />
+                          <MapPin className="w-4 h-4 mr-1" />
                           {isUpdatingBranch ? 'Updating...' : buttonState.text}
                         </Button>
                       );
@@ -986,6 +995,7 @@ const AdminSlotBooking = () => {
                       <Button 
                         type="button"
                         variant="secondary"
+                        size="sm"
                         onClick={handleSwapInDialog}
                         disabled={isSwappingInDialog}
                       >
@@ -995,9 +1005,10 @@ const AdminSlotBooking = () => {
                     {selectedBookingForApproval?.status === 'pending' && (
                       <Button 
                         type="button"
+                        size="sm"
                         onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
                       >
-                        <Check className="w-4 h-4 mr-2" />
+                        <Check className="w-4 h-4 mr-1" />
                         Approve
                       </Button>
                     )}
@@ -1024,7 +1035,7 @@ const AdminSlotBooking = () => {
                   <div className="space-y-2">
                     <p><strong>Employee:</strong> {selectedBookingForCancel?.employeeName}</p>
                     <p><strong>Branch:</strong> {selectedBookingForCancel?.branchName}</p>
-                    <p><strong>Date:</strong> {selectedBookingForCancel && new Date(selectedBookingForCancel.date).toLocaleDateString()}</p>
+                    <p><strong>Date:</strong> {selectedBookingForCancel && format(new Date(selectedBookingForCancel.date), 'dd/MM/yyyy')}</p>
                     <p><strong>Current Status:</strong> <Badge variant="secondary">{selectedBookingForCancel?.status}</Badge></p>
                   </div>
                   <p className="text-sm text-red-600 mt-3">This action cannot be undone.</p>

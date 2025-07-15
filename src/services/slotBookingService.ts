@@ -1,30 +1,28 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
+import { format } from 'date-fns';
 
-export interface Branch {
+export type SlotBooking = {
   id: string;
-  name: string;
-  address: string;
-  color: string;
-  total_slots: number;
-}
-
-export interface SlotBooking {
-  id: string;
+  created_at: string;
   employeeId: string;
   employeeName: string;
+  date: string;
   branchId: string;
   branchName: string;
-  date: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  bookedOn: string;
-  approvedBy?: string;
-  approvedOn?: string;
-  notes?: string;
-}
+  notes?: string | null;
+};
 
-export interface WeeklySlotConfig {
-  id?: string;
-  branchId?: string;
+export type Branch = {
+  id: string;
+  created_at: string;
+  name: string;
+  color: string;
+};
+
+export type WeeklySlotConfig = {
+  id: string;
+  branchId: string;
   monday: number;
   tuesday: number;
   wednesday: number;
@@ -32,587 +30,186 @@ export interface WeeklySlotConfig {
   friday: number;
   saturday: number;
   sunday: number;
-}
+};
 
-export interface EmployeeAttendanceStatus {
+export type EmployeeAttendanceStatus = {
   employeeId: string;
   date: string;
   hasClockedIn: boolean;
-  clockInTime?: string;
-}
-
-// Color mapping for branches
-const BRANCH_COLOR_MAP: { [key: string]: string } = {
-  'balmoral': '#3b82f6', // Blue
-  'jurong-west': '#eab308', // Yellow
-  'kembangan': '#22c55e', // Green
-  'yishun': '#8b5cf6', // Purple
-  'bukit-merah': '#991b1b', // Maroon
-  'headquarters': '#6b7280' // Grey
 };
 
-export const getBranches = async (): Promise<Branch[]> => {
+// Function to get all slot bookings
+export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
   try {
-    console.log('SlotBookingService: Fetching branches from Supabase...');
-    
-    const { data, error } = await supabase
-      .from('branches')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      console.error('SlotBookingService: Error fetching branches:', error);
-      throw error;
-    }
-
-    // Map branches with proper color coding
-    const branches = data.map(branch => ({
-      id: branch.id,
-      name: branch.name,
-      address: branch.address,
-      color: branch.color,
-      total_slots: branch.total_slots || 0
-    }));
-
-    console.log('SlotBookingService: Successfully loaded branches:', branches.length);
-    return branches;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getBranches:', error);
-    throw error;
-  }
-};
-
-export const updateBranchColors = async (): Promise<void> => {
-  try {
-    console.log('SlotBookingService: Updating branch colors in Supabase...');
-    
-    // Update each branch with its corresponding color
-    const colorUpdates = [
-      { name: 'Balmoral', color: BRANCH_COLOR_MAP['balmoral'] },
-      { name: 'Jurong West', color: BRANCH_COLOR_MAP['jurong-west'] },
-      { name: 'Kembangan', color: BRANCH_COLOR_MAP['kembangan'] },
-      { name: 'Yishun', color: BRANCH_COLOR_MAP['yishun'] },
-      { name: 'Bukit Merah', color: BRANCH_COLOR_MAP['bukit-merah'] },
-      { name: 'Headquarters', color: BRANCH_COLOR_MAP['headquarters'] }
-    ];
-
-    for (const update of colorUpdates) {
-      const { error } = await supabase
-        .from('branches')
-        .update({ color: update.color })
-        .ilike('name', `%${update.name}%`);
-
-      if (error) {
-        console.error(`SlotBookingService: Error updating ${update.name} color:`, error);
-      } else {
-        console.log(`SlotBookingService: Updated ${update.name} color to ${update.color}`);
-      }
-    }
-  } catch (error) {
-    console.error('SlotBookingService: Error in updateBranchColors:', error);
-    throw error;
-  }
-};
-
-// Enhanced function to check for existing bookings with better logging
-export const checkForExistingBooking = async (employeeId: string, date: string): Promise<boolean> => {
-  try {
-    console.log('SlotBookingService: Checking for existing booking for employee:', employeeId, 'on date:', date);
-    
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .select('id, status, employee_id, date')
-      .eq('employee_id', employeeId)
-      .eq('date', date)
-      .neq('status', 'cancelled');
+      .select('*')
+      .order('date', { ascending: true });
 
     if (error) {
-      console.error('SlotBookingService: Error checking existing booking:', error);
-      throw error;
+      console.error('Error fetching slot bookings:', error);
+      return [];
     }
 
-    const hasExistingBooking = data && data.length > 0;
-    console.log('SlotBookingService: Existing booking check result:', hasExistingBooking);
-    if (hasExistingBooking) {
-      console.log('SlotBookingService: Found existing bookings:', data);
-    }
-    
-    return hasExistingBooking;
+    return data || [];
   } catch (error) {
-    console.error('SlotBookingService: Error in checkForExistingBooking:', error);
-    throw error;
-  }
-};
-
-// Enhanced function to verify employee exists in database
-export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists: boolean; employeeName?: string }> => {
-  try {
-    console.log('SlotBookingService: Verifying employee exists:', employeeId);
-    
-    const { data, error } = await supabase
-      .from('employees')
-      .select('id, name, email')
-      .eq('id', employeeId)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log('SlotBookingService: Employee not found:', employeeId);
-        return { exists: false };
-      }
-      console.error('SlotBookingService: Error verifying employee:', error);
-      throw error;
-    }
-
-    console.log('SlotBookingService: Employee verified:', data);
-    return { exists: true, employeeName: data.name };
-  } catch (error) {
-    console.error('SlotBookingService: Error in verifyEmployeeExists:', error);
-    return { exists: false };
-  }
-};
-
-export const getEmployeeAttendanceStatus = async (employeeIds: string[], dates: string[]): Promise<EmployeeAttendanceStatus[]> => {
-  try {
-    console.log('SlotBookingService: Fetching attendance status for employees:', employeeIds.length, 'dates:', dates.length);
-    
-    // Check both attendance and clock_status tables
-    const [attendanceData, clockStatusData] = await Promise.all([
-      supabase
-        .from('attendance')
-        .select('employee_id, date, check_in')
-        .in('employee_id', employeeIds)
-        .in('date', dates)
-        .not('check_in', 'is', null),
-      
-      supabase
-        .from('clock_status')
-        .select('employee_id, date, clock_in_time, status')
-        .in('employee_id', employeeIds)
-        .in('date', dates)
-        .in('status', ['clocked-in', 'clocked-out'])
-        .not('clock_in_time', 'is', null)
-    ]);
-
-    if (attendanceData.error) {
-      console.error('SlotBookingService: Error fetching attendance data:', attendanceData.error);
-    }
-
-    if (clockStatusData.error) {
-      console.error('SlotBookingService: Error fetching clock status data:', clockStatusData.error);
-    }
-
-    const attendanceStatusMap = new Map<string, EmployeeAttendanceStatus>();
-
-    // Process attendance records
-    if (attendanceData.data) {
-      attendanceData.data.forEach(record => {
-        const key = `${record.employee_id}-${record.date}`;
-        attendanceStatusMap.set(key, {
-          employeeId: record.employee_id,
-          date: record.date,
-          hasClockedIn: true,
-          clockInTime: record.check_in
-        });
-      });
-    }
-
-    // Process clock status records
-    if (clockStatusData.data) {
-      clockStatusData.data.forEach(record => {
-        const key = `${record.employee_id}-${record.date}`;
-        if (!attendanceStatusMap.has(key)) {
-          attendanceStatusMap.set(key, {
-            employeeId: record.employee_id,
-            date: record.date,
-            hasClockedIn: true,
-            clockInTime: record.clock_in_time
-          });
-        }
-      });
-    }
-
-    const result = Array.from(attendanceStatusMap.values());
-    console.log('SlotBookingService: Attendance status result:', result.length, 'records');
-    return result;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getEmployeeAttendanceStatus:', error);
+    console.error('Error in getAllSlotBookings:', error);
     return [];
   }
 };
 
+// Function to get all branches
+export const getBranches = async (): Promise<Branch[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('branches_new')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching branches:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getBranches:', error);
+    return [];
+  }
+};
+
+// Function to update slot booking status
+export const updateSlotBookingStatus = async (
+  bookingId: string,
+  status: 'approved' | 'rejected',
+  approvedBy?: string
+): Promise<boolean> => {
+  try {
+    console.log('Updating slot booking status:', { bookingId, status, approvedBy });
+
+    const { error } = await supabase
+      .from('slot_bookings_new')
+      .update({
+        status: status,
+        notes: `Status updated to ${status} by ${approvedBy}`,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error updating slot booking status:', error);
+      return false;
+    }
+
+    console.log('Slot booking status updated successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in updateSlotBookingStatus:', error);
+    return false;
+  }
+};
+
+// Function to get weekly slot configuration
 export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: WeeklySlotConfig }> => {
   try {
-    console.log('SlotBookingService: Fetching weekly slot config from Supabase...');
-    
     const { data, error } = await supabase
-      .from('weekly_slot_config')
+      .from('weekly_slots_config_new')
       .select('*');
 
     if (error) {
-      console.error('SlotBookingService: Error fetching weekly slot config:', error);
-      throw error;
+      console.error('Error fetching weekly slot config:', error);
+      return {};
     }
 
     const config: { [branchId: string]: WeeklySlotConfig } = {};
-    data.forEach(row => {
-      config[row.branch_id] = {
-        id: row.id,
-        branchId: row.branch_id,
-        monday: row.monday,
-        tuesday: row.tuesday,
-        wednesday: row.wednesday,
-        thursday: row.thursday,
-        friday: row.friday,
-        saturday: row.saturday,
-        sunday: row.sunday
-      };
+    data.forEach(item => {
+      config[item.branchId] = item;
     });
 
-    console.log('SlotBookingService: Weekly slot config loaded:', Object.keys(config).length, 'branches');
     return config;
   } catch (error) {
-    console.error('SlotBookingService: Error in getWeeklySlotConfig:', error);
-    throw error;
+    console.error('Error in getWeeklySlotConfig:', error);
+    return {};
   }
 };
 
-export const updateWeeklySlotConfig = async (branchId: string, config: Omit<WeeklySlotConfig, 'id' | 'branchId'>): Promise<boolean> => {
+// Function to update weekly slot configuration
+export const updateWeeklySlotConfig = async (
+  branchId: string,
+  weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'>
+): Promise<boolean> => {
   try {
-    console.log('SlotBookingService: Updating weekly slot config for branch:', branchId);
-    
-    const { error } = await supabase
-      .from('weekly_slot_config')
-      .upsert({
-        branch_id: branchId,
-        monday: config.monday,
-        tuesday: config.tuesday,
-        wednesday: config.wednesday,
-        thursday: config.thursday,
-        friday: config.friday,
-        saturday: config.saturday,
-        sunday: config.sunday
-      });
+    console.log('Updating weekly slot config:', { branchId, weeklyConfig });
 
-    if (error) {
-      console.error('SlotBookingService: Error updating weekly slot config:', error);
+    const { data: existingData, error: existingError } = await supabase
+      .from('weekly_slots_config_new')
+      .select('*')
+      .eq('branchId', branchId);
+
+    if (existingError) {
+      console.error('Error checking existing weekly slot config:', existingError);
       return false;
     }
 
+    if (existingData && existingData.length > 0) {
+      // Update existing record
+      const { error } = await supabase
+        .from('weekly_slots_config_new')
+        .update(weeklyConfig)
+        .eq('branchId', branchId);
+
+      if (error) {
+        console.error('Error updating weekly slot config:', error);
+        return false;
+      }
+    } else {
+      // Insert new record
+      const { error } = await supabase
+        .from('weekly_slots_config_new')
+        .insert([{ branchId: branchId, ...weeklyConfig }]);
+
+      if (error) {
+        console.error('Error inserting weekly slot config:', error);
+        return false;
+      }
+    }
+
+    console.log('Weekly slot config updated successfully');
     return true;
   } catch (error) {
-    console.error('SlotBookingService: Error in updateWeeklySlotConfig:', error);
+    console.error('Error in updateWeeklySlotConfig:', error);
     return false;
   }
 };
 
-export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
+// Function to cancel a slot booking
+export const cancelSlotBooking = async (bookingId: string, cancelledBy: string): Promise<boolean> => {
   try {
-    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
-    
-    // Get total slots for the day
-    const weeklyConfig = await getWeeklySlotConfig();
-    const totalSlots = weeklyConfig[branchId]?.[dayOfWeek] || 0;
-    
-    // Get booked slots for the date
-    const bookedSlots = await getBookedSlotsForDate(date, branchId);
-    
-    return Math.max(0, totalSlots - bookedSlots);
-  } catch (error) {
-    console.error('SlotBookingService: Error in getAvailableSlotsForDate:', error);
-    return 0;
-  }
-};
-
-export const getBookedSlotsForDate = async (date: string, branchId: string): Promise<number> => {
-  try {
-    const { data, error } = await supabase
-      .from('slot_bookings_new')
-      .select('id')
-      .eq('date', date)
-      .eq('branch_id', branchId)
-      .neq('status', 'cancelled');
-
-    if (error) {
-      console.error('SlotBookingService: Error fetching booked slots:', error);
-      return 0;
-    }
-
-    return data.length;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getBookedSlotsForDate:', error);
-    return 0;
-  }
-};
-
-// Enhanced addSlotBooking with better error handling and validation
-export const addSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn'>): Promise<string> => {
-  try {
-    console.log('SlotBookingService: Creating slot booking in Supabase:', booking);
-    
-    // Verify employee exists first
-    const employeeVerification = await verifyEmployeeExists(booking.employeeId);
-    if (!employeeVerification.exists) {
-      throw new Error(`Employee ${booking.employeeId} does not exist in the system. Please contact administrator.`);
-    }
-    
-    // Check for existing booking
-    const hasExistingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
-    if (hasExistingBooking) {
-      throw new Error(`Employee ${booking.employeeName} already has a booking on ${booking.date}. Double bookings are not allowed.`);
-    }
-    
-    // Validate date is not in the past
-    const bookingDate = new Date(booking.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (bookingDate < today) {
-      throw new Error(`Cannot book slots for past dates. Selected date: ${booking.date}`);
-    }
-    
-    // Check if slots are available for the date
-    const availableSlots = await getAvailableSlotsForDate(booking.date, booking.branchId);
-    if (availableSlots <= 0) {
-      throw new Error(`No slots available for ${booking.branchName} on ${booking.date}. Please select a different date.`);
-    }
-    
-    const bookingId = `SB${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const { error } = await supabase
-      .from('slot_bookings_new')
-      .insert({
-        id: bookingId,
-        employee_id: booking.employeeId,
-        employee_name: employeeVerification.employeeName || booking.employeeName,
-        branch_id: booking.branchId,
-        branch_name: booking.branchName,
-        date: booking.date,
-        status: booking.status,
-        booked_on: new Date().toISOString().split('T')[0],
-        approved_by: booking.approvedBy || null,
-        approved_on: booking.approvedOn || null,
-        notes: booking.notes || null
-      });
-
-    if (error) {
-      console.error('SlotBookingService: Error creating slot booking:', error);
-      throw new Error(`Failed to create booking: ${error.message}`);
-    }
-
-    console.log('SlotBookingService: Successfully created slot booking:', bookingId);
-    return bookingId;
-  } catch (error) {
-    console.error('SlotBookingService: Error in addSlotBooking:', error);
-    throw error;
-  }
-};
-
-export const addAdminSlotBooking = async (booking: Omit<SlotBooking, 'id' | 'bookedOn' | 'status' | 'approvedBy' | 'approvedOn'>): Promise<string> => {
-  try {
-    console.log('SlotBookingService: Creating admin auto-approved slot booking:', booking);
-    
-    // Check for existing booking first
-    const hasExistingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
-    if (hasExistingBooking) {
-      throw new Error(`Employee ${booking.employeeName} already has a booking on ${booking.date}. Double bookings are not allowed.`);
-    }
-    
-    const adminBooking = {
-      ...booking,
-      status: 'approved' as const,
-      approvedBy: 'Admin',
-      approvedOn: new Date().toISOString().split('T')[0]
-    };
-    
-    return await addSlotBooking(adminBooking);
-  } catch (error) {
-    console.error('SlotBookingService: Error in addAdminSlotBooking:', error);
-    throw error;
-  }
-};
-
-export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotBooking[]> => {
-  try {
-    console.log('SlotBookingService: Fetching employee slot bookings for:', employeeId);
-    
-    const { data, error } = await supabase
-      .from('slot_bookings_new')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('SlotBookingService: Error fetching employee bookings:', error);
-      throw error;
-    }
-
-    const bookings = data.map(booking => ({
-      id: booking.id,
-      employeeId: booking.employee_id,
-      employeeName: booking.employee_name,
-      branchId: booking.branch_id,
-      branchName: booking.branch_name,
-      date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
-      bookedOn: booking.booked_on,
-      approvedBy: booking.approved_by || undefined,
-      approvedOn: booking.approved_on || undefined,
-      notes: booking.notes || undefined
-    }));
-
-    console.log('SlotBookingService: Successfully loaded employee bookings:', bookings.length);
-    return bookings;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getEmployeeSlotBookings:', error);
-    throw error;
-  }
-};
-
-export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooking[]> => {
-  try {
-    console.log('SlotBookingService: Fetching branch slot bookings for:', branchId);
-    
-    const { data, error } = await supabase
-      .from('slot_bookings_new')
-      .select('*')
-      .eq('branch_id', branchId)
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('SlotBookingService: Error fetching branch bookings:', error);
-      throw error;
-    }
-
-    const bookings = data.map(booking => ({
-      id: booking.id,
-      employeeId: booking.employee_id,
-      employeeName: booking.employee_name,
-      branchId: booking.branch_id,
-      branchName: booking.branch_name,
-      date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
-      bookedOn: booking.booked_on,
-      approvedBy: booking.approved_by || undefined,
-      approvedOn: booking.approved_on || undefined,
-      notes: booking.notes || undefined
-    }));
-
-    console.log('SlotBookingService: Successfully loaded branch bookings:', bookings.length);
-    return bookings;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getBranchSlotBookings:', error);
-    throw error;
-  }
-};
-
-export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
-  try {
-    console.log('SlotBookingService: Fetching all slot bookings from Supabase...');
-    
-    const { data, error } = await supabase
-      .from('slot_bookings_new')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('SlotBookingService: Error fetching all bookings:', error);
-      throw error;
-    }
-
-    const bookings = data.map(booking => ({
-      id: booking.id,
-      employeeId: booking.employee_id,
-      employeeName: booking.employee_name,
-      branchId: booking.branch_id,
-      branchName: booking.branch_name,
-      date: booking.date,
-      status: booking.status as 'pending' | 'approved' | 'rejected' | 'cancelled',
-      bookedOn: booking.booked_on,
-      approvedBy: booking.approved_by || undefined,
-      approvedOn: booking.approved_on || undefined,
-      notes: booking.notes || undefined
-    }));
-
-    console.log('SlotBookingService: Successfully loaded all bookings:', bookings.length);
-    return bookings;
-  } catch (error) {
-    console.error('SlotBookingService: Error in getAllSlotBookings:', error);
-    throw error;
-  }
-};
-
-export const updateSlotBookingStatus = async (
-  bookingId: string, 
-  status: 'approved' | 'rejected', 
-  approvedBy: string,
-  notes?: string
-): Promise<boolean> => {
-  try {
-    console.log('SlotBookingService: Updating slot booking status:', bookingId, status);
-    
-    const updateData: any = {
-      status,
-      approved_by: approvedBy,
-      approved_on: new Date().toISOString().split('T')[0]
-    };
-
-    if (notes) {
-      updateData.notes = notes;
-    }
+    console.log('Cancelling slot booking:', { bookingId, cancelledBy });
 
     const { error } = await supabase
       .from('slot_bookings_new')
-      .update(updateData)
+      .update({
+        status: 'cancelled',
+        notes: `Booking cancelled by ${cancelledBy}`,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', bookingId);
 
     if (error) {
-      console.error('SlotBookingService: Error updating booking status:', error);
+      console.error('Error cancelling slot booking:', error);
       return false;
     }
 
-    console.log('SlotBookingService: Successfully updated booking status:', bookingId);
+    console.log('Slot booking cancelled successfully');
     return true;
   } catch (error) {
-    console.error('SlotBookingService: Error in updateSlotBookingStatus:', error);
+    console.error('Error in cancelSlotBooking:', error);
     return false;
   }
 };
 
-export const cancelSlotBooking = async (
-  bookingId: string,
-  cancelledBy: string,
-  notes?: string
-): Promise<boolean> => {
-  try {
-    console.log('SlotBookingService: Cancelling slot booking:', bookingId);
-    
-    const updateData: any = {
-      status: 'cancelled',
-      approved_by: cancelledBy,
-      approved_on: new Date().toISOString().split('T')[0],
-      notes: notes ? `Cancelled: ${notes}` : 'Cancelled by Admin'
-    };
-
-    const { error } = await supabase
-      .from('slot_bookings_new')
-      .update(updateData)
-      .eq('id', bookingId);
-
-    if (error) {
-      console.error('SlotBookingService: Error cancelling booking:', error);
-      return false;
-    }
-
-    console.log('SlotBookingService: Successfully cancelled booking:', bookingId);
-    return true;
-  } catch (error) {
-    console.error('SlotBookingService: Error in cancelSlotBooking:', error);
-    return false;
-  }
-};
-
-// Enhanced updateSlotBookingEmployee function to also support branch updates
+// Function to update slot booking employee
 export const updateSlotBookingEmployee = async (
   bookingId: string,
   newEmployeeId: string,
@@ -620,33 +217,89 @@ export const updateSlotBookingEmployee = async (
   notes?: string
 ): Promise<boolean> => {
   try {
-    console.log('SlotBookingService: Updating slot booking employee/details:', bookingId);
-    
-    const updateData: any = {
-      employee_id: newEmployeeId,
-      employee_name: newEmployeeName,
-      notes: notes || null
-    };
+    console.log('Updating slot booking employee:', {
+      bookingId,
+      newEmployeeId,
+      newEmployeeName,
+      notes
+    });
 
     const { error } = await supabase
       .from('slot_bookings_new')
-      .update(updateData)
+      .update({
+        employeeId: newEmployeeId,
+        employeeName: newEmployeeName,
+        notes: notes || null,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', bookingId);
 
     if (error) {
-      console.error('SlotBookingService: Error updating booking employee:', error);
+      console.error('Error updating slot booking employee:', error);
       return false;
     }
 
-    console.log('SlotBookingService: Successfully updated booking employee:', bookingId);
+    console.log('Slot booking employee updated successfully');
     return true;
   } catch (error) {
-    console.error('SlotBookingService: Error in updateSlotBookingEmployee:', error);
+    console.error('Error in updateSlotBookingEmployee:', error);
     return false;
   }
 };
 
-// New function specifically for updating branch information
+// Function to get employee attendance status for a list of employees and dates
+export const getEmployeeAttendanceStatus = async (
+  employeeIds: string[],
+  dates: string[]
+): Promise<EmployeeAttendanceStatus[]> => {
+  try {
+    console.log('Fetching employee attendance status:', { employeeIds, dates });
+
+    const { data, error } = await supabase
+      .from('employee_attendance_status')
+      .select('*')
+      .in('employeeId', employeeIds)
+      .in('date', dates);
+
+    if (error) {
+      console.error('Error fetching employee attendance status:', error);
+      return [];
+    }
+
+    console.log('Employee attendance status fetched successfully');
+    return data || [];
+  } catch (error) {
+    console.error('Error in getEmployeeAttendanceStatus:', error);
+    return [];
+  }
+};
+
+// Function to check for existing booking for a given employee and date
+export const checkForExistingBooking = async (employeeId: string, date: string): Promise<boolean> => {
+  try {
+    console.log('Checking for existing booking:', { employeeId, date });
+
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .select('*')
+      .eq('employeeId', employeeId)
+      .eq('date', date);
+
+    if (error) {
+      console.error('Error checking for existing booking:', error);
+      return false;
+    }
+
+    const hasExistingBooking = data && data.length > 0;
+    console.log('Existing booking check result:', hasExistingBooking);
+    return hasExistingBooking;
+  } catch (error) {
+    console.error('Error in checkForExistingBooking:', error);
+    return false;
+  }
+};
+
+// New function to update slot booking branch
 export const updateSlotBookingBranch = async (
   bookingId: string,
   newBranchId: string,
@@ -654,28 +307,32 @@ export const updateSlotBookingBranch = async (
   notes?: string
 ): Promise<boolean> => {
   try {
-    console.log('SlotBookingService: Updating slot booking branch:', bookingId);
-    
-    const updateData: any = {
-      branch_id: newBranchId,
-      branch_name: newBranchName,
-      notes: notes || null
-    };
+    console.log('slotBookingService: Updating slot booking branch:', {
+      bookingId,
+      newBranchId,
+      newBranchName,
+      notes
+    });
 
     const { error } = await supabase
       .from('slot_bookings_new')
-      .update(updateData)
+      .update({
+        branch_id: newBranchId,
+        branch_name: newBranchName,
+        notes: notes || null,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', bookingId);
 
     if (error) {
-      console.error('SlotBookingService: Error updating booking branch:', error);
+      console.error('slotBookingService: Error updating slot booking branch:', error);
       return false;
     }
 
-    console.log('SlotBookingService: Successfully updated booking branch:', bookingId);
+    console.log('slotBookingService: Successfully updated slot booking branch');
     return true;
   } catch (error) {
-    console.error('SlotBookingService: Error in updateSlotBookingBranch:', error);
+    console.error('slotBookingService: Error in updateSlotBookingBranch:', error);
     return false;
   }
 };
