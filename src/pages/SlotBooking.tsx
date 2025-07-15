@@ -122,7 +122,7 @@ const SlotBooking = () => {
       const bookings = await getEmployeeSlotBookings(user.id);
       setEmployeeBookings(bookings);
       
-      const employeeDates = new Set(
+      const employeeDates = new Set<string>(
         bookings
           .filter(booking => booking.status !== 'cancelled')
           .map(booking => booking.date)
@@ -145,7 +145,7 @@ const SlotBooking = () => {
       console.log('SlotBooking: Loading approved bookings for branch:', selectedBranch);
       const branchBookings = await getBranchSlotBookings(selectedBranch);
       
-      const approvedDates = new Set(
+      const approvedDates = new Set<string>(
         branchBookings
           .filter(booking => booking.status === 'approved')
           .map(booking => booking.date)

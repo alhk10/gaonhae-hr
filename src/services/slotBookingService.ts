@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabaseClient';
+
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 export type SlotBooking = {
@@ -62,7 +63,7 @@ export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
 export const getBranches = async (): Promise<Branch[]> => {
   try {
     const { data, error } = await supabase
-      .from('branches_new')
+      .from('branches')
       .select('*')
       .order('name', { ascending: true });
 
@@ -75,6 +76,196 @@ export const getBranches = async (): Promise<Branch[]> => {
   } catch (error) {
     console.error('Error in getBranches:', error);
     return [];
+  }
+};
+
+// Function to add a slot booking
+export const addSlotBooking = async (booking: {
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  date: string;
+  status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+}): Promise<string> => {
+  try {
+    console.log('Adding slot booking:', booking);
+
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .insert([{
+        employee_id: booking.employeeId,
+        employee_name: booking.employeeName,
+        branch_id: booking.branchId,
+        branch_name: booking.branchName,
+        date: booking.date,
+        status: booking.status || 'pending'
+      }])
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error adding slot booking:', error);
+      throw new Error(`Failed to add slot booking: ${error.message}`);
+    }
+
+    console.log('Slot booking added successfully:', data.id);
+    return data.id;
+  } catch (error) {
+    console.error('Error in addSlotBooking:', error);
+    throw error;
+  }
+};
+
+// Function to add an admin slot booking (auto-approved)
+export const addAdminSlotBooking = async (booking: {
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  date: string;
+  notes?: string;
+}): Promise<string> => {
+  try {
+    console.log('Adding admin slot booking:', booking);
+
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .insert([{
+        employee_id: booking.employeeId,
+        employee_name: booking.employeeName,
+        branch_id: booking.branchId,
+        branch_name: booking.branchName,
+        date: booking.date,
+        status: 'approved',
+        notes: booking.notes || 'Admin booking - auto-approved',
+        approved_on: new Date().toISOString().split('T')[0]
+      }])
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error adding admin slot booking:', error);
+      throw new Error(`Failed to add admin slot booking: ${error.message}`);
+    }
+
+    console.log('Admin slot booking added successfully:', data.id);
+    return data.id;
+  } catch (error) {
+    console.error('Error in addAdminSlotBooking:', error);
+    throw error;
+  }
+};
+
+// Function to get employee slot bookings
+export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotBooking[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching employee slot bookings:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getEmployeeSlotBookings:', error);
+    return [];
+  }
+};
+
+// Function to get branch slot bookings
+export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooking[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('slot_bookings_new')
+      .select('*')
+      .eq('branch_id', branchId)
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching branch slot bookings:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getBranchSlotBookings:', error);
+    return [];
+  }
+};
+
+// Function to update branch colors
+export const updateBranchColors = async (): Promise<void> => {
+  try {
+    // This function can be used to initialize or update branch colors if needed
+    console.log('Branch colors updated');
+  } catch (error) {
+    console.error('Error updating branch colors:', error);
+  }
+};
+
+// Function to verify if employee exists
+export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists: boolean; employeeName?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('name')
+      .eq('id', employeeId)
+      .single();
+
+    if (error || !data) {
+      return { exists: false };
+    }
+
+    return { exists: true, employeeName: data.name };
+  } catch (error) {
+    console.error('Error verifying employee:', error);
+    return { exists: false };
+  }
+};
+
+// Function to get available slots for a date
+export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
+  try {
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+    
+    // Get weekly config for the branch
+    const { data: configData, error: configError } = await supabase
+      .from('weekly_slot_config')
+      .select('*')
+      .eq('branch_id', branchId)
+      .single();
+
+    if (configError || !configData) {
+      console.error('Error fetching weekly config:', configError);
+      return 0;
+    }
+
+    const totalSlots = configData[dayName] || 0;
+
+    // Get existing bookings for this date and branch
+    const { data: bookingsData, error: bookingsError } = await supabase
+      .from('slot_bookings_new')
+      .select('id')
+      .eq('date', date)
+      .eq('branch_id', branchId)
+      .neq('status', 'cancelled');
+
+    if (bookingsError) {
+      console.error('Error fetching bookings:', bookingsError);
+      return 0;
+    }
+
+    const bookedSlots = bookingsData?.length || 0;
+    return Math.max(0, totalSlots - bookedSlots);
+  } catch (error) {
+    console.error('Error in getAvailableSlotsForDate:', error);
+    return 0;
   }
 };
 
@@ -113,7 +304,7 @@ export const updateSlotBookingStatus = async (
 export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: WeeklySlotConfig }> => {
   try {
     const { data, error } = await supabase
-      .from('weekly_slots_config_new')
+      .from('weekly_slot_config')
       .select('*');
 
     if (error) {
@@ -123,7 +314,7 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
 
     const config: { [branchId: string]: WeeklySlotConfig } = {};
     data.forEach(item => {
-      config[item.branchId] = item;
+      config[item.branch_id] = item;
     });
 
     return config;
@@ -142,9 +333,9 @@ export const updateWeeklySlotConfig = async (
     console.log('Updating weekly slot config:', { branchId, weeklyConfig });
 
     const { data: existingData, error: existingError } = await supabase
-      .from('weekly_slots_config_new')
+      .from('weekly_slot_config')
       .select('*')
-      .eq('branchId', branchId);
+      .eq('branch_id', branchId);
 
     if (existingError) {
       console.error('Error checking existing weekly slot config:', existingError);
@@ -154,9 +345,9 @@ export const updateWeeklySlotConfig = async (
     if (existingData && existingData.length > 0) {
       // Update existing record
       const { error } = await supabase
-        .from('weekly_slots_config_new')
+        .from('weekly_slot_config')
         .update(weeklyConfig)
-        .eq('branchId', branchId);
+        .eq('branch_id', branchId);
 
       if (error) {
         console.error('Error updating weekly slot config:', error);
@@ -165,8 +356,8 @@ export const updateWeeklySlotConfig = async (
     } else {
       // Insert new record
       const { error } = await supabase
-        .from('weekly_slots_config_new')
-        .insert([{ branchId: branchId, ...weeklyConfig }]);
+        .from('weekly_slot_config')
+        .insert([{ branch_id: branchId, ...weeklyConfig }]);
 
       if (error) {
         console.error('Error inserting weekly slot config:', error);
@@ -227,8 +418,8 @@ export const updateSlotBookingEmployee = async (
     const { error } = await supabase
       .from('slot_bookings_new')
       .update({
-        employeeId: newEmployeeId,
-        employeeName: newEmployeeName,
+        employee_id: newEmployeeId,
+        employee_name: newEmployeeName,
         notes: notes || null,
         updated_at: new Date().toISOString()
       })
@@ -282,7 +473,7 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
     const { data, error } = await supabase
       .from('slot_bookings_new')
       .select('*')
-      .eq('employeeId', employeeId)
+      .eq('employee_id', employeeId)
       .eq('date', date);
 
     if (error) {
@@ -299,7 +490,7 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
   }
 };
 
-// New function to update slot booking branch
+// Function to update slot booking branch
 export const updateSlotBookingBranch = async (
   bookingId: string,
   newBranchId: string,
