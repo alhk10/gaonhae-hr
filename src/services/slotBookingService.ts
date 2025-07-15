@@ -51,6 +51,13 @@ const transformSlotBookingFromDB = (dbRow: any): SlotBooking => ({
   notes: dbRow.notes
 });
 
+// Function to generate a unique booking ID
+const generateBookingId = (): string => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `booking_${timestamp}_${random}`;
+};
+
 // Function to get all slot bookings
 export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
   try {
@@ -103,14 +110,16 @@ export const addSlotBooking = async (booking: {
   try {
     console.log('Adding slot booking:', booking);
 
+    const bookingId = generateBookingId();
     const insertData = {
+      id: bookingId,
       employee_id: booking.employeeId,
       employee_name: booking.employeeName,
       branch_id: booking.branchId,
       branch_name: booking.branchName,
       date: booking.date,
       status: booking.status || 'pending'
-    } as any;
+    };
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
@@ -143,7 +152,9 @@ export const addAdminSlotBooking = async (booking: {
   try {
     console.log('Adding admin slot booking:', booking);
 
+    const bookingId = generateBookingId();
     const insertData = {
+      id: bookingId,
       employee_id: booking.employeeId,
       employee_name: booking.employeeName,
       branch_id: booking.branchId,
@@ -152,7 +163,7 @@ export const addAdminSlotBooking = async (booking: {
       status: 'approved',
       notes: booking.notes || 'Admin booking - auto-approved',
       approved_on: new Date().toISOString().split('T')[0]
-    } as any;
+    };
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
