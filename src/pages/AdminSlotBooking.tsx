@@ -262,7 +262,7 @@ const AdminSlotBooking = () => {
       );
 
       if (success) {
-        // Update the booking record with new branch details
+        // Immediately update the local booking data with new branch info
         const updatedBookings = allBookings.map(booking => 
           booking.id === selectedBookingForApproval.id 
             ? { ...booking, branchId: selectedBranchForUpdate, branchName: targetBranch.name }
@@ -271,7 +271,10 @@ const AdminSlotBooking = () => {
         setAllBookings(updatedBookings);
         
         toast.success(`Successfully moved booking to ${targetBranch.name}`);
+        
+        // Force refresh the data to ensure calendar displays correctly
         await refreshData();
+        
         setIsApprovalDialogOpen(false);
         setSelectedBookingForApproval(null);
         setSelectedBranchForUpdate('');
