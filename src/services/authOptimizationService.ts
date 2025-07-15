@@ -162,18 +162,18 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 };
 
-// Simplified superadmin check with timeout protection
+// Simplified superadmin check with extended timeout protection for superadmin connections
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
-    // Add timeout promise
+    // Add timeout promise with extended timeout for superadmin connections (180 seconds)
     const superadminPromise = supabase.rpc('is_superadmin', { 
       user_email: email.toLowerCase() 
     });
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Superadmin check timeout')), 3000);
+      setTimeout(() => reject(new Error('Superadmin check timeout')), 180000); // 180 seconds = 3 minutes
     });
     
     const { data: isSuperadmin, error } = await Promise.race([superadminPromise, timeoutPromise]) as any;
