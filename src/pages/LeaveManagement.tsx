@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Users, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { getLeaveRequests, updateLeaveRequest } from '@/services/leaveService';
+import { getAllLeaveRequests, updateLeaveStatus } from '@/services/leaveService';
 import { getEmployees } from '@/services/employeeService';
 import BulkLeaveDialog from '@/components/leave/BulkLeaveDialog';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
@@ -31,7 +31,7 @@ interface LeaveRequestWithEmployee {
 }
 
 const LeaveManagement = () => {
-  console.log('🏖️ Leave Management page loading - comprehensive version');
+  console.log('🏖️ Leave Management page loading - comprehensive version v2.1');
   
   const [activeTab, setActiveTab] = useState('overview');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestWithEmployee[]>([]);
@@ -40,6 +40,7 @@ const LeaveManagement = () => {
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
   useEffect(() => {
     loadData();
@@ -49,14 +50,24 @@ const LeaveManagement = () => {
     setIsLoading(true);
     try {
       const [requestsData, employeesData] = await Promise.all([
-        getLeaveRequests(),
+        getAllLeaveRequests(),
         getEmployees()
       ]);
 
       // Map employee names to leave requests
       const requestsWithEmployees = requestsData.map(request => ({
-        ...request,
-        employeeName: employeesData.find(emp => emp.id === request.employeeId)?.name || 'Unknown Employee'
+        id: request.id,
+        employeeId: request.employeeId,
+        employeeName: employeesData.find(emp => emp.id === request.employeeId)?.name || 'Unknown Employee',
+        type: request.type,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        daysRequested: request.days,
+        reason: request.reason,
+        status: request.status,
+        appliedDate: request.appliedOn,
+        reviewedBy: request.approvedBy,
+        reviewedDate: request.approvedOn
       }));
 
       setLeaveRequests(requestsWithEmployees);
@@ -73,7 +84,7 @@ const LeaveManagement = () => {
 
   const handleApproveRequest = async (requestId: number) => {
     try {
-      await updateLeaveRequest(requestId, 'Approved');
+      await updateLeaveStatus(requestId, 'Approved');
       toast.success('Leave request approved');
       loadData();
     } catch (error) {
@@ -84,7 +95,7 @@ const LeaveManagement = () => {
 
   const handleRejectRequest = async (requestId: number) => {
     try {
-      await updateLeaveRequest(requestId, 'Rejected');
+      await updateLeaveStatus(requestId, 'Rejected');
       toast.success('Leave request rejected');
       loadData();
     } catch (error) {
@@ -326,7 +337,7 @@ const LeaveManagement = () => {
           <BulkLeaveDialog
             isOpen={isBulkDialogOpen}
             onClose={() => setIsBulkDialogOpen(false)}
-            employees={employees}
+            selectedDate={selectedDate}
             onSuccess={loadData}
           />
         </div>

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface LeaveRequest {
@@ -129,3 +128,6 @@ export const updateLeaveStatus = async (
     throw error;
   }
 };
+
+export const getLeaveRequests = getAllLeaveRequests; // Add alias for compatibility
+export const updateLeaveRequest = updateLeaveStatus; // Add alias for compatibility

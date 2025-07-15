@@ -30,7 +30,7 @@ interface ClaimWithEmployee {
 }
 
 const Claims = () => {
-  console.log('💰 Claims page loading - comprehensive version');
+  console.log('💰 Claims page loading - comprehensive version v2.1');
   
   const [activeTab, setActiveTab] = useState('overview');
   const [claims, setClaims] = useState<ClaimWithEmployee[]>([]);
@@ -55,10 +55,19 @@ const Claims = () => {
         getClaimTypes()
       ]);
 
-      // Map employee names to claims
+      // Map employee names to claims and fix the data structure
       const claimsWithEmployees = claimsData.map(claim => ({
-        ...claim,
-        employeeName: employeesData.find(emp => emp.id === claim.employeeId)?.name || 'Unknown Employee'
+        id: claim.id,
+        employeeId: claim.employeeId,
+        employeeName: employeesData.find(emp => emp.id === claim.employeeId)?.name || 'Unknown Employee',
+        type: claim.type,
+        description: claim.description,
+        amount: claim.amount,
+        status: claim.status,
+        submittedDate: claim.date, // Map 'date' to 'submittedDate'
+        reviewedBy: claim.reviewed_by,
+        reviewedDate: claim.reviewed_date,
+        receiptUrl: claim.receipt_url
       }));
 
       setClaims(claimsWithEmployees);
@@ -432,8 +441,8 @@ const Claims = () => {
           </Tabs>
 
           <AddClaimDialog
-            isOpen={isAddDialogOpen}
-            onClose={() => setIsAddDialogOpen(false)}
+            open={isAddDialogOpen}
+            onOpenChange={setIsAddDialogOpen}
             onSuccess={loadData}
           />
         </div>
