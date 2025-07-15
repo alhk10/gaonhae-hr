@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,15 +73,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('AuthContext: Starting authentication initialization...');
         
-        // Extended timeout for initialization - 300 seconds to match service timeouts
+        // Shorter timeout for initialization - 60 seconds
         initializationTimeout = setTimeout(() => {
           console.warn('AuthContext: Initialization timeout, clearing loading states');
           if (mounted) {
             setIsLoading(false);
             setShowProgressiveLoading(false);
             setIsInitialized(true);
+            toast.error('Authentication initialization timed out. Please refresh the page.');
           }
-        }, 300000); // Extended to 300 seconds (5 minutes)
+        }, 60000);
         
         authProgress.startLoading();
         setShowProgressiveLoading(true);
@@ -170,30 +170,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         authProgress.completeStage('session');
         
-        // Extended employee lookup with longer timeout to match service configuration
+        // Quick employee lookup with shorter timeout
         console.log('AuthContext: Calling getCurrentUserEmployee...');
         
-        // Extended timeout to 180 seconds to match service configuration
-        const employeePromise = getCurrentUserEmployee(normalizedEmail);
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Employee lookup timeout')), 180000); // 180 seconds
-        });
-        
-        const employee = await Promise.race([employeePromise, timeoutPromise]) as any;
+        const employee = await getCurrentUserEmployee(normalizedEmail);
         console.log('AuthContext: getCurrentUserEmployee returned:', employee ? 'Employee found' : 'No employee');
         
         if (employee) {
           console.log('AuthContext: Employee found in database:', employee.name);
           authProgress.completeStage('employee');
           
-          // Check superadmin status with extended timeout to match service configuration
+          // Quick superadmin check
           console.log('AuthContext: Checking superadmin status...');
-          const superadminPromise = checkSuperadminStatusCached(normalizedEmail);
-          const superadminTimeoutPromise = new Promise((resolve) => {
-            setTimeout(() => resolve(false), 300000); // Extended to 300 seconds to match service timeout
-          });
-          
-          const isSuperadmin = await Promise.race([superadminPromise, superadminTimeoutPromise]) as boolean;
+          const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
           const userRole = isSuperadmin ? 'superadmin' : 'employee';
           
           console.log('AuthContext: Setting user with role:', userRole);
@@ -216,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => {
             setShowProgressiveLoading(false);
             setIsLoading(false);
-          }, 500);
+          }, 1000);
           
         } else {
           console.warn('AuthContext: User email not found in employees table:', normalizedEmail);
@@ -231,7 +220,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('AuthContext: Error in handleUserSession:', error);
       
-      // Provide more specific error messages
       let errorMessage = 'Failed to load user data. Please try again.';
       if (error instanceof Error) {
         console.error('AuthContext: Detailed error info:', {
@@ -240,11 +228,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           stack: error.stack
         });
         
-        if (error.message.includes('timeout') || error.message.includes('Employee lookup timeout')) {
+        if (error.message.includes('timeout') || error.message.includes('connection')) {
           errorMessage = 'Connection timeout. Please check your internet connection and try again.';
         } else if (error.message.includes('Employee not found')) {
           errorMessage = 'Employee record not found. Please contact administrator.';
-        } else if (error.message.includes('Database connection failed')) {
+        } else if (error.message.includes('database connection')) {
           errorMessage = 'Database connection failed. Please try again later.';
         }
       }
@@ -266,14 +254,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowProgressiveLoading(true);
       loginProgress.startLoading();
 
-      // Extended timeout for login - 300 seconds to match service timeouts
+      // Shorter timeout for login - 90 seconds
       loginTimeout = setTimeout(() => {
         console.warn('AuthContext: Login timeout, clearing loading states');
         setIsLoading(false);
         setShowProgressiveLoading(false);
         loginProgress.setStageError('validate', 'Login timeout - please try again');
         toast.error('Login timeout. Please try again.');
-      }, 300000); // Extended to 300 seconds (5 minutes)
+      }, 90000);
 
       const normalizedEmail = email.toLowerCase().trim();
       console.log('AuthContext: Normalized email for login:', normalizedEmail);
@@ -282,13 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Checking if employee exists...');
       
       try {
-        // Extended timeout to employee check - 180 seconds to match service configuration
-        const employeePromise = getCurrentUserEmployee(normalizedEmail);
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Employee check timeout')), 180000); // Extended to 180 seconds
-        });
-        
-        const employee = await Promise.race([employeePromise, timeoutPromise]);
+        const employee = await getCurrentUserEmployee(normalizedEmail);
         
         if (!employee) {
           clearTimeout(loginTimeout);
@@ -300,7 +282,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
         }
 
-        console.log('AuthContext: Employee found in database:', (employee as any).name);
+        console.log('AuthContext: Employee found in database:', employee.name);
         loginProgress.completeStage('employee');
       } catch (employeeError) {
         clearTimeout(loginTimeout);
@@ -308,9 +290,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         let errorMessage = 'Failed to verify employee record. Please try again.';
         if (employeeError instanceof Error) {
-          if (employeeError.message.includes('timeout') || employeeError.message.includes('Employee check timeout')) {
+          if (employeeError.message.includes('timeout') || employeeError.message.includes('connection')) {
             errorMessage = 'Database connection timeout. Please check your internet connection and try again.';
-          } else if (employeeError.message.includes('Database connection failed')) {
+          } else if (employeeError.message.includes('database')) {
             errorMessage = 'Database connection failed. Please try again later.';
           }
         }
@@ -407,12 +389,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Starting logout process');
       setIsLoading(true);
       
-      // Clear user state immediately to prevent showing authenticated content
       setUser(null);
       setRequiresPasswordChange(false);
       clearAuthCache();
       
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -423,14 +403,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success("Logged out successfully");
       }
       
-      // Navigate to home page after logout
       navigate('/', { replace: true });
       
     } catch (error) {
       console.error('AuthContext: Logout exception:', error);
       toast.error("Error during logout, but you have been logged out locally.");
     } finally {
-      // Ensure we always clear the loading state and user data
       setUser(null);
       setRequiresPasswordChange(false);
       clearAuthCache();
