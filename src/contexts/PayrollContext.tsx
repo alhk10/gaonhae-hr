@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,15 +27,32 @@ export interface CasualEmployee {
   employeeCPF: number;
   employerCPF: number;
   grossPay: number;
+  daysWorked?: number;
+  paymentType?: string;
+  dailyRate?: number;
+  baseSalary?: number;
+}
+
+export interface EmployeeProfile {
+  id: string;
+  name: string;
+  type: string;
+  baseSalary?: number;
+  hourlyRate?: number;
+  dailyRate?: number;
+  paymentType?: string;
 }
 
 export interface PayrollState {
   fullTimeEmployees: FullTimeEmployee[];
   casualEmployees: CasualEmployee[];
   currentPeriod: string;
-  status: 'draft' | 'finalized' | 'processed';
+  status: 'draft' | 'processing' | 'approved' | 'paid' | 'completed';
   lastUpdated: Date;
-  isLoading: boolean; // Add this property
+  isLoading: boolean;
+  availableEmployees: EmployeeProfile[];
+  totalAmount: number;
+  encashmentData: any[];
 }
 
 export interface PayrollContextType {
@@ -50,6 +68,11 @@ export interface PayrollContextType {
   setCurrentPeriod: (period: string) => void;
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<void>;
+  setPayrollStatus: (status: PayrollState['status']) => void;
+  addEmployeesToPayroll: (employeeIds: string[]) => Promise<void>;
+  removeEmployeeFromPayroll: (employeeId: string) => void;
+  refreshAvailableEmployees: () => Promise<void>;
+  isLoading: boolean;
 }
 
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
@@ -61,7 +84,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     currentPeriod: format(new Date(), 'MMMM yyyy'),
     status: 'draft',
     lastUpdated: new Date(),
-    isLoading: false, // Initialize isLoading state
+    isLoading: false,
+    availableEmployees: [],
+    totalAmount: 0,
+    encashmentData: [],
   });
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
@@ -176,6 +202,74 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
+  const setPayrollStatus = useCallback((status: PayrollState['status']) => {
+    setPayrollState(prevState => ({
+      ...prevState,
+      status,
+      lastUpdated: new Date(),
+    }));
+  }, []);
+
+  const refreshAvailableEmployees = useCallback(async () => {
+    setPayrollState(prevState => ({ ...prevState, isLoading: true }));
+    try {
+      const { data: employees, error } = await supabase
+        .from('employees')
+        .select('id, name, type, base_salary, hourly_rate, daily_rate, payment_type');
+
+      if (error) throw error;
+
+      const availableEmployees: EmployeeProfile[] = employees?.map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        type: emp.type,
+        baseSalary: emp.base_salary || undefined,
+        hourlyRate: emp.hourly_rate || undefined,
+        dailyRate: emp.daily_rate || undefined,
+        paymentType: emp.payment_type || undefined,
+      })) || [];
+
+      setPayrollState(prevState => ({
+        ...prevState,
+        availableEmployees,
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      setPayrollState(prevState => ({ ...prevState, isLoading: false }));
+    }
+  }, []);
+
+  const addEmployeesToPayroll = useCallback(async (employeeIds: string[]) => {
+    const employeesToAdd = payrollState.availableEmployees.filter(emp => 
+      employeeIds.includes(emp.id)
+    );
+
+    employeesToAdd.forEach(employee => {
+      if (employee.type === 'Full-Time') {
+        addFullTimeEmployee({
+          employeeId: employee.id,
+          name: employee.name,
+          basicSalary: employee.baseSalary || 0,
+          allowances: 0,
+          cpfContribution: 20,
+        });
+      } else {
+        addCasualEmployee({
+          employeeId: employee.id,
+          name: employee.name,
+          hourlyRate: employee.hourlyRate || 0,
+          hoursWorked: 0,
+        });
+      }
+    });
+  }, [payrollState.availableEmployees, addFullTimeEmployee, addCasualEmployee]);
+
+  const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
+    removeFullTimeEmployee(employeeId);
+    removeCasualEmployee(employeeId);
+  }, [removeFullTimeEmployee, removeCasualEmployee]);
+
   const savePayrollToSupabase = async () => {
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
@@ -188,11 +282,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
 
       const { data, error } = await supabase
-        .from('payroll_data')
+        .from('payroll_records')
         .insert([
           {
+            id: uuidv4(),
+            employee_id: 'system',
             month: payrollData.month,
-            year: payrollData.year,
+            year: parseInt(payrollData.year),
             payroll_data: payrollData,
             is_locked: false,
           },
@@ -216,7 +312,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
       const { data, error } = await supabase
-        .from('payroll_data')
+        .from('payroll_records')
         .select('*')
         .eq('month', payrollState.currentPeriod.split(' ')[0])
         .eq('year', payrollState.currentPeriod.split(' ')[1])
@@ -227,12 +323,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      if (data) {
+      if (data && data.payroll_data) {
+        const payrollData = data.payroll_data as any;
         setPayrollState(prevState => ({
           ...prevState,
-          fullTimeEmployees: data.payroll_data.fullTimeEmployees || [],
-          casualEmployees: data.payroll_data.casualEmployees || [],
-          status: data.payroll_data.status,
+          fullTimeEmployees: payrollData.fullTimeEmployees || [],
+          casualEmployees: payrollData.casualEmployees || [],
+          status: payrollData.status,
           lastUpdated: new Date(),
         }));
       }
@@ -256,6 +353,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrentPeriod,
     savePayrollToSupabase,
     loadPayrollFromSupabase,
+    setPayrollStatus,
+    addEmployeesToPayroll,
+    removeEmployeeFromPayroll,
+    refreshAvailableEmployees,
+    isLoading: payrollState.isLoading,
   };
 
   return (

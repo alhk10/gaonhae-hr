@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -112,7 +111,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
             <div className="text-right">
               <p className="text-xs text-blue-600">Total Amount</p>
               <p className="text-xl font-bold text-blue-900">
-                S${payrollState.totalAmount.toLocaleString()}
+                S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0) + 
+                  payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0)).toLocaleString()}
               </p>
               <p className="text-xs text-blue-500">{payrollPeriod}</p>
             </div>
@@ -182,7 +182,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">
-                          Base: S${(employee.baseSalary || 0).toLocaleString()} • 
+                          Base: S${(employee.basicSalary || 0).toLocaleString()} • 
                           Gross: S${(employee.grossPay || 0).toLocaleString()}
                         </p>
                         <div className="flex items-center mt-1">
@@ -248,10 +248,11 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.id);
                   const validationIssue = validationIssues.find(issue => issue.employeeId === employee.id);
                   
-                  const rateDisplay = employee.paymentType === 'Hourly' 
+                  const paymentType = employee.paymentType || 'Hourly';
+                  const rateDisplay = paymentType === 'Hourly' 
                     ? `${employee.hoursWorked}h @ S$${(employee.hourlyRate || 0).toFixed(2)}/hr`
-                    : employee.paymentType === 'Daily'
-                    ? `${employee.daysWorked} days @ S$${(employee.dailyRate || 0).toFixed(2)}/day`
+                    : paymentType === 'Daily'
+                    ? `${employee.daysWorked || 0} days @ S$${(employee.dailyRate || 0).toFixed(2)}/day`
                     : `Monthly: S$${(employee.baseSalary || 0).toFixed(2)}`;
 
                   return (
@@ -265,7 +266,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                             )}
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{employee.paymentType || 'Casual'}</Badge>
+                            <Badge variant="outline">{paymentType}</Badge>
                             <PayrollCalculationDetails 
                               employee={employee}
                               calculationErrors={validationIssue?.errors}
@@ -309,13 +310,19 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
           </DialogHeader>
           <div className="space-y-4">
             <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
-              {availableForAdd.length === 0 ? (
+              {(payrollState.availableEmployees || []).filter(emp => 
+                !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
+                !payrollState.casualEmployees.some(existing => existing.id === emp.id)
+              ).length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">All employees are already in payroll</p>
                 </div>
               ) : (
-                availableForAdd.map((employee) => {
+                (payrollState.availableEmployees || []).filter(emp => 
+                  !payrollState.fullTimeEmployees.some(existing => existing.id === emp.id) &&
+                  !payrollState.casualEmployees.some(existing => existing.id === emp.id)
+                ).map((employee) => {
                   const validation = validateEmployeeForPayroll(employee);
                   const hasErrors = !validation.isValid;
                   
