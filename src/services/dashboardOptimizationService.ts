@@ -1,6 +1,27 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+// Types for dashboard data
+export interface DashboardStats {
+  totalEmployees: number;
+  pendingClaims: number;
+  activeClaims: number;
+  approvedClaims?: number;
+}
+
+export interface RecentClaim {
+  id: number;
+  employee: string;
+  type: string;
+  amount: number;
+  status: string;
+}
+
+export interface ManagerDashboardData {
+  stats: DashboardStats;
+  recentClaims: RecentClaim[];
+}
+
 // Optimized service for dashboard data loading with proper timeout handling
 export const getDashboardStats = async () => {
   console.log('DashboardOptimization: Starting getDashboardStats...');
@@ -148,5 +169,37 @@ export const getRecentActivity = async (limit: number = 3) => {
   } catch (error) {
     console.error('DashboardOptimization: Error fetching recent activity:', error);
     return []; // Return empty array on error to prevent UI crashes
+  }
+};
+
+// Manager dashboard specific function
+export const getManagerDashboardData = async (): Promise<ManagerDashboardData> => {
+  console.log('DashboardOptimization: Starting getManagerDashboardData...');
+  
+  try {
+    // Get stats with approved claims count for managers
+    const [stats, recentClaims, approvedClaimsResult] = await Promise.all([
+      getDashboardStats(),
+      getRecentActivity(5),
+      supabase
+        .from('claims')
+        .select('id')
+        .eq('status', 'Approved')
+    ]);
+
+    const enhancedStats = {
+      ...stats,
+      approvedClaims: approvedClaimsResult.data?.length || 0
+    };
+
+    console.log('DashboardOptimization: Manager dashboard data fetched successfully');
+    return {
+      stats: enhancedStats,
+      recentClaims
+    };
+    
+  } catch (error) {
+    console.error('DashboardOptimization: Error fetching manager dashboard data:', error);
+    throw error;
   }
 };

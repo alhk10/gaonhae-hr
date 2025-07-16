@@ -1,10 +1,182 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentUserEmployee, checkSuperadminStatusCached } from '@/services/authOptimizationService';
-import { User, AuthContextType } from '@/types/auth';
+import { useToast } from '@/components/ui/use-toast';
+import { getUserData, getUserAdminAccess, getUserPageAccess, checkSuperadminStatus } from '@/services/authOptimizationService';
+
+interface AuthContextType {
+  user: User | null;
+  userRole: 'employee' | 'admin' | 'superadmin' | null;
+  userDetails: any;
+  adminAccess: any;
+  pageAccess: any;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<'employee' | 'admin' | 'superadmin' | null>(null);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [adminAccess, setAdminAccess] = useState<any>(null);
+  const [pageAccess, setPageAccess] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const handleUserSession = async (session: Session | null) => {
+    console.log('AuthContext: Processing user session...');
+    
+    if (session?.user) {
+      setUser(session.user);
+      
+      try {
+        // Get user details with proper timeout
+        const userData = await getUserData(session.user.email!);
+        setUserDetails(userData);
+
+        // Check if user is superadmin with shorter timeout
+        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
+        
+        if (isSuperadmin) {
+          setUserRole('superadmin');
+          console.log('AuthContext: User identified as superadmin');
+        } else {
+          // Get admin access and page access for non-superadmin users
+          const [adminData, pageData] = await Promise.all([
+            getUserAdminAccess(userData?.id),
+            getUserPageAccess(userData?.id)
+          ]);
+          
+          setAdminAccess(adminData);
+          setPageAccess(pageData);
+          
+          // Determine role based on admin access
+          const hasAdminRights = adminData && Object.values(adminData).some(Boolean);
+          setUserRole(hasAdminRights ? 'admin' : 'employee');
+          
+          console.log('AuthContext: User role determined:', hasAdminRights ? 'admin' : 'employee');
+        }
+      } catch (error) {
+        console.error('AuthContext: Error setting up user session:', error);
+        toast({
+          title: "Session Setup Error",
+          description: "There was an error setting up your session. Please try logging in again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      setUser(null);
+      setUserRole(null);
+      setUserDetails(null);
+      setAdminAccess(null);
+      setPageAccess(null);
+    }
+    
+    setIsLoading(false);
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('AuthContext: Login error:', error);
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      if (data.session) {
+        await handleUserSession(data.session);
+        toast({
+          title: "Login Successful",
+          description: "Welcome back!",
+        });
+        return true;
+      }
+      
+      setIsLoading(false);
+      return false;
+    } catch (error) {
+      console.error('AuthContext: Unexpected login error:', error);
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred during login.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return false;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('AuthContext: Logout error:', error);
+        toast({
+          title: "Logout Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out.",
+        });
+      }
+    } catch (error) {
+      console.error('AuthContext: Unexpected logout error:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleUserSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthContext: Auth state changed:', event);
+      await handleUserSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const value = {
+    user,
+    userRole,
+    userDetails,
+    adminAccess,
+    pageAccess,
+    isLoading,
+    login,
+    logout,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -12,231 +184,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
-
-  // Handle user session from Supabase auth state
-  const handleUserSession = async (session: any) => {
-    console.log('AuthContext: Handling user session:', !!session);
-    
-    if (!session?.user?.email) {
-      console.log('AuthContext: No valid session, clearing user state');
-      setUser(null);
-      setRequiresPasswordChange(false);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const email = session.user.email;
-      console.log('AuthContext: Processing user session for:', email);
-
-      // Check if user is superadmin (this uses its own 30s timeout)
-      const isSuperadmin = await checkSuperadminStatusCached(email);
-      console.log('AuthContext: Superadmin status:', isSuperadmin);
-
-      if (isSuperadmin) {
-        // Create superadmin user directly
-        const superadminUser: User = {
-          id: session.user.id,
-          email: email,
-          name: 'System Administrator',
-          role: 'superadmin',
-          department: 'Administration',
-          employeeId: 'ADMIN001'
-        };
-
-        console.log('AuthContext: Setting superadmin user');
-        setUser(superadminUser);
-        setRequiresPasswordChange(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // For non-superadmin users, get employee data (this uses 60s timeout)
-      console.log('AuthContext: Fetching employee data for regular user');
-      const employeeData = await getCurrentUserEmployee(email);
-
-      if (!employeeData) {
-        console.log('AuthContext: No employee data found, clearing user state');
-        setUser(null);
-        setRequiresPasswordChange(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Create user based on employee data and admin access
-      const hasAnyAdminAccess = Object.values(employeeData.adminAccess).some(access => access === true);
-      
-      const userData: User = {
-        id: employeeData.id,
-        email: employeeData.email,
-        name: employeeData.name,
-        role: hasAnyAdminAccess ? 'manager' : 'employee',
-        department: employeeData.department,
-        employeeId: employeeData.id
-      };
-
-      console.log('AuthContext: Setting regular user with role:', userData.role);
-      setUser(userData);
-      setRequiresPasswordChange(false);
-
-    } catch (error) {
-      console.error('AuthContext: Error in handleUserSession:', {
-        _type: typeof error,
-        value: error
-      });
-      
-      if (error instanceof Error) {
-        console.error('AuthContext: Detailed error info:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-
-      // On error, clear user state
-      setUser(null);
-      setRequiresPasswordChange(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Initialize auth state
-  useEffect(() => {
-    console.log('AuthContext: Initializing auth state...');
-    
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session:', !!session);
-      handleUserSession(session);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event, !!session);
-      
-      if (event === 'SIGNED_OUT') {
-        console.log('AuthContext: User signed out, clearing state');
-        setUser(null);
-        setRequiresPasswordChange(false);
-        setIsLoading(false);
-      } else {
-        await handleUserSession(session);
-      }
-    });
-
-    return () => {
-      console.log('AuthContext: Cleaning up auth subscription');
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Login function - all data flows through Supabase
-  const login = async (email: string, password: string): Promise<void> => {
-    console.log('AuthContext: Login attempt for:', email);
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password
-      });
-
-      if (error) {
-        console.error('AuthContext: Login error:', error);
-        throw new Error(error.message);
-      }
-
-      if (!data.user) {
-        throw new Error('No user data returned from login');
-      }
-
-      console.log('AuthContext: Login successful for:', email);
-      // User state will be updated via the auth state change listener
-      
-    } catch (error) {
-      console.error('AuthContext: Login failed:', error);
-      setIsLoading(false);
-      throw error;
-    }
-  };
-
-  // Logout function - clears all state
-  const logout = async (): Promise<void> => {
-    console.log('AuthContext: Logout initiated');
-    
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('AuthContext: Logout error:', error);
-      }
-      
-      // Clear all state
-      setUser(null);
-      setRequiresPasswordChange(false);
-      setIsLoading(false);
-      
-      console.log('AuthContext: Logout completed');
-    } catch (error) {
-      console.error('AuthContext: Logout exception:', error);
-      // Even if logout fails, clear local state
-      setUser(null);
-      setRequiresPasswordChange(false);
-      setIsLoading(false);
-    }
-  };
-
-  // Update password function
-  const updatePassword = async (newPassword: string): Promise<boolean> => {
-    console.log('AuthContext: Password update initiated');
-    
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        console.error('AuthContext: Password update error:', error);
-        throw error;
-      }
-
-      setRequiresPasswordChange(false);
-      console.log('AuthContext: Password updated successfully');
-      return true;
-      
-    } catch (error) {
-      console.error('AuthContext: Password update failed:', error);
-      return false;
-    }
-  };
-
-  const contextValue: AuthContextType = {
-    user,
-    login,
-    logout,
-    isLoading,
-    requiresPasswordChange,
-    updatePassword
-  };
-
-  console.log('AuthContext: Provider rendered with user:', {
-    _type: typeof user,
-    value: user ? 'user object' : 'undefined'
-  });
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
 };
