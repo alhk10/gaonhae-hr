@@ -141,8 +141,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Login function - returns boolean to indicate success
-  const login = async (email: string, password: string): Promise<boolean> => {
+  // Login function - all data flows through Supabase
+  const login = async (email: string, password: string): Promise<void> => {
     console.log('AuthContext: Login attempt for:', email);
     setIsLoading(true);
 
@@ -154,24 +154,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('AuthContext: Login error:', error);
-        setIsLoading(false);
-        return false;
+        throw new Error(error.message);
       }
 
       if (!data.user) {
-        console.error('AuthContext: No user data returned from login');
-        setIsLoading(false);
-        return false;
+        throw new Error('No user data returned from login');
       }
 
       console.log('AuthContext: Login successful for:', email);
       // User state will be updated via the auth state change listener
-      return true;
       
     } catch (error) {
       console.error('AuthContext: Login failed:', error);
       setIsLoading(false);
-      return false;
+      throw error;
     }
   };
 

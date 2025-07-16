@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, FileText, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getManagerDashboardData, ManagerDashboardData } from '@/services/dashboardOptimizationService';
+import { getManagerDashboardData } from '@/services/dashboardOptimizationService';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ManagerDashboard = () => {
   // Use optimized manager dashboard service
-  const { data: dashboardData, isLoading, error } = useQuery<ManagerDashboardData>({
+  const { data: dashboardData, isLoading, error } = useQuery({
     queryKey: ['manager-dashboard'],
     queryFn: getManagerDashboardData,
     staleTime: 2 * 60 * 1000, // Cache for 2 minutes

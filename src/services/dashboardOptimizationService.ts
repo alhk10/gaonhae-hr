@@ -1,27 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Dashboard data interface
-export interface DashboardStats {
-  totalEmployees: number;
-  pendingClaims: number;
-  activeClaims: number;
-  approvedClaims: number;
-}
-
-export interface RecentClaim {
-  id: number;
-  employee: string;
-  type: string;
-  amount: number;
-  status: string;
-}
-
-export interface ManagerDashboardData {
-  stats: DashboardStats;
-  recentClaims: RecentClaim[];
-}
-
 // Optimized service for dashboard data loading with proper timeout handling
 export const getDashboardStats = async () => {
   console.log('DashboardOptimization: Starting getDashboardStats...');
@@ -47,13 +26,7 @@ export const getDashboardStats = async () => {
       supabase
         .from('claims')
         .select('id')
-        .in('status', ['Approved', 'In Progress']),
-      
-      // Get approved claims from Supabase
-      supabase
-        .from('claims')
-        .select('id')
-        .eq('status', 'Approved')
+        .in('status', ['Approved', 'In Progress'])
     ];
 
     const timeoutPromise = new Promise((_, reject) => {
@@ -62,7 +35,7 @@ export const getDashboardStats = async () => {
 
     const results = await Promise.race([Promise.all(promises), timeoutPromise]) as any;
     
-    const [employeesResult, pendingClaimsResult, activeClaimsResult, approvedClaimsResult] = results;
+    const [employeesResult, pendingClaimsResult, activeClaimsResult] = results;
 
     if (employeesResult.error) {
       console.error('DashboardOptimization: Error fetching employees:', employeesResult.error);
@@ -79,16 +52,10 @@ export const getDashboardStats = async () => {
       throw activeClaimsResult.error;
     }
 
-    if (approvedClaimsResult.error) {
-      console.error('DashboardOptimization: Error fetching approved claims:', approvedClaimsResult.error);
-      throw approvedClaimsResult.error;
-    }
-
-    const stats: DashboardStats = {
+    const stats = {
       totalEmployees: employeesResult.data?.length || 0,
       pendingClaims: pendingClaimsResult.data?.length || 0,
-      activeClaims: activeClaimsResult.data?.length || 0,
-      approvedClaims: approvedClaimsResult.data?.length || 0
+      activeClaims: activeClaimsResult.data?.length || 0
     };
 
     console.log('DashboardOptimization: Stats fetched successfully:', stats);
@@ -101,7 +68,7 @@ export const getDashboardStats = async () => {
 };
 
 // Get recent activity from Supabase
-export const getRecentActivity = async (limit: number = 3): Promise<RecentClaim[]> => {
+export const getRecentActivity = async (limit: number = 3) => {
   console.log('DashboardOptimization: Starting getRecentActivity with limit:', limit);
   
   try {
@@ -167,7 +134,7 @@ export const getRecentActivity = async (limit: number = 3): Promise<RecentClaim[
       });
     }
 
-    const activity: RecentClaim[] = claims.map((claim: any) => ({
+    const activity = claims.map((claim: any) => ({
       id: claim.id,
       employee: employeeMap.get(claim.employee_id) || 'Unknown Employee',
       type: claim.type,
@@ -181,29 +148,5 @@ export const getRecentActivity = async (limit: number = 3): Promise<RecentClaim[
   } catch (error) {
     console.error('DashboardOptimization: Error fetching recent activity:', error);
     return []; // Return empty array on error to prevent UI crashes
-  }
-};
-
-// Combined manager dashboard data function
-export const getManagerDashboardData = async (): Promise<ManagerDashboardData> => {
-  console.log('DashboardOptimization: Starting getManagerDashboardData...');
-  
-  try {
-    const [stats, recentClaims] = await Promise.all([
-      getDashboardStats(),
-      getRecentActivity(5)
-    ]);
-
-    const dashboardData: ManagerDashboardData = {
-      stats,
-      recentClaims
-    };
-
-    console.log('DashboardOptimization: Manager dashboard data fetched successfully');
-    return dashboardData;
-    
-  } catch (error) {
-    console.error('DashboardOptimization: Error fetching manager dashboard data:', error);
-    throw error;
   }
 };
