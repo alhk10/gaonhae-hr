@@ -177,8 +177,7 @@ const AdminSlotBooking = () => {
     const dateString = format(date, 'yyyy-MM-dd');
     return allBookings.filter(b => 
       b.date === dateString && 
-      b.status !== 'rejected' && 
-      b.status !== 'cancelled' && // Filter out cancelled slots
+      b.status === 'pending' && // Only show pending bookings
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
   };
@@ -294,7 +293,15 @@ const AdminSlotBooking = () => {
     let approvedSlots = 0;
 
     daysInMonth.forEach(day => {
-      const dayBookings = getBookingsForDate(day);
+      const dayBookings = allBookings.filter(b => {
+        const bookingDate = format(new Date(b.date), 'yyyy-MM-dd');
+        const currentDate = format(day, 'yyyy-MM-dd');
+        return bookingDate === currentDate && 
+               b.status !== 'cancelled' && 
+               b.status !== 'rejected' &&
+               (selectedBranch === 'all' || b.branchId === selectedBranch);
+      });
+      
       const dayName = format(day, 'EEEE').toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
       
       if (selectedBranch === 'all') {
@@ -492,7 +499,7 @@ const AdminSlotBooking = () => {
           <div className="space-y-6 max-w-full">
             <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
               <div className={isMobile ? 'text-center' : ''}>
-                <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Admin Slot Booking</h2>
+                <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Admin Slot Booking - Pending Approvals</h2>
                 {autoRefreshActive && (
                   <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
                     Auto-refreshing every 30 seconds
@@ -585,7 +592,7 @@ const AdminSlotBooking = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Booked</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Total Booked</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className={`font-bold text-blue-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.bookedSlots}</div>
@@ -593,7 +600,7 @@ const AdminSlotBooking = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending</CardTitle>
+                  <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending Approval</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className={`font-bold text-yellow-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.pendingSlots}</div>
@@ -615,7 +622,7 @@ const AdminSlotBooking = () => {
                 <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
                   <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
                     <CalendarIcon className="w-5 h-5" />
-                    <span>Monthly Calendar</span>
+                    <span>Pending Bookings Calendar</span>
                   </CardTitle>
                   <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
                     <Filter className="w-4 h-4" />
@@ -678,7 +685,7 @@ const AdminSlotBooking = () => {
                             <div
                               className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
                                 isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
-                              } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
+                              } ${hasBookings ? 'bg-yellow-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
                               onClick={() => handleDateClick(date)}
                             >
                               <div className="w-full h-full flex flex-col overflow-hidden">
@@ -699,19 +706,16 @@ const AdminSlotBooking = () => {
                                           className={`px-0.5 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-xs leading-tight' : 'text-xs'}`}
                                           style={{ 
                                             backgroundColor: branch?.color || '#6b7280',
-                                            ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
-                                            ...(booking.status === 'approved' && { border: '1px solid #10b981' })
+                                            border: '2px solid #fbbf24' // Yellow border for pending
                                           }}
-                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
+                                          title={`${booking.employeeName} - ${branch?.name} (PENDING APPROVAL)${hasClockedIn ? ' - Clocked In' : ''} - Click to approve/reject`}
                                         >
                                           <span className="truncate">
                                             {isMobile ? 
                                               booking.employeeName.split(' ')[0].slice(0, 6) : 
                                               booking.employeeName.split(' ')[0].slice(0, 12)
                                             }
-                                            {booking.status === 'pending' && ' ⏳'}
-                                            {booking.status === 'approved' && !hasClockedIn && ' ✅'}
-                                            {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
+                                            {' ⏳'} {/* Pending indicator */}
                                           </span>
                                         </div>
                                       );
@@ -723,7 +727,7 @@ const AdminSlotBooking = () => {
                                 )}
                                 {!hasBookings && (
                                   <div className="flex items-center justify-center flex-1">
-                                    <Plus className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                                    <span className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>No pending</span>
                                   </div>
                                 )}
                               </div>
@@ -741,10 +745,10 @@ const AdminSlotBooking = () => {
             <Card>
               <CardHeader>
                 <CardTitle className={isMobile ? 'text-lg' : ''}>
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                  {format(selectedDate, 'EEEE, MMMM d, yyyy')} - Pending Approvals
                 </CardTitle>
                 <CardDescription>
-                  {getBookingsForDate(selectedDate).length} booking(s) scheduled
+                  {getBookingsForDate(selectedDate).length} booking(s) pending approval
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -754,7 +758,7 @@ const AdminSlotBooking = () => {
                     const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
                     
                     return (
-                      <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
+                      <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'} border-yellow-200 bg-yellow-50`}>
                         <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
                           <div className="flex items-center space-x-2">
                             <div 
@@ -764,44 +768,36 @@ const AdminSlotBooking = () => {
                             <div>
                               <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>
                                 {booking.employeeName}
-                                {booking.status === 'approved' && hasClockedIn && (
+                                {hasClockedIn && (
                                   <span className="ml-2 text-green-600" title="Employee has clocked in">✅✅</span>
                                 )}
                               </p>
                               <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{branch?.name}</p>
                               <Badge 
-                                variant={
-                                  booking.status === 'approved' ? 'default' :
-                                  booking.status === 'pending' ? 'secondary' :
-                                  'destructive'
-                                }
-                                className={`mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}
+                                variant="secondary"
+                                className={`mt-1 ${isMobile ? 'text-xs' : 'text-xs'} bg-yellow-100 text-yellow-800`}
                               >
-                                {booking.status}
+                                Pending Approval
                               </Badge>
                             </div>
                           </div>
                           <div className={`flex space-x-1 ${isMobile ? 'w-full justify-end' : ''}`}>
-                            {booking.status === 'pending' && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
-                                >
-                                  <Check className={`text-green-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
-                                >
-                                  <X className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                              </>
-                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
+                              onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
+                            >
+                              <Check className={`text-green-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
+                              onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
+                            >
+                              <X className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
+                            </Button>
                             <Button 
                               size="sm" 
                               variant="outline" 
@@ -834,7 +830,7 @@ const AdminSlotBooking = () => {
 
                   {getBookingsForDate(selectedDate).length === 0 && (
                     <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
-                      No bookings for this date. Click on a date to add bulk bookings.
+                      No pending bookings for this date.
                     </p>
                   )}
                 </div>
