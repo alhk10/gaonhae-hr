@@ -169,6 +169,68 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 };
 
+// Add missing exports that are expected by the AuthContext
+export const getUserData = async (email: string) => {
+  return getCurrentUserEmployee(email);
+};
+
+export const getUserAdminAccess = async (employeeId: string) => {
+  try {
+    const { data: adminAccessData } = await supabase
+      .from('admin_access')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .maybeSingle();
+    
+    if (adminAccessData) {
+      return {
+        employees: adminAccessData.employees || false,
+        payroll: adminAccessData.payroll || false,
+        leaveManagement: adminAccessData.leave_management || false,
+        claims: adminAccessData.claims || false,
+        attendance: adminAccessData.attendance || false,
+        slotBooking: adminAccessData.slot_booking || false,
+        reports: adminAccessData.reports || false
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching admin access:', error);
+    return null;
+  }
+};
+
+export const getUserPageAccess = async (employeeId: string) => {
+  try {
+    const { data: pageAccessData } = await supabase
+      .from('employee_page_access')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .maybeSingle();
+    
+    if (pageAccessData) {
+      return {
+        profile: pageAccessData.profile !== false,
+        applyLeave: pageAccessData.apply_leave || false,
+        submitClaim: pageAccessData.submit_claim !== false,
+        payslips: pageAccessData.payslips || false,
+        myAttendance: pageAccessData.my_attendance !== false,
+        slotBookingEmployee: pageAccessData.slot_booking_employee || false
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching page access:', error);
+    return null;
+  }
+};
+
+export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
+  return checkSuperadminStatusCached(email);
+};
+
 // Optimized superadmin check with role-specific timeout
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {

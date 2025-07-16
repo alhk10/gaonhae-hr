@@ -11,9 +11,13 @@ export interface User {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   isLoading: boolean;
   requiresPasswordChange: boolean;
   updatePassword: (newPassword: string) => Promise<boolean>;
+  userRole: 'employee' | 'admin' | 'superadmin' | null;
+  userDetails: any;
+  adminAccess: any;
+  pageAccess: any;
 }
