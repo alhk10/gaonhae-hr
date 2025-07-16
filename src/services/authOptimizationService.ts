@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Optimized service for authentication-specific data loading with better error handling
+// Optimized service for authentication-specific data loading with role-based timeouts
 export const getCurrentUserEmployee = async (email: string) => {
   console.log('AuthOptimization: Starting getCurrentUserEmployee for:', email);
   
@@ -9,11 +9,18 @@ export const getCurrentUserEmployee = async (email: string) => {
     const normalizedEmail = email.toLowerCase().trim();
     console.log('AuthOptimization: Normalized email:', normalizedEmail);
     
-    // First attempt with shorter timeout
-    console.log('AuthOptimization: Attempting quick employee lookup...');
+    // Check if user is superadmin first to determine timeout
+    const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
+    console.log('AuthOptimization: Is superadmin:', isSuperadmin);
+    
+    // Set timeout based on user role - superadmin gets 300s, others get 60s
+    const timeoutDuration = isSuperadmin ? 300000 : 60000; // 300s or 60s in milliseconds
+    console.log('AuthOptimization: Using timeout duration:', timeoutDuration / 1000, 'seconds');
     
     try {
-      const quickQuery = supabase
+      console.log('AuthOptimization: Attempting employee lookup with role-based timeout...');
+      
+      const employeeQuery = supabase
         .from('employees')
         .select(`
           id,
@@ -26,14 +33,14 @@ export const getCurrentUserEmployee = async (email: string) => {
         .eq('email', normalizedEmail)
         .maybeSingle();
 
-      const quickTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Quick lookup timeout')), 30000); // 30 seconds
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Employee lookup timeout after ${timeoutDuration / 1000} seconds`)), timeoutDuration);
       });
       
-      const { data: employee, error } = await Promise.race([quickQuery, quickTimeoutPromise]) as any;
+      const { data: employee, error } = await Promise.race([employeeQuery, timeoutPromise]) as any;
 
       if (error) {
-        console.warn('AuthOptimization: Quick lookup failed:', error);
+        console.warn('AuthOptimization: Employee lookup failed:', error);
         throw error;
       }
 
@@ -42,7 +49,7 @@ export const getCurrentUserEmployee = async (email: string) => {
         return null;
       }
 
-      console.log('AuthOptimization: Quick employee lookup successful:', {
+      console.log('AuthOptimization: Employee lookup successful:', {
         id: employee.id,
         name: employee.name,
         email: employee.email,
@@ -76,108 +83,75 @@ export const getCurrentUserEmployee = async (email: string) => {
         }
       };
 
-      // Try to fetch admin access asynchronously (non-blocking)
-      setTimeout(async () => {
-        try {
-          console.log('AuthOptimization: Fetching admin access (background)...');
-          const { data: adminAccessData } = await supabase
-            .from('admin_access')
-            .select('*')
-            .eq('employee_id', employee.id)
-            .maybeSingle();
-          
-          if (adminAccessData) {
-            console.log('AuthOptimization: Admin access found (background):', adminAccessData);
-          }
-        } catch (error) {
-          console.warn('AuthOptimization: Background admin access fetch failed:', error);
+      // Fetch admin access with same timeout
+      try {
+        console.log('AuthOptimization: Fetching admin access...');
+        const adminQuery = supabase
+          .from('admin_access')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .maybeSingle();
+        
+        const adminTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Admin access timeout')), timeoutDuration);
+        });
+        
+        const { data: adminAccessData } = await Promise.race([adminQuery, adminTimeoutPromise]) as any;
+        
+        if (adminAccessData) {
+          console.log('AuthOptimization: Admin access found:', adminAccessData);
+          result.adminAccess = {
+            employees: adminAccessData.employees || false,
+            payroll: adminAccessData.payroll || false,
+            leaveManagement: adminAccessData.leave_management || false,
+            claims: adminAccessData.claims || false,
+            attendance: adminAccessData.attendance || false,
+            slotBooking: adminAccessData.slot_booking || false,
+            reports: adminAccessData.reports || false
+          };
         }
-      }, 0);
+      } catch (adminError) {
+        console.warn('AuthOptimization: Admin access fetch failed:', adminError);
+        // Continue with default admin access (all false)
+      }
 
-      // Try to fetch page access asynchronously (non-blocking)  
-      setTimeout(async () => {
-        try {
-          console.log('AuthOptimization: Fetching page access (background)...');
-          const { data: pageAccessData } = await supabase
-            .from('employee_page_access')
-            .select('*')
-            .eq('employee_id', employee.id)
-            .maybeSingle();
-          
-          if (pageAccessData) {
-            console.log('AuthOptimization: Page access found (background):', pageAccessData);
-          }
-        } catch (error) {
-          console.warn('AuthOptimization: Background page access fetch failed:', error);
+      // Fetch page access with same timeout
+      try {
+        console.log('AuthOptimization: Fetching page access...');
+        const pageQuery = supabase
+          .from('employee_page_access')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .maybeSingle();
+        
+        const pageTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Page access timeout')), timeoutDuration);
+        });
+        
+        const { data: pageAccessData } = await Promise.race([pageQuery, pageTimeoutPromise]) as any;
+        
+        if (pageAccessData) {
+          console.log('AuthOptimization: Page access found:', pageAccessData);
+          result.pageAccess = {
+            profile: pageAccessData.profile !== false, // Default to true
+            applyLeave: pageAccessData.apply_leave || false,
+            submitClaim: pageAccessData.submit_claim !== false, // Default to true
+            payslips: pageAccessData.payslips || false,
+            myAttendance: pageAccessData.my_attendance !== false, // Default to true
+            slotBookingEmployee: pageAccessData.slot_booking_employee || false
+          };
         }
-      }, 0);
+      } catch (pageError) {
+        console.warn('AuthOptimization: Page access fetch failed:', pageError);
+        // Continue with default page access
+      }
 
       console.log('AuthOptimization: Employee processing completed successfully for:', employee.name);
       return result;
 
-    } catch (quickError) {
-      console.warn('AuthOptimization: Quick lookup failed, trying fallback approach:', quickError);
-      
-      // Fallback: Try with even simpler query
-      try {
-        console.log('AuthOptimization: Attempting fallback employee lookup...');
-        
-        const fallbackQuery = supabase
-          .from('employees')
-          .select('id, name, email, type')
-          .eq('email', normalizedEmail)
-          .limit(1);
-
-        const fallbackTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Fallback lookup timeout')), 15000); // 15 seconds
-        });
-        
-        const { data: employees, error: fallbackError } = await Promise.race([fallbackQuery, fallbackTimeoutPromise]) as any;
-
-        if (fallbackError) {
-          console.error('AuthOptimization: Fallback lookup failed:', fallbackError);
-          throw fallbackError;
-        }
-
-        const employee = employees?.[0];
-        if (!employee) {
-          console.log('AuthOptimization: No employee found in fallback lookup');
-          return null;
-        }
-
-        console.log('AuthOptimization: Fallback employee lookup successful:', employee.name);
-
-        // Return minimal employee data
-        return {
-          id: employee.id,
-          name: employee.name,
-          email: employee.email,
-          type: employee.type as 'Full-Time' | 'Casual',
-          department: '',
-          position: '',
-          adminAccess: {
-            employees: false,
-            payroll: false,
-            leaveManagement: false,
-            claims: false,
-            attendance: false,
-            slotBooking: false,
-            reports: false
-          },
-          pageAccess: {
-            profile: true,
-            applyLeave: true,
-            submitClaim: true,
-            payslips: true,
-            myAttendance: true,
-            slotBookingEmployee: true
-          }
-        };
-
-      } catch (fallbackError) {
-        console.error('AuthOptimization: Both quick and fallback lookups failed:', fallbackError);
-        throw new Error('Unable to verify employee record - database connection issues');
-      }
+    } catch (lookupError) {
+      console.error('AuthOptimization: Employee lookup failed completely:', lookupError);
+      throw new Error(`Unable to verify employee record - ${lookupError.message}`);
     }
     
   } catch (error) {
@@ -195,27 +169,31 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 };
 
-// Simplified superadmin check with quick timeout
+// Optimized superadmin check with role-specific timeout
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
-    const superadminQuery = supabase.rpc('is_superadmin', { 
-      user_email: email.toLowerCase() 
-    });
+    const superadminQuery = supabase
+      .from('superadmin_users')
+      .select('id, is_active')
+      .eq('employee_email', email.toLowerCase())
+      .eq('is_active', true)
+      .maybeSingle();
     
+    // Use 30 second timeout for superadmin check
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Superadmin check timeout')), 15000); // Reduced to 15 seconds
+      setTimeout(() => reject(new Error('Superadmin check timeout after 30 seconds')), 30000);
     });
     
-    const { data: isSuperadmin, error } = await Promise.race([superadminQuery, timeoutPromise]) as any;
+    const { data: superadminData, error } = await Promise.race([superadminQuery, timeoutPromise]) as any;
     
     if (error) {
       console.error('AuthOptimization: Error checking superadmin status:', error);
       return false;
     }
     
-    const superadminStatus = isSuperadmin || false;
+    const superadminStatus = !!superadminData;
     console.log('AuthOptimization: Superadmin status determined:', email, superadminStatus);
     return superadminStatus;
   } catch (error) {

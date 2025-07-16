@@ -1,3 +1,4 @@
+
 import bcrypt from 'bcryptjs';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -60,17 +61,17 @@ export const verifyPassword = async (password: string, hash: string, salt: strin
   return bcrypt.compare(password, hash);
 };
 
-// Check if user is superadmin - updated to use correct schema
+// Check if user is superadmin - directly from Supabase
 export const isSuperadmin = async (email: string): Promise<boolean> => {
   console.log('SecurityService: Checking superadmin status for:', email);
   
   try {
     const { data, error } = await supabase
       .from('superadmin_users')
-      .select('id')
-      .eq('employee_email', email)
+      .select('id, is_active')
+      .eq('employee_email', email.toLowerCase().trim())
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
       console.error('SecurityService: Error checking superadmin status:', error);
@@ -86,7 +87,7 @@ export const isSuperadmin = async (email: string): Promise<boolean> => {
   }
 };
 
-// Log security events
+// Log security events directly to Supabase
 export const logSecurityEvent = async (params: {
   user_email: string;
   action: string;
@@ -117,7 +118,7 @@ export const logSecurityEvent = async (params: {
   }
 };
 
-// Check password history to prevent reuse
+// Check password history from Supabase
 export const checkPasswordHistory = async (email: string, newPassword: string): Promise<boolean> => {
   console.log('SecurityService: Checking password history for:', email);
   
@@ -125,7 +126,7 @@ export const checkPasswordHistory = async (email: string, newPassword: string): 
     const { data, error } = await supabase
       .from('password_history')
       .select('password_hash, salt')
-      .eq('email', email)
+      .eq('email', email.toLowerCase().trim())
       .order('created_at', { ascending: false })
       .limit(5); // Check last 5 passwords
 
@@ -156,7 +157,7 @@ export const checkPasswordHistory = async (email: string, newPassword: string): 
   }
 };
 
-// Add password to history
+// Add password to history in Supabase
 export const addPasswordToHistory = async (email: string, passwordHash: string, salt: string): Promise<void> => {
   console.log('SecurityService: Adding password to history for:', email);
   
@@ -164,7 +165,7 @@ export const addPasswordToHistory = async (email: string, passwordHash: string, 
     const { error } = await supabase
       .from('password_history')
       .insert({
-        email,
+        email: email.toLowerCase().trim(),
         password_hash: passwordHash,
         salt
       });
@@ -179,7 +180,7 @@ export const addPasswordToHistory = async (email: string, passwordHash: string, 
   }
 };
 
-// Check failed login attempts and lock account if needed
+// Check failed login attempts from Supabase
 export const checkFailedLoginAttempts = async (email: string): Promise<boolean> => {
   console.log('SecurityService: Checking failed login attempts for:', email);
   
@@ -190,7 +191,7 @@ export const checkFailedLoginAttempts = async (email: string): Promise<boolean> 
     const { data, error } = await supabase
       .from('failed_login_attempts')
       .select('id')
-      .eq('email', email)
+      .eq('email', email.toLowerCase().trim())
       .gte('attempt_time', fifteenMinutesAgo.toISOString());
 
     if (error) {
@@ -213,7 +214,7 @@ export const checkFailedLoginAttempts = async (email: string): Promise<boolean> 
   }
 };
 
-// Log failed login attempt
+// Log failed login attempt to Supabase
 export const logFailedLoginAttempt = async (email: string, ipAddress?: string): Promise<void> => {
   console.log('SecurityService: Logging failed login attempt for:', email);
   
@@ -221,7 +222,7 @@ export const logFailedLoginAttempt = async (email: string, ipAddress?: string): 
     const { error } = await supabase
       .from('failed_login_attempts')
       .insert({
-        email,
+        email: email.toLowerCase().trim(),
         ip_address: ipAddress || null
       });
 
@@ -235,7 +236,7 @@ export const logFailedLoginAttempt = async (email: string, ipAddress?: string): 
   }
 };
 
-// Clear failed login attempts after successful login
+// Clear failed login attempts from Supabase
 export const clearFailedLoginAttempts = async (email: string): Promise<void> => {
   console.log('SecurityService: Clearing failed login attempts for:', email);
   
@@ -243,7 +244,7 @@ export const clearFailedLoginAttempts = async (email: string): Promise<void> => 
     const { error } = await supabase
       .from('failed_login_attempts')
       .delete()
-      .eq('email', email);
+      .eq('email', email.toLowerCase().trim());
 
     if (error) {
       console.error('SecurityService: Error clearing failed login attempts:', error);
@@ -255,7 +256,7 @@ export const clearFailedLoginAttempts = async (email: string): Promise<void> => 
   }
 };
 
-// Initialize superadmin user
+// Initialize superadmin user in Supabase
 export const initializeSuperadmin = async (): Promise<void> => {
   console.log('SecurityService: Initializing superadmin user...');
   
@@ -266,7 +267,7 @@ export const initializeSuperadmin = async (): Promise<void> => {
       .select('id')
       .eq('employee_email', 'alhk10@gmail.com')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     if (existingSuperadmin) {
       console.log('SecurityService: Superadmin already exists');
