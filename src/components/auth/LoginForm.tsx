@@ -23,7 +23,7 @@ const LoginForm = () => {
       const success = await login(email, password);
       if (!success) {
         // Check if this might be a case where email verification is needed
-        if (email && !error.includes('Invalid login credentials')) {
+        if (email) {
           setVerificationEmail(email);
           setShowEmailDialog(true);
         } else {
