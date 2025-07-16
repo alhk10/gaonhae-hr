@@ -27,6 +27,7 @@ import {
   updateClaimStatus
 } from '@/data/claimsData';
 import { getEmployeeById } from '@/services/employeeService';
+import AddClaimDialog from '@/components/claim/AddClaimDialog';
 
 interface Claim {
   id: number;
@@ -95,13 +96,13 @@ const Claims = () => {
         employeeName: employeeNames[index],
         type: claim.type,
         amount: claim.amount,
-        date: claim.submitted_date || claim.created_at || new Date().toISOString(),
-        submittedDate: claim.submitted_date || claim.created_at || new Date().toISOString(),
+        date: claim.date || new Date().toISOString(),
+        submittedDate: claim.date || new Date().toISOString(),
         status: claim.status as 'Pending' | 'Approved' | 'Rejected',
         description: claim.description,
         receipt_url: claim.receipt_url || undefined,
-        reviewed_by: claim.reviewed_by || undefined,
-        reviewed_date: claim.reviewed_date || undefined,
+        reviewed_by: undefined,
+        reviewed_date: undefined,
       }));
 
       setClaims(transformedClaims);
@@ -184,7 +185,7 @@ const Claims = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-md"
               />
-              <Button onClick={() => setIsAddDialogOpen(true)}>Add Claim</Button>
+              <AddClaimDialog onClaimAdded={handleClaimSuccess} />
             </div>
           </div>
 
@@ -261,31 +262,6 @@ const Claims = () => {
               )}
             </CardContent>
           </Card>
-
-          {/* Simple Add Claim Dialog */}
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Claim</DialogTitle>
-                <DialogDescription>
-                  Create a new claim for an employee
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  This is a placeholder for the claim form. The AddClaimDialog component needs to be implemented.
-                </p>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleClaimSuccess}>
-                    Add Claim
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </ResponsiveLayout>
     </AuthGuard>
