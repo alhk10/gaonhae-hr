@@ -166,11 +166,11 @@ export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | unde
 
 export const updateClockInOut = async (employeeId: string, type: 'in' | 'out'): Promise<void> => {
   // Verify location before allowing clock in/out
-  const locationCheck = await isWithinBranchRange(2000);
+  const locationCheck = await isWithinBranchRange(3000);
   
   if (!locationCheck.withinRange) {
     throw new Error(
-      `You must be within 2000m of a branch to clock ${type}. ` +
+      `You must be within 3000m of a branch to clock ${type}. ` +
       `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
     );
   }

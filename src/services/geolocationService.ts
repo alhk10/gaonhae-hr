@@ -120,7 +120,7 @@ const BRANCH_COORDINATES: { [key: string]: Coordinates } = {
 
 // Updated function to check location with admin override support
 export const isWithinBranchRange = async (
-  maxDistance: number = 2000,
+  maxDistance: number = 3000,
   employeeId?: string
 ): Promise<{ withinRange: boolean; nearestBranch?: string; distance?: number; hasException?: boolean }> => {
   try {

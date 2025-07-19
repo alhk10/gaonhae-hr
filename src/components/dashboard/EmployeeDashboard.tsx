@@ -74,14 +74,14 @@ const EmployeeDashboard = () => {
     
     try {
       console.log('Dashboard: Starting location check for user:', user.employeeId);
-      const locationCheck = await isWithinBranchRange(2000, user.employeeId);
+      const locationCheck = await isWithinBranchRange(3000, user.employeeId);
       console.log('Dashboard: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
       setNearestBranch(locationCheck.nearestBranch || '');
       
       if (!locationCheck.withinRange && !locationCheck.hasException) {
-        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 2000m to clock in.`);
+        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 3000m to clock in.`);
       } else if (locationCheck.hasException) {
         setLocationError('');
         console.log('Location exception active - clock in enabled');
@@ -275,10 +275,10 @@ const EmployeeDashboard = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(2000, user.employeeId);
+        const locationCheck = await isWithinBranchRange(3000, user.employeeId);
         if (!locationCheck.withinRange && !locationCheck.hasException) {
           toast.error(
-            `You must be within 2000m of a branch to clock in/out. ` +
+            `You must be within 3000m of a branch to clock in/out. ` +
             `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
           );
           setLocationError(`You are ${locationCheck.distance}m away from ${locationCheck.nearestBranch}`);
@@ -386,7 +386,6 @@ const EmployeeDashboard = () => {
         </h2>
       </div>
 
-      {/* Employee ID Missing Warning */}
       {!user?.employeeId && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
@@ -405,7 +404,6 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
-      {/* Location Warning */}
       {(!locationCheckPassed || locationError) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
@@ -417,7 +415,7 @@ const EmployeeDashboard = () => {
                     Location Access Required
                   </p>
                   <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    {locationError || 'You must be within 2000m of a branch and enable location to clock in.'}
+                    {locationError || 'You must be within 3000m of a branch and enable location to clock in.'}
                   </p>
                 </div>
               </div>
@@ -436,7 +434,6 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
-      {/* Casual Employee Slot Booking Warning */}
       {employeeData?.type === 'Casual' && !hasApprovedSlot && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
@@ -453,7 +450,6 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
-      {/* Personal Stats */}
       <div className={`grid gap-3 md:gap-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
         {personalStats.map((stat) => (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
