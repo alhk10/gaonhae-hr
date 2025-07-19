@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,23 +57,23 @@ const MyAttendance = () => {
     fetchEmployeeData();
     checkSlotBooking();
     checkLocationOnLoad();
-  }, [user?.id, monthFilter]);
+  }, [user?.employeeId, monthFilter]);
 
   useEffect(() => {
     // Check clock status after attendance data is loaded
     if (attendanceData.length >= 0) {
       checkClockStatus();
     }
-  }, [attendanceData, user?.id]);
+  }, [attendanceData, user?.employeeId]);
 
   const checkLocationOnLoad = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     setIsCheckingLocation(true);
     setLocationError('');
     
     try {
-      console.log('MyAttendance: Starting location check for user:', user.id);
+      console.log('MyAttendance: Starting location check for user:', user.employeeId);
       const locationCheck = await isWithinBranchRange(2000);
       console.log('MyAttendance: Location check result:', locationCheck);
       
@@ -97,10 +98,10 @@ const MyAttendance = () => {
   };
 
   const fetchEmployeeData = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
-      const employee = await getEmployeeById(user.id);
+      const employee = await getEmployeeById(user.employeeId);
       if (employee) {
         setEmployeeType(employee.type);
         console.log('Employee type:', employee.type);
@@ -111,14 +112,14 @@ const MyAttendance = () => {
   };
 
   const checkSlotBooking = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
       const today = new Date().toISOString().split('T')[0];
       const allSlotBookings = await getAllSlotBookings();
       
       const approvedSlot = allSlotBookings.some(booking => 
-        booking.employeeId === user.id && 
+        booking.employeeId === user.employeeId && 
         booking.date === today && 
         booking.status === 'approved'
       );
@@ -132,12 +133,14 @@ const MyAttendance = () => {
   };
 
   const fetchAttendanceData = async () => {
+    if (!user?.employeeId) return;
+    
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
-        .eq('employee_id', user?.id || 'EMP001')
+        .eq('employee_id', user.employeeId)
         .gte('date', `${monthFilter}-01`)
         .lt('date', `${getNextMonth(monthFilter)}-01`)
         .order('date', { ascending: false });
@@ -164,13 +167,13 @@ const MyAttendance = () => {
   };
 
   const checkClockStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
 
     const today = new Date().toISOString().split('T')[0];
     
     try {
       // Check clock status from Supabase
-      const supabaseStatus = await getClockInOutStatus(user.id);
+      const supabaseStatus = await getClockInOutStatus(user.employeeId);
       console.log('Supabase clock status:', supabaseStatus);
       
       // Check today's attendance record from database
@@ -219,8 +222,8 @@ const MyAttendance = () => {
   });
 
   const handleClockInOut = async () => {
-    if (!user?.id) {
-      toast.error("User authentication required");
+    if (!user?.employeeId) {
+      toast.error("Employee ID not found. Please contact administrator.");
       return;
     }
 
@@ -256,7 +259,7 @@ const MyAttendance = () => {
       const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
       const action = isCurrentlyClockedIn ? 'out' : 'in';
       
-      await updateClockInOut(user.id, action, nearestBranch);
+      await updateClockInOut(user.employeeId, action, nearestBranch);
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -323,13 +326,14 @@ const MyAttendance = () => {
               'bg-gray-400 cursor-not-allowed'
             }`}
             onClick={handleClockInOut}
-            disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn)}
+            disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn) || !user?.employeeId}
           >
             <Clock className="w-5 h-5 mr-3" />
             <div className="text-left">
               <p className="font-medium text-white">
                 {isClockingInOut ? 'Processing...' : 
                  isCheckingLocation ? 'Checking location...' :
+                 !user?.employeeId ? 'Employee ID Required' :
                  (isClockedIn ? 'Clock Out' : 'Clock In')}
               </p>
               <div className="text-sm text-white/80 flex items-center">
@@ -343,6 +347,8 @@ const MyAttendance = () => {
                       </>
                     )}
                   </>
+                ) : !user?.employeeId ? (
+                  'Contact administrator'
                 ) : !canClockIn ? (
                   !locationCheckPassed ? 'Location required' : 'Slot booking required'
                 ) : nearestBranch ? (
@@ -357,6 +363,25 @@ const MyAttendance = () => {
             </div>
           </Button>
         </div>
+
+        {/* Employee ID Missing Warning */}
+        {!user?.employeeId && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className={isMobile ? 'p-3' : 'p-4'}>
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <div>
+                  <p className={`font-medium text-red-800 ${isMobile ? 'text-sm' : ''}`}>
+                    Employee ID Missing
+                  </p>
+                  <p className={`text-red-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    Employee ID not found. Please contact administrator to set up your employee record.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Location Warning */}
         {(!locationCheckPassed || locationError) && (

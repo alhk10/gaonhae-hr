@@ -58,23 +58,23 @@ const EmployeeDashboard = () => {
     fetchEmployeeData();
     checkSlotBooking();
     checkLocationOnLoad();
-  }, [user?.id]);
+  }, [user?.employeeId]);
 
   useEffect(() => {
     if (attendanceData.length >= 0) {
       checkClockStatus();
     }
-  }, [attendanceData, user?.id]);
+  }, [attendanceData, user?.employeeId]);
 
   const checkLocationOnLoad = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     setIsCheckingLocation(true);
     setLocationError('');
     
     try {
-      console.log('Dashboard: Starting location check for user:', user.id);
-      const locationCheck = await isWithinBranchRange(2000, user.id);
+      console.log('Dashboard: Starting location check for user:', user.employeeId);
+      const locationCheck = await isWithinBranchRange(2000, user.employeeId);
       console.log('Dashboard: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
@@ -101,13 +101,13 @@ const EmployeeDashboard = () => {
   };
 
   const fetchAttendanceData = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
-        .eq('employee_id', user.id)
+        .eq('employee_id', user.employeeId)
         .order('date', { ascending: false });
 
       if (error) {
@@ -121,12 +121,12 @@ const EmployeeDashboard = () => {
   };
 
   const checkClockStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
 
     const today = new Date().toISOString().split('T')[0];
     
     try {
-      const supabaseStatus = await getClockInOutStatus(user.id);
+      const supabaseStatus = await getClockInOutStatus(user.employeeId);
       console.log('Dashboard: Supabase clock status:', supabaseStatus);
       
       const todayRecord = attendanceData.find(record => record.date === today);
@@ -165,17 +165,17 @@ const EmployeeDashboard = () => {
   };
 
   const fetchEmployeeData = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
-      const employee = await getEmployeeById(user.id);
+      const employee = await getEmployeeById(user.employeeId);
       if (employee) {
         setEmployeeData(employee);
         console.log('Dashboard: Employee type:', employee.type);
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
-      const localEmployee = getLocalEmployeeById(user.id);
+      const localEmployee = getLocalEmployeeById(user.employeeId);
       if (localEmployee) {
         setEmployeeData(localEmployee);
       }
@@ -183,14 +183,14 @@ const EmployeeDashboard = () => {
   };
 
   const checkSlotBooking = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
       const today = new Date().toISOString().split('T')[0];
-      const allSlotBookings = await getEmployeeSlotBookings(user.id);
+      const allSlotBookings = await getEmployeeSlotBookings(user.employeeId);
       
       const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
-        booking.employeeId === user.id && 
+        booking.employeeId === user.employeeId && 
         booking.date === today && 
         booking.status === 'approved'
       );
@@ -204,9 +204,9 @@ const EmployeeDashboard = () => {
   };
 
   const { data: employeeClaims = [], error: claimsError } = useQuery({
-    queryKey: ['employee-claims', user?.id],
-    queryFn: () => getEmployeeClaims(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['employee-claims', user?.employeeId],
+    queryFn: () => getEmployeeClaims(user?.employeeId || ''),
+    enabled: !!user?.employeeId,
     retry: 3,
     staleTime: 5 * 60 * 1000,
   });
@@ -217,11 +217,11 @@ const EmployeeDashboard = () => {
   });
 
   const calculateLeaveBalance = () => {
-    if (!user?.id || employeeData?.type === 'Casual') return { remaining: 0 };
+    if (!user?.employeeId || employeeData?.type === 'Casual') return { remaining: 0 };
     
     const currentYear = new Date().getFullYear();
     const employeeLeaves = allLeaveRequests.filter(leave => 
-      leave.employeeId === user.id && 
+      leave.employeeId === user.employeeId && 
       new Date(leave.startDate).getFullYear() === currentYear && 
       leave.status === 'Approved'
     );
@@ -266,8 +266,8 @@ const EmployeeDashboard = () => {
   ];
 
   const handleClockInOut = async () => {
-    if (!user?.id) {
-      toast.error("User authentication required");
+    if (!user?.employeeId) {
+      toast.error("Employee ID not found. Please contact administrator.");
       return;
     }
 
@@ -275,7 +275,7 @@ const EmployeeDashboard = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(2000, user.id);
+        const locationCheck = await isWithinBranchRange(2000, user.employeeId);
         if (!locationCheck.withinRange && !locationCheck.hasException) {
           toast.error(
             `You must be within 2000m of a branch to clock in/out. ` +
@@ -307,7 +307,7 @@ const EmployeeDashboard = () => {
       const isCurrentlyClockedIn = clockStatus?.status === 'clocked-in';
       const action = isCurrentlyClockedIn ? 'out' : 'in';
       
-      await updateClockInOut(user.id, action, nearestBranch);
+      await updateClockInOut(user.employeeId, action, nearestBranch);
       
       const currentTime = new Date().toLocaleTimeString('en-SG', { 
         hour12: false,
@@ -385,6 +385,25 @@ const EmployeeDashboard = () => {
           Welcome back, {isMobile ? displayName.split(' ')[0] : displayName}
         </h2>
       </div>
+
+      {/* Employee ID Missing Warning */}
+      {!user?.employeeId && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
+            <div className="flex items-center space-x-3">
+              <AlertCircle className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+              <div>
+                <p className={`font-medium text-red-800 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                  Employee ID Missing
+                </p>
+                <p className={`text-red-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                  Employee ID not found. Please contact administrator to set up your employee record.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Location Warning */}
       {(!locationCheckPassed || locationError) && (
@@ -467,13 +486,14 @@ const EmployeeDashboard = () => {
                   'bg-gray-400 cursor-not-allowed'
                 }`}
                 onClick={handleClockInOut}
-                disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn)}
+                disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn) || !user?.employeeId}
               >
                 <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left flex-1">
                   <p className={`font-medium text-white ${isMobile ? 'text-sm' : ''}`}>
                     {isClockingInOut ? 'Processing...' : 
                      isCheckingLocation ? 'Checking location...' :
+                     !user?.employeeId ? 'Employee ID Required' :
                      (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </p>
                   <div className={`text-white/80 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
@@ -487,6 +507,8 @@ const EmployeeDashboard = () => {
                           </>
                         )}
                       </>
+                    ) : !user?.employeeId ? (
+                      'Contact administrator'
                     ) : !canClockIn ? (
                       !locationCheckPassed ? 'Location required' : 'Slot booking required'
                     ) : nearestBranch ? (

@@ -54,11 +54,11 @@ const SlotBooking = () => {
   }, []);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.employeeId) {
       loadEmployeeBookings();
       verifyCurrentEmployee();
     }
-  }, [user?.id]);
+  }, [user?.employeeId]);
 
   useEffect(() => {
     if (selectedBranch && branches.length > 0) {
@@ -95,15 +95,19 @@ const SlotBooking = () => {
   };
 
   const verifyCurrentEmployee = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) {
+      console.error('SlotBooking: No employeeId found for user:', user);
+      setEmployeeVerified(false);
+      return;
+    }
     
     try {
-      console.log('SlotBooking: Verifying current employee:', user.id);
-      const verification = await verifyEmployeeExists(user.id);
+      console.log('SlotBooking: Verifying current employee:', user.employeeId);
+      const verification = await verifyEmployeeExists(user.employeeId);
       setEmployeeVerified(verification.exists);
       
       if (!verification.exists) {
-        console.error('SlotBooking: Current user not found in employees table:', user.id);
+        console.error('SlotBooking: Current user not found in employees table:', user.employeeId);
         toast.error('Your employee record was not found. Please contact administrator.');
       } else {
         console.log('SlotBooking: Employee verified successfully:', verification.employeeName);
@@ -115,11 +119,11 @@ const SlotBooking = () => {
   };
 
   const loadEmployeeBookings = async () => {
-    if (!user?.id) return;
+    if (!user?.employeeId) return;
     
     try {
-      console.log('SlotBooking: Loading employee bookings for:', user.id);
-      const bookings = await getEmployeeSlotBookings(user.id);
+      console.log('SlotBooking: Loading employee bookings for:', user.employeeId);
+      const bookings = await getEmployeeSlotBookings(user.employeeId);
       setEmployeeBookings(bookings);
       
       const employeeDates = new Set<string>(
@@ -220,6 +224,11 @@ const SlotBooking = () => {
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     
+    if (!user?.employeeId) {
+      toast.error('Employee ID not found. Please contact administrator.');
+      return;
+    }
+    
     if (employeeVerified === false) {
       toast.error('Your employee record was not found. Please contact administrator before booking slots.');
       return;
@@ -255,18 +264,16 @@ const SlotBooking = () => {
       return;
     }
     
-    if (user?.id) {
-      try {
-        const hasExistingBooking = await checkForExistingBooking(user.id, dateString);
-        if (hasExistingBooking) {
-          toast.error("You already have a booking on this date. Double bookings are not allowed.");
-          return;
-        }
-      } catch (error) {
-        console.error('SlotBooking: Error checking existing booking:', error);
-        toast.error("Error checking booking availability");
+    try {
+      const hasExistingBooking = await checkForExistingBooking(user.employeeId, dateString);
+      if (hasExistingBooking) {
+        toast.error("You already have a booking on this date. Double bookings are not allowed.");
         return;
       }
+    } catch (error) {
+      console.error('SlotBooking: Error checking existing booking:', error);
+      toast.error("Error checking booking availability");
+      return;
     }
 
     setSelectedDates(prevDates => {
@@ -305,6 +312,11 @@ const SlotBooking = () => {
       return;
     }
 
+    if (!user.employeeId) {
+      toast.error('Employee ID not found. Please contact administrator.');
+      return;
+    }
+
     if (employeeVerified === false) {
       toast.error('Your employee record was not found. Please contact administrator before booking slots.');
       return;
@@ -320,7 +332,7 @@ const SlotBooking = () => {
         console.log('SlotBooking: Booking slot for date:', dateStr);
         
         return addSlotBooking({
-          employeeId: user.id,
+          employeeId: user.employeeId,
           employeeName: user.name,
           branchId: selectedBranch,
           branchName: currentBranch.name,
@@ -382,6 +394,14 @@ const SlotBooking = () => {
                 <AlertCircle className="w-4 h-4" />
                 <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>
                   Employee record not found. Contact administrator.
+                </p>
+              </div>
+            )}
+            {!user?.employeeId && (
+              <div className="flex items-center space-x-2 mt-2 text-red-600">
+                <AlertCircle className="w-4 h-4" />
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>
+                  Employee ID not found. Please contact administrator.
                 </p>
               </div>
             )}
