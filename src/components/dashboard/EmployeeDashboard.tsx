@@ -74,14 +74,14 @@ const EmployeeDashboard = () => {
     
     try {
       console.log('Dashboard: Starting location check for user:', user.id);
-      const locationCheck = await isWithinBranchRange(1500, user.id);
+      const locationCheck = await isWithinBranchRange(2000, user.id);
       console.log('Dashboard: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
       setNearestBranch(locationCheck.nearestBranch || '');
       
       if (!locationCheck.withinRange && !locationCheck.hasException) {
-        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 1500m to clock in.`);
+        setLocationError(`You are ${locationCheck.distance}m away from the nearest branch (${locationCheck.nearestBranch}). You must be within 2000m to clock in.`);
       } else if (locationCheck.hasException) {
         setLocationError('');
         console.log('Location exception active - clock in enabled');
@@ -275,10 +275,10 @@ const EmployeeDashboard = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(1500, user.id);
+        const locationCheck = await isWithinBranchRange(2000, user.id);
         if (!locationCheck.withinRange && !locationCheck.hasException) {
           toast.error(
-            `You must be within 1500m of a branch to clock in/out. ` +
+            `You must be within 2000m of a branch to clock in/out. ` +
             `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
           );
           setLocationError(`You are ${locationCheck.distance}m away from ${locationCheck.nearestBranch}`);
@@ -398,7 +398,7 @@ const EmployeeDashboard = () => {
                     Location Access Required
                   </p>
                   <p className={`text-orange-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    {locationError || 'You must be within 1500m of a branch and enable location to clock in.'}
+                    {locationError || 'You must be within 2000m of a branch and enable location to clock in.'}
                   </p>
                 </div>
               </div>
