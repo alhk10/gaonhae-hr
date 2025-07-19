@@ -1,3 +1,4 @@
+
 import { isWithinBranchRange } from '@/services/geolocationService';
 
 export interface AttendanceRecord {
@@ -165,11 +166,11 @@ export const getClockInOutStatus = (employeeId: string): ClockInOutRecord | unde
 
 export const updateClockInOut = async (employeeId: string, type: 'in' | 'out'): Promise<void> => {
   // Verify location before allowing clock in/out
-  const locationCheck = await isWithinBranchRange(100);
+  const locationCheck = await isWithinBranchRange(1500);
   
   if (!locationCheck.withinRange) {
     throw new Error(
-      `You must be within 100m of a branch to clock ${type}. ` +
+      `You must be within 1500m of a branch to clock ${type}. ` +
       `Nearest branch: ${locationCheck.nearestBranch} (${locationCheck.distance}m away)`
     );
   }
