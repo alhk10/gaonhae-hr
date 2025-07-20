@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { PayrollProvider } from './contexts/PayrollContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
+import AuthGuard from './components/auth/AuthGuard';
+import PageAccessGuard from './components/auth/PageAccessGuard';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
 import EmployeeDetails from './pages/EmployeeDetails';
@@ -36,25 +38,194 @@ function App() {
           <PayrollProvider>
             <div className="min-h-screen bg-background">
               <Routes>
+                {/* Public route - Login page */}
                 <Route path="/" element={<Index />} />
-                <Route path="/employees" element={<Employees />} />
-                <Route path="/employees/:id" element={<EmployeeDetails />} />
-                <Route path="/payroll" element={<Payroll />} />
-                <Route path="/payroll-processing" element={<PayrollProcessing />} />
-                <Route path="/payment-summary" element={<PaymentSummary />} />
-                <Route path="/increment-planning" element={<IncrementPlanning />} />
-                <Route path="/leave-management" element={<LeaveManagement />} />
-                <Route path="/apply-leave" element={<ApplyLeave />} />
-                <Route path="/claims" element={<Claims />} />
-                <Route path="/submit-claim" element={<SubmitClaim />} />
-                <Route path="/attendance" element={<Attendance />} />
-                <Route path="/my-attendance" element={<MyAttendance />} />
-                <Route path="/casual-employees" element={<CasualEmployees />} />
-                <Route path="/admin-slot-booking" element={<AdminSlotBooking />} />
-                <Route path="/slot-booking" element={<SlotBooking />} />
-                <Route path="/payslips" element={<Payslips />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
+                
+                {/* Protected Employee Routes */}
+                <Route 
+                  path="/profile" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="profile">
+                        <Profile />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/apply-leave" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="applyLeave">
+                        <ApplyLeave />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/submit-claim" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="submitClaim">
+                        <SubmitClaim />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/payslips" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="payslips">
+                        <Payslips />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/my-attendance" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="myAttendance">
+                        <MyAttendance />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/slot-booking" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="slotBookingEmployee">
+                        <SlotBooking />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+
+                {/* Protected Admin/Manager Routes */}
+                <Route 
+                  path="/employees" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="employees">
+                        <Employees />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/employees/:id" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="employees">
+                        <EmployeeDetails />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/payroll" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="payroll">
+                        <Payroll />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/payroll-processing" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="payroll">
+                        <PayrollProcessing />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/payment-summary" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="payroll">
+                        <PaymentSummary />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/leave-management" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="leaveManagement">
+                        <LeaveManagement />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/claims" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="claims">
+                        <Claims />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/attendance" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="attendance">
+                        <Attendance />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/admin-slot-booking" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="slotBooking">
+                        <AdminSlotBooking />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                
+                {/* Protected Routes with Additional Restrictions */}
+                <Route 
+                  path="/increment-planning" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="payroll">
+                        <IncrementPlanning />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/casual-employees" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="employees">
+                        <CasualEmployees />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/settings" 
+                  element={
+                    <AuthGuard>
+                      <Settings />
+                    </AuthGuard>
+                  } 
+                />
+                
+                {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <Toaster />
