@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -25,6 +24,7 @@ const EmployeeDetails = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [isEditing, setIsEditing] = useState(false);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
@@ -45,6 +45,16 @@ const EmployeeDetails = () => {
     myAttendance: true,
     slotBookingEmployee: true
   });
+
+  // Check for edit parameter on load
+  useEffect(() => {
+    const editParam = searchParams.get('edit');
+    if (editParam === 'true') {
+      setIsEditing(true);
+      // Remove the edit parameter from URL after setting state
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ['employee', id],

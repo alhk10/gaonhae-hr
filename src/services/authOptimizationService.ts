@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Optimized service for authentication-specific data loading with role-based timeouts
+// Optimized service for authentication-specific data loading with reduced timeouts
 export const getCurrentUserEmployee = async (email: string) => {
   console.log('AuthOptimization: Starting getCurrentUserEmployee for:', email);
   
@@ -9,16 +9,16 @@ export const getCurrentUserEmployee = async (email: string) => {
     const normalizedEmail = email.toLowerCase().trim();
     console.log('AuthOptimization: Normalized email:', normalizedEmail);
     
-    // Check if user is superadmin first to determine timeout
+    // Check if user is superadmin first with reduced timeout
     const isSuperadmin = await checkSuperadminStatusCached(normalizedEmail);
     console.log('AuthOptimization: Is superadmin:', isSuperadmin);
     
-    // Set timeout based on user role - superadmin gets 300s, others get 60s
-    const timeoutDuration = isSuperadmin ? 300000 : 60000; // 300s or 60s in milliseconds
+    // Set timeout based on user role - reduced to 10s for superadmin, 8s for others
+    const timeoutDuration = isSuperadmin ? 10000 : 8000; // 10s or 8s in milliseconds
     console.log('AuthOptimization: Using timeout duration:', timeoutDuration / 1000, 'seconds');
     
     try {
-      console.log('AuthOptimization: Attempting employee lookup with role-based timeout...');
+      console.log('AuthOptimization: Attempting employee lookup with optimized timeout...');
       
       const employeeQuery = supabase
         .from('employees')
@@ -83,66 +83,62 @@ export const getCurrentUserEmployee = async (email: string) => {
         }
       };
 
-      // Fetch admin access with same timeout
+      // Fetch admin access with optimized timeout and retry logic
       try {
         console.log('AuthOptimization: Fetching admin access...');
-        const adminQuery = supabase
-          .from('admin_access')
-          .select('*')
-          .eq('employee_id', employee.id)
-          .maybeSingle();
+        const adminData = await fetchWithRetry(
+          () => supabase
+            .from('admin_access')
+            .select('*')
+            .eq('employee_id', employee.id)
+            .maybeSingle(),
+          5000, // 5 second timeout
+          2 // 2 retries
+        );
         
-        const adminTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Admin access timeout')), timeoutDuration);
-        });
-        
-        const { data: adminAccessData } = await Promise.race([adminQuery, adminTimeoutPromise]) as any;
-        
-        if (adminAccessData) {
-          console.log('AuthOptimization: Admin access found:', adminAccessData);
+        if (adminData?.data) {
+          console.log('AuthOptimization: Admin access found:', adminData.data);
           result.adminAccess = {
-            employees: adminAccessData.employees || false,
-            payroll: adminAccessData.payroll || false,
-            leaveManagement: adminAccessData.leave_management || false,
-            claims: adminAccessData.claims || false,
-            attendance: adminAccessData.attendance || false,
-            slotBooking: adminAccessData.slot_booking || false,
-            reports: adminAccessData.reports || false
+            employees: adminData.data.employees || false,
+            payroll: adminData.data.payroll || false,
+            leaveManagement: adminData.data.leave_management || false,
+            claims: adminData.data.claims || false,
+            attendance: adminData.data.attendance || false,
+            slotBooking: adminData.data.slot_booking || false,
+            reports: adminData.data.reports || false
           };
         }
       } catch (adminError) {
-        console.warn('AuthOptimization: Admin access fetch failed:', adminError);
+        console.warn('AuthOptimization: Admin access fetch failed, using defaults:', adminError);
         // Continue with default admin access (all false)
       }
 
-      // Fetch page access with same timeout
+      // Fetch page access with optimized timeout and retry logic
       try {
         console.log('AuthOptimization: Fetching page access...');
-        const pageQuery = supabase
-          .from('employee_page_access')
-          .select('*')
-          .eq('employee_id', employee.id)
-          .maybeSingle();
+        const pageData = await fetchWithRetry(
+          () => supabase
+            .from('employee_page_access')
+            .select('*')
+            .eq('employee_id', employee.id)
+            .maybeSingle(),
+          5000, // 5 second timeout
+          2 // 2 retries
+        );
         
-        const pageTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Page access timeout')), timeoutDuration);
-        });
-        
-        const { data: pageAccessData } = await Promise.race([pageQuery, pageTimeoutPromise]) as any;
-        
-        if (pageAccessData) {
-          console.log('AuthOptimization: Page access found:', pageAccessData);
+        if (pageData?.data) {
+          console.log('AuthOptimization: Page access found:', pageData.data);
           result.pageAccess = {
-            profile: pageAccessData.profile !== false, // Default to true
-            applyLeave: pageAccessData.apply_leave || false,
-            submitClaim: pageAccessData.submit_claim !== false, // Default to true
-            payslips: pageAccessData.payslips || false,
-            myAttendance: pageAccessData.my_attendance !== false, // Default to true
-            slotBookingEmployee: pageAccessData.slot_booking_employee || false
+            profile: pageData.data.profile !== false, // Default to true
+            applyLeave: pageData.data.apply_leave || false,
+            submitClaim: pageData.data.submit_claim !== false, // Default to true
+            payslips: pageData.data.payslips || false,
+            myAttendance: pageData.data.my_attendance !== false, // Default to true
+            slotBookingEmployee: pageData.data.slot_booking_employee || false
           };
         }
       } catch (pageError) {
-        console.warn('AuthOptimization: Page access fetch failed:', pageError);
+        console.warn('AuthOptimization: Page access fetch failed, using defaults:', pageError);
         // Continue with default page access
       }
 
@@ -169,6 +165,28 @@ export const getCurrentUserEmployee = async (email: string) => {
   }
 };
 
+// Helper function to fetch with retry logic and timeout
+const fetchWithRetry = async (queryFn: () => any, timeout: number, retries: number) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Query timeout after ${timeout / 1000} seconds`)), timeout);
+      });
+      
+      return await Promise.race([queryFn(), timeoutPromise]);
+    } catch (error) {
+      console.warn(`AuthOptimization: Fetch attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === retries) {
+        throw error;
+      }
+      
+      // Exponential backoff: wait 1s, then 2s before retry
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+};
+
 // Add missing exports that are expected by the AuthContext
 export const getUserData = async (email: string) => {
   return getCurrentUserEmployee(email);
@@ -176,21 +194,25 @@ export const getUserData = async (email: string) => {
 
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
-    const { data: adminAccessData } = await supabase
-      .from('admin_access')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
+    const data = await fetchWithRetry(
+      () => supabase
+        .from('admin_access')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .maybeSingle(),
+      5000,
+      2
+    );
     
-    if (adminAccessData) {
+    if (data?.data) {
       return {
-        employees: adminAccessData.employees || false,
-        payroll: adminAccessData.payroll || false,
-        leaveManagement: adminAccessData.leave_management || false,
-        claims: adminAccessData.claims || false,
-        attendance: adminAccessData.attendance || false,
-        slotBooking: adminAccessData.slot_booking || false,
-        reports: adminAccessData.reports || false
+        employees: data.data.employees || false,
+        payroll: data.data.payroll || false,
+        leaveManagement: data.data.leave_management || false,
+        claims: data.data.claims || false,
+        attendance: data.data.attendance || false,
+        slotBooking: data.data.slot_booking || false,
+        reports: data.data.reports || false
       };
     }
     
@@ -203,20 +225,24 @@ export const getUserAdminAccess = async (employeeId: string) => {
 
 export const getUserPageAccess = async (employeeId: string) => {
   try {
-    const { data: pageAccessData } = await supabase
-      .from('employee_page_access')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
+    const data = await fetchWithRetry(
+      () => supabase
+        .from('employee_page_access')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .maybeSingle(),
+      5000,
+      2
+    );
     
-    if (pageAccessData) {
+    if (data?.data) {
       return {
-        profile: pageAccessData.profile !== false,
-        applyLeave: pageAccessData.apply_leave || false,
-        submitClaim: pageAccessData.submit_claim !== false,
-        payslips: pageAccessData.payslips || false,
-        myAttendance: pageAccessData.my_attendance !== false,
-        slotBookingEmployee: pageAccessData.slot_booking_employee || false
+        profile: data.data.profile !== false,
+        applyLeave: data.data.apply_leave || false,
+        submitClaim: data.data.submit_claim !== false,
+        payslips: data.data.payslips || false,
+        myAttendance: data.data.my_attendance !== false,
+        slotBookingEmployee: data.data.slot_booking_employee || false
       };
     }
     
@@ -231,31 +257,23 @@ export const checkSuperadminStatus = async (email: string): Promise<boolean> => 
   return checkSuperadminStatusCached(email);
 };
 
-// Optimized superadmin check with role-specific timeout
+// Optimized superadmin check with reduced timeout and retry
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
-    const superadminQuery = supabase
-      .from('superadmin_users')
-      .select('id, is_active')
-      .eq('employee_email', email.toLowerCase())
-      .eq('is_active', true)
-      .maybeSingle();
+    const data = await fetchWithRetry(
+      () => supabase
+        .from('superadmin_users')
+        .select('id, is_active')
+        .eq('employee_email', email.toLowerCase())
+        .eq('is_active', true)
+        .maybeSingle(),
+      5000, // Reduced to 5 seconds
+      2 // 2 retries
+    );
     
-    // Use 30 second timeout for superadmin check
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Superadmin check timeout after 30 seconds')), 30000);
-    });
-    
-    const { data: superadminData, error } = await Promise.race([superadminQuery, timeoutPromise]) as any;
-    
-    if (error) {
-      console.error('AuthOptimization: Error checking superadmin status:', error);
-      return false;
-    }
-    
-    const superadminStatus = !!superadminData;
+    const superadminStatus = !!data?.data;
     console.log('AuthOptimization: Superadmin status determined:', email, superadminStatus);
     return superadminStatus;
   } catch (error) {

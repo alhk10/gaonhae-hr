@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -317,7 +318,7 @@ const Employees = () => {
           <EmployeeListView
             employees={filteredEmployees}
             onView={(id) => navigate(`/employees/${id}`)}
-            onEdit={(id) => navigate(`/employees/${id}/edit`)}
+            onEdit={(id) => navigate(`/employees/${id}?edit=true`)}
             onResetPassword={handleResetPassword}
             onDelete={handleDeleteEmployee}
             onToggleStatus={handleToggleStatus}
