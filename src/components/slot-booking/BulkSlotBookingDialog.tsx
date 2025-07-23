@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/sonner';
-import { Calendar, Users, MapPin } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertTriangle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
   getBranches, 
@@ -18,7 +19,8 @@ import {
   type Branch,
   type WeeklySlotConfig
 } from '@/services/slotBookingService';
-import { getEmployees } from '@/services/employeeService';
+import { getCachedCasualEmployeesForBooking } from '@/services/employeeOptimizationService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BulkSlotBookingDialogProps {
   isOpen: boolean;
@@ -31,7 +33,6 @@ interface EmployeeData {
   id: string;
   name: string;
   type: string;
-  department?: string;
 }
 
 const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
@@ -40,6 +41,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   selectedDate,
   onSuccess
 }) => {
+  const { userRole, adminAccess } = useAuth();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
@@ -48,6 +50,11 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const [availableSlots, setAvailableSlots] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [overrideSlotLimit, setOverrideSlotLimit] = useState(false);
+
+  // Check if user can override slot limits
+  const canOverrideSlots = userRole === 'superadmin' || 
+                          (userRole === 'admin' && adminAccess?.slot_booking);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,27 +73,26 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       setLoadingEmployees(true);
       console.log('BulkSlotBookingDialog: Loading initial data...');
       
-      const [employeeData, branchesData, configData] = await Promise.all([
-        getEmployees(),
+      const [branchesData, configData] = await Promise.all([
         getBranches(),
         getWeeklySlotConfig()
       ]);
       
-      console.log('BulkSlotBookingDialog: Loaded employees:', employeeData);
       console.log('BulkSlotBookingDialog: Loaded branches:', branchesData);
       console.log('BulkSlotBookingDialog: Loaded config:', configData);
       
-      const casualEmployees = employeeData.filter(emp => 
-        emp.type?.toLowerCase() === 'casual'
-      );
-      console.log('BulkSlotBookingDialog: Filtered casual employees:', casualEmployees);
-      
-      setEmployees(casualEmployees);
       setBranches(branchesData);
       setWeeklyConfig(configData);
+
+      // Load employees with optimized service
+      console.log('BulkSlotBookingDialog: Loading casual employees...');
+      const employeeData = await getCachedCasualEmployeesForBooking();
+      console.log('BulkSlotBookingDialog: Loaded employees:', employeeData);
+      
+      setEmployees(employeeData);
     } catch (error) {
       console.error('BulkSlotBookingDialog: Error loading initial data:', error);
-      toast.error('Error loading data');
+      toast.error('Error loading data. Please try again.');
     } finally {
       setLoadingEmployees(false);
     }
@@ -126,9 +132,18 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       return;
     }
 
-    if (selectedEmployees.length > availableSlots) {
+    // Check slot limits unless override is enabled
+    if (!overrideSlotLimit && selectedEmployees.length > availableSlots) {
       toast.error(`Only ${availableSlots} slots available for this date at the selected branch`);
       return;
+    }
+
+    // Show warning if overriding slot limits
+    if (overrideSlotLimit && selectedEmployees.length > availableSlots) {
+      const proceed = window.confirm(
+        `You are about to create ${selectedEmployees.length} bookings but only ${availableSlots} slots are available. This will result in overbooking. Do you want to proceed?`
+      );
+      if (!proceed) return;
     }
 
     try {
@@ -141,19 +156,27 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       // Use addAdminSlotBooking for auto-approved bookings
       const bookingPromises = selectedEmployees.map(employeeId => {
         const employee = employees.find(emp => emp.id === employeeId);
+        const notes = overrideSlotLimit && selectedEmployees.length > availableSlots
+          ? `Bulk booking created by Admin - Slot limit override applied (${selectedEmployees.length} bookings, ${availableSlots} slots available)`
+          : 'Bulk booking created by Admin';
+          
         return addAdminSlotBooking({
           employeeId,
           employeeName: employee?.name || 'Unknown',
           branchId: selectedBranch,
           branchName: branch?.name || 'Unknown Branch',
           date: dateStr,
-          notes: 'Bulk booking created by Admin'
+          notes
         });
       });
 
       await Promise.all(bookingPromises);
 
-      toast.success(`Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`);
+      const successMessage = overrideSlotLimit && selectedEmployees.length > availableSlots
+        ? `Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')} (slot limit overridden)`
+        : `Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`;
+
+      toast.success(successMessage);
       
       if (onSuccess) {
         onSuccess();
@@ -161,9 +184,10 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       
       onClose();
       setSelectedEmployees([]);
+      setOverrideSlotLimit(false);
     } catch (error) {
       console.error('BulkSlotBookingDialog: Error creating bulk bookings:', error);
-      toast.error('Error creating bulk bookings');
+      toast.error('Error creating bulk bookings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -173,13 +197,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
   const totalSlotsForDay = weeklyConfig[selectedBranch]?.[dayName] || 0;
 
-  console.log('BulkSlotBookingDialog: Current state:', {
-    branchId: selectedBranch,
-    dayName,
-    totalSlotsForDay,
-    availableSlots,
-    selectedEmployeesCount: selectedEmployees.length
-  });
+  const isOverbooking = selectedEmployees.length > availableSlots;
+  const canProceed = selectedEmployees.length > 0 && (overrideSlotLimit || !isOverbooking);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -239,6 +258,24 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             </div>
           )}
 
+          {canOverrideSlots && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <h4 className="font-medium text-blue-900">Admin Override</h4>
+                    <p className="text-sm text-blue-700">Allow booking beyond available slots</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={overrideSlotLimit}
+                  onCheckedChange={setOverrideSlotLimit}
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-4">
               <Label className="text-base font-medium">Select Employees ({selectedEmployees.length} selected)</Label>
@@ -288,15 +325,30 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             )}
           </div>
 
-          {selectedEmployees.length > availableSlots && (
+          {!overrideSlotLimit && isOverbooking && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-700">
-                Warning: You have selected {selectedEmployees.length} employees, but only {availableSlots} slots are available.
-              </p>
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+                <p className="text-sm text-red-700">
+                  Warning: You have selected {selectedEmployees.length} employees, but only {availableSlots} slots are available.
+                  {canOverrideSlots && ' Enable "Admin Override" to proceed anyway.'}
+                </p>
+              </div>
             </div>
           )}
 
-          {selectedEmployees.length > 0 && selectedEmployees.length <= availableSlots && (
+          {overrideSlotLimit && isOverbooking && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-orange-600" />
+                <p className="text-sm text-orange-700">
+                  ⚠️ Override enabled: Creating {selectedEmployees.length} bookings with only {availableSlots} slots available will result in overbooking.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {canProceed && !isOverbooking && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
                 ✓ All {selectedEmployees.length} bookings will be automatically approved as admin bookings.
@@ -311,9 +363,14 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || selectedEmployees.length === 0 || selectedEmployees.length > availableSlots}
+            disabled={loading || !canProceed}
+            className={overrideSlotLimit && isOverbooking ? "bg-orange-600 hover:bg-orange-700" : ""}
           >
-            {loading ? 'Creating...' : `Create ${selectedEmployees.length} Auto-Approved Bookings`}
+            {loading ? 'Creating...' : 
+              overrideSlotLimit && isOverbooking ? 
+                `Override & Create ${selectedEmployees.length} Bookings` :
+                `Create ${selectedEmployees.length} Auto-Approved Bookings`
+            }
           </Button>
         </div>
       </DialogContent>

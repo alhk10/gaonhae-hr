@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users } from 'lucide-react';
-import { getEmployees } from '@/services/employeeService';
+import { getCachedCasualEmployeesForBooking } from '@/services/employeeOptimizationService';
 import { addLeaveRequest } from '@/services/leaveService';
 import { format } from 'date-fns';
 
@@ -17,16 +17,23 @@ interface BulkLeaveDialogProps {
   onSuccess: () => void;
 }
 
+interface EmployeeData {
+  id: string;
+  name: string;
+  type: string;
+}
+
 const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
   isOpen,
   onClose,
   selectedDate,
   onSuccess
 }) => {
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<EmployeeData[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [leaveType, setLeaveType] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,11 +43,19 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
 
   const loadEmployees = async () => {
     try {
-      const employeeData = await getEmployees();
+      setLoadingEmployees(true);
+      console.log('BulkLeaveDialog: Loading employees...');
+      
+      // Use the optimized employee service for consistent performance
+      const employeeData = await getCachedCasualEmployeesForBooking();
+      console.log('BulkLeaveDialog: Loaded employees:', employeeData);
+      
       setEmployees(employeeData);
     } catch (error) {
-      console.error('Error loading employees:', error);
-      toast('Error loading employees');
+      console.error('BulkLeaveDialog: Error loading employees:', error);
+      toast.error('Error loading employees. Please try again.');
+    } finally {
+      setLoadingEmployees(false);
     }
   };
 
@@ -62,7 +77,7 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
 
   const handleSubmit = async () => {
     if (!selectedDate || selectedEmployees.length === 0 || !leaveType) {
-      toast('Please select date, employees, and leave type');
+      toast.error('Please select date, employees, and leave type');
       return;
     }
 
@@ -85,14 +100,14 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
         });
       }
 
-      toast(`Bulk leave added for ${selectedEmployees.length} employees`);
+      toast.success(`Bulk leave added for ${selectedEmployees.length} employees`);
       onSuccess();
       onClose();
       setSelectedEmployees([]);
       setLeaveType('');
     } catch (error) {
-      console.error('Error adding bulk leave:', error);
-      toast('Error adding bulk leave');
+      console.error('BulkLeaveDialog: Error adding bulk leave:', error);
+      toast.error('Error adding bulk leave. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -135,27 +150,40 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
                 size="sm"
                 onClick={handleSelectAll}
                 className="text-xs"
+                disabled={loadingEmployees}
               >
                 {selectedEmployees.length === employees.length ? 'Deselect All' : 'Select All'}
               </Button>
             </div>
             
             <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
-              {employees.map((employee) => (
-                <div key={employee.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={employee.id}
-                    checked={selectedEmployees.includes(employee.id)}
-                    onCheckedChange={() => handleEmployeeToggle(employee.id)}
-                  />
-                  <label
-                    htmlFor={employee.id}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                  >
-                    {employee.name}
-                  </label>
+              {loadingEmployees ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-xs text-gray-600 mt-1">Loading employees...</p>
                 </div>
-              ))}
+              ) : employees.length > 0 ? (
+                employees.map((employee) => (
+                  <div key={employee.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={employee.id}
+                      checked={selectedEmployees.includes(employee.id)}
+                      onCheckedChange={() => handleEmployeeToggle(employee.id)}
+                    />
+                    <label
+                      htmlFor={employee.id}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {employee.name}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <Users className="w-6 h-6 mx-auto mb-1 text-gray-300" />
+                  <p className="text-xs">No employees found</p>
+                </div>
+              )}
             </div>
             
             <p className="text-xs text-gray-500 mt-2">
