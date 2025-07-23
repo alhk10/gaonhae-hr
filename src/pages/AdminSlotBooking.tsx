@@ -87,26 +87,31 @@ const AdminSlotBooking = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Load initial data from Supabase
+  // Load initial data from Supabase with timeout
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
         console.log('AdminSlotBooking: Loading initial data from Supabase...');
         
-        const [branchesData, bookingsData, weeklyConfigData, employeesData] = await Promise.all([
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Loading timeout')), 10000);
+        });
+        
+        const dataPromise = Promise.all([
           getBranches(),
           getAllSlotBookings(),
           getWeeklySlotConfig(),
           getCasualEmployees()
         ]);
 
-        console.log('AdminSlotBooking: Loaded data:', {
-          branches: branchesData,
-          bookings: bookingsData,
-          config: weeklyConfigData,
-          employees: employeesData
-        });
+        const [branchesData, bookingsData, weeklyConfigData, employeesData] = await Promise.race([
+          dataPromise,
+          timeoutPromise
+        ]);
+
+        console.log('AdminSlotBooking: Loaded data successfully');
 
         setBranches(branchesData);
         setAllBookings(bookingsData);
@@ -117,7 +122,7 @@ const AdminSlotBooking = () => {
         await loadAttendanceData(bookingsData);
       } catch (error) {
         console.error('AdminSlotBooking: Error loading initial data:', error);
-        toast.error('Failed to load slot booking data');
+        toast.error('Failed to load slot booking data. Please refresh the page.');
       } finally {
         setLoading(false);
       }

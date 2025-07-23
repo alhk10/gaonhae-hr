@@ -194,6 +194,17 @@ function App() {
                     </AuthGuard>
                   } 
                 />
+                {/* Add redirect for legacy URL */}
+                <Route 
+                  path="/admin-slo" 
+                  element={
+                    <AuthGuard>
+                      <PageAccessGuard requiredPermission="slotBooking">
+                        <AdminSlotBooking />
+                      </PageAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
                 
                 {/* Protected Routes with Additional Restrictions */}
                 <Route 
