@@ -21,6 +21,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const handleUserSession = async (session: Session | null) => {
     console.log('AuthContext: Processing user session...');
     
+    // Fast path for no session - immediately set loading to false
+    if (!session?.user) {
+      setUser(null);
+      setUserRole(null);
+      setUserDetails(null);
+      setAdminAccess(null);
+      setPageAccess(null);
+      setIsLoading(false);
+      console.log('AuthContext: No session found, cleared state');
+      return;
+    }
+
     if (session?.user) {
       try {
         // Get user details with proper timeout
