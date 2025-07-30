@@ -1357,6 +1357,17 @@ export type Database = {
         Args: { user_email: string }
         Returns: boolean
       }
+      log_booking_failure: {
+        Args: {
+          employee_email: string
+          employee_name: string
+          booking_date: string
+          branch_id: string
+          failure_reason: string
+          system_details?: Json
+        }
+        Returns: undefined
+      }
       log_security_event: {
         Args: {
           p_user_email: string
