@@ -283,9 +283,7 @@ const Payroll = () => {
   return (
     <AuthGuard>
       <ResponsiveLayout>
-        <PayrollProvider>
-          <PayrollContent />
-        </PayrollProvider>
+        <PayrollContent />
       </ResponsiveLayout>
     </AuthGuard>
   );
