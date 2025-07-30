@@ -16,6 +16,8 @@ import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import SwapEmployeeDialog from '@/components/slot-booking/SwapEmployeeDialog';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
+import AdminSlotBookingActions from '@/components/admin/AdminSlotBookingActions';
+import AdminSlotBookingSummary from '@/components/admin/AdminSlotBookingSummary';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   getBranches,
@@ -535,20 +537,15 @@ const AdminSlotBooking = () => {
                   className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
                   onClick={async () => {
                     try {
-                      const result = await createEmergencyBooking(
-                        'EMP1751007229058',
-                        'Eldon Fok Jin Wei',
-                        'jurong_west',
-                        'Jurong West',
-                        '2025-08-16',
-                        'Emergency booking - Admin override for Eldon Fok'
-                      );
+                      const { data, error } = await supabase.rpc('force_book_eldon_slots');
+                      if (error) throw error;
                       
+                      const result = data as { success: boolean; bookings_created?: number; error?: string };
                       if (result.success) {
                         toast.success(`✅ Emergency booking created for Eldon at Jurong West on Aug 16, 2025`);
                         refreshData();
                       } else {
-                        toast.error(`❌ ${result.error}`);
+                        toast.error(`❌ ${result.error || 'Failed to create booking'}`);
                       }
                     } catch (error) {
                       toast.error(`❌ Error: ${error.message}`);

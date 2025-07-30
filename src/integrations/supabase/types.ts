@@ -1335,6 +1335,10 @@ export type Database = {
         Args: { join_date: string; reference_date?: string }
         Returns: number
       }
+      force_book_eldon_slots: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       force_book_ryan_slots: {
         Args: Record<PropertyKey, never>
         Returns: Json
