@@ -35,7 +35,7 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>
-              <span>{formatCurrency(emp.allowances?.reduce((sum, a) => sum + a.amount, 0) || 0)}</span>
+              <span>{formatCurrency(Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0)}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Gross Pay:</span>
@@ -53,11 +53,11 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Other Deductions:</span>
-              <span>{formatCurrency(emp.deductions?.reduce((sum, d) => sum + d.amount, 0) || 0)}</span>
+              <span>{formatCurrency(Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0)}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Total Deductions:</span>
-              <span>{formatCurrency((emp.cpfEmployee || 0) + (emp.deductions?.reduce((sum, d) => sum + d.amount, 0) || 0))}</span>
+              <span>{formatCurrency((emp.cpfEmployee || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0))}</span>
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>
-              <span>{formatCurrency(emp.allowances?.reduce((sum, a) => sum + a.amount, 0) || 0)}</span>
+              <span>{formatCurrency(Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0)}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Gross Pay:</span>
