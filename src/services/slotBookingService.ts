@@ -213,7 +213,23 @@ export const addAdminSlotBooking = async (booking: {
   try {
     console.log('Adding admin slot booking:', booking);
 
-    const bookingId = generateBookingId();
+    // For admin bookings, bypass normal validation but still check for non-cancelled bookings
+    const { data: existingBookings, error: existingError } = await supabase
+      .from('slot_bookings_new')
+      .select('*')
+      .eq('employee_id', booking.employeeId)
+      .eq('date', booking.date)
+      .neq('status', 'cancelled');
+
+    if (existingError) {
+      console.error('Error checking existing bookings for admin override:', existingError);
+    } else if (existingBookings && existingBookings.length > 0) {
+      const errorMsg = `Employee ${booking.employeeName} already has an active booking for ${booking.date}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const bookingId = `ADMIN_${booking.employeeId.replace('EMP', '')}_${Date.now()}`;
     const insertData = {
       id: bookingId,
       employee_id: booking.employeeId,
@@ -223,6 +239,7 @@ export const addAdminSlotBooking = async (booking: {
       date: booking.date,
       status: 'approved',
       notes: booking.notes || 'Admin booking - auto-approved',
+      approved_by: 'System Admin',
       approved_on: new Date().toISOString().split('T')[0]
     };
 
@@ -242,6 +259,44 @@ export const addAdminSlotBooking = async (booking: {
   } catch (error) {
     console.error('Error in addAdminSlotBooking:', error);
     throw error;
+  }
+};
+
+// Function to force book slots for Jason Lu at Kembangan (emergency fix)
+export const forceBookJasonSlots = async (): Promise<{ success: boolean; bookings: string[]; errors: string[] }> => {
+  const result = { success: true, bookings: [], errors: [] };
+  const dates = ['2025-08-03', '2025-08-10', '2025-08-16'];
+  
+  try {
+    console.log('Force booking Jason Lu slots for dates:', dates);
+    
+    for (const date of dates) {
+      try {
+        const bookingId = await addAdminSlotBooking({
+          employeeId: 'EMP1751007228999',
+          employeeName: 'Jason Lu Lijie',
+          branchId: 'kembangan',
+          branchName: 'Kembangan',
+          date: date,
+          notes: 'Emergency fix - Admin force booking for Jason Lu'
+        });
+        result.bookings.push(bookingId);
+        console.log(`Successfully force booked Jason Lu for ${date}: ${bookingId}`);
+      } catch (error) {
+        const errorMsg = `Failed to book ${date}: ${error.message}`;
+        result.errors.push(errorMsg);
+        console.error(errorMsg);
+        result.success = false;
+      }
+    }
+    
+    console.log('Force booking result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in forceBookJasonSlots:', error);
+    result.success = false;
+    result.errors.push(error.message);
+    return result;
   }
 };
 
@@ -573,7 +628,8 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
       .from('slot_bookings_new')
       .select('*')
       .eq('employee_id', employeeId)
-      .eq('date', date);
+      .eq('date', date)
+      .neq('status', 'cancelled'); // Exclude cancelled bookings
 
     if (error) {
       console.error('Error checking for existing booking:', error);

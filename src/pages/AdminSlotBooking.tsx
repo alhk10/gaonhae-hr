@@ -27,6 +27,7 @@ import {
   updateSlotBookingEmployee,
   getEmployeeAttendanceStatus,
   checkForExistingBooking,
+  forceBookJasonSlots,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig,
@@ -507,6 +508,26 @@ const AdminSlotBooking = () => {
               </div>
               
               <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
+                <Button 
+                  variant="outline" 
+                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                  onClick={async () => {
+                    try {
+                      const result = await forceBookJasonSlots();
+                      if (result.success) {
+                        toast.success(`✅ Successfully booked ${result.bookings.length} slots for Jason Lu at Kembangan`);
+                        refreshData();
+                      } else {
+                        toast.error(`❌ Booking failed: ${result.errors.join(', ')}`);
+                      }
+                    } catch (error) {
+                      toast.error(`❌ Error: ${error.message}`);
+                    }
+                  }}
+                >
+                  🚨 Fix Jason's Booking
+                </Button>
+                
                 <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className={`${isMobile ? 'flex-1' : ''} relative`}>
