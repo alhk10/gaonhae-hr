@@ -110,6 +110,20 @@ export const addSlotBooking = async (booking: {
   try {
     console.log('Adding slot booking:', booking);
 
+    // Log booking attempt for diagnostics
+    try {
+      await supabase.rpc('log_booking_attempt', {
+        p_employee_id: booking.employeeId,
+        p_employee_name: booking.employeeName,
+        p_booking_date: booking.date,
+        p_branch_id: booking.branchId,
+        p_attempt_result: 'started',
+        p_error_details: null
+      });
+    } catch (logError) {
+      console.warn('Failed to log booking attempt:', logError);
+    }
+
     // Check for existing booking first
     const existingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
     if (existingBooking) {

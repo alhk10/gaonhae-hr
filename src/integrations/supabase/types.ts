@@ -1335,6 +1335,10 @@ export type Database = {
         Args: { join_date: string; reference_date?: string }
         Returns: number
       }
+      force_book_ryan_slots: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_eligible_employees_with_entitlements: {
         Args: { reference_year?: number }
         Returns: {

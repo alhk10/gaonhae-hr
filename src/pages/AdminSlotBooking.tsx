@@ -35,6 +35,7 @@ import {
   type EmployeeAttendanceStatus,
   updateSlotBookingBranch
 } from '@/services/slotBookingService';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
@@ -555,6 +556,25 @@ const AdminSlotBooking = () => {
                   }}
                 >
                   🆘 Fix Eldon's Booking
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase.rpc('force_book_ryan_slots');
+                      if (error) throw error;
+                      
+                      const result = data as { bookings_created: number; duplicates_skipped: number; total_requested: number };
+                      toast.success(`✅ Ryan's bookings processed: ${result.bookings_created} created, ${result.duplicates_skipped} duplicates skipped`);
+                      refreshData();
+                    } catch (error) {
+                      toast.error(`❌ Error: ${error.message}`);
+                    }
+                  }}
+                >
+                  🚀 Fix Ryan's Booking
                 </Button>
                 
                 <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
