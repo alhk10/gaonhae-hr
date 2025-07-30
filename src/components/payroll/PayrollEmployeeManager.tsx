@@ -233,7 +233,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">
-                          Base: S${(employee.basicSalary || 0).toLocaleString()} • 
+                          Base: S${(employee.baseSalary || 0).toLocaleString()} • 
                           Gross: S${(employee.grossPay || 0).toLocaleString()}
                         </p>
                         <div className="flex items-center mt-1">

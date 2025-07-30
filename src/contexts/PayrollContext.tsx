@@ -3,13 +3,13 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile } from '@/types/employee';
-import { calculateCasualPayroll } from '@/utils/payrollCalculations';
+import { calculateCasualPayroll, calculateFullTimePayroll } from '@/utils/payrollCalculations';
 
 export interface FullTimeEmployee {
   id: string;
   name: string;
   employeeId: string;
-  basicSalary: number;
+  baseSalary: number;
   allowances: number;
   cpfContribution: number;
   netPay: number;
@@ -101,18 +101,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
     const id = uuidv4();
-    const grossPay = employee.basicSalary + employee.allowances;
-    const cpfEmployee = grossPay * (employee.cpfContribution / 100);
-    const cpfEmployer = grossPay * 0.17;
-    const netPay = grossPay - cpfEmployee;
+    
+    // Find the employee profile for complete data and proper calculation
+    const employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
+    
+    if (!employeeProfile) {
+      console.error('Employee profile not found for full-time employee:', employee.employeeId);
+      return;
+    }
+
+    // Use proper payroll calculation
+    const calculation = calculateFullTimePayroll(
+      employeeProfile,
+      0, // approved claims - can be added later
+      0  // encashment amount - can be added later
+    );
 
     const newEmployee: FullTimeEmployee = {
       ...employee,
       id,
-      netPay,
-      grossPay,
-      cpfEmployee,
-      cpfEmployer,
+      netPay: calculation.netSalary,
+      grossPay: calculation.grossSalary,
+          cpfEmployee: calculation.employeeCPF,
+          cpfEmployer: calculation.employerCPF,
+          baseSalary: calculation.baseSalary,
+          allowances: calculation.totalAllowances,
     } as FullTimeEmployee;
 
     setPayrollState(prevState => ({
@@ -120,7 +133,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fullTimeEmployees: [...prevState.fullTimeEmployees, newEmployee],
       lastUpdated: new Date(),
     }));
-  }, []);
+  }, [payrollState.availableEmployees]);
 
   const updateFullTimeEmployee = useCallback((id: string, updates: Partial<Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>>) => {
     setPayrollState(prevState => ({
@@ -128,11 +141,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fullTimeEmployees: prevState.fullTimeEmployees.map(employee => {
         if (employee.id === id) {
           const updatedEmployee = { ...employee, ...updates };
-          const grossPay = updatedEmployee.basicSalary + updatedEmployee.allowances;
-          const cpfEmployee = grossPay * (updatedEmployee.cpfContribution / 100);
-          const cpfEmployer = grossPay * 0.17;
-          const netPay = grossPay - cpfEmployee;
-          return { ...updatedEmployee, grossPay, netPay, cpfEmployee, cpfEmployer };
+          
+          // Find the employee profile for complete data
+          const employeeProfile = prevState.availableEmployees.find(emp => emp.id === updatedEmployee.employeeId);
+          
+          if (!employeeProfile) {
+            console.error('Employee profile not found for update:', updatedEmployee.employeeId);
+            return employee;
+          }
+
+          // Use proper payroll calculation
+          const calculation = calculateFullTimePayroll(
+            employeeProfile,
+            0, // approved claims - can be added later
+            0  // encashment amount - can be added later
+          );
+
+          return {
+            ...updatedEmployee,
+            netPay: calculation.netSalary,
+            grossPay: calculation.grossSalary,
+            cpfEmployee: calculation.employeeCPF,
+            cpfEmployer: calculation.employerCPF,
+            baseSalary: calculation.baseSalary,
+            allowances: calculation.totalAllowances,
+          };
         }
         return employee;
       }),
@@ -399,7 +432,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addFullTimeEmployee({
           employeeId: employee.id,
           name: employee.name,
-          basicSalary: employee.baseSalary || 0,
+          baseSalary: employee.baseSalary || 0,
           allowances: 0,
           cpfContribution: 20,
         });

@@ -137,12 +137,12 @@ const PayrollProcessing = () => {
 
   const handleEditSalary = (employee: any) => {
     const currentSalary = employee.type === 'Full-Time' 
-      ? employee.basicSalary || 0
+      ? employee.baseSalary || 0
       : employee.paymentType === 'Hourly' 
         ? employee.hourlyRate || 0
         : employee.paymentType === 'Daily'
           ? employee.dailyWeekdayRate || employee.dailyRate || 0
-          : employee.basicSalary || 0;
+          : employee.baseSalary || 0;
 
     setEditSalaryDialog({
       isOpen: true,
@@ -207,12 +207,12 @@ const PayrollProcessing = () => {
         ? { 
             ...emp, 
             ...(editSalaryDialog.employeeType === 'Full-Time' 
-              ? { basicSalary: newSalary }
+              ? { baseSalary: newSalary }
               : editSalaryDialog.paymentType === 'Hourly'
                 ? { hourlyRate: newSalary }
                 : editSalaryDialog.paymentType === 'Daily'
                   ? { dailyWeekdayRate: newSalary }
-                  : { basicSalary: newSalary }
+                  : { baseSalary: newSalary }
             )
           }
         : emp
@@ -458,7 +458,7 @@ const PayrollProcessing = () => {
                             <TableCell>
                               <div className="flex items-center space-x-1">
                                 <div className="font-medium">
-                                  S${(employee.basicSalary || 0).toLocaleString()}
+                                  S${(employee.baseSalary || 0).toLocaleString()}
                                 </div>
                                 <Button 
                                   variant="ghost" 
@@ -531,13 +531,13 @@ const PayrollProcessing = () => {
                             </TableCell>
                             <TableCell>
                               <div className="text-xs space-y-1">
-                                <div className="text-gray-600">ER: S${((employee.basicSalary || 0) * 0.17).toFixed(0)}</div>
-                                <div className="text-gray-600">EE: S${((employee.basicSalary || 0) * 0.20).toFixed(0)}</div>
+                                <div className="text-gray-600">ER: S${((employee.baseSalary || 0) * 0.17).toFixed(0)}</div>
+                                <div className="text-gray-600">EE: S${((employee.baseSalary || 0) * 0.20).toFixed(0)}</div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="font-bold text-green-600">
-                                S${((employee.basicSalary || 0) + totalAllowances - totalDeductions - ((employee.basicSalary || 0) * 0.20) + approvedClaims).toLocaleString()}
+                                S${((employee.baseSalary || 0) + totalAllowances - totalDeductions - ((employee.baseSalary || 0) * 0.20) + approvedClaims).toLocaleString()}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -625,7 +625,7 @@ const PayrollProcessing = () => {
                                     </div>
                                   )}
                                   {employee.paymentType === 'Monthly' && (
-                                    <div>S${employee.basicSalary}/month</div>
+                                    <div>S${employee.baseSalary}/month</div>
                                   )}
                                 </div>
                                 <Button 
@@ -850,7 +850,7 @@ const PayrollProcessing = () => {
                   <TableCell>Loading...</TableCell>
                   <TableCell>Full-Time</TableCell>
                   <TableCell>Monthly</TableCell>
-                  <TableCell>S${(employee.basicSalary || 0).toFixed(2)}</TableCell>
+                  <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
                   <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
                   <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>

@@ -35,7 +35,7 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>
-              <span>{formatCurrency(Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0)}</span>
+              <span>{formatCurrency(typeof emp.allowances === 'number' ? emp.allowances : (Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0))}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Gross Pay:</span>
