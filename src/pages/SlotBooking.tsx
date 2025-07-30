@@ -18,8 +18,10 @@ import {
   checkForExistingBooking,
   verifyEmployeeExists,
   getAvailableSlotsForDate,
+  getWeeklySlotConfig,
   type Branch,
-  type SlotBooking as SlotBookingType
+  type SlotBooking as SlotBookingType,
+  type WeeklySlotConfig
 } from '@/services/slotBookingService';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 import EnhancedCalendar from '@/components/slot-booking/EnhancedCalendar';
@@ -46,6 +48,7 @@ const SlotBooking = () => {
   const [isBooking, setIsBooking] = useState(false);
   const [employeeVerified, setEmployeeVerified] = useState<boolean | null>(null);
   const [isBranchDataLoading, setIsBranchDataLoading] = useState(false);
+  const [weeklySlotConfig, setWeeklySlotConfig] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -82,10 +85,16 @@ const SlotBooking = () => {
       
       await updateBranchColors();
       
-      const branchesData = await getBranches();
+      const [branchesData, weeklyConfig] = await Promise.all([
+        getBranches(),
+        getWeeklySlotConfig()
+      ]);
+      
       setBranches(branchesData);
+      setWeeklySlotConfig(weeklyConfig);
       
       console.log('SlotBooking: Loaded branches with colors:', branchesData);
+      console.log('SlotBooking: Loaded weekly slot config:', weeklyConfig);
     } catch (error) {
       console.error('SlotBooking: Error loading initial data:', error);
       toast.error('Failed to load slot booking data');
@@ -255,7 +264,14 @@ const SlotBooking = () => {
     try {
       const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
       if (availableSlots <= 0) {
-        toast.error(`No slots available for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        
+        if (isWeekend) {
+          toast.error(`No weekend slots available for ${currentBranch?.name}. Try switching to Balmoral, Kembangan, Yishun, or Jurong West for weekend bookings.`);
+        } else {
+          toast.error(`No slots available for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
+        }
         return;
       }
     } catch (error) {
@@ -479,6 +495,8 @@ const SlotBooking = () => {
                   employeeBookingDates={employeeBookingDates}
                   branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
                   isLoading={isBranchDataLoading}
+                  currentBranch={currentBranch}
+                  weeklySlotConfig={weeklySlotConfig}
                 />
               </div>
             </div>

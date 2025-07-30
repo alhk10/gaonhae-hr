@@ -16,6 +16,8 @@ interface EnhancedCalendarProps {
   employeeBookingDates: Set<string>;
   branchColor: string;
   isLoading?: boolean;
+  currentBranch?: { name: string; id: string };
+  weeklySlotConfig?: { [branchId: string]: any };
 }
 
 const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
@@ -26,8 +28,29 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   approvedBookingDates,
   employeeBookingDates,
   branchColor,
-  isLoading = false
+  isLoading = false,
+  currentBranch,
+  weeklySlotConfig
 }) => {
+  
+  const getSlotAvailability = (date: Date) => {
+    if (!currentBranch || !weeklySlotConfig) return null;
+    
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const config = weeklySlotConfig[currentBranch.id];
+    
+    if (!config) return null;
+    
+    return config[dayName] || 0;
+  };
+  
+  const isWeekendWithNoSlots = (date: Date) => {
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) return false; // Not a weekend
+    
+    const availableSlots = getSlotAvailability(date);
+    return availableSlots === 0;
+  };
   return (
     <Card className="w-full h-fit flex flex-col">
       <CardHeader className="pb-3 flex-shrink-0">
@@ -60,6 +83,10 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
             ></div>
             <span>Your selections</span>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-gray-300 border border-gray-500"></div>
+            <span>No slots available</span>
+          </div>
         </div>
 
         {/* Calendar with Dynamic Stretching */}
@@ -86,6 +113,9 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
               myBooking: (date) => {
                 const dateString = format(date, 'yyyy-MM-dd');
                 return employeeBookingDates.has(dateString);
+              },
+              noSlots: (date) => {
+                return isWeekendWithNoSlots(date);
               }
             }}
             modifiersStyles={{
@@ -99,6 +129,12 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
                 color: '#dc2626',
                 textDecoration: 'line-through',
                 fontWeight: 'bold'
+              },
+              noSlots: {
+                backgroundColor: '#f3f4f6',
+                color: '#9ca3af',
+                fontWeight: 'normal',
+                cursor: 'not-allowed'
               }
             }}
           />
@@ -114,6 +150,10 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
               <li>• Click again to deselect</li>
               <li>• Red strikethrough = your existing bookings</li>
               <li>• Blue = other approved bookings</li>
+              <li>• Gray = no slots available for this branch</li>
+              {currentBranch && weeklySlotConfig && currentBranch.id === 'headquarters' && (
+                <li className="text-amber-700 font-medium">• Headquarters has no weekend slots. Try Balmoral, Kembangan, Yishun, or Jurong West for weekends</li>
+              )}
             </ul>
           </div>
         </div>
