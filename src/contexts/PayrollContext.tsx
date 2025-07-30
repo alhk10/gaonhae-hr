@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile } from '@/types/employee';
+import { calculateCasualPayroll } from '@/utils/payrollCalculations';
 
 export interface FullTimeEmployee {
   id: string;
@@ -33,6 +34,14 @@ export interface CasualEmployee {
   dailyRate?: number;
   dailyWeekdayRate?: number;
   baseSalary?: number;
+  // Additional properties for PayrollEmployee compatibility
+  allowances?: any[];
+  deductions?: any[];
+  cpfEmployee?: number;
+  cpfEmployer?: number;
+  netPay?: number;
+  cpf?: number;
+  total?: number;
 }
 
 export interface PayrollState {
@@ -53,7 +62,7 @@ export interface PayrollContextType {
   addFullTimeEmployee: (employee: Omit<FullTimeEmployee, 'id' | 'netPay'>) => void;
   updateFullTimeEmployee: (id: string, updates: Partial<Omit<FullTimeEmployee, 'id' | 'netPay'>>) => void;
   removeFullTimeEmployee: (id: string) => void;
-  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay'>) => void;
+  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF' | 'allowances' | 'deductions' | 'cpfEmployee' | 'cpfEmployer' | 'netPay' | 'cpf' | 'total'>) => void;
   updateCasualEmployee: (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay'>>) => void;
   removeCasualEmployee: (id: string) => void;
   calculatePayrollTotal: () => number;
@@ -140,18 +149,40 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addCasualEmployee = useCallback((employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'>) => {
     const id = uuidv4();
-    const grossPay = employee.hourlyRate * employee.hoursWorked;
-    const employeeCPF = grossPay * 0.2;
-    const employerCPF = grossPay * 0.17;
-    const totalPay = grossPay - employeeCPF;
+    
+    // Find the employee profile from available employees for complete data
+    const employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
+    
+    if (!employeeProfile) {
+      console.error('Employee profile not found:', employee.employeeId);
+      return;
+    }
+
+    // Use proper payroll calculation
+    const calculation = calculateCasualPayroll(
+      employeeProfile,
+      employee.hoursWorked || 0,
+      employee.daysWorked || 0,
+      0 // approved claims - can be added later
+    );
 
     const newEmployee: CasualEmployee = {
       ...employee,
       id,
-      totalPay,
-      employeeCPF,
-      employerCPF,
-      grossPay
+      totalPay: calculation.netSalary,
+      employeeCPF: calculation.employeeCPF,
+      employerCPF: calculation.employerCPF,
+      grossPay: calculation.grossSalary,
+      // Map additional properties for PayrollEmployee compatibility
+      baseSalary: calculation.baseSalary,
+      paymentType: employeeProfile.paymentType,
+      allowances: employeeProfile.allowances || [],
+      deductions: employeeProfile.deductions || [],
+      cpfEmployee: calculation.employeeCPF,
+      cpfEmployer: calculation.employerCPF,
+      netPay: calculation.netSalary,
+      cpf: calculation.totalCPF,
+      total: calculation.netSalary
     } as CasualEmployee;
 
     setPayrollState(prevState => ({
@@ -159,7 +190,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       casualEmployees: [...prevState.casualEmployees, newEmployee],
       lastUpdated: new Date(),
     }));
-  }, []);
+  }, [payrollState.availableEmployees]);
 
   const updateCasualEmployee = useCallback((id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay' | 'employeeCPF' | 'employerCPF' | 'grossPay'>>) => {
     setPayrollState(prevState => ({
@@ -167,11 +198,36 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       casualEmployees: prevState.casualEmployees.map(employee => {
         if (employee.id === id) {
           const updatedEmployee = { ...employee, ...updates };
-          const grossPay = updatedEmployee.hourlyRate * updatedEmployee.hoursWorked;
-          const employeeCPF = grossPay * 0.2;
-          const employerCPF = grossPay * 0.17;
-          const totalPay = grossPay - employeeCPF;
-          return { ...updatedEmployee, totalPay, employeeCPF, employerCPF, grossPay };
+          
+          // Find the employee profile for complete data
+          const employeeProfile = prevState.availableEmployees.find(emp => emp.id === updatedEmployee.employeeId);
+          
+          if (!employeeProfile) {
+            console.error('Employee profile not found for update:', updatedEmployee.employeeId);
+            return employee;
+          }
+
+          // Use proper payroll calculation
+          const calculation = calculateCasualPayroll(
+            employeeProfile,
+            updatedEmployee.hoursWorked || 0,
+            updatedEmployee.daysWorked || 0,
+            0 // approved claims - can be added later
+          );
+
+          return {
+            ...updatedEmployee,
+            totalPay: calculation.netSalary,
+            employeeCPF: calculation.employeeCPF,
+            employerCPF: calculation.employerCPF,
+            grossPay: calculation.grossSalary,
+            baseSalary: calculation.baseSalary,
+            cpfEmployee: calculation.employeeCPF,
+            cpfEmployer: calculation.employerCPF,
+            netPay: calculation.netSalary,
+            cpf: calculation.totalCPF,
+            total: calculation.netSalary
+          };
         }
         return employee;
       }),
@@ -292,6 +348,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           name: employee.name,
           hourlyRate: employee.hourlyRate || 0,
           hoursWorked: 0,
+          daysWorked: 0,
+          paymentType: employee.paymentType,
+          dailyRate: employee.dailyRate,
+          baseSalary: employee.baseSalary
         });
       }
     });
