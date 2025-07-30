@@ -16,6 +16,7 @@ import {
   addAdminSlotBooking,
   getAvailableSlotsForDate, 
   getWeeklySlotConfig,
+  checkForExistingBooking,
   type Branch,
   type WeeklySlotConfig
 } from '@/services/slotBookingService';
@@ -153,38 +154,70 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const branch = branches.find(b => b.id === selectedBranch);
 
-      // Use addAdminSlotBooking for auto-approved bookings
-      const bookingPromises = selectedEmployees.map(employeeId => {
-        const employee = employees.find(emp => emp.id === employeeId);
-        const notes = overrideSlotLimit && selectedEmployees.length > availableSlots
-          ? `Bulk booking created by Admin - Slot limit override applied (${selectedEmployees.length} bookings, ${availableSlots} slots available)`
-          : 'Bulk booking created by Admin';
+      // Use addAdminSlotBooking for auto-approved bookings with error handling
+      let successCount = 0;
+      const errors: string[] = [];
+      
+      for (const employeeId of selectedEmployees) {
+        try {
+          const employee = employees.find(emp => emp.id === employeeId);
+          const notes = overrideSlotLimit && selectedEmployees.length > availableSlots
+            ? `Bulk booking created by Admin - Slot limit override applied (${selectedEmployees.length} bookings, ${availableSlots} slots available)`
+            : 'Bulk booking created by Admin';
+            
+          // Check for existing booking before creating
+          const existingBooking = await checkForExistingBooking(employeeId, dateStr);
+          if (existingBooking) {
+            errors.push(`${employee?.name || 'Unknown'} already has a booking for this date`);
+            continue;
+          }
           
-        return addAdminSlotBooking({
-          employeeId,
-          employeeName: employee?.name || 'Unknown',
-          branchId: selectedBranch,
-          branchName: branch?.name || 'Unknown Branch',
-          date: dateStr,
-          notes
-        });
-      });
-
-      await Promise.all(bookingPromises);
-
-      const successMessage = overrideSlotLimit && selectedEmployees.length > availableSlots
-        ? `Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')} (slot limit overridden)`
-        : `Successfully created ${selectedEmployees.length} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`;
-
-      toast.success(successMessage);
-      
-      if (onSuccess) {
-        onSuccess();
+          await addAdminSlotBooking({
+            employeeId,
+            employeeName: employee?.name || 'Unknown',
+            branchId: selectedBranch,
+            branchName: branch?.name || 'Unknown Branch',
+            date: dateStr,
+            notes
+          });
+          
+          successCount++;
+          console.log(`Successfully created booking for ${employee?.name || employeeId}`);
+        } catch (error) {
+          const employee = employees.find(emp => emp.id === employeeId);
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`${employee?.name || 'Unknown'}: ${errorMsg}`);
+          console.error('Error creating booking for', employee?.name || employeeId, ':', error);
+        }
       }
-      
-      onClose();
-      setSelectedEmployees([]);
-      setOverrideSlotLimit(false);
+
+      // Show results
+      if (successCount > 0) {
+        const successMessage = overrideSlotLimit && selectedEmployees.length > availableSlots
+          ? `Successfully created ${successCount} auto-approved slot bookings for ${format(selectedDate, 'PPP')} (slot limit overridden)`
+          : `Successfully created ${successCount} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`;
+
+        toast.success(successMessage);
+        
+        if (errors.length > 0) {
+          console.warn('Some bookings failed:', errors);
+          toast.warning(`${errors.length} bookings failed. Check console for details.`);
+        }
+        
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        onClose();
+        setSelectedEmployees([]);
+        setOverrideSlotLimit(false);
+      } else {
+        if (errors.length > 0) {
+          toast.error(`Failed to create bookings: ${errors[0]}${errors.length > 1 ? ` and ${errors.length - 1} others` : ''}`);
+        } else {
+          toast.error('Failed to create any bookings');
+        }
+      }
     } catch (error) {
       console.error('BulkSlotBookingDialog: Error creating bulk bookings:', error);
       toast.error('Error creating bulk bookings. Please try again.');

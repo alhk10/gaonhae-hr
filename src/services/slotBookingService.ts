@@ -98,7 +98,7 @@ export const getBranches = async (): Promise<Branch[]> => {
   }
 };
 
-// Function to add a slot booking
+// Function to add a slot booking with enhanced validation
 export const addSlotBooking = async (booking: {
   employeeId: string;
   employeeName: string;
@@ -109,6 +109,52 @@ export const addSlotBooking = async (booking: {
 }): Promise<string> => {
   try {
     console.log('Adding slot booking:', booking);
+
+    // Check for existing booking first
+    const existingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
+    if (existingBooking) {
+      const errorMsg = `Employee ${booking.employeeName} already has a booking for ${booking.date}`;
+      console.error(errorMsg);
+      
+      // Log the failure
+      try {
+        await supabase.rpc('log_booking_failure', {
+          employee_email: booking.employeeId,
+          employee_name: booking.employeeName,
+          booking_date: booking.date,
+          branch_id: booking.branchId,
+          failure_reason: 'Duplicate booking attempt',
+          system_details: { existing_booking: true }
+        });
+      } catch (logError) {
+        console.warn('Failed to log booking failure:', logError);
+      }
+      
+      throw new Error(errorMsg);
+    }
+
+    // Check slot availability
+    const availableSlots = await getAvailableSlotsForDate(booking.date, booking.branchId);
+    if (availableSlots <= 0) {
+      const errorMsg = `No available slots for ${booking.branchName} on ${booking.date}`;
+      console.error(errorMsg);
+      
+      // Log the failure
+      try {
+        await supabase.rpc('log_booking_failure', {
+          employee_email: booking.employeeId,
+          employee_name: booking.employeeName,
+          booking_date: booking.date,
+          branch_id: booking.branchId,
+          failure_reason: 'No slots available',
+          system_details: { available_slots: availableSlots }
+        });
+      } catch (logError) {
+        console.warn('Failed to log booking failure:', logError);
+      }
+      
+      throw new Error(errorMsg);
+    }
 
     const bookingId = generateBookingId();
     const insertData = {
@@ -129,6 +175,21 @@ export const addSlotBooking = async (booking: {
 
     if (error) {
       console.error('Error adding slot booking:', error);
+      
+      // Log the failure
+      try {
+        await supabase.rpc('log_booking_failure', {
+          employee_email: booking.employeeId,
+          employee_name: booking.employeeName,
+          booking_date: booking.date,
+          branch_id: booking.branchId,
+          failure_reason: 'Database insertion failed',
+          system_details: { error: error.message, code: error.code }
+        });
+      } catch (logError) {
+        console.warn('Failed to log booking failure:', logError);
+      }
+      
       throw new Error(`Failed to add slot booking: ${error.message}`);
     }
 
