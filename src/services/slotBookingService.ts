@@ -276,43 +276,6 @@ export const addAdminSlotBooking = async (booking: {
   }
 };
 
-// Function to force book slots for Jason Lu at Kembangan (emergency fix)
-export const forceBookJasonSlots = async (): Promise<{ success: boolean; bookings: string[]; errors: string[] }> => {
-  const result = { success: true, bookings: [], errors: [] };
-  const dates = ['2025-08-03', '2025-08-10', '2025-08-16'];
-  
-  try {
-    console.log('Force booking Jason Lu slots for dates:', dates);
-    
-    for (const date of dates) {
-      try {
-        const bookingId = await addAdminSlotBooking({
-          employeeId: 'EMP1751007228999',
-          employeeName: 'Jason Lu Lijie',
-          branchId: 'kembangan',
-          branchName: 'Kembangan',
-          date: date,
-          notes: 'Emergency fix - Admin force booking for Jason Lu'
-        });
-        result.bookings.push(bookingId);
-        console.log(`Successfully force booked Jason Lu for ${date}: ${bookingId}`);
-      } catch (error) {
-        const errorMsg = `Failed to book ${date}: ${error.message}`;
-        result.errors.push(errorMsg);
-        console.error(errorMsg);
-        result.success = false;
-      }
-    }
-    
-    console.log('Force booking result:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in forceBookJasonSlots:', error);
-    result.success = false;
-    result.errors.push(error.message);
-    return result;
-  }
-};
 
 // Function to create emergency booking for employee (general purpose)
 export const createEmergencyBooking = async (
