@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,7 +62,7 @@ export interface PayrollContextType {
   addFullTimeEmployee: (employee: Omit<FullTimeEmployee, 'id' | 'netPay'>) => void;
   updateFullTimeEmployee: (id: string, updates: Partial<Omit<FullTimeEmployee, 'id' | 'netPay'>>) => void;
   removeFullTimeEmployee: (id: string) => void;
-  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF' | 'allowances' | 'deductions' | 'cpfEmployee' | 'cpfEmployer' | 'netPay' | 'cpf' | 'total'>) => void;
+  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF' | 'allowances' | 'deductions' | 'cpfEmployee' | 'cpfEmployer' | 'netPay' | 'cpf' | 'total'>) => Promise<void>;
   updateCasualEmployee: (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay'>>) => void;
   removeCasualEmployee: (id: string) => void;
   calculatePayrollTotal: () => number;
@@ -97,6 +97,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     totalAmount: 0,
     encashmentData: [],
   });
+
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
     const id = uuidv4();
@@ -147,11 +148,71 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  const addCasualEmployee = useCallback((employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'>) => {
+  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'>) => {
     const id = uuidv4();
     
     // Find the employee profile from available employees for complete data
-    const employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
+    let employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
+    
+    // If not found in available employees, fetch directly from database
+    if (!employeeProfile) {
+      try {
+        const { data: empData, error } = await supabase
+          .from('employees')
+          .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date')
+          .eq('id', employee.employeeId)
+          .single();
+
+        if (error) throw error;
+
+        if (empData) {
+          employeeProfile = {
+            id: empData.id,
+            name: empData.name,
+            nric: empData.nric || '',
+            dateOfBirth: empData.date_of_birth || '',
+            residencyStatus: empData.residency_status || '',
+            type: empData.type as 'Full-Time' | 'Casual',
+            baseSalary: empData.base_salary || undefined,
+            hourlyRate: empData.hourly_rate || undefined,
+            dailyRate: empData.daily_rate || undefined,
+            dailyWeekdayRate: empData.daily_weekday_rate || undefined,
+            dailyWeekendRate: empData.daily_weekend_rate || undefined,
+            paymentType: (empData.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
+            bankName: empData.bank_name || '',
+            bankAccount: empData.bank_account || '',
+            branch: '',
+            position: empData.position || '',
+            phone: empData.phone || '',
+            address: empData.address || '',
+            email: empData.email,
+            joinDate: empData.join_date,
+            allowances: [],
+            deductions: [],
+            certificates: [],
+            adminAccess: {
+              employees: false,
+              payroll: false,
+              leaveManagement: false,
+              claims: false,
+              attendance: false,
+              slotBooking: false,
+              reports: false
+            },
+            pageAccess: {
+              profile: true,
+              applyLeave: true,
+              submitClaim: true,
+              payslips: true,
+              myAttendance: true,
+              slotBookingEmployee: true
+            }
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching employee profile:', error);
+      }
+    }
     
     if (!employeeProfile) {
       console.error('Employee profile not found:', employee.employeeId);
@@ -333,7 +394,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       employeeIds.includes(emp.id)
     );
 
-    employeesToAdd.forEach(employee => {
+    for (const employee of employeesToAdd) {
       if (employee.type === 'Full-Time') {
         addFullTimeEmployee({
           employeeId: employee.id,
@@ -343,7 +404,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           cpfContribution: 20,
         });
       } else {
-        addCasualEmployee({
+        await addCasualEmployee({
           employeeId: employee.id,
           name: employee.name,
           hourlyRate: employee.hourlyRate || 0,
@@ -354,7 +415,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           baseSalary: employee.baseSalary
         });
       }
-    });
+    }
   }, [payrollState.availableEmployees, addFullTimeEmployee, addCasualEmployee]);
 
   const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
@@ -483,7 +544,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       // Add each eligible employee to payroll
-      eligibleEmployees.forEach(employee => {
+      for (const employee of eligibleEmployees) {
         const paymentType = employee.paymentType;
         let hoursWorked = employee.totalHours;
         let daysWorked = employee.totalDays;
@@ -493,7 +554,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           hoursWorked = daysWorked * 8; // Assume 8 hours per day
         }
 
-        addCasualEmployee({
+        await addCasualEmployee({
           employeeId: employee.id,
           name: employee.name,
           hourlyRate: employee.hourlyRate,
@@ -503,7 +564,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           dailyRate: employee.dailyRate,
           baseSalary: employee.baseSalary
         });
-      });
+      }
 
       return { 
         addedCount: eligibleEmployees.length, 
@@ -548,6 +609,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setPayrollState(prevState => ({ ...prevState, isLoading: false }));
     }
   };
+
+  // Load available employees on mount
+  useEffect(() => {
+    refreshAvailableEmployees();
+  }, [refreshAvailableEmployees]);
 
   const value: PayrollContextType = {
     payrollState,
