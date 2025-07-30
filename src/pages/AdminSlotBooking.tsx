@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
@@ -62,6 +62,7 @@ const AdminSlotBooking = () => {
   // New state for branch editing functionality
   const [selectedBranchForUpdate, setSelectedBranchForUpdate] = useState('');
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
+  const [isPendingApprovalsDialogOpen, setIsPendingApprovalsDialogOpen] = useState(false);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -506,6 +507,112 @@ const AdminSlotBooking = () => {
               </div>
               
               <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
+                <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className={`${isMobile ? 'flex-1' : ''} relative`}>
+                      <Clock className="w-4 h-4 mr-2" />
+                      Pending Approvals
+                      {allBookings.filter(b => b.status === 'pending').length > 0 && (
+                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white px-2 py-1 text-xs min-w-[20px] h-[20px] flex items-center justify-center">
+                          {allBookings.filter(b => b.status === 'pending').length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Pending Bookings for Approval</DialogTitle>
+                      <DialogDescription>Review and approve or reject slot bookings.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {allBookings.filter(b => b.status === 'pending').length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>No pending bookings require approval</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-2 mb-4">
+                            <Button 
+                              onClick={async () => {
+                                const pendingBookings = allBookings.filter(b => b.status === 'pending');
+                                for (const booking of pendingBookings) {
+                                  await handleApproval(booking.id, 'approved', 'Admin');
+                                }
+                                setIsPendingApprovalsDialogOpen(false);
+                              }}
+                              className="flex-1"
+                              disabled={allBookings.filter(b => b.status === 'pending').length === 0}
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              Approve All
+                            </Button>
+                            <Button 
+                              variant="destructive"
+                              onClick={async () => {
+                                const pendingBookings = allBookings.filter(b => b.status === 'pending');
+                                for (const booking of pendingBookings) {
+                                  await handleApproval(booking.id, 'rejected', 'Admin');
+                                }
+                                setIsPendingApprovalsDialogOpen(false);
+                              }}
+                              className="flex-1"
+                              disabled={allBookings.filter(b => b.status === 'pending').length === 0}
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              Reject All
+                            </Button>
+                          </div>
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                            {allBookings
+                              .filter(b => b.status === 'pending')
+                              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                              .map((booking) => (
+                              <div key={booking.id} className="border rounded-lg p-4 bg-white">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3">
+                                      <div 
+                                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                                        style={{ backgroundColor: branches.find(b => b.id === booking.branchId)?.color || '#3B82F6' }}
+                                      />
+                                      <div>
+                                        <p className="font-medium">{booking.employeeName}</p>
+                                        <p className="text-sm text-gray-600">
+                                          {booking.branchName} • {format(new Date(booking.date), 'MMM dd, yyyy')}
+                                        </p>
+                                        {booking.notes && (
+                                          <p className="text-sm text-gray-500 mt-1">{booking.notes}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
                 <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className={isMobile ? 'flex-1' : ''}>
