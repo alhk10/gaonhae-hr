@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin, Clock } from 'lucide-react';
+import { Check, X, Edit, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getCasualEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import SwapEmployeeDialog from '@/components/slot-booking/SwapEmployeeDialog';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
-import AdminSlotBookingActions from '@/components/admin/AdminSlotBookingActions';
+import AdminSlotBookingHeader from '@/components/admin/AdminSlotBookingHeader';
+import AdminSlotBookingCalendar from '@/components/admin/AdminSlotBookingCalendar';
+import AdminSlotBookingDetailsPanel from '@/components/admin/AdminSlotBookingDetailsPanel';
 import AdminSlotBookingSummary from '@/components/admin/AdminSlotBookingSummary';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -203,7 +204,6 @@ const AdminSlotBooking = () => {
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
-      setIsBulkBookingDialogOpen(true);
     }
   };
 
@@ -411,30 +411,22 @@ const AdminSlotBooking = () => {
   const slotSummary = getSlotSummary();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
-        <main className={`flex-1 ${isMobile ? 'p-4' : 'p-6'} max-w-full`}>
-          <div className="space-y-6 max-w-full">
-            <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
-              <div className={isMobile ? 'text-center' : ''}>
-                <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Admin Slot Booking</h2>
-                {autoRefreshActive && (
-                  <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
-                    Auto-refreshing every 30 seconds
-                  </p>
-                )}
-              </div>
-              
-              <AdminSlotBookingActions
-                allBookings={allBookings}
-                isMobile={isMobile}
-                onPendingApprovalsClick={() => setIsPendingApprovalsDialogOpen(true)}
-                onSettingsClick={() => setIsSettingsDialogOpen(true)}
-                onRefreshData={refreshData}
-              />
-            </div>
+        <main className="flex-1 p-6 max-w-full overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <AdminSlotBookingHeader
+              selectedBranch={selectedBranch}
+              onBranchChange={setSelectedBranch}
+              branches={branches}
+              allBookings={allBookings}
+              onSettingsClick={() => setIsSettingsDialogOpen(true)}
+              onPendingApprovalsClick={() => setIsPendingApprovalsDialogOpen(true)}
+              onRefreshData={refreshData}
+              autoRefreshActive={autoRefreshActive}
+            />
             
             <AdminSlotBookingSummary
               allBookings={allBookings}
@@ -443,229 +435,29 @@ const AdminSlotBooking = () => {
               currentMonth={selectedDate}
             />
             
-            <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
-              <div className={`${isMobile ? '' : 'lg:col-span-2'}`}>
-                <Card className="h-fit">
-                  <CardHeader className={`${isMobile ? 'p-4' : 'p-6'}`}>
-                    <CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : 'text-xl'}`}>
-                      <CalendarIcon className="w-5 h-5" />
-                      {format(selectedDate, 'MMMM yyyy')}
-                    </CardTitle>
-                    <CardDescription>
-                      Click on a date to book slots or view existing bookings
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className={`${isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}`}>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      className="rounded-md border w-full"
-                      classNames={{
-                        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                        month: "space-y-4",
-                        caption: "flex justify-center pt-1 relative items-center",
-                        caption_label: "text-sm font-medium",
-                        nav: "space-x-1 flex items-center",
-                        nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                        nav_button_previous: "absolute left-1",
-                        nav_button_next: "absolute right-1",
-                        table: "w-full border-collapse space-y-1",
-                        head_row: "flex",
-                        head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                        row: "flex w-full mt-2",
-                        cell: `relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent ${isMobile ? 'h-20' : 'h-24'}`,
-                        day: "h-full w-full p-0 font-normal aria-selected:opacity-100",
-                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                        day_today: "bg-accent text-accent-foreground",
-                        day_outside: "text-muted-foreground opacity-50",
-                        day_disabled: "text-muted-foreground opacity-50",
-                        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                        day_hidden: "invisible",
-                      }}
-                      components={{
-                        Day: ({ date, ...props }) => {
-                          const dayBookings = getBookingsForDate(date);
-                          const hasBookings = dayBookings.length > 0;
-                          const maxVisible = isMobile ? 6 : 10;
-                          
-                          return (
-                            <div className="relative w-full h-full overflow-hidden">
-                              <div
-                                className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
-                                  isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
-                                } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
-                                onClick={() => setSelectedDate(date)}
-                              >
-                                <div className={`font-normal ${isMobile ? 'text-xs' : 'text-sm'} mb-1`}>
-                                  {format(date, 'd')}
-                                </div>
-                                {hasBookings && (
-                                  <div className="flex flex-col gap-0.5 w-full flex-1 overflow-hidden">
-                                    {dayBookings.slice(0, maxVisible).map((booking, idx) => {
-                                      const branch = branches.find(b => b.id === booking.branchId);
-                                      const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, date);
-                                      
-                                      return (
-                                        <div
-                                          key={idx}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleApprovalClick(booking, e);
-                                          }}
-                                          className={`px-1 py-0.5 rounded text-white ${isMobile ? 'text-[8px]' : 'text-xs'} truncate w-full cursor-pointer transition-opacity hover:opacity-80 flex items-center gap-1 ${
-                                            booking.status === 'pending' ? 'bg-yellow-500' :
-                                            booking.status === 'approved' ? 'bg-green-500' :
-                                            booking.status === 'rejected' ? 'bg-red-500' :
-                                            'bg-gray-500'
-                                          }`}
-                                        >
-                                          {hasClockedIn && (
-                                            <div className="w-1 h-1 bg-white rounded-full flex-shrink-0"></div>
-                                          )}
-                                          <span className="truncate">
-                                            {isMobile 
-                                              ? `${booking.employeeName.split(' ')[0]}`
-                                              : `${booking.employeeName} - ${branch?.name || booking.branchName}`
-                                            }
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                    {dayBookings.length > maxVisible && (
-                                      <div className={`text-gray-600 ${isMobile ? 'text-[8px]' : 'text-xs'} text-center`}>
-                                        +{dayBookings.length - maxVisible} more
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-                      }}
-                    />
-                  </CardContent>
-                </Card>
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <AdminSlotBookingCalendar
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDateSelect}
+                  allBookings={allBookings}
+                  selectedBranch={selectedBranch}
+                />
               </div>
               
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CalendarIcon className="w-5 h-5" />
-                      {format(selectedDate, 'EEEE, MMMM d')}
-                    </CardTitle>
-                    <CardDescription>
-                      {getBookingsForDate(selectedDate).length} booking(s) for this date
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {getBookingsForDate(selectedDate).length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p>No bookings for this date</p>
-                        <Button 
-                          className="mt-4" 
-                          onClick={() => setIsBulkBookingDialogOpen(true)}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Booking
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {getBookingsForDate(selectedDate).map((booking) => {
-                          const branch = branches.find(b => b.id === booking.branchId);
-                          const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
-                          
-                          return (
-                            <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
-                              <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
-                                <div className="flex items-center space-x-2">
-                                  <div 
-                                    className="w-3 h-3 rounded-full" 
-                                    style={{ backgroundColor: branch?.color?.replace('bg-', '') || '#3b82f6' }}
-                                  ></div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h4 className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                        {booking.employeeName}
-                                      </h4>
-                                      {hasClockedIn && (
-                                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                          Clocked In
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                                      {branch?.name || booking.branchName}
-                                    </p>
-                                    <Badge 
-                                      variant={
-                                        booking.status === 'pending' ? 'secondary' :
-                                        booking.status === 'approved' ? 'default' :
-                                        booking.status === 'rejected' ? 'destructive' :
-                                        'outline'
-                                      }
-                                      className={`${isMobile ? 'text-xs' : ''} ${
-                                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                        booking.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                        ''
-                                      }`}
-                                    >
-                                      {booking.status}
-                                    </Badge>
-                                  </div>
-                                </div>
-                                <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
-                                  {booking.status === 'pending' && (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleApprovalClick(booking, {} as React.MouseEvent)}
-                                        className={isMobile ? 'flex-1' : ''}
-                                      >
-                                        <Edit className="w-3 h-3 mr-1" />
-                                        Manage
-                                      </Button>
-                                    </>
-                                  )}
-                                  {booking.status === 'approved' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setSelectedBookingForSwap(booking);
-                                        setIsSwapDialogOpen(true);
-                                      }}
-                                      className={isMobile ? 'flex-1' : ''}
-                                    >
-                                      <UserCheck className="w-3 h-3 mr-1" />
-                                      Swap
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setSelectedBookingForCancel(booking);
-                                      setIsCancelDialogOpen(true);
-                                    }}
-                                    className={`text-red-600 hover:text-red-700 ${isMobile ? 'flex-1' : ''}`}
-                                  >
-                                    <X className="w-3 h-3 mr-1" />
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              <div>
+                <AdminSlotBookingDetailsPanel
+                  selectedDate={selectedDate}
+                  bookings={getBookingsForDate(selectedDate)}
+                  weeklySlotConfig={currentWeeklySlots}
+                  onApprovalClick={handleApprovalClick}
+                  onCancelClick={(booking) => {
+                    setSelectedBookingForCancel(booking);
+                    setIsCancelDialogOpen(true);
+                  }}
+                  onCreateBooking={() => setIsBulkBookingDialogOpen(true)}
+                  selectedBranch={selectedBranch}
+                />
               </div>
             </div>
           </div>
