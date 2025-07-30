@@ -64,6 +64,8 @@ export interface PayrollContextType {
   addEmployeesToPayroll: (employeeIds: string[]) => Promise<void>;
   removeEmployeeFromPayroll: (employeeId: string) => void;
   refreshAvailableEmployees: () => Promise<void>;
+  autoAddCasualEmployeesWithAttendance: () => Promise<{ addedCount: number; employees: any[] }>;
+  getEligibleCasualEmployeesForPayroll: () => Promise<any[]>;
   isLoading: boolean;
   // Additional methods needed by PayrollProcessing
   updateEmployeeSalary?: (employeeId: string, salary: number) => void;
@@ -341,6 +343,120 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const getEligibleCasualEmployeesForPayroll = useCallback(async () => {
+    const [monthName, year] = payrollState.currentPeriod.split(' ');
+    const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
+    
+    try {
+      // Get casual employees with attendance for the payroll period
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance')
+        .select(`
+          employee_id,
+          date,
+          hours_worked,
+          status,
+          employees:employee_id(*)
+        `)
+        .gte('date', `${year}-${monthNumber.toString().padStart(2, '0')}-01`)
+        .lt('date', `${year}-${(monthNumber + 1).toString().padStart(2, '0')}-01`)
+        .eq('employees.type', 'Casual');
+
+      if (attendanceError) throw attendanceError;
+
+      // Group attendance by employee
+      const employeeAttendance = attendanceData?.reduce((acc, record) => {
+        const employeeId = record.employee_id;
+        if (!acc[employeeId]) {
+          acc[employeeId] = {
+            employee: record.employees,
+            records: [],
+            totalHours: 0,
+            totalDays: 0
+          };
+        }
+        acc[employeeId].records.push(record);
+        acc[employeeId].totalHours += record.hours_worked || 0;
+        if (record.status !== 'Absent') {
+          acc[employeeId].totalDays += 1;
+        }
+        return acc;
+      }, {} as any) || {};
+
+      // Filter out employees already in payroll
+      const existingEmployeeIds = new Set([
+        ...payrollState.casualEmployees.map(emp => emp.employeeId),
+        ...payrollState.fullTimeEmployees.map(emp => emp.employeeId)
+      ]);
+
+      return Object.values(employeeAttendance)
+        .filter((item: any) => !existingEmployeeIds.has(item.employee.id))
+        .map((item: any) => {
+          const employee = item.employee;
+          return {
+            id: employee.id,
+            name: employee.name,
+            employeeId: employee.id,
+            paymentType: employee.payment_type || 'Hourly',
+            hourlyRate: employee.hourly_rate || 0,
+            dailyRate: employee.daily_rate || employee.daily_weekday_rate || 0,
+            baseSalary: employee.base_salary || 0,
+            totalHours: item.totalHours,
+            totalDays: item.totalDays,
+            attendanceRecords: item.records.length
+          };
+        });
+    } catch (error) {
+      console.error('Error fetching eligible casual employees:', error);
+      return [];
+    }
+  }, [payrollState.currentPeriod, payrollState.casualEmployees, payrollState.fullTimeEmployees]);
+
+  const autoAddCasualEmployeesWithAttendance = useCallback(async () => {
+    setPayrollState(prevState => ({ ...prevState, isLoading: true }));
+    
+    try {
+      const eligibleEmployees = await getEligibleCasualEmployeesForPayroll();
+      
+      if (eligibleEmployees.length === 0) {
+        return { addedCount: 0, employees: [] };
+      }
+
+      // Add each eligible employee to payroll
+      eligibleEmployees.forEach(employee => {
+        const paymentType = employee.paymentType;
+        let hoursWorked = employee.totalHours;
+        let daysWorked = employee.totalDays;
+
+        // For monthly employees, ensure minimum hours/days
+        if (paymentType === 'Monthly' && hoursWorked === 0) {
+          hoursWorked = daysWorked * 8; // Assume 8 hours per day
+        }
+
+        addCasualEmployee({
+          employeeId: employee.id,
+          name: employee.name,
+          hourlyRate: employee.hourlyRate,
+          hoursWorked: hoursWorked,
+          daysWorked: daysWorked,
+          paymentType: paymentType,
+          dailyRate: employee.dailyRate,
+          baseSalary: employee.baseSalary
+        });
+      });
+
+      return { 
+        addedCount: eligibleEmployees.length, 
+        employees: eligibleEmployees 
+      };
+    } catch (error) {
+      console.error('Error auto-adding casual employees:', error);
+      throw error;
+    } finally {
+      setPayrollState(prevState => ({ ...prevState, isLoading: false }));
+    }
+  }, [getEligibleCasualEmployeesForPayroll, addCasualEmployee]);
+
   const loadPayrollFromSupabase = async () => {
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
@@ -390,6 +506,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addEmployeesToPayroll,
     removeEmployeeFromPayroll,
     refreshAvailableEmployees,
+    autoAddCasualEmployeesWithAttendance,
+    getEligibleCasualEmployeesForPayroll,
     isLoading: payrollState.isLoading,
   };
 

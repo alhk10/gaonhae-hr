@@ -18,9 +18,19 @@ interface PayrollEmployeeManagerProps {
 }
 
 const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payrollPeriod }) => {
-  const { payrollState, addEmployeesToPayroll, removeEmployeeFromPayroll, refreshAvailableEmployees, isLoading } = usePayroll();
+  const { 
+    payrollState, 
+    addEmployeesToPayroll, 
+    removeEmployeeFromPayroll, 
+    refreshAvailableEmployees, 
+    autoAddCasualEmployeesWithAttendance,
+    getEligibleCasualEmployeesForPayroll,
+    isLoading 
+  } = usePayroll();
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [isAutoAddPreviewOpen, setIsAutoAddPreviewOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [eligibleCasualEmployees, setEligibleCasualEmployees] = useState<any[]>([]);
 
   // Validate all employees and collect issues
   const validationIssues = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]
@@ -81,6 +91,33 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     }
   };
 
+  const handleAutoAddCasualEmployees = async () => {
+    try {
+      const eligible = await getEligibleCasualEmployeesForPayroll();
+      if (eligible.length === 0) {
+        toast.info('No casual employees with attendance found for this period');
+        return;
+      }
+      setEligibleCasualEmployees(eligible);
+      setIsAutoAddPreviewOpen(true);
+    } catch (error) {
+      console.error('Error fetching eligible employees:', error);
+      toast.error('Error fetching eligible employees');
+    }
+  };
+
+  const confirmAutoAddCasualEmployees = async () => {
+    try {
+      const result = await autoAddCasualEmployeesWithAttendance();
+      setIsAutoAddPreviewOpen(false);
+      setEligibleCasualEmployees([]);
+      toast.success(`Successfully added ${result.addedCount} casual employees to payroll`);
+    } catch (error) {
+      console.error('Error auto-adding casual employees:', error);
+      toast.error('Error adding casual employees to payroll');
+    }
+  };
+
   const availableForAdd = payrollState.availableEmployees.filter(emp => 
     !payrollState.fullTimeEmployees.some(existing => existing.employeeId === emp.id) &&
     !payrollState.casualEmployees.some(existing => existing.employeeId === emp.id)
@@ -132,15 +169,27 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 <Users className="w-5 h-5 mr-2" />
                 Full-Time Employees ({payrollState.fullTimeEmployees.length})
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={openBulkAddDialog}
-                disabled={isLoading || availableForAdd.length === 0}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Employees
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAutoAddCasualEmployees}
+                  disabled={isLoading}
+                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Auto-Add Casual
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={openBulkAddDialog}
+                  disabled={isLoading || availableForAdd.length === 0}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Employees
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -218,15 +267,27 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 <Users className="w-5 h-5 mr-2" />
                 Casual Employees ({payrollState.casualEmployees.length})
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={openBulkAddDialog}
-                disabled={isLoading || availableForAdd.length === 0}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Employees
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAutoAddCasualEmployees}
+                  disabled={isLoading}
+                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Auto-Add Casual
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={openBulkAddDialog}
+                  disabled={isLoading || availableForAdd.length === 0}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Employees
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -377,6 +438,98 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   disabled={selectedEmployees.length === 0 || isLoading}
                 >
                   {isLoading ? 'Adding...' : 'Add to Payroll'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-Add Casual Employees Preview Dialog */}
+      <Dialog open={isAutoAddPreviewOpen} onOpenChange={setIsAutoAddPreviewOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Auto-Add Casual Employees with Attendance</DialogTitle>
+            <DialogDescription>
+              Found {eligibleCasualEmployees.length} casual employees with attendance records for {payrollPeriod}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-3">
+              {eligibleCasualEmployees.map((employee) => {
+                const paymentType = employee.paymentType || 'Hourly';
+                const calculatedPay = paymentType === 'Hourly' 
+                  ? employee.totalHours * employee.hourlyRate
+                  : paymentType === 'Daily'
+                  ? employee.totalDays * employee.dailyRate
+                  : employee.baseSalary;
+
+                return (
+                  <div key={employee.id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{employee.name}</p>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {paymentType}
+                          </Badge>
+                          <span className="text-xs text-gray-600">
+                            {employee.attendanceRecords} attendance records
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-green-600">
+                          S${calculatedPay.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-2 text-xs text-gray-600">
+                      <div>
+                        <span className="font-medium">Hours:</span> {employee.totalHours.toFixed(1)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Days:</span> {employee.totalDays}
+                      </div>
+                      <div>
+                        <span className="font-medium">Rate:</span> S${
+                          paymentType === 'Hourly' ? employee.hourlyRate.toFixed(2) + '/hr' :
+                          paymentType === 'Daily' ? employee.dailyRate.toFixed(2) + '/day' :
+                          employee.baseSalary.toFixed(2) + '/month'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg">
+              <div>
+                <p className="font-medium text-blue-900">
+                  Total: {eligibleCasualEmployees.length} employees
+                </p>
+                <p className="text-sm text-blue-700">
+                  Estimated total amount: S${eligibleCasualEmployees.reduce((sum, emp) => {
+                    const paymentType = emp.paymentType || 'Hourly';
+                    const calculatedPay = paymentType === 'Hourly' 
+                      ? emp.totalHours * emp.hourlyRate
+                      : paymentType === 'Daily'
+                      ? emp.totalDays * emp.dailyRate
+                      : emp.baseSalary;
+                    return sum + calculatedPay;
+                  }, 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => setIsAutoAddPreviewOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={confirmAutoAddCasualEmployees}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isLoading ? 'Adding...' : 'Add All to Payroll'}
                 </Button>
               </div>
             </div>
