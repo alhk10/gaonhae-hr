@@ -246,7 +246,11 @@ const SlotBooking = () => {
     if (isDateDisabled(date)) {
       const dateString = format(date, 'yyyy-MM-dd');
       if (employeeBookingDates.has(dateString)) {
-        toast.error("You already have a booking on this date. Double bookings are not allowed.");
+        // Find existing booking to show more details
+        const existingBooking = employeeBookings.find(b => b.date === dateString);
+        const branchName = existingBooking?.branchName || 'unknown branch';
+        const status = existingBooking?.status || 'unknown status';
+        toast.error(`You already have a ${status} booking for ${format(date, 'PPP')} at ${branchName}. Contact admin if you need to modify this booking.`);
       } else {
         toast.error("This date is not available for booking");
       }
@@ -261,34 +265,60 @@ const SlotBooking = () => {
 
     const dateString = format(date, 'yyyy-MM-dd');
     
-    try {
-      const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
-      if (availableSlots <= 0) {
-        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        
-        if (isWeekend) {
-          toast.error(`No weekend slots available for ${currentBranch?.name}. Try switching to Balmoral, Kembangan, Yishun, or Jurong West for weekend bookings.`);
-        } else {
-          toast.error(`No slots available for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
-        }
-        return;
-      }
-    } catch (error) {
-      console.error('SlotBooking: Error checking available slots:', error);
-      toast.error('Error checking slot availability');
-      return;
-    }
-    
+    // Enhanced existing booking check with detailed feedback
     try {
       const hasExistingBooking = await checkForExistingBooking(user.employeeId, dateString);
       if (hasExistingBooking) {
-        toast.error("You already have a booking on this date. Double bookings are not allowed.");
+        // Get existing booking details for better error message
+        const existingBooking = employeeBookings.find(b => b.date === dateString);
+        if (existingBooking) {
+          toast.error(`You already have a ${existingBooking.status} booking for ${format(date, 'PPP')} at ${existingBooking.branchName}. Contact admin if you need to modify this booking.`);
+        } else {
+          toast.error("You already have a booking on this date. Double bookings are not allowed.");
+        }
         return;
       }
     } catch (error) {
       console.error('SlotBooking: Error checking existing booking:', error);
       toast.error("Error checking booking availability");
+      return;
+    }
+    
+    // Enhanced slot availability check with weekend-specific logic
+    try {
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
+      
+      // Get total slots for this day to provide better feedback
+      const branchConfig = weeklySlotConfig[selectedBranch];
+      const totalSlots = branchConfig ? branchConfig[dayName.toLowerCase() as keyof WeeklySlotConfig] : 0;
+      
+      if (availableSlots <= 0) {
+        if (totalSlots === 0) {
+          if (isWeekend) {
+            toast.error(`${currentBranch?.name} doesn't operate on ${dayName}s. Try Balmoral, Kembangan, Yishun, or Jurong West for weekend bookings.`);
+          } else {
+            toast.error(`${currentBranch?.name} doesn't operate on ${dayName}s. Please select a different day.`);
+          }
+        } else {
+          toast.error(`All ${totalSlots} slots are booked for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
+        }
+        return;
+      }
+      
+      // Show available slots info for confirmation
+      if (availableSlots === 1) {
+        toast.info(`⚠️ Only 1 slot remaining for ${currentBranch?.name} on ${format(date, 'PPP')}`);
+      } else if (availableSlots <= 3) {
+        toast.info(`${availableSlots} slots available for ${currentBranch?.name} on ${format(date, 'PPP')}`);
+      }
+      
+    } catch (error) {
+      console.error('SlotBooking: Error checking available slots:', error);
+      toast.error('Error checking slot availability. Please try again.');
       return;
     }
 
@@ -339,38 +369,67 @@ const SlotBooking = () => {
     }
 
     setIsBooking(true);
+    const successful = [];
+    const failed = [];
+    
     try {
       console.log('SlotBooking: Starting booking process for', selectedDates.length, 'dates');
       
-      const bookingPromises = selectedDates.map(async (date) => {
+      // Process bookings one by one to provide detailed feedback
+      for (const date of selectedDates) {
         const dateStr = format(date, 'yyyy-MM-dd');
         
-        console.log('SlotBooking: Booking slot for date:', dateStr);
-        
-        return addSlotBooking({
-          employeeId: user.employeeId,
-          employeeName: user.name,
-          branchId: selectedBranch,
-          branchName: currentBranch.name,
-          date: dateStr,
-          status: 'pending'
-        });
-      });
-
-      const bookingIds = await Promise.all(bookingPromises);
+        try {
+          console.log('SlotBooking: Booking slot for date:', dateStr);
+          
+          const bookingId = await addSlotBooking({
+            employeeId: user.employeeId,
+            employeeName: user.name,
+            branchId: selectedBranch,
+            branchName: currentBranch.name,
+            date: dateStr,
+            status: 'pending'
+          });
+          
+          successful.push({ date: dateStr, bookingId });
+          console.log('SlotBooking: Successfully booked:', { date: dateStr, bookingId });
+          
+        } catch (bookingError) {
+          console.error('SlotBooking: Failed to book date', dateStr, ':', bookingError);
+          failed.push({ 
+            date: dateStr, 
+            error: bookingError instanceof Error ? bookingError.message : 'Unknown error'
+          });
+        }
+      }
       
-      toast.success(`Successfully booked ${selectedDates.length} slot${selectedDates.length > 1 ? 's' : ''} at ${currentBranch.name}`);
-      console.log('SlotBooking: Created bookings:', bookingIds);
+      // Provide detailed feedback
+      if (successful.length > 0) {
+        toast.success(`✅ Successfully booked ${successful.length} slot${successful.length > 1 ? 's' : ''} at ${currentBranch.name}`);
+      }
+      
+      if (failed.length > 0) {
+        failed.forEach(failure => {
+          toast.error(`❌ Failed to book ${format(new Date(failure.date), 'MMM dd')}: ${failure.error}`);
+        });
+        
+        // If some bookings failed, suggest contacting admin
+        if (failed.length === selectedDates.length) {
+          toast.error('All bookings failed. Please contact administrator if this issue persists.');
+        } else {
+          toast.warning(`${failed.length} booking${failed.length > 1 ? 's' : ''} failed. Contact admin if needed.`);
+        }
+      }
       
       setSelectedDates([]);
       await Promise.all([
         loadEmployeeBookings(),
         loadApprovedBookingDates()
       ]);
+      
     } catch (error) {
-      console.error('SlotBooking: Error booking slots:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to book slots. Please try again.';
-      toast.error(errorMessage);
+      console.error('SlotBooking: Unexpected error during booking process:', error);
+      toast.error('An unexpected error occurred. Please try again or contact administrator.');
     } finally {
       setIsBooking(false);
     }

@@ -300,6 +300,61 @@ export const forceBookJasonSlots = async (): Promise<{ success: boolean; booking
   }
 };
 
+// Function to create emergency booking for employee (general purpose)
+export const createEmergencyBooking = async (
+  employeeId: string,
+  employeeName: string,
+  branchId: string,
+  branchName: string,
+  date: string,
+  notes?: string
+): Promise<{ success: boolean; bookingId?: string; error?: string }> => {
+  try {
+    console.log(`Creating emergency booking for ${employeeName} at ${branchName} on ${date}`);
+    
+    // First, check if employee already has a booking for this date
+    const { data: existingBookings, error: checkError } = await supabase
+      .from('slot_bookings_new')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('date', date)
+      .neq('status', 'cancelled');
+
+    if (checkError) {
+      console.error('Error checking existing bookings:', checkError);
+      return { success: false, error: 'Failed to check existing bookings' };
+    }
+
+    if (existingBookings && existingBookings.length > 0) {
+      const existing = existingBookings[0];
+      return { 
+        success: false, 
+        error: `Employee already has a ${existing.status} booking for ${date} at ${existing.branch_name}` 
+      };
+    }
+
+    // Create the emergency booking
+    const bookingId = await addAdminSlotBooking({
+      employeeId,
+      employeeName,
+      branchId,
+      branchName,
+      date,
+      notes: notes || `Emergency booking created by admin for ${employeeName}`
+    });
+
+    console.log(`Emergency booking created successfully: ${bookingId}`);
+    return { success: true, bookingId };
+    
+  } catch (error) {
+    console.error('Error creating emergency booking:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
+};
+
 // Function to get employee slot bookings
 export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotBooking[]> => {
   try {
@@ -371,9 +426,11 @@ export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists
   }
 };
 
-// Function to get available slots for a date
+// Function to get available slots for a date with enhanced validation
 export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
   try {
+    console.log(`Getting available slots for ${branchId} on ${date}`);
+    
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
     
     const { data: configData, error: configError } = await supabase
@@ -383,26 +440,37 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
       .single();
 
     if (configError || !configData) {
-      console.error('Error fetching weekly config:', configError);
+      console.error('Error fetching weekly config for', branchId, ':', configError);
       return 0;
     }
 
     const totalSlots = configData[dayName] || 0;
+    console.log(`Total ${dayName} slots for ${branchId}:`, totalSlots);
 
+    // Only count non-cancelled bookings
     const { data: bookingsData, error: bookingsError } = await supabase
       .from('slot_bookings_new')
-      .select('id')
+      .select('id, status, employee_name')
       .eq('date', date)
       .eq('branch_id', branchId)
       .neq('status', 'cancelled');
 
     if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
+      console.error('Error fetching bookings for', branchId, 'on', date, ':', bookingsError);
       return 0;
     }
 
     const bookedSlots = bookingsData?.length || 0;
-    return Math.max(0, totalSlots - bookedSlots);
+    const availableSlots = Math.max(0, totalSlots - bookedSlots);
+    
+    console.log(`Slots calculation for ${branchId} on ${date}:`, {
+      totalSlots,
+      bookedSlots,
+      availableSlots,
+      activeBookings: bookingsData?.map(b => ({ status: b.status, employee: b.employee_name }))
+    });
+    
+    return availableSlots;
   } catch (error) {
     console.error('Error in getAvailableSlotsForDate:', error);
     return 0;

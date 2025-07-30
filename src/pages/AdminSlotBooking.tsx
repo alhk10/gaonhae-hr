@@ -28,6 +28,7 @@ import {
   getEmployeeAttendanceStatus,
   checkForExistingBooking,
   forceBookJasonSlots,
+  createEmergencyBooking,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig,
@@ -526,6 +527,34 @@ const AdminSlotBooking = () => {
                   }}
                 >
                   🚨 Fix Jason's Booking
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                  onClick={async () => {
+                    try {
+                      const result = await createEmergencyBooking(
+                        'EMP1751007229058',
+                        'Eldon Fok Jin Wei',
+                        'jurong_west',
+                        'Jurong West',
+                        '2025-08-16',
+                        'Emergency booking - Admin override for Eldon Fok'
+                      );
+                      
+                      if (result.success) {
+                        toast.success(`✅ Emergency booking created for Eldon at Jurong West on Aug 16, 2025`);
+                        refreshData();
+                      } else {
+                        toast.error(`❌ ${result.error}`);
+                      }
+                    } catch (error) {
+                      toast.error(`❌ Error: ${error.message}`);
+                    }
+                  }}
+                >
+                  🆘 Fix Eldon's Booking
                 </Button>
                 
                 <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
