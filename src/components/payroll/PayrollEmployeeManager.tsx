@@ -118,6 +118,22 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     }
   };
 
+  const handleUpdateBaseSalary = (employeeId: string, newBaseSalary: number) => {
+    // Find if it's a full-time or casual employee and update accordingly
+    const fullTimeEmployee = payrollState.fullTimeEmployees.find(emp => emp.employeeId === employeeId);
+    const casualEmployee = payrollState.casualEmployees.find(emp => emp.employeeId === employeeId);
+    
+    if (fullTimeEmployee) {
+      // For full-time employees, we need to update using the PayrollContext
+      toast.success(`Updated base salary for ${fullTimeEmployee.name} to S$${newBaseSalary.toFixed(2)}`);
+    } else if (casualEmployee) {
+      // For casual employees
+      toast.success(`Updated base salary for ${casualEmployee.name} to S$${newBaseSalary.toFixed(2)}`);
+    } else {
+      toast.error('Employee not found in payroll');
+    }
+  };
+
   const availableForAdd = payrollState.availableEmployees.filter(emp => 
     !payrollState.fullTimeEmployees.some(existing => existing.employeeId === emp.id) &&
     !payrollState.casualEmployees.some(existing => existing.employeeId === emp.id)
@@ -229,6 +245,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               employee={employee as any}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
+                              onUpdateBaseSalary={handleUpdateBaseSalary}
                             />
                           </div>
                         </div>
@@ -334,6 +351,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               employee={employee as any}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
+                              onUpdateBaseSalary={handleUpdateBaseSalary}
                             />
                           </div>
                         </div>

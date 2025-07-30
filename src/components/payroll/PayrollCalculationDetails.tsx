@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, Eye, AlertTriangle, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Calculator, Eye, AlertTriangle, Info, Edit, Save, X } from 'lucide-react';
 import { PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 import { formatCurrency } from '@/utils/payrollCalculations';
 
@@ -12,16 +14,32 @@ interface PayrollCalculationDetailsProps {
   employee: PayrollEmployee | CasualEmployeePayroll;
   calculationErrors?: string[];
   calculationWarnings?: string[];
+  onUpdateBaseSalary?: (employeeId: string, newBaseSalary: number) => void;
 }
 
 const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
   employee,
   calculationErrors = [],
-  calculationWarnings = []
+  calculationWarnings = [],
+  onUpdateBaseSalary
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingBaseSalary, setIsEditingBaseSalary] = useState(false);
+  const [editedBaseSalary, setEditedBaseSalary] = useState(employee.baseSalary || 0);
 
   const isCasual = 'paymentType' in employee;
+  
+  const handleSaveBaseSalary = () => {
+    if (onUpdateBaseSalary && editedBaseSalary !== employee.baseSalary) {
+      onUpdateBaseSalary(employee.id, editedBaseSalary);
+    }
+    setIsEditingBaseSalary(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedBaseSalary(employee.baseSalary || 0);
+    setIsEditingBaseSalary(false);
+  };
   
   const renderFullTimeDetails = (emp: PayrollEmployee) => (
     <div className="space-y-4">
@@ -29,9 +47,41 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
         <div>
           <h4 className="font-medium text-sm text-gray-600 mb-2">Income</h4>
           <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Base Salary:</span>
-              <span>{formatCurrency(emp.baseSalary || 0)}</span>
+              <div className="flex items-center space-x-2">
+                {isEditingBaseSalary ? (
+                  <div className="flex items-center space-x-1">
+                    <Input
+                      type="number"
+                      value={editedBaseSalary}
+                      onChange={(e) => setEditedBaseSalary(Number(e.target.value))}
+                      className="w-24 h-6 text-xs"
+                      step="0.01"
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleSaveBaseSalary} className="h-6 w-6 p-0">
+                      <Save className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-6 w-6 p-0">
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1">
+                    <span>{formatCurrency(emp.baseSalary || 0)}</span>
+                    {onUpdateBaseSalary && (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => setIsEditingBaseSalary(true)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>
