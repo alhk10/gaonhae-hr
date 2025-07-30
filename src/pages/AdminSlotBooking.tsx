@@ -418,13 +418,9 @@ const AdminSlotBooking = () => {
         <main className="flex-1 p-6 max-w-full overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             <AdminSlotBookingHeader
-              selectedBranch={selectedBranch}
-              onBranchChange={setSelectedBranch}
-              branches={branches}
               allBookings={allBookings}
               onSettingsClick={() => setIsSettingsDialogOpen(true)}
               onPendingApprovalsClick={() => setIsPendingApprovalsDialogOpen(true)}
-              onRefreshData={refreshData}
               autoRefreshActive={autoRefreshActive}
             />
             
@@ -442,6 +438,9 @@ const AdminSlotBooking = () => {
                   onDateSelect={handleDateSelect}
                   allBookings={allBookings}
                   selectedBranch={selectedBranch}
+                  onBranchChange={setSelectedBranch}
+                  branches={branches}
+                  onCreateBooking={() => setIsBulkBookingDialogOpen(true)}
                 />
               </div>
               
