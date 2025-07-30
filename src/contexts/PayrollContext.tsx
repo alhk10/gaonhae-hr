@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import type { EmployeeProfile } from '@/types/employee';
+import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { calculateCasualPayroll, calculateFullTimePayroll } from '@/utils/payrollCalculations';
 
 export interface FullTimeEmployee {
@@ -17,6 +17,9 @@ export interface FullTimeEmployee {
   cpfEmployee: number;
   cpfEmployer: number;
   paymentType?: 'Monthly' | 'Hourly' | 'Daily';
+  // Add support for allowances and deductions arrays
+  allowancesArray?: EmployeeAllowance[];
+  deductions?: EmployeeDeduction[];
 }
 
 export interface CasualEmployee {
@@ -78,8 +81,8 @@ export interface PayrollContextType {
   isLoading: boolean;
   // Additional methods needed by PayrollProcessing
   updateEmployeeSalary?: (employeeId: string, salary: number) => void;
-  updateEmployeeAllowances?: (employeeId: string, allowances: any[]) => void;
-  updateEmployeeDeductions?: (employeeId: string, deductions: any[]) => void;
+  updateEmployeeAllowances: (employeeId: string, allowances: EmployeeAllowance[]) => void;
+  updateEmployeeDeductions: (employeeId: string, deductions: EmployeeDeduction[]) => void;
   updateCasualEmployeeHours?: (employeeId: string, hours: number) => void;
 }
 
@@ -648,6 +651,121 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshAvailableEmployees();
   }, [refreshAvailableEmployees]);
 
+  // Implement missing methods for allowances and deductions
+  const updateEmployeeAllowances = useCallback((employeeId: string, allowances: EmployeeAllowance[]) => {
+    setPayrollState(prevState => {
+      const updatedFullTime = prevState.fullTimeEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, allowancesArray: allowances };
+          // Create a mock employee profile for calculations
+          const employeeProfile: EmployeeProfile = {
+            id: emp.employeeId,
+            name: emp.name,
+            allowances,
+            deductions: emp.deductions || [],
+            baseSalary: emp.baseSalary,
+            type: 'Full-Time'
+          } as EmployeeProfile;
+          const calculations = calculateFullTimePayroll(employeeProfile);
+          return {
+            ...updatedEmp,
+            grossPay: calculations.grossSalary,
+            netPay: calculations.netSalary,
+            cpfEmployee: calculations.employeeCPF,
+            cpfEmployer: calculations.employerCPF
+          };
+        }
+        return emp;
+      });
+
+      const updatedCasual = prevState.casualEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, allowances };
+          // Create a mock employee profile for calculations
+          const employeeProfile: EmployeeProfile = {
+            id: emp.employeeId,
+            name: emp.name,
+            allowances,
+            deductions: emp.deductions || [],
+            type: 'Casual'
+          } as EmployeeProfile;
+          const calculations = calculateCasualPayroll(employeeProfile, emp.hoursWorked || 0, emp.daysWorked || 0);
+          return {
+            ...updatedEmp,
+            totalPay: calculations.netSalary,
+            employeeCPF: calculations.employeeCPF,
+            employerCPF: calculations.employerCPF
+          };
+        }
+        return emp;
+      });
+
+      return {
+        ...prevState,
+        fullTimeEmployees: updatedFullTime,
+        casualEmployees: updatedCasual,
+        lastUpdated: new Date()
+      };
+    });
+  }, []);
+
+  const updateEmployeeDeductions = useCallback((employeeId: string, deductions: EmployeeDeduction[]) => {
+    setPayrollState(prevState => {
+      const updatedFullTime = prevState.fullTimeEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, deductions };
+          // Create a mock employee profile for calculations
+          const employeeProfile: EmployeeProfile = {
+            id: emp.employeeId,
+            name: emp.name,
+            allowances: emp.allowancesArray || [],
+            deductions,
+            baseSalary: emp.baseSalary,
+            type: 'Full-Time'
+          } as EmployeeProfile;
+          const calculations = calculateFullTimePayroll(employeeProfile);
+          return {
+            ...updatedEmp,
+            grossPay: calculations.grossSalary,
+            netPay: calculations.netSalary,
+            cpfEmployee: calculations.employeeCPF,
+            cpfEmployer: calculations.employerCPF
+          };
+        }
+        return emp;
+      });
+
+      const updatedCasual = prevState.casualEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, deductions };
+          // Create a mock employee profile for calculations
+          const employeeProfile: EmployeeProfile = {
+            id: emp.employeeId,
+            name: emp.name,
+            allowances: emp.allowances || [],
+            deductions,
+            type: 'Casual'
+          } as EmployeeProfile;
+          const calculations = calculateCasualPayroll(employeeProfile, emp.hoursWorked || 0, emp.daysWorked || 0);
+          return {
+            ...updatedEmp,
+            totalPay: calculations.netSalary,
+            employeeCPF: calculations.employeeCPF,
+            employerCPF: calculations.employerCPF
+          };
+        }
+        return emp;
+      });
+
+      return {
+        ...prevState,
+        fullTimeEmployees: updatedFullTime,
+        casualEmployees: updatedCasual,
+        lastUpdated: new Date()
+      };
+    });
+  }, []);
+
   const value: PayrollContextType = {
     payrollState,
     setPayrollState,
@@ -668,6 +786,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     autoAddCasualEmployeesWithAttendance,
     getEligibleCasualEmployeesForPayroll,
     isLoading: payrollState.isLoading,
+    updateEmployeeAllowances,
+    updateEmployeeDeductions,
   };
 
   return (

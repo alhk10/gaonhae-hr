@@ -18,14 +18,16 @@ interface PayrollEmployeeManagerProps {
 }
 
 const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payrollPeriod }) => {
-  const { 
-    payrollState, 
-    addEmployeesToPayroll, 
-    removeEmployeeFromPayroll, 
-    refreshAvailableEmployees, 
+  const {
+    payrollState,
+    addEmployeesToPayroll,
+    removeEmployeeFromPayroll,
+    refreshAvailableEmployees,
     autoAddCasualEmployeesWithAttendance,
     getEligibleCasualEmployeesForPayroll,
-    isLoading 
+    updateEmployeeAllowances,
+    updateEmployeeDeductions,
+    isLoading
   } = usePayroll();
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
   const [isAutoAddPreviewOpen, setIsAutoAddPreviewOpen] = useState(false);
@@ -246,6 +248,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                               onUpdateBaseSalary={handleUpdateBaseSalary}
+                              onUpdateAllowances={updateEmployeeAllowances}
+                              onUpdateDeductions={updateEmployeeDeductions}
                             />
                           </div>
                         </div>
@@ -352,6 +356,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                               onUpdateBaseSalary={handleUpdateBaseSalary}
+                              onUpdateAllowances={updateEmployeeAllowances}
+                              onUpdateDeductions={updateEmployeeDeductions}
                             />
                           </div>
                         </div>

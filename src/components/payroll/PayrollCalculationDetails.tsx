@@ -1,46 +1,156 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calculator, Eye, AlertTriangle, Info, Edit, Save, X } from 'lucide-react';
-import { PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Calculator, Eye, AlertTriangle, Info, Edit, Check, X, Plus, Trash2 } from 'lucide-react';
+import type { PayrollEmployee, CasualEmployeePayroll, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { formatCurrency } from '@/utils/payrollCalculations';
 
 interface PayrollCalculationDetailsProps {
   employee: PayrollEmployee | CasualEmployeePayroll;
   calculationErrors?: string[];
   calculationWarnings?: string[];
-  onUpdateBaseSalary?: (employeeId: string, newBaseSalary: number) => void;
+  onUpdateBaseSalary?: (employeeId: string, baseSalary: number) => void;
+  onUpdateAllowances?: (employeeId: string, allowances: EmployeeAllowance[]) => void;
+  onUpdateDeductions?: (employeeId: string, deductions: EmployeeDeduction[]) => void;
 }
 
-const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
-  employee,
-  calculationErrors = [],
+export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({ 
+  employee, 
+  calculationErrors = [], 
   calculationWarnings = [],
-  onUpdateBaseSalary
+  onUpdateBaseSalary,
+  onUpdateAllowances,
+  onUpdateDeductions
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingBaseSalary, setIsEditingBaseSalary] = useState(false);
   const [editedBaseSalary, setEditedBaseSalary] = useState(employee.baseSalary || 0);
+  const [editingAllowanceId, setEditingAllowanceId] = useState<string | null>(null);
+  const [editingDeductionId, setEditingDeductionId] = useState<string | null>(null);
+  const [isAddingAllowance, setIsAddingAllowance] = useState(false);
+  const [isAddingDeduction, setIsAddingDeduction] = useState(false);
+  const [editedAllowances, setEditedAllowances] = useState<{[key: string]: {name: string, amount: number}}>({});
+  const [editedDeductions, setEditedDeductions] = useState<{[key: string]: {name: string, amount: number}}>({});
+  const [newAllowance, setNewAllowance] = useState({name: '', amount: 0});
+  const [newDeduction, setNewDeduction] = useState({name: '', amount: 0});
 
-  const isCasual = 'paymentType' in employee;
-  
-  const handleSaveBaseSalary = () => {
-    if (onUpdateBaseSalary && editedBaseSalary !== employee.baseSalary) {
+  const isCasual = 'hoursWorked' in employee;
+
+  const handleSaveBaseSalary = useCallback(() => {
+    if (editedBaseSalary !== employee.baseSalary && onUpdateBaseSalary) {
       onUpdateBaseSalary(employee.id, editedBaseSalary);
     }
     setIsEditingBaseSalary(false);
-  };
+  }, [editedBaseSalary, employee.baseSalary, employee.id, onUpdateBaseSalary]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setEditedBaseSalary(employee.baseSalary || 0);
     setIsEditingBaseSalary(false);
-  };
-  
+  }, [employee.baseSalary]);
+
+  const handleEditAllowance = useCallback((allowance: EmployeeAllowance) => {
+    setEditedAllowances({
+      ...editedAllowances,
+      [allowance.id]: { name: allowance.name, amount: allowance.amount }
+    });
+    setEditingAllowanceId(allowance.id);
+  }, [editedAllowances]);
+
+  const handleSaveAllowance = useCallback((allowanceId: string) => {
+    const editedData = editedAllowances[allowanceId];
+    if (!editedData || !onUpdateAllowances) return;
+
+    const updatedAllowances = employee.allowances.map(a => 
+      a.id === allowanceId 
+        ? { ...a, name: editedData.name, amount: editedData.amount }
+        : a
+    );
+    onUpdateAllowances(employee.id, updatedAllowances);
+    setEditingAllowanceId(null);
+  }, [editedAllowances, employee.allowances, employee.id, onUpdateAllowances]);
+
+  const handleCancelAllowanceEdit = useCallback((allowanceId: string) => {
+    const { [allowanceId]: removed, ...rest } = editedAllowances;
+    setEditedAllowances(rest);
+    setEditingAllowanceId(null);
+  }, [editedAllowances]);
+
+  const handleDeleteAllowance = useCallback((allowanceId: string) => {
+    if (!onUpdateAllowances) return;
+    const updatedAllowances = employee.allowances.filter(a => a.id !== allowanceId);
+    onUpdateAllowances(employee.id, updatedAllowances);
+  }, [employee.allowances, employee.id, onUpdateAllowances]);
+
+  const handleAddAllowance = useCallback(() => {
+    if (!onUpdateAllowances || !newAllowance.name.trim()) return;
+    
+    const updatedAllowances = [
+      ...employee.allowances,
+      {
+        id: Date.now().toString(),
+        name: newAllowance.name,
+        amount: newAllowance.amount,
+        type: 'Manual' as const
+      }
+    ];
+    onUpdateAllowances(employee.id, updatedAllowances);
+    setNewAllowance({name: '', amount: 0});
+    setIsAddingAllowance(false);
+  }, [employee.allowances, employee.id, newAllowance, onUpdateAllowances]);
+
+  const handleEditDeduction = useCallback((deduction: EmployeeDeduction) => {
+    setEditedDeductions({
+      ...editedDeductions,
+      [deduction.id]: { name: deduction.name, amount: deduction.amount }
+    });
+    setEditingDeductionId(deduction.id);
+  }, [editedDeductions]);
+
+  const handleSaveDeduction = useCallback((deductionId: string) => {
+    const editedData = editedDeductions[deductionId];
+    if (!editedData || !onUpdateDeductions) return;
+
+    const updatedDeductions = employee.deductions.map(d => 
+      d.id === deductionId 
+        ? { ...d, name: editedData.name, amount: editedData.amount }
+        : d
+    );
+    onUpdateDeductions(employee.id, updatedDeductions);
+    setEditingDeductionId(null);
+  }, [editedDeductions, employee.deductions, employee.id, onUpdateDeductions]);
+
+  const handleCancelDeductionEdit = useCallback((deductionId: string) => {
+    const { [deductionId]: removed, ...rest } = editedDeductions;
+    setEditedDeductions(rest);
+    setEditingDeductionId(null);
+  }, [editedDeductions]);
+
+  const handleDeleteDeduction = useCallback((deductionId: string) => {
+    if (!onUpdateDeductions) return;
+    const updatedDeductions = employee.deductions.filter(d => d.id !== deductionId);
+    onUpdateDeductions(employee.id, updatedDeductions);
+  }, [employee.deductions, employee.id, onUpdateDeductions]);
+
+  const handleAddDeduction = useCallback(() => {
+    if (!onUpdateDeductions || !newDeduction.name.trim()) return;
+    
+    const updatedDeductions = [
+      ...employee.deductions,
+      {
+        id: Date.now().toString(),
+        name: newDeduction.name,
+        amount: newDeduction.amount,
+        type: 'Manual' as const
+      }
+    ];
+    onUpdateDeductions(employee.id, updatedDeductions);
+    setNewDeduction({name: '', amount: 0});
+    setIsAddingDeduction(false);
+  }, [employee.deductions, employee.id, newDeduction, onUpdateDeductions]);
+
   const renderFullTimeDetails = (emp: PayrollEmployee) => (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -60,7 +170,7 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
                       step="0.01"
                     />
                     <Button size="sm" variant="ghost" onClick={handleSaveBaseSalary} className="h-6 w-6 p-0">
-                      <Save className="w-3 h-3" />
+                      <Check className="w-3 h-3" />
                     </Button>
                     <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-6 w-6 p-0">
                       <X className="w-3 h-3" />
@@ -168,15 +278,15 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>Base Pay:</span>
-              <span>{formatCurrency(emp.baseSalary || 0)}</span>
+              <span>{formatCurrency(emp.totalPay || 0)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Allowances:</span>
-              <span>{formatCurrency(Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0)}</span>
+              <span>Employee CPF:</span>
+              <span>{formatCurrency(emp.employeeCPF || 0)}</span>
             </div>
-            <div className="flex justify-between font-medium border-t pt-1">
-              <span>Gross Pay:</span>
-              <span>{formatCurrency(emp.grossPay || 0)}</span>
+            <div className="flex justify-between">
+              <span>Employer CPF:</span>
+              <span>{formatCurrency(emp.employerCPF || 0)}</span>
             </div>
           </div>
         </div>
@@ -186,14 +296,6 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
         <div className="flex justify-between items-center">
           <span className="font-medium">Total Pay:</span>
           <span className="font-bold text-lg text-green-600">{formatCurrency(emp.totalPay || 0)}</span>
-        </div>
-        <div className="flex justify-between text-sm text-gray-600 mt-1">
-          <span>Employee CPF:</span>
-          <span>{formatCurrency(emp.employeeCPF || 0)}</span>
-        </div>
-        <div className="flex justify-between text-sm text-gray-600">
-          <span>Employer CPF:</span>
-          <span>{formatCurrency(emp.employerCPF || 0)}</span>
         </div>
       </div>
     </div>
@@ -237,42 +339,282 @@ const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({
           {isCasual ? renderCasualDetails(employee as CasualEmployeePayroll) : renderFullTimeDetails(employee as PayrollEmployee)}
 
           {/* Allowances Breakdown */}
-          {employee.allowances && employee.allowances.length > 0 && (
-            <Card className="bg-gray-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Allowances Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  {employee.allowances.map((allowance, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span>{allowance.name}:</span>
-                      <span>{formatCurrency(allowance.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-gray-50">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Allowances Breakdown</CardTitle>
+              {onUpdateAllowances && !isAddingAllowance && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setIsAddingAllowance(true)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {employee.allowances && employee.allowances.map((allowance) => (
+                  <div key={allowance.id} className="flex items-center justify-between text-sm group">
+                    {editingAllowanceId === allowance.id ? (
+                      <div className="flex items-center gap-2 w-full">
+                        <Input 
+                          value={editedAllowances[allowance.id]?.name || ''} 
+                          onChange={(e) => setEditedAllowances({
+                            ...editedAllowances,
+                            [allowance.id]: { 
+                              ...editedAllowances[allowance.id], 
+                              name: e.target.value 
+                            }
+                          })}
+                          className="h-6 text-xs flex-1"
+                          placeholder="Allowance name"
+                        />
+                        <Input 
+                          type="number" 
+                          value={editedAllowances[allowance.id]?.amount || 0} 
+                          onChange={(e) => setEditedAllowances({
+                            ...editedAllowances,
+                            [allowance.id]: { 
+                              ...editedAllowances[allowance.id], 
+                              amount: parseFloat(e.target.value) || 0 
+                            }
+                          })}
+                          className="h-6 text-xs w-20"
+                          step="0.01"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleSaveAllowance(allowance.id)}
+                          className="h-6 w-6 p-0 text-green-600"
+                        >
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleCancelAllowanceEdit(allowance.id)}
+                          className="h-6 w-6 p-0 text-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span>{allowance.name}:</span>
+                        <div className="flex items-center gap-1">
+                          <span>{formatCurrency(allowance.amount)}</span>
+                          {onUpdateAllowances && (
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleEditAllowance(allowance)}
+                                className="h-4 w-4 p-0"
+                              >
+                                <Edit className="w-2 h-2" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteAllowance(allowance.id)}
+                                className="h-4 w-4 p-0 text-red-600"
+                              >
+                                <Trash2 className="w-2 h-2" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                
+                {isAddingAllowance && (
+                  <div className="flex items-center gap-2 border-t pt-2">
+                    <Input 
+                      value={newAllowance.name} 
+                      onChange={(e) => setNewAllowance({...newAllowance, name: e.target.value})}
+                      className="h-6 text-xs flex-1"
+                      placeholder="Allowance name"
+                    />
+                    <Input 
+                      type="number" 
+                      value={newAllowance.amount} 
+                      onChange={(e) => setNewAllowance({...newAllowance, amount: parseFloat(e.target.value) || 0})}
+                      className="h-6 text-xs w-20"
+                      step="0.01"
+                      placeholder="Amount"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleAddAllowance}
+                      className="h-6 w-6 p-0 text-green-600"
+                    >
+                      <Check className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setIsAddingAllowance(false);
+                        setNewAllowance({name: '', amount: 0});
+                      }}
+                      className="h-6 w-6 p-0 text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+                
+                {(!employee.allowances || employee.allowances.length === 0) && !isAddingAllowance && (
+                  <div className="text-xs text-gray-500 italic">No allowances</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Deductions Breakdown */}
-          {employee.deductions && employee.deductions.length > 0 && (
-            <Card className="bg-gray-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Deductions Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  {employee.deductions.map((deduction, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span>{deduction.name}:</span>
-                      <span>{formatCurrency(deduction.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-gray-50">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Deductions Breakdown</CardTitle>
+              {onUpdateDeductions && !isAddingDeduction && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setIsAddingDeduction(true)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {employee.deductions && employee.deductions.map((deduction) => (
+                  <div key={deduction.id} className="flex items-center justify-between text-sm group">
+                    {editingDeductionId === deduction.id ? (
+                      <div className="flex items-center gap-2 w-full">
+                        <Input 
+                          value={editedDeductions[deduction.id]?.name || ''} 
+                          onChange={(e) => setEditedDeductions({
+                            ...editedDeductions,
+                            [deduction.id]: { 
+                              ...editedDeductions[deduction.id], 
+                              name: e.target.value 
+                            }
+                          })}
+                          className="h-6 text-xs flex-1"
+                          placeholder="Deduction name"
+                        />
+                        <Input 
+                          type="number" 
+                          value={editedDeductions[deduction.id]?.amount || 0} 
+                          onChange={(e) => setEditedDeductions({
+                            ...editedDeductions,
+                            [deduction.id]: { 
+                              ...editedDeductions[deduction.id], 
+                              amount: parseFloat(e.target.value) || 0 
+                            }
+                          })}
+                          className="h-6 text-xs w-20"
+                          step="0.01"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleSaveDeduction(deduction.id)}
+                          className="h-6 w-6 p-0 text-green-600"
+                        >
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleCancelDeductionEdit(deduction.id)}
+                          className="h-6 w-6 p-0 text-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span>{deduction.name}:</span>
+                        <div className="flex items-center gap-1">
+                          <span>{formatCurrency(deduction.amount)}</span>
+                          {onUpdateDeductions && (
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleEditDeduction(deduction)}
+                                className="h-4 w-4 p-0"
+                              >
+                                <Edit className="w-2 h-2" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteDeduction(deduction.id)}
+                                className="h-4 w-4 p-0 text-red-600"
+                              >
+                                <Trash2 className="w-2 h-2" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                
+                {isAddingDeduction && (
+                  <div className="flex items-center gap-2 border-t pt-2">
+                    <Input 
+                      value={newDeduction.name} 
+                      onChange={(e) => setNewDeduction({...newDeduction, name: e.target.value})}
+                      className="h-6 text-xs flex-1"
+                      placeholder="Deduction name"
+                    />
+                    <Input 
+                      type="number" 
+                      value={newDeduction.amount} 
+                      onChange={(e) => setNewDeduction({...newDeduction, amount: parseFloat(e.target.value) || 0})}
+                      className="h-6 text-xs w-20"
+                      step="0.01"
+                      placeholder="Amount"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleAddDeduction}
+                      className="h-6 w-6 p-0 text-green-600"
+                    >
+                      <Check className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setIsAddingDeduction(false);
+                        setNewDeduction({name: '', amount: 0});
+                      }}
+                      className="h-6 w-6 p-0 text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+                
+                {(!employee.deductions || employee.deductions.length === 0) && !isAddingDeduction && (
+                  <div className="text-xs text-gray-500 italic">No deductions</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Validation Issues */}
           {calculationErrors.length > 0 && (
