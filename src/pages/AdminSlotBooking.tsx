@@ -3,7 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,15 +29,12 @@ import {
   updateSlotBookingEmployee,
   getEmployeeAttendanceStatus,
   checkForExistingBooking,
-  forceBookJasonSlots,
-  createEmergencyBooking,
   type SlotBooking,
   type Branch,
   type WeeklySlotConfig,
   type EmployeeAttendanceStatus,
   updateSlotBookingBranch
 } from '@/services/slotBookingService';
-import { supabase } from '@/integrations/supabase/client';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
@@ -460,20 +457,10 @@ const AdminSlotBooking = () => {
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
-      toast.error("Error saving settings");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsSavingSettings(false);
     }
-  };
-
-  // Helper function to determine branch update button state
-  const getBranchUpdateButtonState = () => {
-    const isSameBranch = !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId;
-    return {
-      disabled: isSameBranch,
-      text: isSameBranch ? 'Select Different Branch' : 'Update Branch',
-      variant: isSameBranch ? 'outline' as const : 'secondary' as const
-    };
   };
 
   if (loading) {
@@ -511,237 +498,13 @@ const AdminSlotBooking = () => {
                 )}
               </div>
               
-              <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
-                <Button 
-                  variant="outline" 
-                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                  onClick={async () => {
-                    try {
-                      const result = await forceBookJasonSlots();
-                      if (result.success) {
-                        toast.success(`✅ Successfully booked ${result.bookings.length} slots for Jason Lu at Kembangan`);
-                        refreshData();
-                      } else {
-                        toast.error(`❌ Booking failed: ${result.errors.join(', ')}`);
-                      }
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🚨 Fix Jason's Booking
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
-                  onClick={async () => {
-                    try {
-                      const { data, error } = await supabase.rpc('force_book_eldon_slots');
-                      if (error) throw error;
-                      
-                      const result = data as { success: boolean; bookings_created?: number; error?: string };
-                      if (result.success) {
-                        toast.success(`✅ Emergency booking created for Eldon at Jurong West on Aug 16, 2025`);
-                        refreshData();
-                      } else {
-                        toast.error(`❌ ${result.error || 'Failed to create booking'}`);
-                      }
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🆘 Fix Eldon's Booking
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                  onClick={async () => {
-                    try {
-                      const { data, error } = await supabase.rpc('force_book_ryan_slots');
-                      if (error) throw error;
-                      
-                      const result = data as { bookings_created: number; duplicates_skipped: number; total_requested: number };
-                      toast.success(`✅ Ryan's bookings processed: ${result.bookings_created} created, ${result.duplicates_skipped} duplicates skipped`);
-                      refreshData();
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🚀 Fix Ryan's Booking
-                </Button>
-                
-                <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className={`${isMobile ? 'flex-1' : ''} relative`}>
-                      <Clock className="w-4 h-4 mr-2" />
-                      Pending Approvals
-                      {allBookings.filter(b => b.status === 'pending').length > 0 && (
-                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white px-2 py-1 text-xs min-w-[20px] h-[20px] flex items-center justify-center">
-                          {allBookings.filter(b => b.status === 'pending').length}
-                        </Badge>
-                      )}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Pending Bookings for Approval</DialogTitle>
-                      <DialogDescription>Review and approve or reject slot bookings.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      {allBookings.filter(b => b.status === 'pending').length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>No pending bookings require approval</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex gap-2 mb-4">
-                            <Button 
-                              onClick={async () => {
-                                const pendingBookings = allBookings.filter(b => b.status === 'pending');
-                                for (const booking of pendingBookings) {
-                                  await handleApproval(booking.id, 'approved', 'Admin');
-                                }
-                                setIsPendingApprovalsDialogOpen(false);
-                              }}
-                              className="flex-1"
-                              disabled={allBookings.filter(b => b.status === 'pending').length === 0}
-                            >
-                              <Check className="w-4 h-4 mr-2" />
-                              Approve All
-                            </Button>
-                            <Button 
-                              variant="destructive"
-                              onClick={async () => {
-                                const pendingBookings = allBookings.filter(b => b.status === 'pending');
-                                for (const booking of pendingBookings) {
-                                  await handleApproval(booking.id, 'rejected', 'Admin');
-                                }
-                                setIsPendingApprovalsDialogOpen(false);
-                              }}
-                              className="flex-1"
-                              disabled={allBookings.filter(b => b.status === 'pending').length === 0}
-                            >
-                              <X className="w-4 h-4 mr-2" />
-                              Reject All
-                            </Button>
-                          </div>
-                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                            {allBookings
-                              .filter(b => b.status === 'pending')
-                              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                              .map((booking) => (
-                              <div key={booking.id} className="border rounded-lg p-4 bg-white">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center space-x-3">
-                                      <div 
-                                        className="w-3 h-3 rounded-full flex-shrink-0" 
-                                        style={{ backgroundColor: branches.find(b => b.id === booking.branchId)?.color || '#3B82F6' }}
-                                      />
-                                      <div>
-                                        <p className="font-medium">{booking.employeeName}</p>
-                                        <p className="text-sm text-gray-600">
-                                          {booking.branchName} • {format(new Date(booking.date), 'MMM dd, yyyy')}
-                                        </p>
-                                        {booking.notes && (
-                                          <p className="text-sm text-gray-500 mt-1">{booking.notes}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex space-x-2">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="destructive"
-                                      onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                
-                <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className={isMobile ? 'flex-1' : ''}>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Slot Booking Settings</DialogTitle>
-                      <DialogDescription>Configure weekly slot allocations for each branch. All changes will be saved to Supabase.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSettingsSave}>
-                      <div className="grid gap-6 py-4">
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
-                          <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week. Changes will be immediately saved to Supabase.</p>
-                          
-                          <div className="space-y-6">
-                            {branches.map((branch) => (
-                              <div key={branch.id} className="border rounded-lg p-4">
-                                <div className="flex items-center space-x-2 mb-3">
-                                  <div 
-                                    className="w-3 h-3 rounded-full" 
-                                    style={{ backgroundColor: branch.color }}
-                                  ></div>
-                                  <h4 className="font-medium">{branch.name}</h4>
-                                </div>
-                                <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
-                                  {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
-                                    <div key={day} className="space-y-1">
-                                      <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                        {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
-                                      </Label>
-                                      <Input
-                                        name={`${branch.id}-${day}`}
-                                        type="number"
-                                        min="0"
-                                        max="50"
-                                        defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
-                                        className="text-center"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" disabled={isSavingSettings}>
-                          {isSavingSettings ? 'Saving...' : 'Save Settings'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <AdminSlotBookingActions
+                allBookings={allBookings}
+                isMobile={isMobile}
+                onPendingApprovalsClick={() => setIsPendingApprovalsDialogOpen(true)}
+                onSettingsClick={() => setIsSettingsDialogOpen(true)}
+                onRefreshData={refreshData}
+              />
             </div>
 
             {/* Slot Summary */}
@@ -751,7 +514,9 @@ const AdminSlotBooking = () => {
                   <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Total Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.totalSlots}</div>
+                  <div className={`font-bold text-blue-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {slotSummary.totalSlots}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -759,7 +524,9 @@ const AdminSlotBooking = () => {
                   <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Available</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.availableSlots}</div>
+                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {slotSummary.availableSlots}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -767,7 +534,9 @@ const AdminSlotBooking = () => {
                   <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Booked</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`font-bold text-blue-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.bookedSlots}</div>
+                  <div className={`font-bold text-purple-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {slotSummary.bookedSlots}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -775,7 +544,9 @@ const AdminSlotBooking = () => {
                   <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Pending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`font-bold text-yellow-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.pendingSlots}</div>
+                  <div className={`font-bold text-yellow-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {slotSummary.pendingSlots}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -783,461 +554,544 @@ const AdminSlotBooking = () => {
                   <CardTitle className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Approved</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{slotSummary.approvedSlots}</div>
+                  <div className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {slotSummary.approvedSlots}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Branch Filter and Calendar */}
-            <Card className="w-full">
-              <CardHeader>
-                <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
-                  <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
-                    <CalendarIcon className="w-5 h-5" />
-                    <span>Monthly Calendar</span>
-                  </CardTitle>
-                  <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
-                    <Filter className="w-4 h-4" />
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                      <SelectTrigger className={isMobile ? 'flex-1' : 'w-48'}>
-                        <SelectValue placeholder="Filter by branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Branches</SelectItem>
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            <div className="flex items-center space-x-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: branch.color }}
-                              ></div>
-                              <span>{branch.name}</span>
+            {/* Calendar and Details */}
+            <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+              {/* Calendar */}
+              <div className={`${isMobile ? '' : 'lg:col-span-2'}`}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className={`font-semibold ${isMobile ? 'text-lg' : 'text-xl'}`}>
+                        {format(selectedDate, 'MMMM yyyy')}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                          <SelectTrigger className={`${isMobile ? 'w-32' : 'w-40'}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Branches</SelectItem>
+                            {branches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                {branch.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedDate(new Date())}
+                          className={isMobile ? 'px-2' : ''}
+                        >
+                          <CalendarIcon className="w-4 h-4" />
+                          {!isMobile && <span className="ml-2">Today</span>}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      className="rounded-md border-0"
+                      components={{
+                        DayContent: ({ date }) => {
+                          const bookings = getBookingsForDate(date);
+                          const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                          const isToday = isSameDay(date, new Date());
+                          
+                          return (
+                            <div className="relative w-full h-full flex flex-col items-center justify-center">
+                              <span className={`${isToday ? 'font-bold' : ''}`}>
+                                {date.getDate()}
+                              </span>
+                              {bookings.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1 justify-center">
+                                  {bookings.slice(0, 3).map((booking, idx) => (
+                                    <div
+                                      key={booking.id}
+                                      className={`w-2 h-2 rounded-full ${
+                                        booking.status === 'approved' 
+                                          ? 'bg-green-500' 
+                                          : booking.status === 'pending' 
+                                          ? 'bg-yellow-500' 
+                                          : 'bg-gray-400'
+                                      }`}
+                                    />
+                                  ))}
+                                  {bookings.length > 3 && (
+                                    <span className="text-xs text-gray-500">+{bookings.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
+                              {!isPast && bookings.length === 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDateClick(date);
+                                  }}
+                                  className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-blue-50 rounded"
+                                >
+                                  <Plus className="w-4 h-4 text-blue-600" />
+                                </button>
+                              )}
                             </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0 w-full overflow-hidden">
-                <div className="w-full max-w-full">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="w-full max-w-full border-0"
-                    classNames={{
-                      months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full max-w-full",
-                      month: "space-y-4 w-full max-w-full",
-                      caption: "flex justify-center pt-1 relative items-center",
-                      caption_label: isMobile ? "text-sm font-medium" : "text-lg font-medium",
-                      nav: "space-x-1 flex items-center",
-                      table: "w-full max-w-full border-collapse space-y-1",
-                      head_row: "flex w-full max-w-full",
-                      head_cell: `text-muted-foreground rounded-md w-full font-normal flex-1 text-center ${isMobile ? 'text-xs p-1' : 'text-sm p-2'}`,
-                      row: "flex w-full max-w-full mt-2",
-                      cell: `text-center relative flex-1 border-r border-b focus-within:relative focus-within:z-20 ${isMobile ? 'h-48 p-0.5' : 'h-60 p-1'}`,
-                      day: `w-full h-full font-normal aria-selected:opacity-100 hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${isMobile ? 'p-0.5' : 'p-1'}`,
-                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day_today: "bg-accent text-accent-foreground font-semibold",
-                      day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-                      day_disabled: "text-muted-foreground opacity-50",
-                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                      day_hidden: "invisible",
-                    }}
-                    components={{
-                      Day: ({ date, ...props }) => {
-                        const dayBookings = getBookingsForDate(date);
-                        const hasBookings = dayBookings.length > 0;
-                        const maxVisible = isMobile ? 6 : 10;
-                        
-                        return (
-                          <div className="relative w-full h-full overflow-hidden">
-                            <div
-                              className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
-                                isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
-                              } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
-                              onClick={() => handleDateClick(date)}
-                            >
-                              <div className="w-full h-full flex flex-col overflow-hidden">
-                                <span className={`font-medium text-left mb-0.5 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-sm'}`}>{date.getDate()}</span>
-                                {hasBookings && (
-                                  <div className="flex flex-col gap-0.5 w-full flex-1 overflow-hidden">
-                                    {dayBookings.slice(0, maxVisible).map((booking, idx) => {
-                                      const branch = branches.find(b => b.id === booking.branchId);
-                                      const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, date);
-                                      
-                                      return (
-                                        <div
-                                          key={idx}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleApprovalClick(booking, e);
-                                          }}
-                                          className={`px-0.5 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-xs leading-tight' : 'text-xs'}`}
-                                          style={{ 
-                                            backgroundColor: branch?.color || '#6b7280',
-                                            ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
-                                            ...(booking.status === 'approved' && { border: '1px solid #10b981' })
-                                          }}
-                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
-                                        >
-                                          <span className="truncate">
-                                            {isMobile ? 
-                                              booking.employeeName.split(' ')[0].slice(0, 6) : 
-                                              booking.employeeName.split(' ')[0].slice(0, 12)
-                                            }
-                                            {booking.status === 'pending' && ' ⏳'}
-                                            {booking.status === 'approved' && !hasClockedIn && ' ✅'}
-                                            {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                    {dayBookings.length > maxVisible && (
-                                      <span className={`text-gray-600 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-xs'}`}>+{dayBookings.length - maxVisible}</span>
-                                    )}
-                                  </div>
-                                )}
-                                {!hasBookings && (
-                                  <div className="flex items-center justify-center flex-1">
-                                    <Plus className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                                  </div>
+                          );
+                        }
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Selected Date Details */}
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className={`${isMobile ? 'text-lg' : 'text-xl'}`}>
+                      {format(selectedDate, 'EEE, MMM dd')}
+                    </CardTitle>
+                    <CardDescription>
+                      {getBookingsForDate(selectedDate).length} booking(s)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {getBookingsForDate(selectedDate).length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p className={`${isMobile ? 'text-sm' : ''}`}>No bookings for this date</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => handleDateClick(selectedDate)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Booking
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {getBookingsForDate(selectedDate).map((booking) => (
+                          <div key={booking.id} className="border rounded-lg p-3 bg-white">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge 
+                                    variant={booking.status === 'approved' ? 'default' : booking.status === 'pending' ? 'secondary' : 'outline'}
+                                    className={`text-xs ${
+                                      booking.status === 'approved' 
+                                        ? 'bg-green-100 text-green-700 border-green-300' 
+                                        : booking.status === 'pending' 
+                                        ? 'bg-yellow-100 text-yellow-700 border-yellow-300' 
+                                        : ''
+                                    }`}
+                                  >
+                                    {booking.status}
+                                  </Badge>
+                                  {hasEmployeeClockedIn(booking.employeeId, selectedDate) && (
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
+                                      <Check className="w-3 h-3 mr-1" />
+                                      Clocked In
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h4 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : ''}`}>
+                                  {booking.employeeName}
+                                </h4>
+                                <p className={`text-gray-600 flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                                  <MapPin className="w-3 h-3" />
+                                  {booking.branchName}
+                                </p>
+                                {booking.notes && (
+                                  <p className={`text-gray-500 mt-1 italic ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                                    {booking.notes}
+                                  </p>
                                 )}
                               </div>
                             </div>
-                          </div>
-                        );
-                      }
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Selected Date Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className={isMobile ? 'text-lg' : ''}>
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                </CardTitle>
-                <CardDescription>
-                  {getBookingsForDate(selectedDate).length} booking(s) scheduled
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {getBookingsForDate(selectedDate).map((booking) => {
-                    const branch = branches.find(b => b.id === booking.branchId);
-                    const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
-                    
-                    return (
-                      <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
-                        <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
-                          <div className="flex items-center space-x-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: branch?.color || '#6b7280' }}
-                            ></div>
-                            <div>
-                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                                {booking.employeeName}
-                                {booking.status === 'approved' && hasClockedIn && (
-                                  <span className="ml-2 text-green-600" title="Employee has clocked in">✅✅</span>
-                                )}
-                              </p>
-                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{branch?.name}</p>
-                              <Badge 
-                                variant={
-                                  booking.status === 'approved' ? 'default' :
-                                  booking.status === 'pending' ? 'secondary' :
-                                  'destructive'
-                                }
-                                className={`mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}
+                            <div className="flex gap-1 pt-2">
+                              {booking.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => handleApprovalClick(booking, e)}
+                                  className={`flex-1 ${isMobile ? 'text-xs px-2 py-1' : ''}`}
+                                >
+                                  <Edit className="w-3 h-3 mr-1" />
+                                  Review
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => handleSwapClick(booking, e)}
+                                className={`flex-1 ${isMobile ? 'text-xs px-2 py-1' : ''}`}
                               >
-                                {booking.status}
-                              </Badge>
+                                <UserCheck className="w-3 h-3 mr-1" />
+                                Swap
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => handleCancelClick(booking, e)}
+                                className={`flex-1 text-red-600 hover:text-red-700 ${isMobile ? 'text-xs px-2 py-1' : ''}`}
+                              >
+                                <UserX className="w-3 h-3 mr-1" />
+                                Cancel
+                              </Button>
                             </div>
                           </div>
-                          <div className={`flex space-x-1 ${isMobile ? 'w-full justify-end' : ''}`}>
-                            {booking.status === 'pending' && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
-                                >
-                                  <Check className={`text-green-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
-                                >
-                                  <X className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                              </>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleSwapClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <UserCheck className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleCancelClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <UserX className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleApprovalClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <Edit className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-
-                  {getBookingsForDate(selectedDate).length === 0 && (
-                    <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
-                      No bookings for this date. Click on a date to add bulk bookings.
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Enhanced Approval Dialog with improved formatting and Branch Edit functionality */}
-            <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
-              setIsApprovalDialogOpen(open);
-              if (!open) {
-                setSelectedBookingForApproval(null);
-                setSwapEmployeeId('');
-                setSelectedBranchForUpdate('');
-              }
-            }}>
-              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center space-x-2">
-                    <Users className="w-5 h-5" />
-                    <span>Manage Booking</span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    {selectedBookingForApproval && 
-                      `Review booking for ${selectedBookingForApproval.employeeName} on ${format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}`
-                    }
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Employee:</span>
-                      <span>{selectedBookingForApproval?.employeeName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Current Branch:</span>
-                      <span>{selectedBookingForApproval?.branchName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Date:</span>
-                      <span>{selectedBookingForApproval && format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Status:</span>
-                      <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge>
-                    </div>
-                    {selectedBookingForApproval && hasEmployeeClockedIn(selectedBookingForApproval.employeeId, new Date(selectedBookingForApproval.date)) && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Clock-in Status:</span>
-                        <span className="text-green-600 text-sm">✅ Clocked In</span>
+                        ))}
                       </div>
                     )}
-                  </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
 
-                  {/* Branch Selection Section */}
-                  <div className="border-t pt-4 space-y-3">
-                    <Label htmlFor="branch-select" className="text-sm font-medium flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Change Branch
-                    </Label>
-                    <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select branch to move booking" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.map((branch) => (
-                          <SelectItem 
-                            key={branch.id} 
-                            value={branch.id}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: branch.color }}
-                              ></div>
-                              <span>{branch.name}</span>
-                              {branch.id === selectedBookingForApproval?.branchId && (
-                                <span className="text-gray-500 text-xs">(Current)</span>
+          {/* Pending Approvals Dialog */}
+          <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Pending Bookings for Approval</DialogTitle>
+                <DialogDescription>Review and approve or reject slot bookings.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {allBookings.filter(b => b.status === 'pending').length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No pending bookings require approval</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2 mb-4">
+                      <Button 
+                        onClick={async () => {
+                          const pendingBookings = allBookings.filter(b => b.status === 'pending');
+                          for (const booking of pendingBookings) {
+                            await handleApproval(booking.id, 'approved', 'Admin');
+                          }
+                          setIsPendingApprovalsDialogOpen(false);
+                          toast.success(`Approved ${pendingBookings.length} bookings`);
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Approve All
+                      </Button>
+                      <Button 
+                        onClick={async () => {
+                          const pendingBookings = allBookings.filter(b => b.status === 'pending');
+                          for (const booking of pendingBookings) {
+                            await handleApproval(booking.id, 'rejected', 'Admin');
+                          }
+                          setIsPendingApprovalsDialogOpen(false);
+                          toast.success(`Rejected ${pendingBookings.length} bookings`);
+                        }}
+                        variant="destructive"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Reject All
+                      </Button>
+                    </div>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {allBookings
+                        .filter(b => b.status === 'pending')
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .map((booking) => (
+                        <div key={booking.id} className="border rounded-lg p-4 bg-white">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                  {booking.status}
+                                </Badge>
+                                <span className="text-sm text-gray-500">
+                                  {format(new Date(booking.date), 'EEE, MMM dd, yyyy')}
+                                </span>
+                              </div>
+                              <h4 className="font-medium text-gray-900">{booking.employeeName}</h4>
+                              <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {booking.branchName}
+                              </p>
+                              {booking.notes && (
+                                <p className="text-xs text-gray-500 mt-1 italic">{booking.notes}</p>
                               )}
                             </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId ? (
-                      <p className="text-xs text-gray-500">Select a different branch to enable the update button</p>
-                    ) : (
-                      <p className="text-xs text-blue-600">Ready to move booking to selected branch</p>
-                    )}
-                  </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
+                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1"
+                              >
+                                <Check className="w-3 h-3 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
+                                className="px-3 py-1"
+                              >
+                                <X className="w-3 h-3 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Settings Dialog */}
+          <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Weekly Slot Settings</DialogTitle>
+                <DialogDescription>Configure the number of available slots for each day of the week, per branch.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSettingsSave} className="space-y-6">
+                <div className="grid gap-6">
+                  {branches.map((branch) => (
+                    <Card key={branch.id}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">{branch.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-7 gap-4">
+                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                            <div key={day}>
+                              <Label htmlFor={`${branch.id}-${day}`} className="text-sm font-medium capitalize">
+                                {day.slice(0, 3)}
+                              </Label>
+                              <Input
+                                id={`${branch.id}-${day}`}
+                                name={`${branch.id}-${day}`}
+                                type="number"
+                                min="0"
+                                max="20"
+                                defaultValue={currentWeeklySlots[branch.id]?.[day as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>] || 0}
+                                className="mt-1"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSavingSettings}>
+                    {isSavingSettings ? 'Saving...' : 'Save Settings'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
 
-                  {/* Swap Employee Section */}
-                  <div className="border-t pt-4 space-y-3">
-                    <Label htmlFor="swap-employee" className="text-sm font-medium">Swap Employee (Optional)</Label>
+          {/* Individual Booking Review Dialog */}
+          <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
+            setIsApprovalDialogOpen(open);
+            if (!open) {
+              setSelectedBookingForApproval(null);
+              setSwapEmployeeId('');
+              setSelectedBranchForUpdate('');
+            }
+          }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Review Booking</DialogTitle>
+                <DialogDescription>
+                  {selectedBookingForApproval && `${selectedBookingForApproval.employeeName} - ${format(new Date(selectedBookingForApproval.date), 'EEE, MMM dd, yyyy')}`}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedBookingForApproval && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-gray-600">Employee</Label>
+                      <p className="font-medium">{selectedBookingForApproval.employeeName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Branch</Label>
+                      <p className="font-medium">{selectedBookingForApproval.branchName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Date</Label>
+                      <p className="font-medium">{format(new Date(selectedBookingForApproval.date), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Status</Label>
+                      <Badge className={`${
+                        selectedBookingForApproval.status === 'approved' 
+                          ? 'bg-green-100 text-green-700' 
+                          : selectedBookingForApproval.status === 'pending' 
+                          ? 'bg-yellow-100 text-yellow-700' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedBookingForApproval.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {selectedBookingForApproval.notes && (
+                    <div>
+                      <Label className="text-gray-600">Notes</Label>
+                      <p className="text-sm bg-gray-50 p-2 rounded">{selectedBookingForApproval.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Employee Swap Section */}
+                  <div className="border-t pt-4">
+                    <Label className="text-sm font-medium">Swap Employee (Optional)</Label>
                     <Select value={swapEmployeeId} onValueChange={setSwapEmployeeId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select new employee to swap" />
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select employee to swap with..." />
                       </SelectTrigger>
                       <SelectContent>
                         {casualEmployees
-                          .filter(emp => emp.id !== selectedBookingForApproval?.employeeId)
+                          .filter(emp => emp.id !== selectedBookingForApproval.employeeId)
                           .map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
-                            {employee.name} ({employee.id})
+                            {employee.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-                <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-                  <div className="flex flex-wrap gap-2 justify-start">
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={handleCancelBookingFromApprovalDialog}
-                    >
-                      <UserX className="w-4 h-4 mr-1" />
-                      Cancel
-                    </Button>
-                    {selectedBookingForApproval?.status === 'pending' && (
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                      setIsApprovalDialogOpen(false);
-                      setSelectedBookingForApproval(null);
-                      setSwapEmployeeId('');
-                      setSelectedBranchForUpdate('');
-                    }}>
-                      Close
-                    </Button>
-                    {(() => {
-                      const buttonState = getBranchUpdateButtonState();
-                      return (
-                        <Button 
-                          type="button"
-                          variant={buttonState.variant}
-                          size="sm"
-                          onClick={handleBranchUpdate}
-                          disabled={buttonState.disabled || isUpdatingBranch}
-                        >
-                          <MapPin className="w-4 h-4 mr-1" />
-                          {isUpdatingBranch ? 'Updating...' : buttonState.text}
-                        </Button>
-                      );
-                    })()}
                     {swapEmployeeId && (
-                      <Button 
-                        type="button"
-                        variant="secondary"
+                      <Button
                         size="sm"
                         onClick={handleSwapInDialog}
                         disabled={isSwappingInDialog}
+                        className="mt-2 w-full"
                       >
-                        {isSwappingInDialog ? 'Swapping...' : 'Swap Employee'}
-                      </Button>
-                    )}
-                    {selectedBookingForApproval?.status === 'pending' && (
-                      <Button 
-                        type="button"
-                        size="sm"
-                        onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Approve
+                        {isSwappingInDialog ? 'Swapping...' : 'Confirm Swap'}
                       </Button>
                     )}
                   </div>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
-            {/* Cancel Booking Dialog */}
-            <Dialog open={isCancelDialogOpen} onOpenChange={(open) => {
-              setIsCancelDialogOpen(open);
-              if (!open) setSelectedBookingForCancel(null);
-            }}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Cancel Booking</DialogTitle>
-                  <DialogDescription>
-                    {selectedBookingForCancel && 
-                      `Are you sure you want to cancel this booking for ${selectedBookingForCancel.employeeName}?`
-                    }
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <div className="space-y-2">
-                    <p><strong>Employee:</strong> {selectedBookingForCancel?.employeeName}</p>
-                    <p><strong>Branch:</strong> {selectedBookingForCancel?.branchName}</p>
-                    <p><strong>Date:</strong> {selectedBookingForCancel && format(new Date(selectedBookingForCancel.date), 'dd/MM/yyyy')}</p>
-                    <p><strong>Current Status:</strong> <Badge variant="secondary">{selectedBookingForCancel?.status}</Badge></p>
+                  {/* Branch Change Section */}
+                  <div className="border-t pt-4">
+                    <Label className="text-sm font-medium">Change Branch (Optional)</Label>
+                    <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select new branch..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedBranchForUpdate && selectedBranchForUpdate !== selectedBookingForApproval.branchId && (
+                      <Button
+                        size="sm"
+                        onClick={handleBranchUpdate}
+                        disabled={isUpdatingBranch}
+                        className="mt-2 w-full"
+                      >
+                        {isUpdatingBranch ? 'Updating...' : 'Change Branch'}
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-sm text-red-600 mt-3">This action cannot be undone.</p>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => {
-                    setIsCancelDialogOpen(false);
-                    setSelectedBookingForCancel(null);
-                  }}>
-                    Keep Booking
-                  </Button>
-                  <Button 
+              )}
+              <DialogFooter className="flex-col gap-2">
+                <div className="flex gap-2 w-full">
+                  <Button
                     type="button" 
                     variant="destructive" 
-                    onClick={handleCancelBooking}
+                    onClick={handleCancelBookingFromApprovalDialog}
+                    className="flex-1"
                   >
                     <UserX className="w-4 h-4 mr-2" />
                     Cancel Booking
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                  <Button type="button" variant="outline" onClick={() => setIsApprovalDialogOpen(false)} className="flex-1">
+                    Close
+                  </Button>
+                </div>
+                {selectedBookingForApproval?.status === 'pending' && (
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      type="button" 
+                      variant="destructive" 
+                      onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
+                      className="flex-1"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Reject
+                    </Button>
+                    <Button
+                      type="button" 
+                      onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
+                      className="flex-1"
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Cancel Booking Dialog */}
+          <Dialog open={isCancelDialogOpen} onOpenChange={(open) => {
+            setIsCancelDialogOpen(open);
+            if (!open) setSelectedBookingForCancel(null);
+          }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Cancel Booking</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to cancel this booking? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              {selectedBookingForCancel && (
+                <div className="space-y-2">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <p className="font-medium">{selectedBookingForCancel.employeeName}</p>
+                    <p className="text-sm text-gray-600">{selectedBookingForCancel.branchName}</p>
+                    <p className="text-sm text-gray-600">{format(new Date(selectedBookingForCancel.date), 'EEE, MMM dd, yyyy')}</p>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+                  Keep Booking
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleCancelBooking}
+                >
+                  <UserX className="w-4 h-4 mr-2" />
+                  Cancel Booking
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <SwapEmployeeDialog
             isOpen={isSwapDialogOpen}
