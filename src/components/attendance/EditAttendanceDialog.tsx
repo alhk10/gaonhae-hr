@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
-import { updateAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
+import { Trash2 } from 'lucide-react';
+import { updateAttendanceRecord, deleteAttendanceRecord, type AttendanceRecord } from '@/services/attendanceService';
 import { getBranches, type Branch } from '@/services/settingsService';
 
 interface EditAttendanceDialogProps {
@@ -22,6 +24,7 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
   onSuccess
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [formData, setFormData] = useState({
     date: '',
@@ -124,6 +127,27 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleDelete = async () => {
+    if (!record) {
+      toast('No record selected for deletion');
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await deleteAttendanceRecord(record.id);
+      toast('Attendance record deleted successfully');
+      await onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Error deleting attendance record:', error);
+      toast('Error deleting attendance record');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -200,13 +224,47 @@ const EditAttendanceDialog: React.FC<EditAttendanceDialogProps> = ({
             </Select>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Updating...' : 'Update Record'}
-            </Button>
+          <DialogFooter className="flex justify-between">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  size="sm"
+                  disabled={isSubmitting || isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this attendance record? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || isDeleting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting || isDeleting}>
+                {isSubmitting ? 'Updating...' : 'Update Record'}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
