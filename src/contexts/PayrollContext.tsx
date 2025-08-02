@@ -5,6 +5,24 @@ import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { calculateCasualPayroll, calculateFullTimePayroll } from '@/utils/payrollCalculations';
 
+// Helper function to format period for API
+const formatPeriodForAPI = (period: string): string => {
+  if (period.includes('-')) {
+    return period; // Already in YYYY-MM format
+  }
+  
+  // Convert "July 2025" to "2025-07"
+  const [monthName, year] = period.split(' ');
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const monthIndex = monthNames.indexOf(monthName);
+  if (monthIndex === -1) return period;
+  
+  return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+};
+
 export interface FullTimeEmployee {
   id: string;
   name: string;
@@ -692,25 +710,81 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const loadPayrollFromSupabase = async () => {
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
-      const { data, error } = await supabase
+      const currentPeriod = payrollState.currentPeriod;
+      const formattedPeriod = formatPeriodForAPI(currentPeriod);
+      
+      // First try to get the consolidated period record
+      const { data: periodData, error: periodError } = await supabase
         .from('payroll_records')
         .select('*')
-        .eq('month', payrollState.currentPeriod.split(' ')[0])
-        .eq('year', parseInt(payrollState.currentPeriod.split(' ')[1]))
-        .single();
+        .eq('id', `PERIOD_${formattedPeriod}`)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching payroll data from Supabase:', error);
-        throw error;
-      }
-
-      if (data && data.payroll_data) {
-        const payrollData = data.payroll_data as any;
+      if (periodData && periodData.payroll_data) {
+        const payrollData = periodData.payroll_data as any;
         setPayrollState(prevState => ({
           ...prevState,
           fullTimeEmployees: payrollData.fullTimeEmployees || [],
           casualEmployees: payrollData.casualEmployees || [],
           status: payrollData.status,
+          lastUpdated: new Date(),
+        }));
+        return;
+      }
+
+      // If no consolidated record found, try to load individual records
+      console.log('No consolidated record found, checking for individual records...');
+      const periodForQuery = currentPeriod.includes('-') ? 
+        currentPeriod.replace('-', ' ') : 
+        `${currentPeriod.split(' ')[0]} ${currentPeriod.split(' ')[1]}`;
+      
+      const { data: individualRecords, error: individualError } = await supabase
+        .from('payroll_records')
+        .select(`
+          *,
+          employees:employee_id (
+            id,
+            name,
+            type
+          )
+        `)
+        .eq('month', periodForQuery)
+        .eq('status', 'draft');
+
+      if (individualError) {
+        console.error('Error fetching individual payroll records:', individualError);
+        throw individualError;
+      }
+
+      if (individualRecords && individualRecords.length > 0) {
+        console.log(`Found ${individualRecords.length} individual records, consolidating...`);
+        
+        const fullTimeEmployees: any[] = [];
+        const casualEmployees: any[] = [];
+
+        individualRecords.forEach((record: any) => {
+          const employee = record.employees;
+          if (employee && record.payroll_data) {
+            const employeeData = {
+              ...record.payroll_data,
+              employeeId: record.employee_id,
+              name: employee.name,
+              type: employee.type
+            };
+
+            if (employee.type === 'Full-Time') {
+              fullTimeEmployees.push(employeeData);
+            } else {
+              casualEmployees.push(employeeData);
+            }
+          }
+        });
+
+        setPayrollState(prevState => ({
+          ...prevState,
+          fullTimeEmployees,
+          casualEmployees,
+          status: 'draft',
           lastUpdated: new Date(),
         }));
       }
