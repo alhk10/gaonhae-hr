@@ -98,7 +98,7 @@ const AddClaimDialog = ({ onClaimAdded }: AddClaimDialogProps) => {
         receipt_url: '' // No receipt required for manual claims
       };
 
-      await createClaim(newClaim);
+      await createClaim(newClaim, false);
       
       toast('Claim added successfully!');
       resetForm();

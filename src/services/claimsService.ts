@@ -89,12 +89,12 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
   }
 };
 
-export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url: string }): Promise<void> => {
+export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url?: string }, requireReceipt: boolean = true): Promise<void> => {
   try {
     console.log('Creating new claim:', claim);
 
     // Validate required fields
-    if (!claim.receipt_url) {
+    if (requireReceipt && !claim.receipt_url) {
       throw new Error('Receipt is required to submit a claim');
     }
 
@@ -104,7 +104,7 @@ export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url: stri
       amount: claim.amount,
       description: claim.description,
       status: claim.status || 'Pending',
-      receipt_url: claim.receipt_url,
+      receipt_url: claim.receipt_url || null,
       submitted_date: new Date().toISOString()
     };
 
