@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
+import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
@@ -158,6 +159,10 @@ const EmployeeDetails = () => {
     if (window.confirm(`Are you sure you want to remove ${employeeData?.name}? This will set their resign date to today.`)) {
       deleteEmployeeMutation.mutate(id!);
     }
+  };
+
+  const handleAllowanceDeductionUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['employee', id] });
   };
 
   const isSuperAdmin = user?.role === 'superadmin';
@@ -469,6 +474,17 @@ const EmployeeDetails = () => {
                   />
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Allowances & Deductions Management */}
+          <Card>
+            <CardContent className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Allowances & Deductions</h3>
+              <AllowanceDeductionManager
+                employeeId={employeeData.id}
+                onUpdate={handleAllowanceDeductionUpdate}
+              />
             </CardContent>
           </Card>
 
