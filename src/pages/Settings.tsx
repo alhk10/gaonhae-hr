@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SuperadminManager from '@/components/admin/SuperadminManager';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import PublicHolidayManagement from '@/components/settings/PublicHolidayManagement';
+import SystemAllowanceDeductionManagement from '@/components/settings/SystemAllowanceDeductionManagement';
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
 import AuthenticationMonitor from '@/components/admin/AuthenticationMonitor';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,11 +52,12 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="auth-monitor" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="auth-monitor">Auth Monitor</TabsTrigger>
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
             <TabsTrigger value="user-management">User Management</TabsTrigger>
             <TabsTrigger value="employee-modules">Employee Modules</TabsTrigger>
+            <TabsTrigger value="system-allowances">System Allowances</TabsTrigger>
             <TabsTrigger value="holidays">Public Holidays</TabsTrigger>
           </TabsList>
 
@@ -78,6 +80,10 @@ const Settings = () => {
               employees={employees}
               onEmployeesUpdate={handleEmployeesUpdate}
             />
+          </TabsContent>
+
+          <TabsContent value="system-allowances" className="mt-6">
+            <SystemAllowanceDeductionManagement />
           </TabsContent>
 
           <TabsContent value="holidays" className="mt-6">
