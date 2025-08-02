@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2 } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -25,7 +25,8 @@ const PayrollProcessing = () => {
   const { 
     payrollState, 
     setPayrollStatus,
-    savePayrollToSupabase
+    savePayrollToSupabase,
+    autoAddCasualEmployeesWithAttendance
   } = usePayroll();
 
   // Bottom action bar states
@@ -970,6 +971,27 @@ const PayrollProcessing = () => {
                   <p className="text-gray-600 mt-2">Process payroll for {selectedPeriod}</p>
                 </div>
                 <div className="flex items-center space-x-3">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        console.log('🔄 Manually triggering auto-add casual employees');
+                        const result = await autoAddCasualEmployeesWithAttendance();
+                        if (result.addedCount > 0) {
+                          toast.success(`Added ${result.addedCount} casual employees with attendance to payroll`);
+                        } else {
+                          toast.info('No eligible casual employees with attendance found');
+                        }
+                      } catch (error) {
+                        console.error('Error auto-adding employees:', error);
+                        toast.error('Failed to add employees to payroll');
+                      }
+                    }}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Auto-Add Casual Employees</span>
+                  </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
                   </Badge>

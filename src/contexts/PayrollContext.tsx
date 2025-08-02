@@ -615,6 +615,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [monthName, year] = payrollState.currentPeriod.split(' ');
     const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
     
+    console.log(`📊 Fetching eligible casual employees for ${monthName} ${year} (month ${monthNumber})`);
+    
     try {
       // Get casual employees with attendance for the payroll period
       const { data: attendanceData, error: attendanceError } = await supabase
@@ -630,7 +632,12 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .lt('date', `${year}-${(monthNumber + 1).toString().padStart(2, '0')}-01`)
         .eq('employees.type', 'Casual');
 
-      if (attendanceError) throw attendanceError;
+      if (attendanceError) {
+        console.error('Error fetching attendance data:', attendanceError);
+        throw attendanceError;
+      }
+
+      console.log(`📋 Found ${attendanceData?.length || 0} attendance records for casual employees`);
 
       // Group attendance by employee
       const employeeAttendance = attendanceData?.reduce((acc, record) => {
@@ -651,17 +658,46 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return acc;
       }, {} as any) || {};
 
+      console.log(`👥 Grouped attendance for ${Object.keys(employeeAttendance).length} unique employees`);
+
+      // Debug: Log Wang Pot Chien specifically
+      const wangData = Object.values(employeeAttendance).find((item: any) => 
+        item.employee?.name?.includes('Wang Pot Chien')
+      );
+      if (wangData) {
+        console.log('🔍 Wang Pot Chien attendance data found:', {
+          name: (wangData as any).employee.name,
+          totalHours: (wangData as any).totalHours,
+          totalDays: (wangData as any).totalDays,
+          hourlyRate: (wangData as any).employee.hourly_rate,
+          paymentType: (wangData as any).employee.payment_type
+        });
+      } else {
+        console.log('❌ Wang Pot Chien not found in attendance data');
+      }
+
       // Filter out employees already in payroll
       const existingEmployeeIds = new Set([
         ...payrollState.casualEmployees.map(emp => emp.employeeId),
         ...payrollState.fullTimeEmployees.map(emp => emp.employeeId)
       ]);
 
-      return Object.values(employeeAttendance)
-        .filter((item: any) => !existingEmployeeIds.has(item.employee.id))
+      console.log(`🚫 Excluding ${existingEmployeeIds.size} employees already in payroll:`, Array.from(existingEmployeeIds));
+
+      const eligibleEmployees = Object.values(employeeAttendance)
+        .filter((item: any) => {
+          const isNotAlreadyInPayroll = !existingEmployeeIds.has(item.employee.id);
+          const hasValidEmployee = item.employee && item.employee.id;
+          
+          if (!isNotAlreadyInPayroll) {
+            console.log(`⏭️  Skipping ${item.employee?.name} - already in payroll`);
+          }
+          
+          return isNotAlreadyInPayroll && hasValidEmployee;
+        })
         .map((item: any) => {
           const employee = item.employee;
-          return {
+          const result = {
             id: employee.id,
             name: employee.name,
             employeeId: employee.id,
@@ -673,7 +709,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             totalDays: item.totalDays,
             attendanceRecords: item.records.length
           };
+          
+          console.log(`✅ Eligible employee: ${result.name} - ${result.totalHours} hours, ${result.totalDays} days`);
+          return result;
         });
+
+      console.log(`🎯 Final eligible employees count: ${eligibleEmployees.length}`);
+      return eligibleEmployees;
+      
     } catch (error) {
       console.error('Error fetching eligible casual employees:', error);
       return [];
@@ -684,11 +727,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     
     try {
+      console.log('🚀 Starting auto-add casual employees with attendance');
       const eligibleEmployees = await getEligibleCasualEmployeesForPayroll();
       
       if (eligibleEmployees.length === 0) {
+        console.log('⚠️  No eligible casual employees found with attendance');
         return { addedCount: 0, employees: [] };
       }
+
+      console.log(`👷 Processing ${eligibleEmployees.length} eligible employees`);
 
       // Add each eligible employee to payroll
       for (const employee of eligibleEmployees) {
@@ -700,6 +747,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (paymentType === 'Monthly' && hoursWorked === 0) {
           hoursWorked = daysWorked * 8; // Assume 8 hours per day
         }
+
+        console.log(`➕ Adding ${employee.name} to payroll:`, {
+          paymentType,
+          hoursWorked,
+          daysWorked,
+          hourlyRate: employee.hourlyRate,
+          expectedPay: paymentType === 'Hourly' ? hoursWorked * employee.hourlyRate : 'N/A'
+        });
 
         await addCasualEmployee({
           employeeId: employee.id,
@@ -713,6 +768,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
       }
 
+      console.log(`✅ Successfully added ${eligibleEmployees.length} casual employees to payroll`);
       return { 
         addedCount: eligibleEmployees.length, 
         employees: eligibleEmployees 
