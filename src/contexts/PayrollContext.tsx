@@ -84,6 +84,7 @@ export interface PayrollContextType {
   updateEmployeeAllowances: (employeeId: string, allowances: EmployeeAllowance[]) => void;
   updateEmployeeDeductions: (employeeId: string, deductions: EmployeeDeduction[]) => void;
   updateCasualEmployeeHours?: (employeeId: string, hours: number) => void;
+  updateCasualEmployeeHourlyRate?: (employeeId: string, rate: number) => void;
 }
 
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
@@ -766,6 +767,84 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, []);
 
+  // Add update methods for casual employee hours and hourly rate
+  const updateCasualEmployeeHours = useCallback((employeeId: string, hours: number) => {
+    setPayrollState(prevState => ({
+      ...prevState,
+      casualEmployees: prevState.casualEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, hoursWorked: hours };
+          
+          // Find the employee profile for complete recalculation
+          const employeeProfile = prevState.availableEmployees.find(e => e.id === employeeId);
+          if (employeeProfile) {
+            const calculation = calculateCasualPayroll(
+              employeeProfile,
+              hours,
+              updatedEmp.daysWorked || 0,
+              0
+            );
+            
+            return {
+              ...updatedEmp,
+              totalPay: calculation.netSalary,
+              employeeCPF: calculation.employeeCPF,
+              employerCPF: calculation.employerCPF,
+              grossPay: calculation.grossSalary,
+              cpfEmployee: calculation.employeeCPF,
+              cpfEmployer: calculation.employerCPF,
+              netPay: calculation.netSalary,
+              cpf: calculation.totalCPF,
+              total: calculation.netSalary
+            };
+          }
+          return updatedEmp;
+        }
+        return emp;
+      }),
+      lastUpdated: new Date()
+    }));
+  }, [payrollState.availableEmployees]);
+
+  const updateCasualEmployeeHourlyRate = useCallback((employeeId: string, rate: number) => {
+    setPayrollState(prevState => ({
+      ...prevState,
+      casualEmployees: prevState.casualEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, hourlyRate: rate };
+          
+          // Find the employee profile and update it with new hourly rate
+          const employeeProfile = prevState.availableEmployees.find(e => e.id === employeeId);
+          if (employeeProfile) {
+            const updatedProfile = { ...employeeProfile, hourlyRate: rate };
+            const calculation = calculateCasualPayroll(
+              updatedProfile,
+              updatedEmp.hoursWorked || 0,
+              updatedEmp.daysWorked || 0,
+              0
+            );
+            
+            return {
+              ...updatedEmp,
+              totalPay: calculation.netSalary,
+              employeeCPF: calculation.employeeCPF,
+              employerCPF: calculation.employerCPF,
+              grossPay: calculation.grossSalary,
+              cpfEmployee: calculation.employeeCPF,
+              cpfEmployer: calculation.employerCPF,
+              netPay: calculation.netSalary,
+              cpf: calculation.totalCPF,
+              total: calculation.netSalary
+            };
+          }
+          return updatedEmp;
+        }
+        return emp;
+      }),
+      lastUpdated: new Date()
+    }));
+  }, [payrollState.availableEmployees]);
+
   const value: PayrollContextType = {
     payrollState,
     setPayrollState,
@@ -788,6 +867,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isLoading: payrollState.isLoading,
     updateEmployeeAllowances,
     updateEmployeeDeductions,
+    updateCasualEmployeeHours,
+    updateCasualEmployeeHourlyRate,
   };
 
   return (

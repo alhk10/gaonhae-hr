@@ -15,6 +15,8 @@ interface PayrollCalculationDetailsProps {
   onUpdateBaseSalary?: (employeeId: string, baseSalary: number) => void;
   onUpdateAllowances?: (employeeId: string, allowances: EmployeeAllowance[]) => void;
   onUpdateDeductions?: (employeeId: string, deductions: EmployeeDeduction[]) => void;
+  onUpdateHoursWorked?: (employeeId: string, hours: number) => void;
+  onUpdateHourlyRate?: (employeeId: string, rate: number) => void;
 }
 
 export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({ 
@@ -23,11 +25,17 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
   calculationWarnings = [],
   onUpdateBaseSalary,
   onUpdateAllowances,
-  onUpdateDeductions
+  onUpdateDeductions,
+  onUpdateHoursWorked,
+  onUpdateHourlyRate
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingBaseSalary, setIsEditingBaseSalary] = useState(false);
   const [editedBaseSalary, setEditedBaseSalary] = useState(employee.baseSalary || 0);
+  const [isEditingHoursWorked, setIsEditingHoursWorked] = useState(false);
+  const [editedHoursWorked, setEditedHoursWorked] = useState((employee as any).hoursWorked || 0);
+  const [isEditingHourlyRate, setIsEditingHourlyRate] = useState(false);
+  const [editedHourlyRate, setEditedHourlyRate] = useState((employee as any).hourlyRate || 0);
   const [editingAllowanceId, setEditingAllowanceId] = useState<string | null>(null);
   const [editingDeductionId, setEditingDeductionId] = useState<string | null>(null);
   const [isAddingAllowance, setIsAddingAllowance] = useState(false);
@@ -50,6 +58,30 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
     setEditedBaseSalary(employee.baseSalary || 0);
     setIsEditingBaseSalary(false);
   }, [employee.baseSalary]);
+
+  const handleSaveHoursWorked = useCallback(() => {
+    if (editedHoursWorked !== (employee as any).hoursWorked && onUpdateHoursWorked) {
+      onUpdateHoursWorked(employee.id, editedHoursWorked);
+    }
+    setIsEditingHoursWorked(false);
+  }, [editedHoursWorked, (employee as any).hoursWorked, employee.id, onUpdateHoursWorked]);
+
+  const handleCancelHoursWorkedEdit = useCallback(() => {
+    setEditedHoursWorked((employee as any).hoursWorked || 0);
+    setIsEditingHoursWorked(false);
+  }, [(employee as any).hoursWorked]);
+
+  const handleSaveHourlyRate = useCallback(() => {
+    if (editedHourlyRate !== (employee as any).hourlyRate && onUpdateHourlyRate) {
+      onUpdateHourlyRate(employee.id, editedHourlyRate);
+    }
+    setIsEditingHourlyRate(false);
+  }, [editedHourlyRate, (employee as any).hourlyRate, employee.id, onUpdateHourlyRate]);
+
+  const handleCancelHourlyRateEdit = useCallback(() => {
+    setEditedHourlyRate((employee as any).hourlyRate || 0);
+    setIsEditingHourlyRate(false);
+  }, [(employee as any).hourlyRate]);
 
   const handleEditAllowance = useCallback((allowance: EmployeeAllowance) => {
     setEditedAllowances({
@@ -248,13 +280,79 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
             </div>
             {emp.paymentType === 'Hourly' && (
               <>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span>Hours Worked:</span>
-                  <span>{emp.hoursWorked || 0}</span>
+                  <div className="flex items-center space-x-2">
+                    {isEditingHoursWorked ? (
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="number"
+                          value={editedHoursWorked}
+                          onChange={(e) => setEditedHoursWorked(Number(e.target.value))}
+                          className="w-20 h-6 text-xs"
+                          step="0.1"
+                          min="0"
+                        />
+                        <Button size="sm" variant="ghost" onClick={handleSaveHoursWorked} className="h-6 w-6 p-0">
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelHoursWorkedEdit} className="h-6 w-6 p-0">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <span>{emp.hoursWorked || 0}</span>
+                        {onUpdateHoursWorked && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => setIsEditingHoursWorked(true)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span>Hourly Rate:</span>
-                  <span>{formatCurrency(emp.hourlyRate || 0)}</span>
+                  <div className="flex items-center space-x-2">
+                    {isEditingHourlyRate ? (
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="number"
+                          value={editedHourlyRate}
+                          onChange={(e) => setEditedHourlyRate(Number(e.target.value))}
+                          className="w-24 h-6 text-xs"
+                          step="0.01"
+                          min="0"
+                        />
+                        <Button size="sm" variant="ghost" onClick={handleSaveHourlyRate} className="h-6 w-6 p-0">
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelHourlyRateEdit} className="h-6 w-6 p-0">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <span>{formatCurrency(emp.hourlyRate || 0)}</span>
+                        {onUpdateHourlyRate && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => setIsEditingHourlyRate(true)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}

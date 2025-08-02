@@ -27,6 +27,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     getEligibleCasualEmployeesForPayroll,
     updateEmployeeAllowances,
     updateEmployeeDeductions,
+    updateCasualEmployeeHours,
+    updateCasualEmployeeHourlyRate,
     isLoading
   } = usePayroll();
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
@@ -133,6 +135,26 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
       toast.success(`Updated base salary for ${casualEmployee.name} to S$${newBaseSalary.toFixed(2)}`);
     } else {
       toast.error('Employee not found in payroll');
+    }
+  };
+
+  const handleUpdateHoursWorked = (employeeId: string, hours: number) => {
+    if (updateCasualEmployeeHours) {
+      updateCasualEmployeeHours(employeeId, hours);
+      const employee = payrollState.casualEmployees.find(emp => emp.employeeId === employeeId);
+      if (employee) {
+        toast.success(`Updated hours worked for ${employee.name} to ${hours} hours`);
+      }
+    }
+  };
+
+  const handleUpdateHourlyRate = (employeeId: string, rate: number) => {
+    if (updateCasualEmployeeHourlyRate) {
+      updateCasualEmployeeHourlyRate(employeeId, rate);
+      const employee = payrollState.casualEmployees.find(emp => emp.employeeId === employeeId);
+      if (employee) {
+        toast.success(`Updated hourly rate for ${employee.name} to S$${rate.toFixed(2)}/hr`);
+      }
     }
   };
 
@@ -358,6 +380,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               onUpdateBaseSalary={handleUpdateBaseSalary}
                               onUpdateAllowances={updateEmployeeAllowances}
                               onUpdateDeductions={updateEmployeeDeductions}
+                              onUpdateHoursWorked={handleUpdateHoursWorked}
+                              onUpdateHourlyRate={handleUpdateHourlyRate}
                             />
                           </div>
                         </div>
