@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, Eye, AlertTriangle, Info, Edit, Check, X, Plus, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import type { PayrollEmployee, CasualEmployeePayroll, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { formatCurrency } from '@/utils/payrollCalculations';
+import { getSystemAllowances, getSystemDeductions } from '@/services/systemAllowanceDeductionService';
 
 interface PayrollCalculationDetailsProps {
   employee: PayrollEmployee | CasualEmployeePayroll;
@@ -44,6 +47,17 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
   const [editedDeductions, setEditedDeductions] = useState<{[key: string]: {name: string, amount: number}}>({});
   const [newAllowance, setNewAllowance] = useState({name: '', amount: 0});
   const [newDeduction, setNewDeduction] = useState({name: '', amount: 0});
+
+  // Fetch system allowances and deductions
+  const { data: systemAllowances = [] } = useQuery({
+    queryKey: ['systemAllowances'],
+    queryFn: getSystemAllowances,
+  });
+
+  const { data: systemDeductions = [] } = useQuery({
+    queryKey: ['systemDeductions'],
+    queryFn: getSystemDeductions,
+  });
 
   const isCasual = 'hoursWorked' in employee;
 
@@ -133,6 +147,16 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
     setIsAddingAllowance(false);
   }, [employee.allowances, employee.id, newAllowance, onUpdateAllowances]);
 
+  const handleSelectSystemAllowance = useCallback((allowanceId: string) => {
+    const systemAllowance = systemAllowances.find(a => a.id.toString() === allowanceId);
+    if (systemAllowance) {
+      setNewAllowance({
+        name: systemAllowance.name,
+        amount: systemAllowance.default_amount
+      });
+    }
+  }, [systemAllowances]);
+
   const handleEditDeduction = useCallback((deduction: EmployeeDeduction) => {
     setEditedDeductions({
       ...editedDeductions,
@@ -182,6 +206,16 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
     setNewDeduction({name: '', amount: 0});
     setIsAddingDeduction(false);
   }, [employee.deductions, employee.id, newDeduction, onUpdateDeductions]);
+
+  const handleSelectSystemDeduction = useCallback((deductionId: string) => {
+    const systemDeduction = systemDeductions.find(d => d.id.toString() === deductionId);
+    if (systemDeduction) {
+      setNewDeduction({
+        name: systemDeduction.name,
+        amount: systemDeduction.default_amount
+      });
+    }
+  }, [systemDeductions]);
 
   const renderFullTimeDetails = (emp: PayrollEmployee) => (
     <div className="space-y-4">
@@ -531,40 +565,56 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
                 ))}
                 
                 {isAddingAllowance && (
-                  <div className="flex items-center gap-2 border-t pt-2">
-                    <Input 
-                      value={newAllowance.name} 
-                      onChange={(e) => setNewAllowance({...newAllowance, name: e.target.value})}
-                      className="h-6 text-xs flex-1"
-                      placeholder="Allowance name"
-                    />
-                    <Input 
-                      type="number" 
-                      value={newAllowance.amount} 
-                      onChange={(e) => setNewAllowance({...newAllowance, amount: parseFloat(e.target.value) || 0})}
-                      className="h-6 text-xs w-20"
-                      step="0.01"
-                      placeholder="Amount"
-                    />
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleAddAllowance}
-                      className="h-6 w-6 p-0 text-green-600"
-                    >
-                      <Check className="w-3 h-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        setIsAddingAllowance(false);
-                        setNewAllowance({name: '', amount: 0});
-                      }}
-                      className="h-6 w-6 p-0 text-red-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
+                  <div className="space-y-2 border-t pt-2">
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={handleSelectSystemAllowance}>
+                        <SelectTrigger className="h-6 text-xs flex-1">
+                          <SelectValue placeholder="Select system allowance..." />
+                        </SelectTrigger>
+                        <SelectContent className="z-50">
+                          {systemAllowances.map((allowance) => (
+                            <SelectItem key={allowance.id} value={allowance.id.toString()}>
+                              {allowance.name} ({formatCurrency(allowance.default_amount)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        value={newAllowance.name} 
+                        onChange={(e) => setNewAllowance({...newAllowance, name: e.target.value})}
+                        className="h-6 text-xs flex-1"
+                        placeholder="Or enter custom allowance name"
+                      />
+                      <Input 
+                        type="number" 
+                        value={newAllowance.amount} 
+                        onChange={(e) => setNewAllowance({...newAllowance, amount: parseFloat(e.target.value) || 0})}
+                        className="h-6 text-xs w-20"
+                        step="0.01"
+                        placeholder="Amount"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleAddAllowance}
+                        className="h-6 w-6 p-0 text-green-600"
+                      >
+                        <Check className="w-3 h-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => {
+                          setIsAddingAllowance(false);
+                          setNewAllowance({name: '', amount: 0});
+                        }}
+                        className="h-6 w-6 p-0 text-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 )}
                 
@@ -670,40 +720,56 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
                 ))}
                 
                 {isAddingDeduction && (
-                  <div className="flex items-center gap-2 border-t pt-2">
-                    <Input 
-                      value={newDeduction.name} 
-                      onChange={(e) => setNewDeduction({...newDeduction, name: e.target.value})}
-                      className="h-6 text-xs flex-1"
-                      placeholder="Deduction name"
-                    />
-                    <Input 
-                      type="number" 
-                      value={newDeduction.amount} 
-                      onChange={(e) => setNewDeduction({...newDeduction, amount: parseFloat(e.target.value) || 0})}
-                      className="h-6 text-xs w-20"
-                      step="0.01"
-                      placeholder="Amount"
-                    />
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleAddDeduction}
-                      className="h-6 w-6 p-0 text-green-600"
-                    >
-                      <Check className="w-3 h-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        setIsAddingDeduction(false);
-                        setNewDeduction({name: '', amount: 0});
-                      }}
-                      className="h-6 w-6 p-0 text-red-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
+                  <div className="space-y-2 border-t pt-2">
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={handleSelectSystemDeduction}>
+                        <SelectTrigger className="h-6 text-xs flex-1">
+                          <SelectValue placeholder="Select system deduction..." />
+                        </SelectTrigger>
+                        <SelectContent className="z-50">
+                          {systemDeductions.map((deduction) => (
+                            <SelectItem key={deduction.id} value={deduction.id.toString()}>
+                              {deduction.name} ({formatCurrency(deduction.default_amount)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        value={newDeduction.name} 
+                        onChange={(e) => setNewDeduction({...newDeduction, name: e.target.value})}
+                        className="h-6 text-xs flex-1"
+                        placeholder="Or enter custom deduction name"
+                      />
+                      <Input 
+                        type="number" 
+                        value={newDeduction.amount} 
+                        onChange={(e) => setNewDeduction({...newDeduction, amount: parseFloat(e.target.value) || 0})}
+                        className="h-6 text-xs w-20"
+                        step="0.01"
+                        placeholder="Amount"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleAddDeduction}
+                        className="h-6 w-6 p-0 text-green-600"
+                      >
+                        <Check className="w-3 h-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => {
+                          setIsAddingDeduction(false);
+                          setNewDeduction({name: '', amount: 0});
+                        }}
+                        className="h-6 w-6 p-0 text-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 )}
                 
