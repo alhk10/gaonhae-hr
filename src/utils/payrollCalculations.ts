@@ -131,26 +131,10 @@ export const calculateCasualPayroll = (
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Debug logging for Ng Kai Rui Jovious
-  if (employee.name === 'Ng Kai Rui Jovious') {
-    console.log('🔍 CPF Debug - Employee Data:', {
-      name: employee.name,
-      dateOfBirth: employee.dateOfBirth,
-      residencyStatus: employee.residencyStatus,
-      baseSalary: employee.baseSalary,
-      paymentType: employee.paymentType,
-      hoursWorked,
-      daysWorked
-    });
-  }
-
   // Validate employee
   const validation = validateEmployeeForPayroll(employee);
   if (!validation.isValid) {
     errors.push(...validation.errors);
-    if (employee.name === 'Ng Kai Rui Jovious') {
-      console.log('❌ CPF Debug - Validation Errors:', validation.errors);
-    }
   }
 
   const paymentType = employee.paymentType || 'Monthly';

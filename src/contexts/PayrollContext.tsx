@@ -280,21 +280,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Debug logging for Ng Kai Rui Jovious
-    if (employeeProfile.name === 'Ng Kai Rui Jovious') {
-      console.log('🔍 PayrollContext Debug - About to calculate for:', {
-        employeeProfile: {
-          name: employeeProfile.name,
-          baseSalary: employeeProfile.baseSalary,
-          dateOfBirth: employeeProfile.dateOfBirth,
-          residencyStatus: employeeProfile.residencyStatus,
-          paymentType: employeeProfile.paymentType
-        },
-        hoursWorked: employee.hoursWorked || 0,
-        daysWorked: employee.daysWorked || 0
-      });
-    }
-
     // Use proper payroll calculation
     const calculation = calculateCasualPayroll(
       employeeProfile,
@@ -322,10 +307,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       total: calculation.netSalary
     } as CasualEmployee;
 
-    // Debug logging for Ng Kai Rui Jovious
-    if (employeeProfile.name === 'Ng Kai Rui Jovious') {
-      console.log('🔍 PayrollContext Debug - Final newEmployee object:', newEmployee);
-    }
 
     setPayrollState(prevState => ({
       ...prevState,
