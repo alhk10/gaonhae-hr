@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2 } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -17,6 +17,8 @@ import EditSalaryDialog from '@/components/payroll/EditSalaryDialog';
 import EditAllowancesDialog from '@/components/payroll/EditAllowancesDialog';
 import EditDeductionsDialog from '@/components/payroll/EditDeductionsDialog';
 import { format } from 'date-fns';
+import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -303,21 +305,7 @@ const PayrollProcessing = () => {
       .reduce((sum, claim) => sum + claim.amount, 0);
   };
 
-  const handleSaveDraft = async () => {
-    try {
-      await savePayrollToSupabase();
-      toast.success("Payroll draft saved successfully");
-    } catch (error) {
-      console.error('Error saving payroll draft:', error);
-      toast.error("Error saving payroll draft");
-    }
-  };
-
-  const handleApprovePayroll = () => {
-    setPayrollStatus('approved');
-    setCurrentStep('payment');
-    toast("Payroll approved. Moving to payment processing.");
-  };
+  // Functions removed: handleSaveDraft and handleApprovePayroll
 
   const handleProcessPayment = () => {
     setPayrollStatus('paid');
@@ -432,8 +420,7 @@ const PayrollProcessing = () => {
           <CardContent className="p-0">
             {fullTimeEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <div className="min-w-[1200px]">
-                  <Table>
+                <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-semibold min-w-[180px]">Employee</TableHead>
@@ -453,6 +440,14 @@ const PayrollProcessing = () => {
                         const approvedClaims = getApprovedClaimsTotal(employee.id);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
+                        
+                        // Calculate proper CPF using the 2025 rate table
+                        const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
+                        const cpfCalc = calculateCPF(employee.baseSalary || 0, employee.residencyStatus || 'Singapore Citizen', employeeAge);
+                        
+                        // Calculate net pay using proper payroll calculation
+                        const payrollCalc = calculateFullTimePayroll(employee, approvedClaims, 0);
+                        const netPay = payrollCalc.netSalary;
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
@@ -545,13 +540,13 @@ const PayrollProcessing = () => {
                             </TableCell>
                             <TableCell>
                               <div className="text-xs space-y-1">
-                                <div className="text-gray-600">ER: S${((employee.baseSalary || 0) * 0.17).toFixed(0)}</div>
-                                <div className="text-gray-600">EE: S${((employee.baseSalary || 0) * 0.20).toFixed(0)}</div>
+                                <div className="text-gray-600">ER: S${cpfCalc.employerCPF.toFixed(2)}</div>
+                                <div className="text-gray-600">EE: S${cpfCalc.employeeCPF.toFixed(2)}</div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="font-bold text-green-600">
-                                S${((employee.baseSalary || 0) + totalAllowances - totalDeductions - ((employee.baseSalary || 0) * 0.20) + approvedClaims).toLocaleString()}
+                                S${netPay.toLocaleString()}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
@@ -569,7 +564,6 @@ const PayrollProcessing = () => {
                       })}
                     </TableBody>
                   </Table>
-                </div>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
@@ -594,8 +588,7 @@ const PayrollProcessing = () => {
           <CardContent className="p-0">
             {casualEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <div className="min-w-[1200px]">
-                  <Table>
+                <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-semibold min-w-[180px]">Employee</TableHead>
@@ -616,6 +609,13 @@ const PayrollProcessing = () => {
                         const approvedClaims = getApprovedClaimsTotal(employee.id);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
+                        
+                        // Calculate proper CPF and net pay for casual employees
+                        const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
+                        
+                        // Calculate attendance-based pay for casual employees
+                        const casualPayrollCalc = calculateCasualPayroll(employee, undefined, undefined, approvedClaims);
+                        const netPay = casualPayrollCalc.netSalary;
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
@@ -729,7 +729,7 @@ const PayrollProcessing = () => {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="font-bold text-green-600">
-                                S${(2000 + totalAllowances - totalDeductions + approvedClaims).toLocaleString()}
+                                S${netPay.toLocaleString()}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
@@ -747,7 +747,6 @@ const PayrollProcessing = () => {
                       })}
                     </TableBody>
                   </Table>
-                </div>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
@@ -758,16 +757,7 @@ const PayrollProcessing = () => {
           </CardContent>
         </Card>
         
-        <div className="flex justify-end space-x-4 bg-white p-6 rounded-lg shadow-lg border">
-          <Button variant="outline" onClick={handleSaveDraft} size="lg">
-            <Save className="w-5 h-5 mr-2" />
-            Save Draft
-          </Button>
-          <Button onClick={handleApprovePayroll} size="lg" className="bg-green-600 hover:bg-green-700">
-            <Check className="w-5 h-5 mr-2" />
-            Approve Payroll
-          </Button>
-        </div>
+        {/* Action buttons removed as requested */}
       </div>
     );
   };
