@@ -190,23 +190,36 @@ const AttendanceCalendarView = () => {
 
   const eventStyleGetter = (event: any) => {
     const record = event.resource as AttendanceRecord;
-    let backgroundColor = '#3174ad';
     
-    switch (record.status) {
-      case 'Present':
-        backgroundColor = '#10b981';
-        break;
-      case 'Late':
-        backgroundColor = '#f59e0b';
-        break;
-      case 'Absent':
-        backgroundColor = '#ef4444';
-        break;
-      case 'Half Day':
-        backgroundColor = '#8b5cf6';
-        break;
-      default:
-        backgroundColor = '#6b7280';
+    // Find branch by location name and use its color
+    const branch = branches.find(b => b.name === record.location);
+    let backgroundColor = branch?.color || '#6b7280'; // Default gray if no branch found
+    
+    // Convert Tailwind color classes to actual hex colors if needed
+    const colorMap: { [key: string]: string } = {
+      '#3b82f6': '#3b82f6', // blue
+      '#991b1b': '#991b1b', // red  
+      '#6b7280': '#6b7280', // gray
+      '#eab308': '#eab308', // yellow
+      '#22c55e': '#22c55e', // green
+      '#8b5cf6': '#8b5cf6', // purple
+      'bg-blue-500': '#3b82f6',
+      'bg-red-500': '#991b1b', 
+      'bg-gray-500': '#6b7280',
+      'bg-yellow-500': '#eab308',
+      'bg-green-500': '#22c55e',
+      'bg-purple-500': '#8b5cf6'
+    };
+    
+    backgroundColor = colorMap[backgroundColor] || backgroundColor;
+    
+    // Add status indicator via border for visual differentiation
+    let borderColor = backgroundColor;
+    let borderWidth = '2px';
+    if (record.status === 'Late') {
+      borderColor = '#f59e0b'; // Yellow border for late
+    } else if (record.status === 'Absent') {
+      borderColor = '#ef4444'; // Red border for absent
     }
     
     return {
@@ -215,7 +228,7 @@ const AttendanceCalendarView = () => {
         borderRadius: '4px',
         opacity: 0.8,
         color: 'white',
-        border: '0px',
+        border: `${borderWidth} solid ${borderColor}`,
         display: 'block'
       }
     };
@@ -246,6 +259,35 @@ const AttendanceCalendarView = () => {
             View employee attendance records in calendar format. Click on any record to view details.
             {user?.role !== 'employee' && ' Click on any date to add bulk attendance records.'}
           </CardDescription>
+          
+          {/* Branch Color Legend */}
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm font-medium mb-2">Branch Colors:</p>
+            <div className="flex flex-wrap gap-3">
+              {branches.map(branch => (
+                <div key={branch.id} className="flex items-center gap-2">
+                  <div 
+                    className="w-4 h-4 rounded border border-border" 
+                    style={{ 
+                      backgroundColor: branch.color?.startsWith('#') 
+                        ? branch.color 
+                        : branch.color === 'bg-blue-500' ? '#3b82f6'
+                        : branch.color === 'bg-red-500' ? '#991b1b'
+                        : branch.color === 'bg-gray-500' ? '#6b7280'
+                        : branch.color === 'bg-yellow-500' ? '#eab308'
+                        : branch.color === 'bg-green-500' ? '#22c55e'
+                        : branch.color === 'bg-purple-500' ? '#8b5cf6'
+                        : '#6b7280'
+                    }}
+                  />
+                  <span className="text-sm text-muted-foreground">{branch.name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              • Yellow border: Late arrival • Red border: Absent
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           <div style={{ height: '800px' }}>
@@ -264,7 +306,8 @@ const AttendanceCalendarView = () => {
               dayLayoutAlgorithm="no-overlap"
               tooltipAccessor={(event) => {
                 const employee = employees.find(emp => emp.id === event.resource.employeeId);
-                return `${employee?.name || 'Unknown'} - ${event.resource.status} (${event.resource.hoursWorked}h)`;
+                const branch = branches.find(b => b.name === event.resource.location);
+                return `${employee?.name || 'Unknown'} - ${event.resource.status} at ${branch?.name || event.resource.location || 'Unknown'} (${event.resource.hoursWorked}h)`;
               }}
               formats={{
                 dayHeaderFormat: (date, culture, localizer) =>
