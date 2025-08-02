@@ -15,6 +15,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
+import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
@@ -470,6 +471,14 @@ const EmployeeDetails = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Location Exception Management - Only visible to superadmins */}
+          {isSuperAdmin && (
+            <LocationExceptionManager
+              employeeId={employeeData.id}
+              employeeName={employeeData.name}
+            />
+          )}
         </div>
       </ResponsiveLayout>
     </AuthGuard>
