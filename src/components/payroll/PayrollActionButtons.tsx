@@ -32,7 +32,6 @@ const PayrollActionButtons: React.FC<PayrollActionButtonsProps> = ({
   const statusOptions = [
     { value: 'draft', label: 'Draft', icon: FileText, color: 'bg-gray-500' },
     { value: 'processing', label: 'Processing', icon: Calculator, color: 'bg-blue-500' },
-    { value: 'approved', label: 'Approved', icon: CheckCircle, color: 'bg-green-500' },
     { value: 'paid', label: 'Paid', icon: CheckCircle, color: 'bg-purple-500' },
     { value: 'completed', label: 'Completed', icon: CheckCircle, color: 'bg-green-600' }
   ];
@@ -54,14 +53,6 @@ const PayrollActionButtons: React.FC<PayrollActionButtonsProps> = ({
   };
 
   const primaryActions = [
-    {
-      label: isSaving ? 'Saving...' : 'Save Payroll',
-      icon: Save,
-      onClick: onSavePayroll,
-      disabled: !hasEmployees || isSaving,
-      variant: 'default' as const,
-      description: 'Save current payroll data'
-    },
     {
       label: 'Process Payroll',
       icon: Calculator,
