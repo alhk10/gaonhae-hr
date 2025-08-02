@@ -30,6 +30,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     updateEmployeeDeductions,
     updateCasualEmployeeHours,
     updateCasualEmployeeHourlyRate,
+    updateCasualEmployeeMonthlySalary,
     isLoading
   } = usePayroll();
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
@@ -190,6 +191,16 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
       const employee = payrollState.casualEmployees.find(emp => emp.employeeId === employeeId);
       if (employee) {
         toast.success(`Updated hourly rate for ${employee.name} to S$${rate.toFixed(2)}/hr`);
+      }
+    }
+  };
+
+  const handleUpdateMonthlySalary = (employeeId: string, salary: number) => {
+    if (updateCasualEmployeeMonthlySalary) {
+      updateCasualEmployeeMonthlySalary(employeeId, salary);
+      const employee = payrollState.casualEmployees.find(emp => emp.employeeId === employeeId);
+      if (employee) {
+        toast.success(`Updated monthly salary for ${employee.name} to S$${salary.toFixed(2)}`);
       }
     }
   };
@@ -459,6 +470,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               onUpdateDeductions={updateEmployeeDeductions}
                               onUpdateHoursWorked={handleUpdateHoursWorked}
                               onUpdateHourlyRate={handleUpdateHourlyRate}
+                              onUpdateMonthlySalary={handleUpdateMonthlySalary}
                             />
                           </div>
                         </div>

@@ -85,6 +85,7 @@ export interface PayrollContextType {
   updateEmployeeDeductions: (employeeId: string, deductions: EmployeeDeduction[]) => void;
   updateCasualEmployeeHours?: (employeeId: string, hours: number) => void;
   updateCasualEmployeeHourlyRate?: (employeeId: string, rate: number) => void;
+  updateCasualEmployeeMonthlySalary?: (employeeId: string, salary: number) => void;
 }
 
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
@@ -902,6 +903,45 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [payrollState.availableEmployees]);
 
+  const updateCasualEmployeeMonthlySalary = useCallback((employeeId: string, salary: number) => {
+    setPayrollState(prevState => ({
+      ...prevState,
+      casualEmployees: prevState.casualEmployees.map(emp => {
+        if (emp.employeeId === employeeId) {
+          const updatedEmp = { ...emp, baseSalary: salary };
+          
+          // Find the employee profile and update it with new base salary
+          const employeeProfile = prevState.availableEmployees.find(e => e.id === employeeId);
+          if (employeeProfile) {
+            const updatedProfile = { ...employeeProfile, baseSalary: salary };
+            const calculation = calculateCasualPayroll(
+              updatedProfile,
+              updatedEmp.hoursWorked || 0,
+              updatedEmp.daysWorked || 0,
+              0
+            );
+            
+            return {
+              ...updatedEmp,
+              totalPay: calculation.netSalary,
+              employeeCPF: calculation.employeeCPF,
+              employerCPF: calculation.employerCPF,
+              grossPay: calculation.grossSalary,
+              cpfEmployee: calculation.employeeCPF,
+              cpfEmployer: calculation.employerCPF,
+              netPay: calculation.netSalary,
+              cpf: calculation.totalCPF,
+              total: calculation.netSalary
+            };
+          }
+          return updatedEmp;
+        }
+        return emp;
+      }),
+      lastUpdated: new Date()
+    }));
+  }, [payrollState.availableEmployees]);
+
   const value: PayrollContextType = {
     payrollState,
     setPayrollState,
@@ -926,6 +966,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateEmployeeDeductions,
     updateCasualEmployeeHours,
     updateCasualEmployeeHourlyRate,
+    updateCasualEmployeeMonthlySalary,
   };
 
   return (

@@ -20,6 +20,7 @@ interface PayrollCalculationDetailsProps {
   onUpdateDeductions?: (employeeId: string, deductions: EmployeeDeduction[]) => void;
   onUpdateHoursWorked?: (employeeId: string, hours: number) => void;
   onUpdateHourlyRate?: (employeeId: string, rate: number) => void;
+  onUpdateMonthlySalary?: (employeeId: string, salary: number) => void;
 }
 
 export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps> = ({ 
@@ -30,7 +31,8 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
   onUpdateAllowances,
   onUpdateDeductions,
   onUpdateHoursWorked,
-  onUpdateHourlyRate
+  onUpdateHourlyRate,
+  onUpdateMonthlySalary
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingBaseSalary, setIsEditingBaseSalary] = useState(false);
@@ -39,6 +41,8 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
   const [editedHoursWorked, setEditedHoursWorked] = useState((employee as any).hoursWorked || 0);
   const [isEditingHourlyRate, setIsEditingHourlyRate] = useState(false);
   const [editedHourlyRate, setEditedHourlyRate] = useState((employee as any).hourlyRate || 0);
+  const [isEditingMonthlySalary, setIsEditingMonthlySalary] = useState(false);
+  const [editedMonthlySalary, setEditedMonthlySalary] = useState((employee as any).baseSalary || 0);
   const [editingAllowanceId, setEditingAllowanceId] = useState<string | null>(null);
   const [editingDeductionId, setEditingDeductionId] = useState<string | null>(null);
   const [isAddingAllowance, setIsAddingAllowance] = useState(false);
@@ -96,6 +100,18 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
     setEditedHourlyRate((employee as any).hourlyRate || 0);
     setIsEditingHourlyRate(false);
   }, [(employee as any).hourlyRate]);
+
+  const handleSaveMonthlySalary = useCallback(() => {
+    if (editedMonthlySalary !== (employee as any).baseSalary && onUpdateMonthlySalary) {
+      onUpdateMonthlySalary(employee.id, editedMonthlySalary);
+    }
+    setIsEditingMonthlySalary(false);
+  }, [editedMonthlySalary, (employee as any).baseSalary, employee.id, onUpdateMonthlySalary]);
+
+  const handleCancelMonthlySalaryEdit = useCallback(() => {
+    setEditedMonthlySalary((employee as any).baseSalary || 0);
+    setIsEditingMonthlySalary(false);
+  }, [(employee as any).baseSalary]);
 
   const handleEditAllowance = useCallback((allowance: EmployeeAllowance) => {
     setEditedAllowances({
@@ -402,6 +418,47 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
                 </div>
               </>
             )}
+            {emp.paymentType === 'Monthly' && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span>Base Salary:</span>
+                  <div className="flex items-center space-x-2">
+                    {isEditingMonthlySalary ? (
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="number"
+                          value={editedMonthlySalary}
+                          onChange={(e) => setEditedMonthlySalary(Number(e.target.value))}
+                          className="w-24 h-6 text-xs"
+                          step="0.01"
+                          min="0"
+                        />
+                        <Button size="sm" variant="ghost" onClick={handleSaveMonthlySalary} className="h-6 w-6 p-0">
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelMonthlySalaryEdit} className="h-6 w-6 p-0">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <span>{formatCurrency(emp.baseSalary || 0)}</span>
+                        {onUpdateMonthlySalary && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => setIsEditingMonthlySalary(true)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
         
@@ -410,7 +467,7 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>Base Pay:</span>
-              <span>{formatCurrency(emp.totalPay || 0)}</span>
+              <span>{formatCurrency(emp.baseSalary || (emp.hoursWorked || 0) * (emp.hourlyRate || 0) || (emp.daysWorked || 0) * (emp.dailyRate || 0) || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Employee CPF:</span>
