@@ -126,10 +126,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id,
       netPay: calculation.netSalary,
       grossPay: calculation.grossSalary,
-          cpfEmployee: calculation.employeeCPF,
-          cpfEmployer: calculation.employerCPF,
-          baseSalary: calculation.baseSalary,
-          allowances: calculation.totalAllowances,
+      cpfEmployee: calculation.employeeCPF,
+      cpfEmployer: calculation.employerCPF,
+      baseSalary: calculation.baseSalary,
+      allowances: calculation.totalAllowances,
+      // Include individual allowances and deductions for PayrollCalculationDetails
+      allowancesArray: employeeProfile.allowances || [],
+      deductions: employeeProfile.deductions || [],
     } as FullTimeEmployee;
 
     setPayrollState(prevState => ({
@@ -491,7 +494,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           employeeId: employee.id,
           name: employee.name,
           baseSalary: employee.baseSalary || 0,
-          allowances: 0,
+          allowances: 0, // This will be overridden by the calculation
           cpfContribution: 20,
         });
       } else {
