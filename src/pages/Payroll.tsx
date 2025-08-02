@@ -116,9 +116,11 @@ const Payroll = () => {
   return (
     <AuthGuard>
       <ResponsiveLayout>
-        <PayrollProvider>
-          <PayrollContent />
-        </PayrollProvider>
+        <div data-testid="payroll-provider">
+          <PayrollProvider>
+            <PayrollContent />
+          </PayrollProvider>
+        </div>
       </ResponsiveLayout>
     </AuthGuard>
   );

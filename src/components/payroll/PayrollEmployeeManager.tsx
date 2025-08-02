@@ -19,6 +19,19 @@ interface PayrollEmployeeManagerProps {
 }
 
 const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payrollPeriod }) => {
+  const payrollContext = usePayroll();
+  
+  // Safety check - ensure context is available
+  if (!payrollContext) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <div className="text-gray-500">Loading payroll employee manager...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const {
     payrollState,
     addEmployeesToPayroll,
@@ -32,7 +45,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     updateCasualEmployeeHourlyRate,
     updateCasualEmployeeMonthlySalary,
     isLoading
-  } = usePayroll();
+  } = payrollContext;
   const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
   const [isAutoAddPreviewOpen, setIsAutoAddPreviewOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);

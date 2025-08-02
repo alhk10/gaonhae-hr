@@ -14,7 +14,24 @@ const PayrollSummaryCards: React.FC<PayrollSummaryCardsProps> = ({
   totalEmployees, 
   nextProcessingDays 
 }) => {
-  const { payrollState } = usePayroll();
+  const payrollContext = usePayroll();
+  
+  // Safety check - ensure context is available
+  if (!payrollContext) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index} className="bg-white shadow-md rounded-lg overflow-hidden">
+            <CardContent className="p-6 text-center">
+              <div className="text-gray-500">Loading...</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+  
+  const { payrollState } = payrollContext;
 
   // Calculate encashment data from payroll state
   const encashmentTotal = 0; // Placeholder - would come from actual encashment records

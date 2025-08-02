@@ -91,6 +91,7 @@ export interface PayrollContextType {
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
 
 export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isContextReady, setIsContextReady] = useState(false);
   const [payrollState, setPayrollState] = useState<PayrollState>({
     fullTimeEmployees: [],
     casualEmployees: [],
@@ -102,6 +103,20 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     totalAmount: 0,
     encashmentData: [],
   });
+
+  // Initialize context on mount
+  useEffect(() => {
+    const initializeContext = async () => {
+      try {
+        setIsContextReady(true);
+      } catch (error) {
+        console.error('Error initializing PayrollContext:', error);
+        setIsContextReady(true); // Still mark as ready to prevent infinite loading
+      }
+    };
+
+    initializeContext();
+  }, []);
 
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
@@ -943,7 +958,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [payrollState.availableEmployees]);
 
-  const value: PayrollContextType = {
+  const contextValue: PayrollContextType = {
     payrollState,
     setPayrollState,
     addFullTimeEmployee,
@@ -970,17 +985,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateCasualEmployeeMonthlySalary,
   };
 
+  // Don't render children until context is ready
+  if (!isContextReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading payroll system...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <PayrollContext.Provider value={value}>
+    <PayrollContext.Provider value={contextValue}>
       {children}
     </PayrollContext.Provider>
   );
 };
 
-export const usePayroll = () => {
+export const usePayroll = (): PayrollContextType => {
   const context = useContext(PayrollContext);
-  if (!context) {
-    throw new Error('usePayroll must be used within a PayrollProvider');
+  if (context === undefined) {
+    console.error('usePayroll called outside of PayrollProvider. Component hierarchy:', 
+      document.querySelector('[data-testid="payroll-provider"]') ? 'Provider found' : 'Provider NOT found');
+    throw new Error('usePayroll must be used within a PayrollProvider. Make sure the component is wrapped with PayrollProvider.');
   }
   return context;
 };

@@ -39,8 +39,21 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showProcessDialog, setShowProcessDialog] = useState(false);
   
-  const { payrollState, setPayrollStatus } = usePayroll();
+  const payrollContext = usePayroll();
   const { toast } = useToast();
+  
+  // Safety check - ensure context is available
+  if (!payrollContext) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="p-6 text-center">
+          <div className="text-gray-500">Loading payroll period selector...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  const { payrollState, setPayrollStatus } = payrollContext;
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
