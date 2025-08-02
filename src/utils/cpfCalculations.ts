@@ -163,11 +163,11 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
     } else if (cpfSalary <= 500) {
       // NIL employee contribution for wages above $50 but not exceeding $500
       employeeCPF = 0;
-      employerCPF = Math.round(cpfSalary * 0.05 * 100) / 100; // 5% employer contribution
+      employerCPF = Math.round(cpfSalary * 0.075 * 100) / 100; // 7.5% employer contribution (corrected from 5%)
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
       employeeCPF = Math.round((cpfSalary - 500) * 0.05 * 100) / 100; // 5% on amount above $500
-      employerCPF = Math.round((25 + (cpfSalary - 500) * 0.05) * 100) / 100; // $25 + 5% on amount above $500
+      employerCPF = Math.round((37.5 + (cpfSalary - 500) * 0.075) * 100) / 100; // $37.5 + 7.5% on amount above $500 (corrected)
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.05 * 100) / 100; // 5% employee

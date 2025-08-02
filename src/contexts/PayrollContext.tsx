@@ -743,59 +743,79 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         // Transform data to match UI expectations
         const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => {
-          // Ensure allowances have proper id property
-          const allowances = (emp.allowances || []).map((allowance: any, index: number) => ({
-            ...allowance,
-            id: allowance.id || `allowance_${emp.id}_${index}`, // Generate ID if missing
-          }));
+          // Ensure allowances have proper id property and format
+          const allowances = Array.isArray(emp.allowances) ? emp.allowances.map((allowance: any, index: number) => ({
+            id: allowance.id || `allowance_${emp.id}_${index}`,
+            name: allowance.name || 'Unknown Allowance',
+            amount: Number(allowance.amount) || 0,
+            type: allowance.type || 'Fixed'
+          })) : [];
           
-          // Ensure deductions have proper id property  
-          const deductions = (emp.deductions || []).map((deduction: any, index: number) => ({
-            ...deduction,
-            id: deduction.id || `deduction_${emp.id}_${index}`, // Generate ID if missing
-          }));
+          // Ensure deductions have proper id property and format
+          const deductions = Array.isArray(emp.deductions) ? emp.deductions.map((deduction: any, index: number) => ({
+            id: deduction.id || `deduction_${emp.id}_${index}`,
+            name: deduction.name || 'Unknown Deduction',
+            amount: Number(deduction.amount) || 0,
+            type: deduction.type || 'Fixed'
+          })) : [];
           
-          console.log(`🔍 PayrollContext: Transforming ${emp.name}:`, {
-            originalCPF: { employeeCPF: emp.employeeCPF, employerCPF: emp.employerCPF },
-            netPay: emp.netSalary || emp.netPay || 0,
-            allowancesCount: allowances.length,
-            deductionsCount: deductions.length
-          });
+          // Debug logging for Kim Hasung specifically
+          if (emp.name === 'Kim Hasung') {
+            console.log(`🔍 PayrollContext: Kim Hasung data transformation:`, {
+              originalData: {
+                employeeCPF: emp.employeeCPF,
+                employerCPF: emp.employerCPF,
+                netSalary: emp.netSalary,
+                allowances: emp.allowances
+              },
+              transformedData: {
+                cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0,
+                cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0,
+                netPay: emp.netSalary || emp.netPay || 0,
+                allowancesCount: allowances.length,
+                allowancesDetail: allowances
+              }
+            });
+          }
           
           return {
             ...emp,
-            netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
-            grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
-            cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0, // Map employeeCPF to cpfEmployee
-            cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0, // Map employerCPF to cpfEmployer
-            allowances, // Use transformed allowances with IDs
-            deductions, // Use transformed deductions with IDs
-            paymentType: emp.paymentType || 'Monthly', // Preserve paymentType
+            netPay: Number(emp.netSalary || emp.netPay || 0), // Consistent numeric mapping
+            grossPay: Number(emp.grossSalary || emp.grossPay || 0), // Consistent numeric mapping
+            cpfEmployee: Number(emp.employeeCPF || emp.cpfEmployee || 0), // Prioritize employeeCPF from DB
+            cpfEmployer: Number(emp.employerCPF || emp.cpfEmployer || 0), // Prioritize employerCPF from DB
+            allowances, // Use properly formatted allowances with IDs
+            deductions, // Use properly formatted deductions with IDs
+            paymentType: emp.paymentType || 'Monthly',
           };
         });
         
         const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => {
-          // Ensure allowances have proper id property
-          const allowances = (emp.allowances || []).map((allowance: any, index: number) => ({
-            ...allowance,
-            id: allowance.id || `allowance_${emp.id}_${index}`, // Generate ID if missing
-          }));
+          // Ensure allowances have proper id property and format
+          const allowances = Array.isArray(emp.allowances) ? emp.allowances.map((allowance: any, index: number) => ({
+            id: allowance.id || `allowance_${emp.id}_${index}`,
+            name: allowance.name || 'Unknown Allowance',
+            amount: Number(allowance.amount) || 0,
+            type: allowance.type || 'Fixed'
+          })) : [];
           
-          // Ensure deductions have proper id property  
-          const deductions = (emp.deductions || []).map((deduction: any, index: number) => ({
-            ...deduction,
-            id: deduction.id || `deduction_${emp.id}_${index}`, // Generate ID if missing
-          }));
+          // Ensure deductions have proper id property and format
+          const deductions = Array.isArray(emp.deductions) ? emp.deductions.map((deduction: any, index: number) => ({
+            id: deduction.id || `deduction_${emp.id}_${index}`,
+            name: deduction.name || 'Unknown Deduction',
+            amount: Number(deduction.amount) || 0,
+            type: deduction.type || 'Fixed'
+          })) : [];
           
           return {
             ...emp,
-            totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
-            grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
-            employeeCPF: emp.employeeCPF || emp.cpfEmployee || 0, // Preserve employee CPF
-            employerCPF: emp.employerCPF || emp.cpfEmployer || 0, // Preserve employer CPF
-            allowances, // Use transformed allowances with IDs
-            deductions, // Use transformed deductions with IDs
-            paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'), // Smart fallback for paymentType
+            totalPay: Number(emp.netSalary || emp.totalPay || 0), // Consistent numeric mapping for casual employees
+            grossPay: Number(emp.grossSalary || emp.grossPay || 0), // Consistent numeric mapping
+            employeeCPF: Number(emp.employeeCPF || emp.cpfEmployee || 0), // Prioritize employeeCPF from DB
+            employerCPF: Number(emp.employerCPF || emp.cpfEmployer || 0), // Prioritize employerCPF from DB
+            allowances, // Use properly formatted allowances with IDs
+            deductions, // Use properly formatted deductions with IDs
+            paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'),
           };
         });
         
@@ -860,24 +880,29 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
               employeeId: record.employee_id,
               name: employee.name,
               type: employee.type,
-              // Fix property mappings for CPF and net pay
-              cpfEmployee: record.payroll_data.employeeCPF || record.payroll_data.cpfEmployee || 0,
-              cpfEmployer: record.payroll_data.employerCPF || record.payroll_data.cpfEmployer || 0,
-              netPay: record.payroll_data.netSalary || record.payroll_data.netPay || 0,
-              // Ensure allowances array is properly mapped with id property
-              allowances: (record.payroll_data.allowances || []).map((allowance: any, index: number) => ({
+              // Consistent property mappings for CPF and net pay with proper numeric conversion
+              cpfEmployee: Number(record.payroll_data.employeeCPF || record.payroll_data.cpfEmployee || 0),
+              cpfEmployer: Number(record.payroll_data.employerCPF || record.payroll_data.cpfEmployer || 0),
+              netPay: Number(record.payroll_data.netSalary || record.payroll_data.netPay || 0),
+              grossPay: Number(record.payroll_data.grossSalary || record.payroll_data.grossPay || 0),
+              // For casual employees, also map to legacy properties
+              employeeCPF: Number(record.payroll_data.employeeCPF || record.payroll_data.cpfEmployee || 0),
+              employerCPF: Number(record.payroll_data.employerCPF || record.payroll_data.cpfEmployer || 0),
+              totalPay: Number(record.payroll_data.netSalary || record.payroll_data.totalPay || 0),
+              // Ensure allowances array is properly formatted with id and type validation
+              allowances: Array.isArray(record.payroll_data.allowances) ? record.payroll_data.allowances.map((allowance: any, index: number) => ({
                 id: allowance.id || `allowance-${record.employee_id}-${index}`,
-                name: allowance.name,
-                amount: allowance.amount,
+                name: allowance.name || 'Unknown Allowance',
+                amount: Number(allowance.amount) || 0,
                 type: allowance.type || 'Fixed'
-              })),
-              // Ensure deductions array is properly mapped with id property
-              deductions: (record.payroll_data.deductions || []).map((deduction: any, index: number) => ({
+              })) : [],
+              // Ensure deductions array is properly formatted with id and type validation
+              deductions: Array.isArray(record.payroll_data.deductions) ? record.payroll_data.deductions.map((deduction: any, index: number) => ({
                 id: deduction.id || `deduction-${record.employee_id}-${index}`,
-                name: deduction.name,
-                amount: deduction.amount,
+                name: deduction.name || 'Unknown Deduction',
+                amount: Number(deduction.amount) || 0,
                 type: deduction.type || 'Fixed'
-              }))
+              })) : []
             };
 
             if (employee.type === 'Full-Time') {

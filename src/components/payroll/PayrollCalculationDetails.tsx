@@ -471,7 +471,7 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>
-              <span>{formatCurrency(typeof emp.allowances === 'number' ? emp.allowances : (Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0))}</span>
+              <span>{formatCurrency(Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + Number(a.amount || 0), 0) : 0)}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Gross Pay:</span>
@@ -479,19 +479,19 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
             </div>
             <div className="flex justify-between">
               <span>Employee CPF:</span>
-              <span>{formatCurrency(emp.cpfEmployee || emp.employeeCPF || 0)}</span>
+              <span>{formatCurrency(Number(emp.cpfEmployee || emp.employeeCPF || 0))}</span>
             </div>
             <div className="flex justify-between">
               <span>Employer CPF:</span>
-              <span>{formatCurrency(emp.cpfEmployer || emp.employerCPF || 0)}</span>
+              <span>{formatCurrency(Number(emp.cpfEmployer || emp.employerCPF || 0))}</span>
             </div>
             <div className="flex justify-between">
               <span>Other Deductions:</span>
-              <span>{formatCurrency(Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0)}</span>
+              <span>{formatCurrency(Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + Number(d.amount || 0), 0) : 0)}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Total Deductions:</span>
-              <span>{formatCurrency((emp.cpfEmployee || emp.employeeCPF || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0))}</span>
+              <span>{formatCurrency(Number(emp.cpfEmployee || emp.employeeCPF || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + Number(d.amount || 0), 0) : 0))}</span>
             </div>
           </div>
         </div>
