@@ -139,27 +139,26 @@ const AdminSlotBooking = () => {
 
   const loadAttendanceData = async (bookings: SlotBooking[]) => {
     try {
-      // Get unique employee IDs and dates from current month bookings
-      const currentMonth = selectedDate;
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-      
+      // Get unique employee IDs and dates from all bookings, not just current month
       const uniqueEmployeeIds = [...new Set(bookings.map(b => b.employeeId))];
-      const dateStrings = daysInMonth.map(date => format(date, 'yyyy-MM-dd'));
+      const uniqueDates = [...new Set(bookings.map(b => b.date))];
 
-      if (uniqueEmployeeIds.length > 0 && dateStrings.length > 0) {
-        const attendanceData = await getEmployeeAttendanceStatus(uniqueEmployeeIds, dateStrings);
+      console.log('AdminSlotBooking: Loading attendance for', uniqueEmployeeIds.length, 'employees and', uniqueDates.length, 'dates');
+
+      if (uniqueEmployeeIds.length > 0 && uniqueDates.length > 0) {
+        const attendanceData = await getEmployeeAttendanceStatus(uniqueEmployeeIds, uniqueDates);
         
         // Create a map for quick lookup
         const statusMap = new Map<string, EmployeeAttendanceStatus>();
         attendanceData.forEach(status => {
           const key = `${status.employeeId}-${status.date}`;
           statusMap.set(key, status);
+          console.log('AdminSlotBooking: Attendance status for', status.employeeId, 'on', status.date, ':', status.hasClockedIn);
         });
         
         setAttendanceStatusMap(statusMap);
         console.log('AdminSlotBooking: Loaded attendance data for', attendanceData.length, 'records');
+        console.log('AdminSlotBooking: Attendance status map keys:', Array.from(statusMap.keys()));
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error loading attendance data:', error);
@@ -197,7 +196,12 @@ const AdminSlotBooking = () => {
   const hasEmployeeClockedIn = (employeeId: string, date: Date): boolean => {
     const dateString = format(date, 'yyyy-MM-dd');
     const key = `${employeeId}-${dateString}`;
-    return attendanceStatusMap.has(key) && attendanceStatusMap.get(key)?.hasClockedIn === true;
+    const attendanceStatus = attendanceStatusMap.get(key);
+    const hasClockedIn = attendanceStatusMap.has(key) && attendanceStatus?.hasClockedIn === true;
+    
+    console.log('AdminSlotBooking: Checking attendance for', employeeId, 'on', dateString, '- Key:', key, '- Has record:', attendanceStatusMap.has(key), '- Has clocked in:', hasClockedIn);
+    
+    return hasClockedIn;
   };
 
   const handleDateClick = (date: Date) => {
