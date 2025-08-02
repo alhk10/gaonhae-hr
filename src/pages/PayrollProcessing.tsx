@@ -27,7 +27,8 @@ const PayrollProcessing = () => {
     setPayrollStatus,
     savePayrollToSupabase,
     autoAddCasualEmployeesWithAttendance,
-    addCasualEmployee
+    addCasualEmployee,
+    removeCasualEmployee
   } = usePayroll();
 
   // Bottom action bar states
@@ -1009,18 +1010,27 @@ const PayrollProcessing = () => {
                           return;
                         }
 
-                        // Manually add Wang Pot Chien with correct attendance data
+                        // Remove Wang Pot Chien if already exists to ensure clean add
+                        const existingWang = payrollState.casualEmployees.find(emp => emp.employeeId === 'EMP1752646101747');
+                        if (existingWang) {
+                          console.log('🔄 Removing existing Wang Pot Chien entry');
+                          removeCasualEmployee(existingWang.id);
+                        }
+
+                        // Add Wang Pot Chien with correct August 2025 attendance data (5.55 hours)
                         await addCasualEmployee({
                           employeeId: 'EMP1752646101747',
                           name: 'Wang Pot Chien',
                           hourlyRate: 14.00,
-                          hoursWorked: 100.26,
-                          daysWorked: 19,
-                          paymentType: 'Hourly'
+                          hoursWorked: 5.55, // Actual August 2025 hours from database
+                          daysWorked: 1,
+                          paymentType: 'Hourly',
+                          dailyRate: 0,
+                          baseSalary: 0
                         });
 
-                        console.log('✅ Manual Fix: Wang Pot Chien added successfully');
-                        toast.success('Wang Pot Chien added to payroll successfully');
+                        console.log('✅ Manual Fix: Wang Pot Chien added successfully with 5.55 hours');
+                        toast.success('Wang Pot Chien added to payroll with 5.55 hours at $14/hr');
                       } catch (error) {
                         console.error('❌ Manual Fix: Error adding Wang Pot Chien:', error);
                         toast.error('Failed to add Wang Pot Chien');

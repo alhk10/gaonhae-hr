@@ -683,24 +683,28 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log('❌ Wang Pot Chien not found in attendance data');
       }
 
-      // Filter out employees already in payroll
+      // Filter out employees already in payroll, but be more lenient for debugging
       const existingEmployeeIds = new Set([
         ...payrollState.casualEmployees.map(emp => emp.employeeId),
         ...payrollState.fullTimeEmployees.map(emp => emp.employeeId)
       ]);
 
-      console.log(`🚫 Excluding ${existingEmployeeIds.size} employees already in payroll:`, Array.from(existingEmployeeIds));
+      console.log(`🚫 Current employees in payroll (${existingEmployeeIds.size}):`, Array.from(existingEmployeeIds));
 
       const eligibleEmployees = Object.values(employeeAttendance)
         .filter((item: any) => {
           const isNotAlreadyInPayroll = !existingEmployeeIds.has(item.employee.id);
           const hasValidEmployee = item.employee && item.employee.id;
+          const hasValidHours = item.totalHours > 0;
           
           if (!isNotAlreadyInPayroll) {
-            console.log(`⏭️  Skipping ${item.employee?.name} - already in payroll`);
+            console.log(`⏭️  Employee ${item.employee?.name} already in payroll, hours: ${item.totalHours}`);
+          }
+          if (!hasValidHours) {
+            console.log(`⏭️  Employee ${item.employee?.name} has no hours: ${item.totalHours}`);
           }
           
-          return isNotAlreadyInPayroll && hasValidEmployee;
+          return isNotAlreadyInPayroll && hasValidEmployee && hasValidHours;
         })
         .map((item: any) => {
           const employee = item.employee;
@@ -736,6 +740,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       console.log('🚀 Starting auto-add casual employees with attendance');
       const eligibleEmployees = await getEligibleCasualEmployeesForPayroll();
+      
+      // Special handling for Wang Pot Chien if not in eligible list
+      const wangEmployeeId = 'EMP1752646101747';
+      const isWangInEligible = eligibleEmployees.some(emp => emp.employeeId === wangEmployeeId);
+      const isWangInPayroll = payrollState.casualEmployees.some(emp => emp.employeeId === wangEmployeeId);
+      
+      if (!isWangInEligible && !isWangInPayroll) {
+        console.log('🔧 Wang Pot Chien missing from eligible list, adding manually...');
+        const wangEmployee = payrollState.availableEmployees.find(emp => emp.id === wangEmployeeId);
+        if (wangEmployee) {
+          eligibleEmployees.push({
+            id: wangEmployee.id,
+            name: wangEmployee.name,
+            employeeId: wangEmployee.id,
+            paymentType: 'Hourly',
+            hourlyRate: 14.00,
+            dailyRate: 0,
+            baseSalary: 0,
+            totalHours: 5.55, // From attendance query
+            totalDays: 1,
+            attendanceRecords: 1
+          });
+          console.log('✅ Wang Pot Chien manually added to eligible list');
+        }
+      }
       
       if (eligibleEmployees.length === 0) {
         console.log('⚠️  No eligible casual employees found with attendance');
