@@ -743,10 +743,35 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (periodData && periodData.payroll_data) {
         const payrollData = periodData.payroll_data as any;
+        
+        // Transform data to match UI expectations
+        const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => ({
+          ...emp,
+          netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
+        }));
+        
+        const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => ({
+          ...emp,
+          totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
+        }));
+        
+        console.log('💰 PayrollContext: Transformed payroll data loaded:', {
+          fullTimeCount: transformedFullTimeEmployees.length,
+          casualCount: transformedCasualEmployees.length,
+          sampleFullTime: transformedFullTimeEmployees[0] ? { 
+            name: transformedFullTimeEmployees[0].name, 
+            netPay: transformedFullTimeEmployees[0].netPay 
+          } : null,
+          sampleCasual: transformedCasualEmployees[0] ? { 
+            name: transformedCasualEmployees[0].name, 
+            totalPay: transformedCasualEmployees[0].totalPay 
+          } : null
+        });
+        
         setPayrollState(prevState => ({
           ...prevState,
-          fullTimeEmployees: payrollData.fullTimeEmployees || [],
-          casualEmployees: payrollData.casualEmployees || [],
+          fullTimeEmployees: transformedFullTimeEmployees,
+          casualEmployees: transformedCasualEmployees,
           status: payrollData.status,
           lastUpdated: new Date(),
         }));
