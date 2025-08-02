@@ -823,12 +823,32 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         individualRecords.forEach((record: any) => {
           const employee = record.employees;
           if (employee && record.payroll_data) {
+            // Debug logging for Kim Hasung specifically
+            if (employee.name === 'Kim Hasung') {
+              console.log('=== KIM HASUNG DEBUG ===');
+              console.log('Raw payroll_data:', record.payroll_data);
+              console.log('Raw allowances:', record.payroll_data.allowances);
+            }
+
             const employeeData = {
               ...record.payroll_data,
               employeeId: record.employee_id,
               name: employee.name,
-              type: employee.type
+              type: employee.type,
+              // Ensure allowances array is properly mapped with id property
+              allowances: (record.payroll_data.allowances || []).map((allowance: any, index: number) => ({
+                id: allowance.id || `allowance-${record.employee_id}-${index}`,
+                name: allowance.name,
+                amount: allowance.amount,
+                type: allowance.type || 'Fixed'
+              }))
             };
+
+            // Debug logging for Kim Hasung after transformation
+            if (employee.name === 'Kim Hasung') {
+              console.log('Transformed allowances:', employeeData.allowances);
+              console.log('========================');
+            }
 
             if (employee.type === 'Full-Time') {
               fullTimeEmployees.push(employeeData);
