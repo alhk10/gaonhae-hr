@@ -479,11 +479,11 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
             </div>
             <div className="flex justify-between">
               <span>Employee CPF:</span>
-              <span>{formatCurrency(emp.employeeCPF || 0)}</span>
+              <span>{formatCurrency(emp.cpfEmployee || emp.employeeCPF || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Employer CPF:</span>
-              <span>{formatCurrency(emp.employerCPF || 0)}</span>
+              <span>{formatCurrency(emp.cpfEmployer || emp.employerCPF || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Other Deductions:</span>
@@ -491,7 +491,7 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
             </div>
             <div className="flex justify-between font-medium border-t pt-1">
               <span>Total Deductions:</span>
-              <span>{formatCurrency((emp.employeeCPF || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0))}</span>
+              <span>{formatCurrency((emp.cpfEmployee || emp.employeeCPF || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0))}</span>
             </div>
           </div>
         </div>
@@ -499,8 +499,8 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
       
       <div className="border-t pt-4">
         <div className="flex justify-between items-center">
-          <span className="font-medium">Total Pay:</span>
-          <span className="font-bold text-lg text-green-600">{formatCurrency(emp.totalPay || 0)}</span>
+          <span className="font-medium">Net Pay:</span>
+          <span className="font-bold text-lg text-green-600">{formatCurrency(emp.netPay || emp.totalPay || 0)}</span>
         </div>
       </div>
     </div>

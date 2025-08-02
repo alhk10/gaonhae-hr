@@ -745,27 +745,62 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const payrollData = periodData.payroll_data as any;
         
         // Transform data to match UI expectations
-        const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => ({
-          ...emp,
-          netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
-          grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
-          cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0, // Map employeeCPF to cpfEmployee
-          cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0, // Map employerCPF to cpfEmployer
-          allowances: emp.allowances || [], // Preserve allowances
-          deductions: emp.deductions || [], // Preserve deductions
-          paymentType: emp.paymentType || 'Monthly', // Preserve paymentType
-        }));
+        const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => {
+          // Ensure allowances have proper id property
+          const allowances = (emp.allowances || []).map((allowance: any, index: number) => ({
+            ...allowance,
+            id: allowance.id || `allowance_${emp.id}_${index}`, // Generate ID if missing
+          }));
+          
+          // Ensure deductions have proper id property  
+          const deductions = (emp.deductions || []).map((deduction: any, index: number) => ({
+            ...deduction,
+            id: deduction.id || `deduction_${emp.id}_${index}`, // Generate ID if missing
+          }));
+          
+          console.log(`🔍 PayrollContext: Transforming ${emp.name}:`, {
+            originalCPF: { employeeCPF: emp.employeeCPF, employerCPF: emp.employerCPF },
+            netPay: emp.netSalary || emp.netPay || 0,
+            allowancesCount: allowances.length,
+            deductionsCount: deductions.length
+          });
+          
+          return {
+            ...emp,
+            netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
+            grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
+            cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0, // Map employeeCPF to cpfEmployee
+            cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0, // Map employerCPF to cpfEmployer
+            allowances, // Use transformed allowances with IDs
+            deductions, // Use transformed deductions with IDs
+            paymentType: emp.paymentType || 'Monthly', // Preserve paymentType
+          };
+        });
         
-        const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => ({
-          ...emp,
-          totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
-          grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
-          employeeCPF: emp.employeeCPF || emp.cpfEmployee || 0, // Preserve employee CPF
-          employerCPF: emp.employerCPF || emp.cpfEmployer || 0, // Preserve employer CPF
-          allowances: emp.allowances || [], // Preserve allowances
-          deductions: emp.deductions || [], // Preserve deductions
-          paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'), // Smart fallback for paymentType
-        }));
+        const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => {
+          // Ensure allowances have proper id property
+          const allowances = (emp.allowances || []).map((allowance: any, index: number) => ({
+            ...allowance,
+            id: allowance.id || `allowance_${emp.id}_${index}`, // Generate ID if missing
+          }));
+          
+          // Ensure deductions have proper id property  
+          const deductions = (emp.deductions || []).map((deduction: any, index: number) => ({
+            ...deduction,
+            id: deduction.id || `deduction_${emp.id}_${index}`, // Generate ID if missing
+          }));
+          
+          return {
+            ...emp,
+            totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
+            grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
+            employeeCPF: emp.employeeCPF || emp.cpfEmployee || 0, // Preserve employee CPF
+            employerCPF: emp.employerCPF || emp.cpfEmployer || 0, // Preserve employer CPF
+            allowances, // Use transformed allowances with IDs
+            deductions, // Use transformed deductions with IDs
+            paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'), // Smart fallback for paymentType
+          };
+        });
         
         console.log('💰 PayrollContext: Transformed payroll data loaded:', {
           fullTimeCount: transformedFullTimeEmployees.length,
