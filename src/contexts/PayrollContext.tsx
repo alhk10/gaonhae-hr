@@ -109,7 +109,6 @@ export interface PayrollContextType {
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
 
 export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isContextReady, setIsContextReady] = useState(true); // Start as ready
   const [payrollState, setPayrollState] = useState<PayrollState>({
     fullTimeEmployees: [],
     casualEmployees: [],
@@ -122,40 +121,38 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     encashmentData: [],
   });
 
-  // Initialize context on mount
+  // Initialize payroll data when component mounts
   useEffect(() => {
-    const initializeContext = async () => {
+    const initializePayroll = async () => {
       try {
-        // Any initialization logic can go here
         console.log('PayrollContext initialized');
+        await loadPayrollFromSupabase();
       } catch (error) {
         console.error('Error initializing PayrollContext:', error);
       }
     };
 
-    initializeContext();
+    initializePayroll();
   }, []);
 
   // Auto-load payroll data when period changes
   useEffect(() => {
-    if (!isContextReady) return;
-    
-    console.log('🔄 PayrollContext: Period changed to', payrollState.currentPeriod);
-    
-    const loadPayrollData = async () => {
-      try {
-        console.log('📊 PayrollContext: Auto-loading payroll data for period', payrollState.currentPeriod);
-        await loadPayrollFromSupabase();
-      } catch (error) {
-        console.error('Error auto-loading payroll data:', error);
-      }
-    };
+    if (payrollState.currentPeriod) {
+      const loadPayrollData = async () => {
+        try {
+          console.log('📊 PayrollContext: Auto-loading payroll data for period', payrollState.currentPeriod);
+          await loadPayrollFromSupabase();
+        } catch (error) {
+          console.error('Error auto-loading payroll data:', error);
+        }
+      };
 
-    // Debounce the loading to prevent multiple rapid calls
-    const timeoutId = setTimeout(loadPayrollData, 300);
-    
-    return () => clearTimeout(timeoutId);
-  }, [payrollState.currentPeriod, isContextReady]);
+      // Debounce the loading to prevent multiple rapid calls
+      const timeoutId = setTimeout(loadPayrollData, 300);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [payrollState.currentPeriod]);
 
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
@@ -1169,18 +1166,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateCasualEmployeeHourlyRate,
     updateCasualEmployeeMonthlySalary,
   };
-
-  // Don't render children until context is ready
-  if (!isContextReady) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payroll system...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <PayrollContext.Provider value={contextValue}>
