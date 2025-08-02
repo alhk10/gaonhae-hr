@@ -131,10 +131,26 @@ export const calculateCasualPayroll = (
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // Debug logging for Ng Kai Rui Jovious
+  if (employee.name === 'Ng Kai Rui Jovious') {
+    console.log('🔍 CPF Debug - Employee Data:', {
+      name: employee.name,
+      dateOfBirth: employee.dateOfBirth,
+      residencyStatus: employee.residencyStatus,
+      baseSalary: employee.baseSalary,
+      paymentType: employee.paymentType,
+      hoursWorked,
+      daysWorked
+    });
+  }
+
   // Validate employee
   const validation = validateEmployeeForPayroll(employee);
   if (!validation.isValid) {
     errors.push(...validation.errors);
+    if (employee.name === 'Ng Kai Rui Jovious') {
+      console.log('❌ CPF Debug - Validation Errors:', validation.errors);
+    }
   }
 
   const paymentType = employee.paymentType || 'Monthly';
@@ -170,21 +186,69 @@ export const calculateCasualPayroll = (
   let employeeCPF = 0;
   let employerCPF = 0;
   
+  // Debug logging for Ng Kai Rui Jovious
+  if (employee.name === 'Ng Kai Rui Jovious') {
+    console.log('🔍 CPF Debug - Before CPF Calculation:', {
+      grossSalary,
+      dateOfBirth: employee.dateOfBirth,
+      residencyStatus: employee.residencyStatus,
+      hasDateOfBirth: !!employee.dateOfBirth,
+      hasResidencyStatus: !!employee.residencyStatus
+    });
+  }
+  
   try {
     if (employee.dateOfBirth && employee.residencyStatus) {
       const age = calculateAge(employee.dateOfBirth);
       const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus, age);
       employeeCPF = cpfCalc.employeeCPF;
       employerCPF = cpfCalc.employerCPF;
+      
+      // Debug logging for Ng Kai Rui Jovious
+      if (employee.name === 'Ng Kai Rui Jovious') {
+        console.log('🔍 CPF Debug - CPF Calculation Result:', {
+          age,
+          grossSalary,
+          residencyStatus: employee.residencyStatus,
+          cpfCalc,
+          employeeCPF,
+          employerCPF
+        });
+      }
     } else {
       warnings.push('CPF not calculated due to missing date of birth or residency status');
+      if (employee.name === 'Ng Kai Rui Jovious') {
+        console.log('❌ CPF Debug - Missing required data:', {
+          dateOfBirth: employee.dateOfBirth,
+          residencyStatus: employee.residencyStatus
+        });
+      }
     }
   } catch (error) {
     errors.push(`CPF calculation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (employee.name === 'Ng Kai Rui Jovious') {
+      console.log('❌ CPF Debug - Calculation Error:', error);
+    }
   }
 
   const totalCPF = employeeCPF + employerCPF;
   const netSalary = Math.max(0, grossSalary - employeeCPF - totalDeductions + approvedClaims);
+
+  // Debug logging for final result for Ng Kai Rui Jovious
+  if (employee.name === 'Ng Kai Rui Jovious') {
+    console.log('🔍 CPF Debug - Final Calculation Result:', {
+      baseSalary,
+      totalAllowances,
+      totalDeductions,
+      grossSalary,
+      employeeCPF,
+      employerCPF,
+      totalCPF: employeeCPF + employerCPF,
+      netSalary,
+      errors,
+      warnings
+    });
+  }
 
   // Validation warnings
   if (paymentType === 'Hourly' && hoursWorked > 60) {
