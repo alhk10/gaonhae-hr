@@ -208,7 +208,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
       });
       
       // Navigate to payroll processing page
-      navigate('/payroll-processing');
+      navigate('/payroll');
     } catch (error) {
       console.error('Error processing payroll:', error);
       toast({

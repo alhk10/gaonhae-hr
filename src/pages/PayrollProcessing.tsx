@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit } from 'lucide-react';
+import { DollarSign, Save, Check, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -283,6 +283,19 @@ const PayrollProcessing = () => {
     }));
   };
 
+  const handleRemoveEmployee = async (employeeId: string, employeeName: string) => {
+    if (window.confirm(`Are you sure you want to remove ${employeeName} from this payroll period?`)) {
+      try {
+        // Remove from local state
+        setAllEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+        toast.success(`${employeeName} removed from payroll`);
+      } catch (error) {
+        console.error('Error removing employee:', error);
+        toast.error('Error removing employee');
+      }
+    }
+  };
+
   const getApprovedClaimsTotal = (employeeId: string): number => {
     const claims = employeeClaims[employeeId] || [];
     return claims
@@ -430,6 +443,7 @@ const PayrollProcessing = () => {
                         <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
                         <TableHead className="font-semibold min-w-[120px]">CPF</TableHead>
                         <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
+                        <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -540,6 +554,16 @@ const PayrollProcessing = () => {
                                 S${((employee.baseSalary || 0) + totalAllowances - totalDeductions - ((employee.baseSalary || 0) * 0.20) + approvedClaims).toLocaleString()}
                               </div>
                             </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -582,6 +606,7 @@ const PayrollProcessing = () => {
                         <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
                         <TableHead className="font-semibold min-w-[80px]">CPF</TableHead>
                         <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
+                        <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -706,6 +731,16 @@ const PayrollProcessing = () => {
                               <div className="font-bold text-green-600">
                                 S${(2000 + totalAllowances - totalDeductions + approvedClaims).toLocaleString()}
                               </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );

@@ -11,7 +11,7 @@ import '@/services/systemInitializationService';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
 import EmployeeDetails from './pages/EmployeeDetails';
-import Payroll from './pages/Payroll';
+
 import PayrollProcessing from './pages/PayrollProcessing';
 import PaymentSummary from './pages/PaymentSummary';
 import IncrementPlanning from './pages/IncrementPlanning';
@@ -128,16 +128,6 @@ function App() {
                 />
                 <Route 
                   path="/payroll" 
-                  element={
-                    <AuthGuard>
-                      <PageAccessGuard requiredPermission="payroll">
-                        <Payroll />
-                      </PageAccessGuard>
-                    </AuthGuard>
-                  } 
-                />
-                <Route 
-                  path="/payroll-processing" 
                   element={
                     <AuthGuard>
                       <PageAccessGuard requiredPermission="payroll">
