@@ -203,6 +203,26 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (error) throw error;
 
         if (empData) {
+          // Fetch allowances and deductions for this specific employee
+          const [allowancesResult, deductionsResult] = await Promise.all([
+            supabase.from('allowances').select('*').eq('employee_id', empData.id),
+            supabase.from('deductions').select('*').eq('employee_id', empData.id)
+          ]);
+
+          const allowances: EmployeeAllowance[] = (allowancesResult.data || []).map(allowance => ({
+            id: allowance.id.toString(),
+            name: allowance.name,
+            amount: allowance.amount,
+            type: allowance.type as 'Fixed' | 'Percentage' | 'Manual'
+          }));
+
+          const deductions: EmployeeDeduction[] = (deductionsResult.data || []).map(deduction => ({
+            id: deduction.id.toString(),
+            name: deduction.name,
+            amount: deduction.amount,
+            type: deduction.type as 'Fixed' | 'Percentage' | 'Manual'
+          }));
+
           employeeProfile = {
             id: empData.id,
             name: empData.name,
@@ -224,8 +244,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             address: empData.address || '',
             email: empData.email,
             joinDate: empData.join_date,
-            allowances: [],
-            deductions: [],
+            allowances,
+            deductions,
             certificates: [],
             adminAccess: {
               employees: false,
@@ -372,6 +392,40 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
 
+      // Fetch allowances and deductions for all employees
+      const employeeIds = employees?.map(emp => emp.id) || [];
+      
+      const [allowancesResult, deductionsResult] = await Promise.all([
+        supabase.from('allowances').select('*').in('employee_id', employeeIds),
+        supabase.from('deductions').select('*').in('employee_id', employeeIds)
+      ]);
+
+      if (allowancesResult.error) throw allowancesResult.error;
+      if (deductionsResult.error) throw deductionsResult.error;
+
+      // Group allowances and deductions by employee_id
+      const allowancesByEmployee = (allowancesResult.data || []).reduce((acc, allowance) => {
+        if (!acc[allowance.employee_id]) acc[allowance.employee_id] = [];
+        acc[allowance.employee_id].push({
+          id: allowance.id.toString(),
+          name: allowance.name,
+          amount: allowance.amount,
+          type: allowance.type as 'Fixed' | 'Percentage' | 'Manual'
+        });
+        return acc;
+      }, {} as Record<string, EmployeeAllowance[]>);
+
+      const deductionsByEmployee = (deductionsResult.data || []).reduce((acc, deduction) => {
+        if (!acc[deduction.employee_id]) acc[deduction.employee_id] = [];
+        acc[deduction.employee_id].push({
+          id: deduction.id.toString(),
+          name: deduction.name,
+          amount: deduction.amount,
+          type: deduction.type as 'Fixed' | 'Percentage' | 'Manual'
+        });
+        return acc;
+      }, {} as Record<string, EmployeeDeduction[]>);
+
       const availableEmployees: EmployeeProfile[] = employees?.map(emp => ({
         id: emp.id,
         name: emp.name,
@@ -393,8 +447,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         address: emp.address || '',
         email: emp.email,
         joinDate: emp.join_date,
-        allowances: [],
-        deductions: [],
+        allowances: allowancesByEmployee[emp.id] || [],
+        deductions: deductionsByEmployee[emp.id] || [],
         certificates: [],
         adminAccess: {
           employees: false,
