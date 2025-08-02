@@ -586,16 +586,23 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         status: payrollState.status,
       };
 
+      const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
+      const recordId = `PERIOD_${formattedPeriod}`;
+
+      // Use upsert to handle existing records
       const { data, error } = await supabase
         .from('payroll_records')
-        .insert([{
-          id: uuidv4(),
+        .upsert({
+          id: recordId,
           employee_id: 'system',
           month: payrollData.month,
           year: parseInt(payrollData.year),
           payroll_data: payrollData as any,
           is_locked: false,
-        }]);
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'id'
+        });
 
       if (error) {
         console.error('Error saving payroll data to Supabase:', error);

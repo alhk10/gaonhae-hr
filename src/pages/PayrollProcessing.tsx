@@ -26,7 +26,8 @@ const PayrollProcessing = () => {
     payrollState, 
     setPayrollStatus,
     savePayrollToSupabase,
-    autoAddCasualEmployeesWithAttendance
+    autoAddCasualEmployeesWithAttendance,
+    addCasualEmployee
   } = usePayroll();
 
   // Bottom action bar states
@@ -991,6 +992,40 @@ const PayrollProcessing = () => {
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Auto-Add Casual Employees</span>
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        // Check if Wang Pot Chien is already in payroll
+                        const wangExists = payrollState.casualEmployees.some(emp => emp.employeeId === 'EMP1752646101747');
+                        if (wangExists) {
+                          toast.info('Wang Pot Chien is already in payroll');
+                          return;
+                        }
+
+                        // Use the addCasualEmployee function from context
+                        
+                        // Manually add Wang Pot Chien with attendance data
+                        await addCasualEmployee({
+                          employeeId: 'EMP1752646101747',
+                          name: 'Wang Pot Chien',
+                          hourlyRate: 14.00,
+                          hoursWorked: 100.26,
+                          daysWorked: 19,
+                          paymentType: 'Hourly'
+                        });
+
+                        toast.success('Wang Pot Chien added to payroll successfully');
+                      } catch (error) {
+                        console.error('Error adding Wang Pot Chien:', error);
+                        toast.error('Failed to add Wang Pot Chien');
+                      }
+                    }}
+                    variant="secondary"
+                    className="flex items-center space-x-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Fix Wang Pot Chien</span>
                   </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
