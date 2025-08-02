@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, DollarSign, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Users, DollarSign, AlertTriangle, Filter } from 'lucide-react';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { toast } from '@/components/ui/sonner';
 import PayrollCalculationDetails from './PayrollCalculationDetails';
@@ -35,6 +36,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
   const [isAutoAddPreviewOpen, setIsAutoAddPreviewOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [eligibleCasualEmployees, setEligibleCasualEmployees] = useState<any[]>([]);
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState<string>('all');
 
   // Validate all employees and collect issues
   const validationIssues = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees]
@@ -162,6 +164,14 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     !payrollState.fullTimeEmployees.some(existing => existing.employeeId === emp.id) &&
     !payrollState.casualEmployees.some(existing => existing.employeeId === emp.id)
   );
+
+  // Filter employees based on selected type
+  const filteredAvailableEmployees = availableForAdd.filter(employee => {
+    if (employeeTypeFilter === 'all') return true;
+    if (employeeTypeFilter === 'full-time') return employee.type === 'Full-Time';
+    if (employeeTypeFilter === 'casual') return employee.type === 'Casual';
+    return true;
+  });
 
   const totalEmployees = payrollState.fullTimeEmployees.length + payrollState.casualEmployees.length;
 
@@ -453,14 +463,40 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Filter Controls */}
+            <div className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by type:</span>
+              </div>
+              <Select value={employeeTypeFilter} onValueChange={setEmployeeTypeFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="full-time">Full-Time</SelectItem>
+                  <SelectItem value="casual">Casual</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">
+                {filteredAvailableEmployees.length} of {availableForAdd.length} employees
+              </span>
+            </div>
+
             <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
               {availableForAdd.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">All employees are already in payroll</p>
                 </div>
+              ) : filteredAvailableEmployees.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">No {employeeTypeFilter === 'all' ? '' : employeeTypeFilter + ' '}employees available</p>
+                </div>
               ) : (
-                availableForAdd.map((employee) => {
+                filteredAvailableEmployees.map((employee) => {
                   const validation = validateEmployeeForPayroll(employee);
                   const hasErrors = !validation.isValid;
                   
