@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { PayrollProvider } from '@/contexts/PayrollContext';
+import { PayrollProvider, usePayroll } from '@/contexts/PayrollContext';
 import PayrollSummaryCards from '@/components/payroll/PayrollSummaryCards';
 import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
 import PayrollEmployeeManager from '@/components/payroll/PayrollEmployeeManager';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePayroll } from '@/contexts/PayrollContext';
+
 import { toast } from '@/components/ui/sonner';
 import { getAllPayrollRecords } from '@/services/payrollService';
 
