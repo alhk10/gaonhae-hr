@@ -470,12 +470,28 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
               <span>{formatCurrency(emp.baseSalary || (emp.hoursWorked || 0) * (emp.hourlyRate || 0) || (emp.daysWorked || 0) * (emp.dailyRate || 0) || 0)}</span>
             </div>
             <div className="flex justify-between">
+              <span>Allowances:</span>
+              <span>{formatCurrency(typeof emp.allowances === 'number' ? emp.allowances : (Array.isArray(emp.allowances) ? emp.allowances.reduce((sum, a) => sum + a.amount, 0) : 0))}</span>
+            </div>
+            <div className="flex justify-between font-medium border-t pt-1">
+              <span>Gross Pay:</span>
+              <span>{formatCurrency(emp.grossPay || 0)}</span>
+            </div>
+            <div className="flex justify-between">
               <span>Employee CPF:</span>
               <span>{formatCurrency(emp.employeeCPF || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Employer CPF:</span>
               <span>{formatCurrency(emp.employerCPF || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Other Deductions:</span>
+              <span>{formatCurrency(Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0)}</span>
+            </div>
+            <div className="flex justify-between font-medium border-t pt-1">
+              <span>Total Deductions:</span>
+              <span>{formatCurrency((emp.employeeCPF || 0) + (Array.isArray(emp.deductions) ? emp.deductions.reduce((sum, d) => sum + d.amount, 0) : 0))}</span>
             </div>
           </div>
         </div>

@@ -748,12 +748,22 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => ({
           ...emp,
           netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
+          grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
+          cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0, // Map employeeCPF to cpfEmployee
+          cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0, // Map employerCPF to cpfEmployer
+          allowances: emp.allowances || [], // Preserve allowances
+          deductions: emp.deductions || [], // Preserve deductions
           paymentType: emp.paymentType || 'Monthly', // Preserve paymentType
         }));
         
         const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => ({
           ...emp,
           totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
+          grossPay: emp.grossSalary || emp.grossPay || 0, // Preserve gross pay
+          employeeCPF: emp.employeeCPF || emp.cpfEmployee || 0, // Preserve employee CPF
+          employerCPF: emp.employerCPF || emp.cpfEmployer || 0, // Preserve employer CPF
+          allowances: emp.allowances || [], // Preserve allowances
+          deductions: emp.deductions || [], // Preserve deductions
           paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'), // Smart fallback for paymentType
         }));
         

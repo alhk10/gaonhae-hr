@@ -24,10 +24,10 @@ export const getCPFRates = (residencyStatus: string, age: number = 30): CPFRates
     };
   }
 
-  // Age-based rates for Singapore Citizens and PR Year 2 onwards
+  // Age-based rates for Singapore Citizens and PR Year 2 onwards (2025 rates)
   if (residencyStatus === 'Singapore Citizen' || residencyStatus === 'Permanent Resident Year 2') {
-    // Age 16-35: Full rates
-    if (age >= 16 && age <= 35) {
+    // Age 55 and below: Full rates
+    if (age <= 55) {
       return {
         employeeRate: 0.20, // 20%
         employerRate: 0.17, // 17%
@@ -35,53 +35,26 @@ export const getCPFRates = (residencyStatus: string, age: number = 30): CPFRates
       };
     }
     
-    // Age 36-45: Full rates
-    if (age >= 36 && age <= 45) {
+    // Age above 55 to 60: Reduced rates
+    if (age > 55 && age <= 60) {
       return {
-        employeeRate: 0.20, // 20%
-        employerRate: 0.17, // 17%
-        totalRate: 0.37
+        employeeRate: 0.17, // 17%
+        employerRate: 0.155, // 15.5%
+        totalRate: 0.325
       };
     }
     
-    // Age 46-50: Full rates
-    if (age >= 46 && age <= 50) {
+    // Age above 60 to 65: Further reduced rates
+    if (age > 60 && age <= 65) {
       return {
-        employeeRate: 0.20, // 20%
-        employerRate: 0.17, // 17%
-        totalRate: 0.37
+        employeeRate: 0.115, // 11.5%
+        employerRate: 0.12, // 12%
+        totalRate: 0.235
       };
     }
     
-    // Age 51-55: Reduced rates
-    if (age >= 51 && age <= 55) {
-      return {
-        employeeRate: 0.19, // 19%
-        employerRate: 0.16, // 16%
-        totalRate: 0.35
-      };
-    }
-    
-    // Age 56-60: Reduced rates
-    if (age >= 56 && age <= 60) {
-      return {
-        employeeRate: 0.135, // 13.5%
-        employerRate: 0.115, // 11.5%
-        totalRate: 0.25
-      };
-    }
-    
-    // Age 61-65: Further reduced rates
-    if (age >= 61 && age <= 65) {
-      return {
-        employeeRate: 0.075, // 7.5%
-        employerRate: 0.09, // 9%
-        totalRate: 0.165
-      };
-    }
-    
-    // Age 66-70: Minimal rates
-    if (age >= 66 && age <= 70) {
+    // Age above 65 to 70: Lower rates
+    if (age > 65 && age <= 70) {
       return {
         employeeRate: 0.05, // 5%
         employerRate: 0.075, // 7.5%
@@ -89,8 +62,8 @@ export const getCPFRates = (residencyStatus: string, age: number = 30): CPFRates
       };
     }
     
-    // Age 71 and above: Minimal rates
-    if (age >= 71) {
+    // Age above 70: Minimal rates
+    if (age > 70) {
       return {
         employeeRate: 0.05, // 5%
         employerRate: 0.05, // 5%
@@ -109,8 +82,33 @@ export const getCPFRates = (residencyStatus: string, age: number = 30): CPFRates
 
 export const calculateCPF = (salary: number, residencyStatus: string, age: number = 30) => {
   const rates = getCPFRates(residencyStatus, age);
-  const employeeCPF = salary * rates.employeeRate;
-  const employerCPF = salary * rates.employerRate;
+  
+  // Apply wage caps based on 2025 CPF rules
+  let cpfSalary = salary;
+  
+  // Age 55 and below: Ordinary Wage Cap S$6,800, Additional Wage Cap S$102,000
+  if (age <= 55) {
+    cpfSalary = Math.min(salary, 6800); // Monthly wage cap
+  }
+  // Age above 55 to 60: Ordinary Wage Cap S$6,800, Additional Wage Cap S$102,000  
+  else if (age > 55 && age <= 60) {
+    cpfSalary = Math.min(salary, 6800); // Monthly wage cap
+  }
+  // Age above 60 to 65: Ordinary Wage Cap S$6,800, Additional Wage Cap S$102,000
+  else if (age > 60 && age <= 65) {
+    cpfSalary = Math.min(salary, 6800); // Monthly wage cap
+  }
+  // Age above 65 to 70: Ordinary Wage Cap S$6,800, Additional Wage Cap S$102,000
+  else if (age > 65 && age <= 70) {
+    cpfSalary = Math.min(salary, 6800); // Monthly wage cap
+  }
+  // Age above 70: Ordinary Wage Cap S$6,800, Additional Wage Cap S$102,000
+  else if (age > 70) {
+    cpfSalary = Math.min(salary, 6800); // Monthly wage cap
+  }
+  
+  const employeeCPF = cpfSalary * rates.employeeRate;
+  const employerCPF = cpfSalary * rates.employerRate;
   
   return {
     employeeCPF: Math.round(employeeCPF * 100) / 100,
