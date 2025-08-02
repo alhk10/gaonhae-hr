@@ -22,12 +22,14 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/sonner";
+import { Settings } from 'lucide-react';
 import {
   getClaims,
   updateClaimStatus
 } from '@/data/claimsData';
 import { getEmployeeById } from '@/services/employeeService';
 import AddClaimDialog from '@/components/claim/AddClaimDialog';
+import ClaimSettingsDialog from '@/components/claim/ClaimSettingsDialog';
 
 interface Claim {
   id: number;
@@ -185,7 +187,10 @@ const Claims = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-md"
               />
-              <AddClaimDialog onClaimAdded={handleClaimSuccess} />
+              <div className="flex space-x-2">
+                <ClaimSettingsDialog onClaimTypesUpdated={loadClaims} />
+                <AddClaimDialog onClaimAdded={handleClaimSuccess} />
+              </div>
             </div>
           </div>
 
