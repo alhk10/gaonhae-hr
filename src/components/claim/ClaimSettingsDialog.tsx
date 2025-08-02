@@ -220,7 +220,7 @@ const ClaimSettingsDialog: React.FC<ClaimSettingsDialogProps> = ({
                     <TableCell>
                       {claimType.limit_amount ? `S$${claimType.limit_amount}` : 'No limit'}
                     </TableCell>
-                    <TableCell>S${claimType.co_pay}</TableCell>
+                    <TableCell>{claimType.co_pay}%</TableCell>
                     <TableCell>
                       <Switch
                         checked={claimType.is_active}
@@ -321,18 +321,20 @@ const ClaimSettingsDialog: React.FC<ClaimSettingsDialogProps> = ({
                     placeholder="Leave empty for no limit"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="co_pay">Co-pay (SGD)</Label>
-                  <Input
-                    id="co_pay"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.co_pay}
-                    onChange={(e) => setFormData(prev => ({ ...prev, co_pay: e.target.value }))}
-                    required
-                  />
-                </div>
+                 <div className="grid gap-2">
+                   <Label htmlFor="co_pay">Co-pay (%)</Label>
+                   <Input
+                     id="co_pay"
+                     type="number"
+                     step="1"
+                     min="0"
+                     max="100"
+                     value={formData.co_pay}
+                     onChange={(e) => setFormData(prev => ({ ...prev, co_pay: e.target.value }))}
+                     placeholder="0"
+                     required
+                   />
+                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button
