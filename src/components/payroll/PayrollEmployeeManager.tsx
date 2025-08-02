@@ -124,6 +124,40 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
     }
   };
 
+  const handleAutoAddFullTimeEmployees = async () => {
+    try {
+      // Filter available employees to get only full-time employees
+      const fullTimeEmployees = availableForAdd.filter(emp => emp.type === 'Full-Time');
+      
+      if (fullTimeEmployees.length === 0) {
+        toast.info('No full-time employees available to add');
+        return;
+      }
+
+      // Validate each full-time employee
+      const validFullTimeEmployees = fullTimeEmployees.filter(employee => {
+        const validation = validateEmployeeForPayroll(employee);
+        return validation.isValid;
+      });
+
+      if (validFullTimeEmployees.length === 0) {
+        toast.error('No valid full-time employees found to add');
+        return;
+      }
+
+      // Get the employee IDs to add
+      const employeeIds = validFullTimeEmployees.map(emp => emp.id);
+      
+      // Add them to payroll
+      await addEmployeesToPayroll(employeeIds);
+      
+      toast.success(`Successfully added ${validFullTimeEmployees.length} full-time employees to payroll`);
+    } catch (error) {
+      console.error('Error auto-adding full-time employees:', error);
+      toast.error('Error adding full-time employees to payroll');
+    }
+  };
+
   const handleUpdateBaseSalary = (employeeId: string, newBaseSalary: number) => {
     // Find if it's a full-time or casual employee and update accordingly
     const fullTimeEmployee = payrollState.fullTimeEmployees.find(emp => emp.employeeId === employeeId);
@@ -223,12 +257,12 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={handleAutoAddCasualEmployees}
-                  disabled={isLoading}
-                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                  onClick={handleAutoAddFullTimeEmployees}
+                  disabled={isLoading || availableForAdd.filter(emp => emp.type === 'Full-Time').length === 0}
+                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Auto-Add Casual
+                  Auto-Add Full-Time
                 </Button>
                 <Button 
                   variant="outline" 
