@@ -418,8 +418,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const calculatePayrollTotal = useCallback(() => {
-    const fullTimeTotal = payrollState.fullTimeEmployees.reduce((sum, employee) => sum + employee.netPay, 0);
-    const casualTotal = payrollState.casualEmployees.reduce((sum, employee) => sum + employee.totalPay, 0);
+    const fullTimeTotal = payrollState.fullTimeEmployees.reduce((sum, employee) => sum + (employee.grossPay || employee.netPay), 0);
+    const casualTotal = payrollState.casualEmployees.reduce((sum, employee) => sum + (employee.grossPay || employee.totalPay), 0);
     return fullTimeTotal + casualTotal;
   }, [payrollState.fullTimeEmployees, payrollState.casualEmployees]);
 

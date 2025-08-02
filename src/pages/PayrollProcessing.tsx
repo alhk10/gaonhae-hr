@@ -429,8 +429,10 @@ const PayrollProcessing = () => {
                 <div className="ml-4">
                   <p className="text-sm text-purple-600">Total CPF</p>
                   <p className="text-2xl font-bold text-purple-900">
-                    S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.cpfEmployer, 0) + 
-                        payrollState.casualEmployees.reduce((sum, emp) => sum + emp.employerCPF, 0)).toLocaleString()}
+                    S${(
+                      payrollState.fullTimeEmployees.reduce((sum, emp) => sum + (emp.cpfEmployer || 0) + (emp.cpfEmployee || 0), 0) + 
+                      payrollState.casualEmployees.reduce((sum, emp) => sum + (emp.employerCPF || 0) + (emp.employeeCPF || 0), 0)
+                    ).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -755,8 +757,9 @@ const PayrollProcessing = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-center text-xs text-gray-600">
-                                Calculated
+                              <div className="text-xs space-y-1">
+                                <div className="text-gray-600">ER: S${employee.employerCPF?.toFixed(2) || '0.00'}</div>
+                                <div className="text-gray-600">EE: S${employee.employeeCPF?.toFixed(2) || '0.00'}</div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -996,16 +999,17 @@ const PayrollProcessing = () => {
                   <Button
                     onClick={async () => {
                       try {
+                        console.log('🔄 Manual Fix: Adding Wang Pot Chien...');
+                        
                         // Check if Wang Pot Chien is already in payroll
                         const wangExists = payrollState.casualEmployees.some(emp => emp.employeeId === 'EMP1752646101747');
                         if (wangExists) {
+                          console.log('⚠️ Wang Pot Chien already exists in payroll');
                           toast.info('Wang Pot Chien is already in payroll');
                           return;
                         }
 
-                        // Use the addCasualEmployee function from context
-                        
-                        // Manually add Wang Pot Chien with attendance data
+                        // Manually add Wang Pot Chien with correct attendance data
                         await addCasualEmployee({
                           employeeId: 'EMP1752646101747',
                           name: 'Wang Pot Chien',
@@ -1015,9 +1019,10 @@ const PayrollProcessing = () => {
                           paymentType: 'Hourly'
                         });
 
+                        console.log('✅ Manual Fix: Wang Pot Chien added successfully');
                         toast.success('Wang Pot Chien added to payroll successfully');
                       } catch (error) {
-                        console.error('Error adding Wang Pot Chien:', error);
+                        console.error('❌ Manual Fix: Error adding Wang Pot Chien:', error);
                         toast.error('Failed to add Wang Pot Chien');
                       }
                     }}
