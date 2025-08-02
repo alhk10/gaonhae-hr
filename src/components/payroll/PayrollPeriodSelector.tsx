@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp, Save, Lock } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp, Save, Lock, Calculator } from 'lucide-react';
 import { getAllPayrollRecords, PayrollRecord, saveDraftPayroll, finalizePayroll, getPayrollStatus } from '@/services/payrollService';
 import { formatCurrency } from '@/utils/payrollCalculations';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -31,13 +31,15 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
   const [periodStats, setPeriodStats] = useState<Record<string, { count: number; total: number }>>({});
   const [isLoadingPeriods, setIsLoadingPeriods] = useState(false);
-  const [payrollStatus, setPayrollStatus] = useState<PayrollStatus | null>(null);
+  const [localPayrollStatus, setLocalPayrollStatus] = useState<PayrollStatus | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
   
-  const { payrollState } = usePayroll();
+  const { payrollState, setPayrollStatus } = usePayroll();
   const { toast } = useToast();
 
   const months = [
@@ -107,7 +109,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
     try {
       const formattedPeriod = formatPeriodForAPI(selectedPeriod);
       const status = await getPayrollStatus(formattedPeriod);
-      setPayrollStatus(status);
+      setLocalPayrollStatus(status);
     } catch (error) {
       console.error('Error loading payroll status:', error);
     } finally {
@@ -166,6 +168,40 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
       });
     } finally {
       setIsFinalizing(false);
+    }
+  };
+
+  const handleProcessPayroll = async () => {
+    if (localPayrollStatus?.status !== 'finalized') {
+      toast({
+        title: "Processing Not Allowed",
+        description: "Payroll must be finalized before processing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Update payroll status to processing
+      setPayrollStatus('processing');
+      setShowProcessDialog(false);
+      
+      toast({
+        title: "Processing Started",
+        description: `Payroll processing has been initiated for ${selectedPeriod}.`,
+      });
+      
+      // Here you would typically trigger the actual payroll processing logic
+    } catch (error) {
+      console.error('Error processing payroll:', error);
+      toast({
+        title: "Processing Failed",
+        description: "Failed to process payroll. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -306,13 +342,13 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
               {isCurrentPeriod() ? "Current Period" : isPastPeriod() ? "Past Period" : "Future Period"}
             </Badge>
             
-            {payrollStatus && (
+            {localPayrollStatus && (
               <Badge 
-                variant={payrollStatus.status === 'finalized' ? "default" : "secondary"}
-                className={payrollStatus.status === 'finalized' ? "bg-green-600" : "bg-yellow-600"}
+                variant={localPayrollStatus.status === 'finalized' ? "default" : "secondary"}
+                className={localPayrollStatus.status === 'finalized' ? "bg-green-600" : "bg-yellow-600"}
               >
                 <Lock className="w-3 h-3 mr-1" />
-                {payrollStatus.status === 'finalized' ? 'Finalized' : 'Draft'}
+                {localPayrollStatus.status === 'finalized' ? 'Finalized' : 'Draft'}
               </Badge>
             )}
             
@@ -330,14 +366,14 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
           </div>
         </div>
 
-        {/* Save Draft and Finalize Buttons */}
+        {/* Save Draft, Finalize, and Process Payroll Buttons */}
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex space-x-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleSaveDraft}
-              disabled={isSaving || isLoading || payrollStatus?.status === 'finalized'}
+              disabled={isSaving || isLoading || localPayrollStatus?.status === 'finalized'}
               className="flex items-center"
             >
               <Save className="w-4 h-4 mr-2" />
@@ -348,17 +384,28 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
               variant="default"
               size="sm"
               onClick={() => setShowFinalizeDialog(true)}
-              disabled={isFinalizing || isLoading || payrollStatus?.status === 'finalized'}
+              disabled={isFinalizing || isLoading || localPayrollStatus?.status === 'finalized'}
               className="flex items-center bg-green-600 hover:bg-green-700"
             >
               <Lock className="w-4 h-4 mr-2" />
               {isFinalizing ? 'Finalizing...' : 'Finalize'}
             </Button>
+
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setShowProcessDialog(true)}
+              disabled={isProcessing || isLoading || localPayrollStatus?.status !== 'finalized'}
+              className="flex items-center bg-blue-600 hover:bg-blue-700"
+            >
+              <Calculator className="w-4 h-4 mr-2" />
+              {isProcessing ? 'Processing...' : 'Process Payroll'}
+            </Button>
           </div>
           
-          {payrollStatus?.status === 'finalized' && payrollStatus.finalizedBy && (
+          {localPayrollStatus?.status === 'finalized' && localPayrollStatus.finalizedBy && (
             <div className="text-xs text-gray-500">
-              Finalized by {payrollStatus.finalizedBy}
+              Finalized by {localPayrollStatus.finalizedBy}
             </div>
           )}
         </div>
@@ -428,6 +475,29 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
               className="bg-green-600 hover:bg-green-700"
             >
               {isFinalizing ? 'Finalizing...' : 'Finalize Payroll'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Process Payroll Confirmation Dialog */}
+      <AlertDialog open={showProcessDialog} onOpenChange={setShowProcessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Process Payroll</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to process the payroll for {selectedPeriod}? 
+              This will begin the payment processing workflow and update the payroll status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleProcessPayroll}
+              disabled={isProcessing}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isProcessing ? 'Processing...' : 'Process Payroll'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
