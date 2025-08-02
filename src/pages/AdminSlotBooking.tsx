@@ -29,7 +29,6 @@ import {
   updateSlotBookingEmployee,
   getEmployeeAttendanceStatus,
   checkForExistingBooking,
-  forceBookJasonSlots,
   createEmergencyBooking,
   type SlotBooking,
   type Branch,
@@ -516,67 +515,6 @@ const AdminSlotBooking = () => {
               </div>
               
               <div className={`flex space-x-2 ${isMobile ? 'w-full' : ''}`}>
-                <Button 
-                  variant="outline" 
-                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                  onClick={async () => {
-                    try {
-                      const result = await forceBookJasonSlots();
-                      if (result.success) {
-                        toast.success(`✅ Successfully booked ${result.bookings.length} slots for Jason Lu at Kembangan`);
-                        refreshData();
-                      } else {
-                        toast.error(`❌ Booking failed: ${result.errors.join(', ')}`);
-                      }
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🚨 Fix Jason's Booking
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
-                  onClick={async () => {
-                    try {
-                      const { data, error } = await supabase.rpc('force_book_eldon_slots');
-                      if (error) throw error;
-                      
-                      const result = data as { success: boolean; bookings_created?: number; error?: string };
-                      if (result.success) {
-                        toast.success(`✅ Emergency booking created for Eldon at Jurong West on Aug 16, 2025`);
-                        refreshData();
-                      } else {
-                        toast.error(`❌ ${result.error || 'Failed to create booking'}`);
-                      }
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🆘 Fix Eldon's Booking
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                  onClick={async () => {
-                    try {
-                      const { data, error } = await supabase.rpc('force_book_ryan_slots');
-                      if (error) throw error;
-                      
-                      const result = data as { bookings_created: number; duplicates_skipped: number; total_requested: number };
-                      toast.success(`✅ Ryan's bookings processed: ${result.bookings_created} created, ${result.duplicates_skipped} duplicates skipped`);
-                      refreshData();
-                    } catch (error) {
-                      toast.error(`❌ Error: ${error.message}`);
-                    }
-                  }}
-                >
-                  🚀 Fix Ryan's Booking
-                </Button>
                 
                 <Dialog open={isPendingApprovalsDialogOpen} onOpenChange={setIsPendingApprovalsDialogOpen}>
                   <DialogTrigger asChild>
