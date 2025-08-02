@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,6 +42,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   
   const payrollContext = usePayroll();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Safety check - ensure context is available
   if (!payrollContext) {
@@ -205,7 +207,8 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
         description: `Payroll processing has been initiated for ${selectedPeriod}.`,
       });
       
-      // Here you would typically trigger the actual payroll processing logic
+      // Navigate to payroll processing page
+      navigate('/payroll-processing');
     } catch (error) {
       console.error('Error processing payroll:', error);
       toast({
