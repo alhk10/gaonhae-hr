@@ -869,30 +869,39 @@ export type Database = {
         Row: {
           created_at: string | null
           employee_id: string
+          finalized_at: string | null
+          finalized_by: string | null
           id: string
           is_locked: boolean | null
           month: string
           payroll_data: Json
+          status: string | null
           updated_at: string | null
           year: number
         }
         Insert: {
           created_at?: string | null
           employee_id: string
+          finalized_at?: string | null
+          finalized_by?: string | null
           id: string
           is_locked?: boolean | null
           month: string
           payroll_data: Json
+          status?: string | null
           updated_at?: string | null
           year: number
         }
         Update: {
           created_at?: string | null
           employee_id?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
           id?: string
           is_locked?: boolean | null
           month?: string
           payroll_data?: Json
+          status?: string | null
           updated_at?: string | null
           year?: number
         }

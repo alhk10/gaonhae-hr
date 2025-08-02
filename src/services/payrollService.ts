@@ -249,3 +249,62 @@ export const updatePayrollLockStatus = async (recordId: string, isLocked: boolea
   
   console.log('Payroll lock status updated successfully');
 };
+
+export const saveDraftPayroll = async (period: string, payrollData: any): Promise<void> => {
+  const [year, month] = period.split('-');
+  const recordId = `PERIOD_${period}`;
+  
+  const { error } = await supabase
+    .from('payroll_records')
+    .upsert({
+      id: recordId,
+      employee_id: 'SYSTEM',
+      month: period,
+      year: parseInt(year),
+      payroll_data: payrollData,
+      status: 'draft',
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    console.error('Error saving draft payroll:', error);
+    throw new Error(`Failed to save draft payroll: ${error.message}`);
+  }
+};
+
+export const finalizePayroll = async (period: string, userId: string): Promise<void> => {
+  const recordId = `PERIOD_${period}`;
+  
+  const { error } = await supabase
+    .from('payroll_records')
+    .update({
+      status: 'finalized',
+      finalized_at: new Date().toISOString(),
+      finalized_by: userId,
+      is_locked: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', recordId);
+
+  if (error) {
+    console.error('Error finalizing payroll:', error);
+    throw new Error(`Failed to finalize payroll: ${error.message}`);
+  }
+};
+
+export const getPayrollStatus = async (period: string): Promise<{ status: string; finalizedBy?: string; finalizedAt?: string } | null> => {
+  const recordId = `PERIOD_${period}`;
+  
+  const { data, error } = await supabase
+    .from('payroll_records')
+    .select('status, finalized_by, finalized_at')
+    .eq('id', recordId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error getting payroll status:', error);
+    throw new Error(`Failed to get payroll status: ${error.message}`);
+  }
+
+  return data;
+};

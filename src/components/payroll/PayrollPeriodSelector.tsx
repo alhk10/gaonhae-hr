@@ -4,14 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp } from 'lucide-react';
-import { getAllPayrollRecords, PayrollRecord } from '@/services/payrollService';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp, Save, Lock } from 'lucide-react';
+import { getAllPayrollRecords, PayrollRecord, saveDraftPayroll, finalizePayroll, getPayrollStatus } from '@/services/payrollService';
 import { formatCurrency } from '@/utils/payrollCalculations';
+import { usePayroll } from '@/contexts/PayrollContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
   onPeriodChange: (period: string) => void;
   isLoading?: boolean;
+}
+
+interface PayrollStatus {
+  status: string;
+  finalizedBy?: string;
+  finalizedAt?: string;
 }
 
 const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
@@ -22,6 +31,14 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
   const [periodStats, setPeriodStats] = useState<Record<string, { count: number; total: number }>>({});
   const [isLoadingPeriods, setIsLoadingPeriods] = useState(false);
+  const [payrollStatus, setPayrollStatus] = useState<PayrollStatus | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
+  
+  const { payrollState } = usePayroll();
+  const { toast } = useToast();
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -31,6 +48,13 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  // Convert period to YYYY-MM format for API calls
+  const formatPeriodForAPI = (period: string): string => {
+    const [monthName, year] = period.split(' ');
+    const monthIndex = months.indexOf(monthName) + 1;
+    return `${year}-${monthIndex.toString().padStart(2, '0')}`;
+  };
 
   // Parse selected period
   const [selectedMonthName, selectedYearStr] = selectedPeriod.split(' ');
@@ -78,9 +102,80 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
     }
   };
 
+  const loadPayrollStatus = async () => {
+    setIsLoadingStatus(true);
+    try {
+      const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+      const status = await getPayrollStatus(formattedPeriod);
+      setPayrollStatus(status);
+    } catch (error) {
+      console.error('Error loading payroll status:', error);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setIsSaving(true);
+    try {
+      const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+      const payrollData = {
+        fullTimeEmployees: payrollState.fullTimeEmployees,
+        casualEmployees: payrollState.casualEmployees,
+        period: selectedPeriod,
+        savedAt: new Date().toISOString()
+      };
+      
+      await saveDraftPayroll(formattedPeriod, payrollData);
+      await loadPayrollStatus();
+      
+      toast({
+        title: "Draft Saved",
+        description: `Payroll draft for ${selectedPeriod} has been saved successfully.`,
+      });
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save payroll draft. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    setIsFinalizing(true);
+    try {
+      const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+      await finalizePayroll(formattedPeriod, 'current-user'); // Replace with actual user ID
+      await loadPayrollStatus();
+      setShowFinalizeDialog(false);
+      
+      toast({
+        title: "Payroll Finalized",
+        description: `Payroll for ${selectedPeriod} has been finalized and locked.`,
+      });
+    } catch (error) {
+      console.error('Error finalizing payroll:', error);
+      toast({
+        title: "Finalization Failed",
+        description: "Failed to finalize payroll. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   useEffect(() => {
     loadAvailablePeriodsAndStats();
   }, []);
+
+  useEffect(() => {
+    loadPayrollStatus();
+  }, [selectedPeriod]);
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     let newMonth = selectedMonthIndex;
@@ -211,6 +306,16 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
               {isCurrentPeriod() ? "Current Period" : isPastPeriod() ? "Past Period" : "Future Period"}
             </Badge>
             
+            {payrollStatus && (
+              <Badge 
+                variant={payrollStatus.status === 'finalized' ? "default" : "secondary"}
+                className={payrollStatus.status === 'finalized' ? "bg-green-600" : "bg-yellow-600"}
+              >
+                <Lock className="w-3 h-3 mr-1" />
+                {payrollStatus.status === 'finalized' ? 'Finalized' : 'Draft'}
+              </Badge>
+            )}
+            
             {hasPeriodData && (
               <Badge variant="outline" className="text-green-600 border-green-200">
                 <TrendingUp className="w-3 h-3 mr-1" />
@@ -223,6 +328,39 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
             <Clock className="w-3 h-3 mr-1" />
             Last updated: {new Date().toLocaleDateString()}
           </div>
+        </div>
+
+        {/* Save Draft and Finalize Buttons */}
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveDraft}
+              disabled={isSaving || isLoading || payrollStatus?.status === 'finalized'}
+              className="flex items-center"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save Draft'}
+            </Button>
+            
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setShowFinalizeDialog(true)}
+              disabled={isFinalizing || isLoading || payrollStatus?.status === 'finalized'}
+              className="flex items-center bg-green-600 hover:bg-green-700"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              {isFinalizing ? 'Finalizing...' : 'Finalize'}
+            </Button>
+          </div>
+          
+          {payrollStatus?.status === 'finalized' && payrollStatus.finalizedBy && (
+            <div className="text-xs text-gray-500">
+              Finalized by {payrollStatus.finalizedBy}
+            </div>
+          )}
         </div>
 
         {/* Period Statistics */}
@@ -271,6 +409,29 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
           </div>
         </div>
       </CardContent>
+      
+      {/* Finalize Confirmation Dialog */}
+      <AlertDialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalize Payroll Period</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to finalize the payroll for {selectedPeriod}? 
+              This action cannot be undone and will lock this period from further edits.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleFinalize}
+              disabled={isFinalizing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isFinalizing ? 'Finalizing...' : 'Finalize Payroll'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
