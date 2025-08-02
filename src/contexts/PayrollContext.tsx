@@ -136,6 +136,27 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     initializeContext();
   }, []);
 
+  // Auto-load payroll data when period changes
+  useEffect(() => {
+    if (!isContextReady) return;
+    
+    console.log('🔄 PayrollContext: Period changed to', payrollState.currentPeriod);
+    
+    const loadPayrollData = async () => {
+      try {
+        console.log('📊 PayrollContext: Auto-loading payroll data for period', payrollState.currentPeriod);
+        await loadPayrollFromSupabase();
+      } catch (error) {
+        console.error('Error auto-loading payroll data:', error);
+      }
+    };
+
+    // Debounce the loading to prevent multiple rapid calls
+    const timeoutId = setTimeout(loadPayrollData, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [payrollState.currentPeriod, isContextReady]);
+
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
     const id = uuidv4();
