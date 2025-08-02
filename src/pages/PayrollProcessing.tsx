@@ -27,6 +27,10 @@ const PayrollProcessing = () => {
     setPayrollStatus,
     savePayrollToSupabase
   } = usePayroll();
+
+  // Bottom action bar states
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isApprovingPayroll, setIsApprovingPayroll] = useState(false);
   
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
   const [selectedPeriod, setSelectedPeriod] = useState(format(new Date(), 'MMMM yyyy'));
@@ -305,7 +309,33 @@ const PayrollProcessing = () => {
       .reduce((sum, claim) => sum + claim.amount, 0);
   };
 
-  // Functions removed: handleSaveDraft and handleApprovePayroll
+  // Bottom action bar functions
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true);
+    try {
+      await savePayrollToSupabase();
+      toast.success('Draft saved successfully');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Failed to save draft');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  const handleApprovePayroll = async () => {
+    setIsApprovingPayroll(true);
+    try {
+      setPayrollStatus('approved');
+      await savePayrollToSupabase();
+      toast.success('Payroll approved successfully');
+    } catch (error) {
+      console.error('Error approving payroll:', error);
+      toast.error('Failed to approve payroll');
+    } finally {
+      setIsApprovingPayroll(false);
+    }
+  };
 
   const handleProcessPayment = () => {
     setPayrollStatus('paid');
@@ -956,6 +986,59 @@ const PayrollProcessing = () => {
             {currentStep === 'processing' && renderProcessingStep()}
             {currentStep === 'payment' && renderPaymentStep()}
             {currentStep === 'cpf' && renderCPFStep()}
+
+            {/* Bottom Action Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+              <div className="max-w-7xl mx-auto px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Status: <Badge variant={payrollState.status === 'approved' ? 'default' : 'secondary'}>
+                      {payrollState.status.charAt(0).toUpperCase() + payrollState.status.slice(1)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveDraft}
+                      disabled={isSavingDraft || isApprovingPayroll}
+                      className="min-w-[120px]"
+                    >
+                      {isSavingDraft ? (
+                        <>
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Save Draft
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleApprovePayroll}
+                      disabled={isSavingDraft || isApprovingPayroll || payrollState.status === 'approved'}
+                      className="min-w-[140px]"
+                    >
+                      {isApprovingPayroll ? (
+                        <>
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Approve Payroll
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Add padding to prevent content overlap */}
+            <div className="h-20"></div>
 
             {/* Edit Dialogs */}
             <EditSalaryDialog
