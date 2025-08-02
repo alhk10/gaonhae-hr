@@ -109,7 +109,7 @@ export interface PayrollContextType {
 export const PayrollContext = createContext<PayrollContextType | undefined>(undefined);
 
 export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isContextReady, setIsContextReady] = useState(false);
+  const [isContextReady, setIsContextReady] = useState(true); // Start as ready
   const [payrollState, setPayrollState] = useState<PayrollState>({
     fullTimeEmployees: [],
     casualEmployees: [],
@@ -126,10 +126,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const initializeContext = async () => {
       try {
-        setIsContextReady(true);
+        // Any initialization logic can go here
+        console.log('PayrollContext initialized');
       } catch (error) {
         console.error('Error initializing PayrollContext:', error);
-        setIsContextReady(true); // Still mark as ready to prevent infinite loading
       }
     };
 
