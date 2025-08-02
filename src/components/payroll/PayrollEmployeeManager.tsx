@@ -266,7 +266,21 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           <div className="flex items-center space-x-2">
                             <Badge variant="secondary">Full-Time</Badge>
                             <PayrollCalculationDetails 
-                              employee={employee as any}
+                              employee={{
+                                id: employee.employeeId,
+                                name: employee.name,
+                                type: 'Full-Time' as const,
+                                baseSalary: employee.baseSalary,
+                                paymentType: employee.paymentType || 'Monthly',
+                                allowances: employee.allowancesArray || [],
+                                deductions: employee.deductions || [],
+                                grossPay: employee.grossPay,
+                                cpfEmployee: employee.cpfEmployee,
+                                cpfEmployer: employee.cpfEmployer,
+                                netPay: employee.netPay,
+                                cpf: employee.cpfEmployee + employee.cpfEmployer,
+                                total: employee.netPay
+                              }}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                               onUpdateBaseSalary={handleUpdateBaseSalary}
@@ -374,7 +388,26 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                           <div className="flex items-center space-x-2">
                             <Badge variant="outline">{paymentType}</Badge>
                             <PayrollCalculationDetails 
-                              employee={employee as any}
+                              employee={{
+                                id: employee.employeeId,
+                                name: employee.name,
+                                type: 'Casual' as const,
+                                baseSalary: employee.baseSalary,
+                                hourlyRate: employee.hourlyRate,
+                                dailyRate: employee.dailyRate,
+                                dailyWeekdayRate: employee.dailyWeekdayRate,
+                                hoursWorked: employee.hoursWorked,
+                                daysWorked: employee.daysWorked,
+                                paymentType: (employee.paymentType as 'Monthly' | 'Hourly' | 'Daily') || 'Hourly',
+                                allowances: employee.allowances || [],
+                                deductions: employee.deductions || [],
+                                grossPay: employee.grossPay,
+                                cpfEmployee: employee.cpfEmployee,
+                                cpfEmployer: employee.cpfEmployer,
+                                netPay: employee.netPay,
+                                cpf: employee.cpfEmployee + employee.cpfEmployer,
+                                total: employee.netPay || employee.totalPay
+                              }}
                               calculationErrors={validationIssue?.errors}
                               calculationWarnings={validationIssue?.warnings}
                               onUpdateBaseSalary={handleUpdateBaseSalary}
