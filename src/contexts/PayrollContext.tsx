@@ -748,11 +748,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => ({
           ...emp,
           netPay: emp.netSalary || emp.netPay || 0, // Map netSalary to netPay for UI
+          paymentType: emp.paymentType || 'Monthly', // Preserve paymentType
         }));
         
         const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => ({
           ...emp,
           totalPay: emp.netSalary || emp.totalPay || 0, // Map netSalary to totalPay for UI
+          paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'), // Smart fallback for paymentType
         }));
         
         console.log('💰 PayrollContext: Transformed payroll data loaded:', {

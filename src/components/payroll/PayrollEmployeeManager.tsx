@@ -436,7 +436,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.employeeId);
                   const validationIssue = validationIssues.find(issue => issue.employeeId === employee.employeeId);
                   
-                  const paymentType = employee.paymentType || 'Hourly';
+                  const paymentType = employee.paymentType || (employee.baseSalary ? 'Monthly' : 'Hourly');
                   const rateDisplay = paymentType === 'Hourly' 
                     ? `${employee.hoursWorked}h @ S$${(employee.hourlyRate || 0).toFixed(2)}/hr`
                     : paymentType === 'Daily'
