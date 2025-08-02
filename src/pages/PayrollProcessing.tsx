@@ -1069,41 +1069,7 @@ const PayrollProcessing = () => {
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Button
-                      variant="outline"
-                      onClick={handleSaveDraft}
-                      disabled={isSavingDraft || isApprovingPayroll}
-                      className="min-w-[120px]"
-                    >
-                      {isSavingDraft ? (
-                        <>
-                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Save Draft
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleApprovePayroll}
-                      disabled={isSavingDraft || isApprovingPayroll || payrollState.status === 'approved'}
-                      className="min-w-[140px]"
-                    >
-                      {isApprovingPayroll ? (
-                        <>
-                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                          Approving...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Approve Payroll
-                        </>
-                      )}
-                    </Button>
+                    {/* Action buttons removed */}
                   </div>
                 </div>
               </div>
