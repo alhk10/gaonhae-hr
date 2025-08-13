@@ -324,9 +324,20 @@ const PayrollProcessing = () => {
 
   const getApprovedClaimsTotal = (employeeId: string): number => {
     const claims = employeeClaims[employeeId] || [];
-    return claims
+    const total = claims
       .filter(claim => claim.status === 'Approved')
       .reduce((sum, claim) => sum + claim.amount, 0);
+    
+    // Debug logging for Kim Hasung and Lee Soohyuk
+    if (employeeId === 'EMP1750863118850' || employeeId === 'EMP1750866645618') {
+      console.log(`Claims for ${employeeId}:`, {
+        allClaims: claims,
+        approvedClaims: claims.filter(claim => claim.status === 'Approved'),
+        total: total
+      });
+    }
+    
+    return total;
   };
 
 
@@ -466,7 +477,7 @@ const PayrollProcessing = () => {
                       {fullTimeEmployees.map((employee) => {
                         const allowances = employeeAllowances[employee.id] || [];
                         const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.id);
+                        const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
@@ -621,7 +632,7 @@ const PayrollProcessing = () => {
                       {casualEmployees.map((employee) => {
                         const allowances = employeeAllowances[employee.id] || [];
                         const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.id);
+                        const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
@@ -831,7 +842,7 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
               // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               
@@ -852,7 +863,7 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
               // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               
@@ -915,7 +926,7 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
@@ -936,7 +947,7 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
+              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
               
               return (
                 <TableRow key={employee.id}>
