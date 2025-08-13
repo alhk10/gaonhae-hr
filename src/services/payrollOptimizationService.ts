@@ -29,6 +29,8 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         month = monthNames.indexOf(monthName) + 1;
       }
 
+      console.log('DEBUG: Parsed period - Year:', year, 'Month:', month, 'Original period:', period);
+
       if (year && month && month >= 1 && month <= 12) {
         attendanceFilter.startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
         attendanceFilter.endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
