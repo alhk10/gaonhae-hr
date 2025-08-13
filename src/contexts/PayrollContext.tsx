@@ -561,12 +561,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     for (const employee of employeesToAdd) {
+      console.log(`DEBUG: Processing employee ${employee.name} (${employee.id}) - Type: ${employee.type}`);
+      
       // Check for duplicates before adding
       const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
       const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
       
       if (existsInFullTime || existsInCasual) {
-        console.log(`Employee ${employee.name} already exists in payroll, skipping...`);
+        console.log(`DEBUG: Employee ${employee.name} already exists in payroll, skipping...`);
         continue;
       }
 
@@ -574,9 +576,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const employeeClaims = payrollOptimizedData?.claims?.[employee.id] || claimsData?.claims?.[employee.id] || [];
       const totalClaims = employeeClaims.reduce((sum: number, claim: any) => sum + (claim.amount || 0), 0);
       
-      console.log(`Adding ${employee.name} with ${employeeClaims.length} claims totaling ${totalClaims}`);
+      console.log(`DEBUG: Adding ${employee.name} with ${employeeClaims.length} claims totaling ${totalClaims}`);
 
       if (employee.type === 'Full-Time') {
+        console.log(`DEBUG: Adding ${employee.name} as Full-Time employee`);
         addFullTimeEmployee({
           employeeId: employee.id,
           name: employee.name,
@@ -590,6 +593,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const attendanceData = payrollOptimizedData?.attendance?.[employee.id];
         const hoursWorked = attendanceData?.totalHours || 0;
         const daysWorked = attendanceData?.totalDays || 0;
+        
+        console.log(`DEBUG: Adding ${employee.name} as Casual employee with ${hoursWorked} hours, ${daysWorked} days`);
         
         await addCasualEmployee({
           employeeId: employee.id,
