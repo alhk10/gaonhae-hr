@@ -144,30 +144,32 @@ const PayrollProcessing = () => {
             console.log('Loaded attendance data for period:', optimizedPayrollData.attendance);
           }
           
-          // Clear existing payroll data and add employees for the current period only
-          console.log('DEBUG PayrollProcessing: Clearing existing payroll data and adding employees...');
+          // CRITICAL FIX: Always clear existing payroll data and use current employees
+          // This ensures all current employees are included, not just those in saved payroll records
+          console.log('DEBUG PayrollProcessing: Clearing existing payroll data and adding ALL current employees...');
           
           // Update the period in context (this will clear existing employees)
           setCurrentPeriod(selectedPeriod);
           
-          // Add all employees to payroll context so they appear in Payment Processing step
-          const allEmployeeIds = employees.map(emp => emp.id);
-          console.log('DEBUG: About to add these employees to payroll:', allEmployeeIds);
-          console.log('DEBUG: Employee details:', employees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
-          
-          // Check if Wang Pot Chien and Siti Aisyah are in the list
-          const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang pot chien'));
-          const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti aisyah'));
-          console.log('DEBUG: Wang Pot Chien found:', wangPotChien);
-          console.log('DEBUG: Siti Aisyah found:', sitiAisyah);
-          
-          // First refresh available employees to ensure we have the latest data
-          console.log('DEBUG: Refreshing available employees before adding to payroll...');
+          // FORCE refresh available employees to ensure we have the latest data
+          console.log('DEBUG: Force refreshing available employees before adding to payroll...');
           await refreshAvailableEmployees();
           
+          // Add ALL current employees to payroll context (ignore saved payroll record employee list)
+          const allEmployeeIds = employees.map(emp => emp.id);
+          console.log('DEBUG: About to add ALL current employees to payroll:', allEmployeeIds);
+          console.log('DEBUG: Employee details:', employees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
+          
+          // Check if Wang Pot Chien and Siti Aisyah are in the current employee list
+          const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang pot chien'));
+          const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti aisyah'));
+          console.log('DEBUG: Wang Pot Chien found in current employees:', wangPotChien);
+          console.log('DEBUG: Siti Aisyah found in current employees:', sitiAisyah);
+          
+          // Add employees to payroll with their current data (not saved payroll data)
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
-          console.log('DEBUG PayrollProcessing: Added employees to payroll context');
+          console.log('DEBUG PayrollProcessing: Added all current employees to payroll context');
           console.log('DEBUG: Current payroll state after adding employees:', payrollState);
           console.log('Loaded optimized payroll data');
         }
