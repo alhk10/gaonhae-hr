@@ -147,6 +147,13 @@ const PayrollProcessing = () => {
           const allEmployeeIds = employees.map(emp => emp.id);
           console.log('DEBUG: About to add these employees to payroll:', allEmployeeIds);
           console.log('DEBUG: Employee details:', employees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
+          
+          // Check if Wang Pot Chien and Siti Aisyah are in the list
+          const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang pot chien'));
+          const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti aisyah'));
+          console.log('DEBUG: Wang Pot Chien found:', wangPotChien);
+          console.log('DEBUG: Siti Aisyah found:', sitiAisyah);
+          
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
           console.log('DEBUG PayrollProcessing: Added employees to payroll context');
