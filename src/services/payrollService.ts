@@ -163,7 +163,8 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
     .from('payroll_records')
     .select('*')
     .order('year', { ascending: false })
-    .order('month', { ascending: false });
+    .order('month', { ascending: false })
+    .limit(50); // Add pagination limit
 
   if (error) {
     console.error('Error fetching all payroll records from Supabase:', error);

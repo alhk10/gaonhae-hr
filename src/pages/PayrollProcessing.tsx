@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { getEmployees, getEmployeeById } from '@/services/employeeService';
+import { getEmployeePayrollDataOptimized } from '@/services/payrollOptimizationService';
 import { getEmployeeClaims, type Claim } from '@/services/claimsService';
 import { supabase } from '@/integrations/supabase/client';
 import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
@@ -84,7 +85,7 @@ const PayrollProcessing = () => {
     deductions: []
   });
 
-  // Load all employee data with allowances and deductions
+  // Load all employee data with allowances and deductions - OPTIMIZED
   useEffect(() => {
     const loadAllEmployeeData = async () => {
       try {
@@ -96,43 +97,36 @@ const PayrollProcessing = () => {
         setAllEmployees(employees);
         console.log('Loaded employees:', employees);
 
-        // Load allowances and deductions for each employee
-        const allowancesData: {[key: string]: any[]} = {};
-        const deductionsData: {[key: string]: any[]} = {};
-        const claimsData: {[key: string]: Claim[]} = {};
-
-        for (const emp of employees) {
-          // Load allowances
-          const { data: empAllowances } = await supabase
-            .from('allowances')
-            .select('*')
-            .eq('employee_id', emp.id);
-          allowancesData[emp.id] = empAllowances || [];
-
-          // Load deductions
-          const { data: empDeductions } = await supabase
-            .from('deductions')
-            .select('*')
-            .eq('employee_id', emp.id);
-          deductionsData[emp.id] = empDeductions || [];
-
-          // Load claims
-          try {
-            const claims = await getEmployeeClaims(emp.id);
-            claimsData[emp.id] = claims;
-          } catch (error) {
-            console.error(`Error loading claims for employee ${emp.id}:`, error);
-            claimsData[emp.id] = [];
-          }
+        if (employees.length > 0) {
+          // Load all payroll data in a single optimized call
+          const employeeIds = employees.map(emp => emp.id);
+          const payrollData = await getEmployeePayrollDataOptimized(employeeIds);
+          
+          setEmployeeAllowances(payrollData.allowances);
+          setEmployeeDeductions(payrollData.deductions);
+          
+          // Convert claims data to expected format
+          const claimsData: {[key: string]: Claim[]} = {};
+          Object.entries(payrollData.claims).forEach(([empId, claims]) => {
+            claimsData[empId] = claims.map(claim => ({
+              id: claim.id,
+              employeeId: claim.employee_id,
+              employee: claim.employee_id, // Add missing employee field
+              type: claim.type,
+              amount: claim.amount,
+              description: claim.description,
+              status: claim.status,
+              date: claim.submitted_date, // Add missing date field  
+              submittedDate: claim.submitted_date,
+              reviewedDate: claim.reviewed_date,
+              reviewedBy: claim.reviewed_by,
+              receiptUrl: claim.receipt_url
+            }));
+          });
+          setEmployeeClaims(claimsData);
+          
+          console.log('Loaded optimized payroll data');
         }
-
-        setEmployeeAllowances(allowancesData);
-        setEmployeeDeductions(deductionsData);
-        setEmployeeClaims(claimsData);
-        
-        console.log('Loaded allowances:', allowancesData);
-        console.log('Loaded deductions:', deductionsData);
-        console.log('Loaded claims:', claimsData);
       } catch (error) {
         console.error('Error loading employee data:', error);
         toast('Error loading employee data');
