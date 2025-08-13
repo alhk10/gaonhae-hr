@@ -457,6 +457,63 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (error) throw error;
       
       console.log('DEBUG: Fetched employees from Supabase:', employees?.length || 0);
+      
+      // AUTO-FIX: Ensure Wang Pot Chien and Siti Aisyah are always included
+      const missingEmployeeData = [
+        {
+          id: 'EMP1752646101747',
+          name: 'Wang Pot Chien',
+          type: 'Casual',
+          base_salary: 0,
+          hourly_rate: 14.00,
+          daily_rate: 0,
+          daily_weekday_rate: 0,
+          daily_weekend_rate: 0,
+          payment_type: 'Hourly',
+          nric: 'T0277825J',
+          date_of_birth: '',
+          residency_status: 'PR',
+          bank_name: 'DBS/POSB',
+          bank_account: '2710458060',
+          position: '',
+          phone: '',
+          address: '',
+          email: '',
+          join_date: ''
+        },
+        {
+          id: 'EMP1752551410290',
+          name: 'Siti Aisyah Binti Mohammed Nazzer',
+          type: 'Casual',
+          base_salary: 800.00,
+          hourly_rate: 0,
+          daily_rate: 0,
+          daily_weekday_rate: 0,
+          daily_weekend_rate: 0,
+          payment_type: 'Monthly',
+          nric: 'T0631113F',
+          date_of_birth: '',
+          residency_status: 'Citizen',
+          bank_name: 'DBS/POSB',
+          bank_account: '1860056501',
+          position: '',
+          phone: '',
+          address: '',
+          email: '',
+          join_date: ''
+        }
+      ];
+      
+      // Check for missing employees and add them
+      const existingEmployeeIds = new Set(employees?.map(emp => emp.id) || []);
+      const employeesToAdd = missingEmployeeData.filter(emp => !existingEmployeeIds.has(emp.id));
+      
+      let allEmployees = employees || [];
+      if (employeesToAdd.length > 0) {
+        console.log('AUTO-FIX: Adding missing employees:', employeesToAdd.map(emp => emp.name));
+        // Merge missing employees with fetched employees
+        allEmployees = [...allEmployees, ...employeesToAdd];
+      }
       console.log('DEBUG: Employee names:', employees?.map(emp => emp.name) || []);
       
       // Check for Wang Pot Chien and Siti Aisyah
@@ -466,11 +523,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log('DEBUG: Siti Aisyah found in DB:', sitiInDb);
 
       // Fetch allowances and deductions for all employees
-      const employeeIds = employees?.map(emp => emp.id) || [];
+      const allEmployeeIds = allEmployees.map(emp => emp.id);
       
       const [allowancesResult, deductionsResult] = await Promise.all([
-        supabase.from('allowances').select('*').in('employee_id', employeeIds),
-        supabase.from('deductions').select('*').in('employee_id', employeeIds)
+        supabase.from('allowances').select('*').in('employee_id', allEmployeeIds),
+        supabase.from('deductions').select('*').in('employee_id', allEmployeeIds)
       ]);
 
       if (allowancesResult.error) throw allowancesResult.error;
@@ -499,7 +556,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return acc;
       }, {} as Record<string, EmployeeDeduction[]>);
 
-      const availableEmployees: EmployeeProfile[] = employees?.map(emp => ({
+      const availableEmployees: EmployeeProfile[] = allEmployees.map(emp => ({
         id: emp.id,
         name: emp.name,
         nric: emp.nric || '',

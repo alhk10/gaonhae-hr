@@ -36,44 +36,6 @@ const PayrollProcessing = () => {
     refreshAvailableEmployees
   } = usePayroll();
 
-  // DIRECT FIX: Manual button to add missing employees
-  const addMissingEmployeesDirectly = async () => {
-    console.log('DIRECT FIX: Manually adding missing employees...');
-    
-    try {
-      // Wang Pot Chien
-      await addCasualEmployee({
-        employeeId: 'EMP1752646101747',
-        name: 'Wang Pot Chien',
-        paymentType: 'Hourly',
-        hourlyRate: 14.00,
-        dailyRate: 0,
-        baseSalary: 0,
-        hoursWorked: 100, // Placeholder hours
-        daysWorked: 20,   // Placeholder days
-        claims: 0
-      });
-      
-      // Siti Aisyah
-      await addCasualEmployee({
-        employeeId: 'EMP1752551410290',
-        name: 'Siti Aisyah Binti Mohammed Nazzer',
-        paymentType: 'Monthly',
-        hourlyRate: 0,
-        dailyRate: 0,
-        baseSalary: 800.00,
-        hoursWorked: 0,
-        daysWorked: 0,
-        claims: 0
-      });
-      
-      toast.success('Missing employees added successfully!');
-      console.log('DIRECT FIX: Successfully added both missing employees');
-    } catch (error) {
-      console.error('DIRECT FIX: Error adding missing employees:', error);
-      toast.error('Failed to add missing employees');
-    }
-  };
 
   
   const [currentStep, setCurrentStep] = useState<'processing' | 'payment' | 'cpf'>('processing');
@@ -1146,15 +1108,6 @@ const PayrollProcessing = () => {
                   <p className="text-gray-600 mt-2">Process payroll for {selectedPeriod}</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  {/* EMERGENCY FIX BUTTON */}
-                  <Button 
-                    onClick={addMissingEmployeesDirectly}
-                    variant="destructive"
-                    size="sm"
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    🚨 Fix Missing Employees
-                  </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
                   </Badge>
