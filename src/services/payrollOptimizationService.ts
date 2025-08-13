@@ -6,6 +6,8 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
   if (employeeIds.length === 0) return {};
 
   try {
+    console.log('DEBUG: getEmployeePayrollDataOptimized called with period:', period);
+    
     // Parse period for attendance queries
     let attendanceFilter: { startDate?: string; endDate?: string } = {};
     if (period) {
@@ -30,6 +32,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
       if (year && month && month >= 1 && month <= 12) {
         attendanceFilter.startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
         attendanceFilter.endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
+        console.log('DEBUG: Attendance filter set:', attendanceFilter);
       }
     }
 
@@ -89,6 +92,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
     // Process attendance data if available
     const attendanceByEmployee: Record<string, { totalHours: number; totalDays: number }> = {};
     if (attendanceResult?.data) {
+      console.log('DEBUG: Raw attendance data:', attendanceResult.data);
       attendanceResult.data.forEach((record: any) => {
         if (!attendanceByEmployee[record.employee_id]) {
           attendanceByEmployee[record.employee_id] = { totalHours: 0, totalDays: 0 };
@@ -96,6 +100,9 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         attendanceByEmployee[record.employee_id].totalHours += Number(record.hours_worked) || 0;
         attendanceByEmployee[record.employee_id].totalDays += 1;
       });
+      console.log('DEBUG: Processed attendance by employee:', attendanceByEmployee);
+    } else {
+      console.log('DEBUG: No attendance data found for the period');
     }
 
     console.log('Fetched optimized payroll data successfully');

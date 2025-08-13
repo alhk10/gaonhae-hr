@@ -89,6 +89,7 @@ const PayrollProcessing = () => {
       try {
         setLoading(true);
         console.log(`Loading employee data for period: ${selectedPeriod}`);
+        console.log('DEBUG: Selected period format:', selectedPeriod);
         
         // Get all employees
         const employees = await getEmployees();
@@ -98,7 +99,9 @@ const PayrollProcessing = () => {
         if (employees.length > 0) {
           // Load all payroll data in a single optimized call
           const employeeIds = employees.map(emp => emp.id);
+          console.log('DEBUG: About to call getEmployeePayrollDataOptimized with period:', selectedPeriod);
           const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
+          console.log('DEBUG: Received optimized payroll data:', optimizedPayrollData);
           
           setPayrollData(optimizedPayrollData);
           setEmployeeAllowances(optimizedPayrollData.allowances);
@@ -610,8 +613,12 @@ const PayrollProcessing = () => {
                         const hoursWorked = attendanceData?.totalHours || 0;
                         const daysWorked = attendanceData?.totalDays || 0;
                         
+                        console.log(`Wang Pot Chien Debug - Employee: ${employee.name}, ID: ${employee.id}, Hours: ${hoursWorked}, Days: ${daysWorked}, Attendance Data:`, attendanceData);
+                        
                         const casualPayrollCalc = calculateCasualPayroll(employee, hoursWorked, daysWorked, approvedClaims);
                         const netPay = casualPayrollCalc.netSalary;
+                        
+                        console.log(`Wang Pot Chien Calculation - Gross: ${casualPayrollCalc.grossSalary}, CPF Employee: ${casualPayrollCalc.employeeCPF}, Net: ${netPay}`);
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
