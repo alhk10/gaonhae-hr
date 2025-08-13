@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -915,68 +915,34 @@ const PayrollProcessing = () => {
                   <Button
                     onClick={async () => {
                       try {
-                        console.log('🔄 Manually triggering auto-add casual employees');
-                        const result = await autoAddCasualEmployeesWithAttendance();
-                        if (result.addedCount > 0) {
-                          toast.success(`Added ${result.addedCount} casual employees with attendance to payroll`);
-                        } else {
-                          toast.info('No eligible casual employees with attendance found');
-                        }
+                        await savePayrollToSupabase();
+                        toast.success('Draft saved successfully');
                       } catch (error) {
-                        console.error('Error auto-adding employees:', error);
-                        toast.error('Failed to add employees to payroll');
+                        console.error('Error saving draft:', error);
+                        toast.error('Failed to save draft');
                       }
                     }}
                     variant="outline"
                     className="flex items-center space-x-2"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Auto-Add Casual Employees</span>
+                    <Save className="w-4 h-4" />
+                    <span>Save Draft</span>
                   </Button>
                   <Button
-                    onClick={async () => {
-                      try {
-                        console.log('🔄 Manual Fix: Adding Wang Pot Chien...');
-                        
-                        // Check if Wang Pot Chien is already in payroll
-                        const wangExists = payrollState.casualEmployees.some(emp => emp.employeeId === 'EMP1752646101747');
-                        if (wangExists) {
-                          console.log('⚠️ Wang Pot Chien already exists in payroll');
-                          toast.info('Wang Pot Chien is already in payroll');
-                          return;
-                        }
-
-                        // Remove Wang Pot Chien if already exists to ensure clean add
-                        const existingWang = payrollState.casualEmployees.find(emp => emp.employeeId === 'EMP1752646101747');
-                        if (existingWang) {
-                          console.log('🔄 Removing existing Wang Pot Chien entry');
-                          removeCasualEmployee(existingWang.id);
-                        }
-
-                        // Add Wang Pot Chien with correct August 2025 attendance data (5.55 hours)
-                        await addCasualEmployee({
-                          employeeId: 'EMP1752646101747',
-                          name: 'Wang Pot Chien',
-                          hourlyRate: 14.00,
-                          hoursWorked: 5.55, // Actual August 2025 hours from database
-                          daysWorked: 1,
-                          paymentType: 'Hourly',
-                          dailyRate: 0,
-                          baseSalary: 0
-                        });
-
-                        console.log('✅ Manual Fix: Wang Pot Chien added successfully with 5.55 hours');
-                        toast.success('Wang Pot Chien added to payroll with 5.55 hours at $14/hr');
-                      } catch (error) {
-                        console.error('❌ Manual Fix: Error adding Wang Pot Chien:', error);
-                        toast.error('Failed to add Wang Pot Chien');
+                    onClick={() => {
+                      if (currentStep === 'processing') {
+                        setCurrentStep('payment');
+                        setPayrollStatus('paid');
+                      } else if (currentStep === 'payment') {
+                        setCurrentStep('cpf');
+                        setPayrollStatus('completed');
                       }
                     }}
-                    variant="secondary"
+                    disabled={currentStep === 'cpf'}
                     className="flex items-center space-x-2"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Fix Wang Pot Chien</span>
+                    <ArrowRight className="w-4 h-4" />
+                    <span>Next</span>
                   </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
