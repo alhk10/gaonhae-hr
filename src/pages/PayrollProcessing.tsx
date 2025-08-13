@@ -817,7 +817,6 @@ const PayrollProcessing = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Employee Name</TableHead>
-              <TableHead>Type</TableHead>
               <TableHead>Payment Type</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Claims</TableHead>
@@ -829,16 +828,18 @@ const PayrollProcessing = () => {
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
+              // Get employee details from allEmployees for bank information
+              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+              
               return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>Full-Time</TableCell>
-                  <TableCell>Monthly</TableCell>
-                  <TableCell>S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>
+                <TableRow key={employee.id} className="h-12">
+                  <TableCell className="font-medium py-2">{employee.name}</TableCell>
+                  <TableCell className="py-2">Monthly</TableCell>
+                  <TableCell className="py-2">S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
+                  <TableCell className="py-2">S${approvedClaims.toFixed(2)}</TableCell>
+                  <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">
                     <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
                       {payrollState.status}
                     </Badge>
@@ -848,17 +849,18 @@ const PayrollProcessing = () => {
             })}
             {payrollState.casualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
+              // Get employee details from allEmployees for bank information
+              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               
               return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>Casual</TableCell>
-                  <TableCell>{employee.paymentType || 'Hourly'}</TableCell>
-                  <TableCell>S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>
+                <TableRow key={employee.id} className="h-12">
+                  <TableCell className="font-medium py-2">{employee.name}</TableCell>
+                  <TableCell className="py-2">{employee.paymentType || 'Hourly'}</TableCell>
+                  <TableCell className="py-2">S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
+                  <TableCell className="py-2">S${approvedClaims.toFixed(2)}</TableCell>
+                  <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">
                     <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
                       {payrollState.status}
                     </Badge>
