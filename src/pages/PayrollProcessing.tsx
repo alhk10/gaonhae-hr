@@ -457,7 +457,6 @@ const PayrollProcessing = () => {
                         <TableHead className="font-semibold min-w-[150px]">Allowances</TableHead>
                         <TableHead className="font-semibold min-w-[150px]">Deductions</TableHead>
                         <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
-                        <TableHead className="font-semibold min-w-[120px]">CPF</TableHead>
                         <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
                         <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
                       </TableRow>
@@ -481,16 +480,9 @@ const PayrollProcessing = () => {
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
                             <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-xs">
-                                  <span className="text-blue-600 font-medium">
-                                    {employee.name.split(' ').map((n: string) => n[0]).join('')}
-                                  </span>
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate">{employee.name}</p>
-                                  <p className="text-xs text-gray-500">{employee.id}</p>
-                                </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{employee.name}</p>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -567,12 +559,6 @@ const PayrollProcessing = () => {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="text-xs space-y-1">
-                                <div className="text-gray-600">ER: S${cpfCalc.employerCPF.toFixed(2)}</div>
-                                <div className="text-gray-600">EE: S${cpfCalc.employeeCPF.toFixed(2)}</div>
-                              </div>
-                            </TableCell>
                             <TableCell className="text-right">
                               <div className="font-bold text-green-600">
                                 S${netPay.toLocaleString()}
@@ -626,7 +612,6 @@ const PayrollProcessing = () => {
                         <TableHead className="font-semibold min-w-[150px]">Allowances</TableHead>
                         <TableHead className="font-semibold min-w-[150px]">Deductions</TableHead>
                         <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
-                        <TableHead className="font-semibold min-w-[80px]">CPF</TableHead>
                         <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
                         <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
                       </TableRow>
@@ -649,16 +634,9 @@ const PayrollProcessing = () => {
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
                             <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-xs">
-                                  <span className="text-purple-600 font-medium">
-                                    {employee.name.split(' ').map((n: string) => n[0]).join('')}
-                                  </span>
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate">{employee.name}</p>
-                                  <p className="text-xs text-gray-500">{employee.id}</p>
-                                </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{employee.name}</p>
+                                <p className="text-xs text-gray-500">{employee.id}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -749,12 +727,6 @@ const PayrollProcessing = () => {
                                 <div className="bg-blue-50 px-2 py-1 rounded text-sm">
                                   <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-xs space-y-1">
-                                <div className="text-gray-600">ER: S${employee.employerCPF?.toFixed(2) || '0.00'}</div>
-                                <div className="text-gray-600">EE: S${employee.employeeCPF?.toFixed(2) || '0.00'}</div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
