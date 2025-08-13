@@ -911,11 +911,8 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>NRIC/FIN</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Payment Type</TableHead>
               <TableHead>Basic/Rate</TableHead>
-              <TableHead>Gross Pay</TableHead>
-              <TableHead>Claims (Non-CPF)</TableHead>
+              <TableHead>Total Allowance Amount</TableHead>
               <TableHead>Employee CPF</TableHead>
               <TableHead>Employer CPF</TableHead>
               <TableHead>Status</TableHead>
@@ -923,16 +920,14 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+              const totalAllowanceAmount = employee.allowancesArray?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>Full-Time</TableCell>
-                  <TableCell>Monthly</TableCell>
+                  <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
                   <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
-                  <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
-                  <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
+                  <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
                   <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
                   <TableCell>
@@ -944,17 +939,15 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+              const totalAllowanceAmount = employee.allowances?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
               
               return (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell>Casual</TableCell>
-                  <TableCell>{employee.paymentType || 'Hourly'}</TableCell>
-                  <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}</TableCell>
-                  <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
-                  <TableCell>S${approvedClaims.toFixed(2)}</TableCell>
+                  <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
+                  <TableCell>S${(employee.hourlyRate || employee.dailyRate || 0).toFixed(2)}</TableCell>
+                  <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
                   <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
                   <TableCell>
