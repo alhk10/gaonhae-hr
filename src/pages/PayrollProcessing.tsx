@@ -97,6 +97,12 @@ const PayrollProcessing = () => {
         const employees = await getEmployees();
         setAllEmployees(employees);
         console.log('Loaded employees:', employees);
+        
+        // Check for specific employees
+        const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang'));
+        const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti'));
+        console.log('DEBUG: Wang Pot Chien found in employees:', wangPotChien);
+        console.log('DEBUG: Siti Aisyah found in employees:', sitiAisyah);
 
         if (employees.length > 0) {
           // Load all payroll data in a single optimized call

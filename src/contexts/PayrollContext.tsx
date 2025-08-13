@@ -563,6 +563,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     for (const employee of employeesToAdd) {
       console.log(`DEBUG: Processing employee ${employee.name} (${employee.id}) - Type: ${employee.type}`);
       
+      // Special logging for missing employees
+      if (employee.name.toLowerCase().includes('wang') || employee.name.toLowerCase().includes('siti')) {
+        console.log(`DEBUG: FOUND MISSING EMPLOYEE - ${employee.name} with ID ${employee.id}, Type: ${employee.type}, Residency: ${employee.residencyStatus}`);
+      }
+      
       // Check for duplicates before adding
       const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
       const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
