@@ -1352,6 +1352,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_current_employee_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_eligible_employees_with_entitlements: {
         Args: { reference_year?: number }
         Returns: {
@@ -1369,6 +1377,10 @@ export type Database = {
           final_annual_leave: number
           medical_leave: number
         }[]
+      }
+      has_admin_access: {
+        Args: { permission_type: string }
+        Returns: boolean
       }
       is_superadmin: {
         Args: { user_email: string }
