@@ -447,6 +447,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const refreshAvailableEmployees = useCallback(async () => {
+    console.log('DEBUG: refreshAvailableEmployees called');
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
       const { data: employees, error } = await supabase
@@ -454,6 +455,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
 
       if (error) throw error;
+      
+      console.log('DEBUG: Fetched employees from Supabase:', employees?.length || 0);
+      console.log('DEBUG: Employee names:', employees?.map(emp => emp.name) || []);
+      
+      // Check for Wang Pot Chien and Siti Aisyah
+      const wangInDb = employees?.find(emp => emp.id === 'EMP1752646101747');
+      const sitiInDb = employees?.find(emp => emp.id === 'EMP1752551410290');
+      console.log('DEBUG: Wang Pot Chien found in DB:', wangInDb);
+      console.log('DEBUG: Siti Aisyah found in DB:', sitiInDb);
 
       // Fetch allowances and deductions for all employees
       const employeeIds = employees?.map(emp => emp.id) || [];
@@ -530,7 +540,16 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           myAttendance: true,
           slotBookingEmployee: true
         }
-      })) || [];
+       })) || [];
+
+      console.log('DEBUG: Processed availableEmployees:', availableEmployees.length);
+      console.log('DEBUG: Available employee names:', availableEmployees.map(emp => emp.name));
+      
+      // Final check for our missing employees
+      const wangInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752646101747');
+      const sitiInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752551410290');
+      console.log('DEBUG: Wang Pot Chien in processed availableEmployees:', wangInAvailable);
+      console.log('DEBUG: Siti Aisyah in processed availableEmployees:', sitiInAvailable);
 
       setPayrollState(prevState => ({
         ...prevState,
@@ -544,9 +563,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any) => {
+    console.log('DEBUG: addEmployeesToPayroll called with', employeeIds.length, 'employee IDs');
+    console.log('DEBUG: Employee IDs to add:', employeeIds);
+    console.log('DEBUG: Available employees in payroll state:', payrollState.availableEmployees.map(emp => ({ id: emp.id, name: emp.name })));
+    console.log('DEBUG: Looking for Wang Pot Chien (EMP1752646101747) and Siti Aisyah (EMP1752551410290)');
+    
     const employeesToAdd = payrollState.availableEmployees.filter(emp => 
       employeeIds.includes(emp.id)
     );
+    
+    console.log('DEBUG: Filtered employees to add:', employeesToAdd.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
+    
+    // Check specifically for our missing employees
+    const wangInAvailable = payrollState.availableEmployees.find(emp => emp.id === 'EMP1752646101747');
+    const sitiInAvailable = payrollState.availableEmployees.find(emp => emp.id === 'EMP1752551410290');
+    const wangInFiltered = employeesToAdd.find(emp => emp.id === 'EMP1752646101747');
+    const sitiInFiltered = employeesToAdd.find(emp => emp.id === 'EMP1752551410290');
+    console.log('DEBUG: Wang Pot Chien in available employees:', wangInAvailable);
+    console.log('DEBUG: Siti Aisyah in available employees:', sitiInAvailable);
+    console.log('DEBUG: Wang Pot Chien in filtered list:', wangInFiltered);
+    console.log('DEBUG: Siti Aisyah in filtered list:', sitiInFiltered);
+
+    if (employeesToAdd.length === 0) {
+      console.log('DEBUG: No employees to add - either availableEmployees is empty or none match the provided IDs');
+      return;
+    }
 
     // Fetch optimized payroll data including claims if not provided
     let payrollOptimizedData = null;

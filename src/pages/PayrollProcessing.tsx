@@ -31,7 +31,8 @@ const PayrollProcessing = () => {
     addCasualEmployee,
     removeCasualEmployee,
     addEmployeesToPayroll,
-    setCurrentPeriod
+    setCurrentPeriod,
+    refreshAvailableEmployees
   } = usePayroll();
 
   
@@ -159,6 +160,10 @@ const PayrollProcessing = () => {
           const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti aisyah'));
           console.log('DEBUG: Wang Pot Chien found:', wangPotChien);
           console.log('DEBUG: Siti Aisyah found:', sitiAisyah);
+          
+          // First refresh available employees to ensure we have the latest data
+          console.log('DEBUG: Refreshing available employees before adding to payroll...');
+          await refreshAvailableEmployees();
           
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
