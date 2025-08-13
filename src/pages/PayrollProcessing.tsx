@@ -97,13 +97,16 @@ const PayrollProcessing = () => {
         // Get all employees
         const employees = await getEmployees();
         setAllEmployees(employees);
-        console.log('Loaded employees:', employees);
+        console.log('=== EMPLOYEE LOADING DEBUG ===');
+        console.log('Total employees loaded:', employees.length);
+        console.log('All employee names:', employees.map(emp => emp.name));
         
         // Check for specific employees
         const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang'));
         const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti'));
-        console.log('DEBUG: Wang Pot Chien found in employees:', wangPotChien);
-        console.log('DEBUG: Siti Aisyah found in employees:', sitiAisyah);
+        console.log('Wang Pot Chien found in employees:', wangPotChien ? `YES - ${wangPotChien.name} (${wangPotChien.id})` : 'NO');
+        console.log('Siti Aisyah found in employees:', sitiAisyah ? `YES - ${sitiAisyah.name} (${sitiAisyah.id})` : 'NO');
+        console.log('=== END EMPLOYEE LOADING DEBUG ===');
 
         if (employees.length > 0) {
           // Load all payroll data in a single optimized call
@@ -171,6 +174,7 @@ const PayrollProcessing = () => {
           
           console.log('DEBUG PayrollProcessing: Added all current employees to payroll context');
           console.log('DEBUG: Current payroll state after adding employees:', payrollState);
+          console.log('DEBUG: Force triggering re-render to see updated payroll state...');
           console.log('Loaded optimized payroll data');
         }
       } catch (error) {
@@ -841,7 +845,21 @@ const PayrollProcessing = () => {
     );
   };
 
-  const renderPaymentStep = () => (
+  const renderPaymentStep = () => {
+    console.log('=== PAYMENT STEP DEBUG ===');
+    console.log('PayrollState fullTimeEmployees:', payrollState.fullTimeEmployees.length);
+    console.log('PayrollState casualEmployees:', payrollState.casualEmployees.length);
+    console.log('Full-time employee names:', payrollState.fullTimeEmployees.map(emp => emp.name));
+    console.log('Casual employee names:', payrollState.casualEmployees.map(emp => emp.name));
+    
+    // Check specifically for Wang Pot Chien and Siti Aisyah
+    const wangInPayroll = payrollState.casualEmployees.find(emp => emp.name.toLowerCase().includes('wang'));
+    const sitiInPayroll = payrollState.casualEmployees.find(emp => emp.name.toLowerCase().includes('siti'));
+    console.log('Wang Pot Chien in payroll state:', wangInPayroll ? `YES - ${wangInPayroll.name}` : 'NO');
+    console.log('Siti Aisyah in payroll state:', sitiInPayroll ? `YES - ${sitiInPayroll.name}` : 'NO');
+    console.log('=== END PAYMENT STEP DEBUG ===');
+    
+    return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
@@ -917,7 +935,8 @@ const PayrollProcessing = () => {
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   const renderCPFStep = () => (
     <Card>

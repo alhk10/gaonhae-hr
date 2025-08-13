@@ -642,6 +642,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         console.log(`DEBUG: Adding ${employee.name} as Casual employee with ${hoursWorked} hours, ${daysWorked} days`);
         
+        // Special check for Wang Pot Chien and Siti Aisyah
+        if (employee.name.toLowerCase().includes('wang') || employee.name.toLowerCase().includes('siti')) {
+          console.log(`DEBUG: *** PROCESSING MISSING EMPLOYEE: ${employee.name} ***`);
+          console.log(`Hours Worked: ${hoursWorked}, Days Worked: ${daysWorked}`);
+          console.log(`Payment Type: ${employee.paymentType}, Hourly Rate: ${employee.hourlyRate}, Base Salary: ${employee.baseSalary}`);
+          console.log(`Attendance Data:`, attendanceData);
+          console.log(`Employee ID: ${employee.id}`);
+        }
+        
         await addCasualEmployee({
           employeeId: employee.id,
           name: employee.name,
