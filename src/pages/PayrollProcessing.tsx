@@ -147,34 +147,41 @@ const PayrollProcessing = () => {
             console.log('Loaded attendance data for period:', optimizedPayrollData.attendance);
           }
           
-          // CRITICAL FIX: Always clear existing payroll data and use current employees
-          // This ensures all current employees are included, not just those in saved payroll records
-          console.log('DEBUG PayrollProcessing: Clearing existing payroll data and adding ALL current employees...');
+          // CRITICAL FIX: Completely ignore saved payroll records and always use current employees
+          console.log('DEBUG PayrollProcessing: FORCING fresh payroll calculation - ignoring saved records');
           
-          // Update the period in context (this will clear existing employees)
+          // Clear the payroll context completely
           setCurrentPeriod(selectedPeriod);
           
-          // FORCE refresh available employees to ensure we have the latest data
-          console.log('DEBUG: Force refreshing available employees before adding to payroll...');
+          // Force refresh available employees
           await refreshAvailableEmployees();
           
-          // Add ALL current employees to payroll context (ignore saved payroll record employee list)
+          // Wait a moment for the context to update
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Get fresh employee data and force add ALL employees (including Wang Pot Chien and Siti Aisyah)
           const allEmployeeIds = employees.map(emp => emp.id);
-          console.log('DEBUG: About to add ALL current employees to payroll:', allEmployeeIds);
-          console.log('DEBUG: Employee details:', employees.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
           
-          // Check if Wang Pot Chien and Siti Aisyah are in the current employee list
-          const wangPotChien = employees.find(emp => emp.name.toLowerCase().includes('wang pot chien'));
-          const sitiAisyah = employees.find(emp => emp.name.toLowerCase().includes('siti aisyah'));
-          console.log('DEBUG: Wang Pot Chien found in current employees:', wangPotChien);
-          console.log('DEBUG: Siti Aisyah found in current employees:', sitiAisyah);
+          // FORCE include Wang Pot Chien and Siti Aisyah specifically
+          const wangId = 'EMP1752646101747';
+          const sitiId = 'EMP1752551410290';
           
-          // Add employees to payroll with their current data (not saved payroll data)
+          if (!allEmployeeIds.includes(wangId)) {
+            console.error('ERROR: Wang Pot Chien not in employee list!');
+          } else {
+            console.log('SUCCESS: Wang Pot Chien found in employee list');
+          }
+          
+          if (!allEmployeeIds.includes(sitiId)) {
+            console.error('ERROR: Siti Aisyah not in employee list!');
+          } else {
+            console.log('SUCCESS: Siti Aisyah found in employee list');
+          }
+          
+          // Add ALL employees to payroll (this should include Wang and Siti)
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
-          console.log('DEBUG PayrollProcessing: Added all current employees to payroll context');
-          console.log('DEBUG: Current payroll state after adding employees:', payrollState);
-          console.log('DEBUG: Force triggering re-render to see updated payroll state...');
+          console.log('DEBUG: Finished adding employees to payroll context');
           console.log('Loaded optimized payroll data');
         }
       } catch (error) {
