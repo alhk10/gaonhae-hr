@@ -833,8 +833,7 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>Payment Type</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Claims</TableHead>
+              <TableHead>Net Salary</TableHead>
               <TableHead>Bank Name</TableHead>
               <TableHead>Bank Account</TableHead>
               <TableHead>Status</TableHead>
@@ -851,7 +850,6 @@ const PayrollProcessing = () => {
                   <TableCell className="font-medium py-2">{employee.name}</TableCell>
                   <TableCell className="py-2">Monthly</TableCell>
                   <TableCell className="py-2">S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell className="py-2">S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2">
@@ -872,7 +870,6 @@ const PayrollProcessing = () => {
                   <TableCell className="font-medium py-2">{employee.name}</TableCell>
                   <TableCell className="py-2">{employee.paymentType || 'Hourly'}</TableCell>
                   <TableCell className="py-2">S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell className="py-2">S${approvedClaims.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2">
