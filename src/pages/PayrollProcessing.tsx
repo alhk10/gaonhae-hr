@@ -449,16 +449,16 @@ const PayrollProcessing = () => {
           <CardContent className="p-0">
             {fullTimeEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold min-w-[180px]">Employee</TableHead>
-                        <TableHead className="font-semibold min-w-[120px]">Basic Salary</TableHead>
-                        <TableHead className="font-semibold min-w-[150px]">Allowances</TableHead>
-                        <TableHead className="font-semibold min-w-[150px]">Deductions</TableHead>
-                        <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
-                        <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
-                        <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
+                        <TableHead className="font-semibold w-[140px]">Employee</TableHead>
+                        <TableHead className="font-semibold w-[100px]">Basic Salary</TableHead>
+                        <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
+                        <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
+                        <TableHead className="font-semibold w-[80px]">Claims</TableHead>
+                        <TableHead className="font-semibold text-right w-[100px]">Net Pay</TableHead>
+                        <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -479,10 +479,10 @@ const PayrollProcessing = () => {
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
-                            <TableCell>
+                            <TableCell className="truncate">
                               <div className="min-w-0">
                                 <p className="font-medium text-sm truncate">{employee.name}</p>
-                                <p className="text-xs text-gray-500">{employee.id}</p>
+                                <p className="text-xs text-gray-500 truncate">{employee.id}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -603,17 +603,17 @@ const PayrollProcessing = () => {
           <CardContent className="p-0">
             {casualEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold min-w-[180px]">Employee</TableHead>
-                        <TableHead className="font-semibold min-w-[100px]">Type</TableHead>
-                        <TableHead className="font-semibold min-w-[120px]">Rate</TableHead>
-                        <TableHead className="font-semibold min-w-[150px]">Allowances</TableHead>
-                        <TableHead className="font-semibold min-w-[150px]">Deductions</TableHead>
-                        <TableHead className="font-semibold min-w-[100px]">Claims</TableHead>
-                        <TableHead className="font-semibold text-right min-w-[120px]">Net Pay</TableHead>
-                        <TableHead className="font-semibold text-center min-w-[80px]">Actions</TableHead>
+                        <TableHead className="font-semibold w-[140px]">Employee</TableHead>
+                        <TableHead className="font-semibold w-[80px]">Type</TableHead>
+                        <TableHead className="font-semibold w-[100px]">Rate</TableHead>
+                        <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
+                        <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
+                        <TableHead className="font-semibold w-[80px]">Claims</TableHead>
+                        <TableHead className="font-semibold text-right w-[100px]">Net Pay</TableHead>
+                        <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -633,10 +633,10 @@ const PayrollProcessing = () => {
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
-                            <TableCell>
+                            <TableCell className="truncate">
                               <div className="min-w-0">
                                 <p className="font-medium text-sm truncate">{employee.name}</p>
-                                <p className="text-xs text-gray-500">{employee.id}</p>
+                                <p className="text-xs text-gray-500 truncate">{employee.id}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -933,8 +933,8 @@ const PayrollProcessing = () => {
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="space-y-6">
+        <main className="flex-1 p-4 md:p-6">
+          <div className="space-y-6 h-full overflow-y-auto">
             <div className="bg-white p-6 rounded-lg shadow-lg border">
               <div className="flex items-center justify-between">
                 <div>
