@@ -729,7 +729,41 @@ const PayrollProcessing = () => {
           </CardContent>
         </Card>
         
-        {/* Action buttons removed as requested */}
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center">
+          <Button
+            onClick={async () => {
+              try {
+                await savePayrollToSupabase();
+                toast.success('Draft saved successfully');
+              } catch (error) {
+                console.error('Error saving draft:', error);
+                toast.error('Failed to save draft');
+              }
+            }}
+            variant="outline"
+            className="flex items-center space-x-2"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Draft</span>
+          </Button>
+          <Button
+            onClick={() => {
+              if (currentStep === 'processing') {
+                setCurrentStep('payment');
+                setPayrollStatus('paid');
+              } else if (currentStep === 'payment') {
+                setCurrentStep('cpf');
+                setPayrollStatus('completed');
+              }
+            }}
+            disabled={currentStep === 'cpf'}
+            className="flex items-center space-x-2"
+          >
+            <ArrowRight className="w-4 h-4" />
+            <span>Next</span>
+          </Button>
+        </div>
       </div>
     );
   };
@@ -912,38 +946,6 @@ const PayrollProcessing = () => {
                   <p className="text-gray-600 mt-2">Process payroll for {selectedPeriod}</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Button
-                    onClick={async () => {
-                      try {
-                        await savePayrollToSupabase();
-                        toast.success('Draft saved successfully');
-                      } catch (error) {
-                        console.error('Error saving draft:', error);
-                        toast.error('Failed to save draft');
-                      }
-                    }}
-                    variant="outline"
-                    className="flex items-center space-x-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Save Draft</span>
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (currentStep === 'processing') {
-                        setCurrentStep('payment');
-                        setPayrollStatus('paid');
-                      } else if (currentStep === 'payment') {
-                        setCurrentStep('cpf');
-                        setPayrollStatus('completed');
-                      }
-                    }}
-                    disabled={currentStep === 'cpf'}
-                    className="flex items-center space-x-2"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    <span>Next</span>
-                  </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
                   </Badge>
