@@ -29,7 +29,8 @@ const PayrollProcessing = () => {
     savePayrollToSupabase,
     autoAddCasualEmployeesWithAttendance,
     addCasualEmployee,
-    removeCasualEmployee
+    removeCasualEmployee,
+    addEmployeesToPayroll
   } = usePayroll();
 
   
@@ -99,9 +100,12 @@ const PayrollProcessing = () => {
         if (employees.length > 0) {
           // Load all payroll data in a single optimized call
           const employeeIds = employees.map(emp => emp.id);
-          console.log('DEBUG: About to call getEmployeePayrollDataOptimized with period:', selectedPeriod);
+          console.log('DEBUG PayrollProcessing: About to call getEmployeePayrollDataOptimized');
+          console.log('DEBUG PayrollProcessing: selectedPeriod =', selectedPeriod);
+          console.log('DEBUG PayrollProcessing: employeeIds =', employeeIds);
+          
           const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
-          console.log('DEBUG: Received optimized payroll data:', optimizedPayrollData);
+          console.log('DEBUG PayrollProcessing: Received optimized payroll data:', optimizedPayrollData);
           
           setPayrollData(optimizedPayrollData);
           setEmployeeAllowances(optimizedPayrollData.allowances);
@@ -130,9 +134,16 @@ const PayrollProcessing = () => {
           // Store attendance data for casual employees
           if (optimizedPayrollData.attendance) {
             console.log('Loaded attendance data for period:', optimizedPayrollData.attendance);
-            // You can add state to store this if needed for the UI
           }
           
+          // Add employees to payroll context for Payment Processing step
+          console.log('DEBUG PayrollProcessing: Adding employees to payroll context...');
+          
+          // Add all employees to payroll context so they appear in Payment Processing step
+          const allEmployeeIds = employees.map(emp => emp.id);
+          await addEmployeesToPayroll(allEmployeeIds);
+          
+          console.log('DEBUG PayrollProcessing: Added employees to payroll context');
           console.log('Loaded optimized payroll data');
         }
       } catch (error) {
@@ -360,6 +371,11 @@ const PayrollProcessing = () => {
   const renderProcessingStep = () => {
     const fullTimeEmployees = allEmployees.filter(emp => emp.type === 'Full-Time');
     const casualEmployees = allEmployees.filter(emp => emp.type === 'Casual');
+    
+    console.log('DEBUG PayrollProcessing: All employees:', allEmployees);
+    console.log('DEBUG PayrollProcessing: Full-time employees:', fullTimeEmployees);
+    console.log('DEBUG PayrollProcessing: Casual employees:', casualEmployees);
+    console.log('DEBUG PayrollProcessing: Payroll data:', payrollData);
     
     return (
       <div className="space-y-8">
