@@ -15,6 +15,7 @@ import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
 import EmployeeListView from '@/components/employee/EmployeeListView';
+import EmployeeLoadingSkeleton from '@/components/employee/EmployeeLoadingSkeleton';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,6 +58,8 @@ const Employees = () => {
     queryKey: ['employees'],
     queryFn: getEmployees,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const filteredEmployees = useMemo(() => {
@@ -245,11 +248,14 @@ const Employees = () => {
   if (isLoading) {
     return (
       <ResponsiveLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading employees...</p>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
+              <p className="text-gray-600">Loading employees...</p>
+            </div>
           </div>
+          <EmployeeLoadingSkeleton />
         </div>
       </ResponsiveLayout>
     );

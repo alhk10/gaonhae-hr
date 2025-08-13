@@ -5,48 +5,34 @@ import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees with permissions from database...');
   
-  const { data: employees, error } = await supabase
+  // Single optimized query with join
+  const { data, error } = await supabase
     .from('employees')
     .select(`
       *,
       allowances (*),
       deductions (*),
       admin_access (*),
-      certificates (*)
+      certificates (*),
+      employee_page_access (*)
     `)
-    .order('name');
+    .order('name')
+    .limit(100); // Add pagination
 
   if (error) {
     console.error('EmployeeService: Error fetching employees:', error);
     throw error;
   }
 
-  if (!employees || employees.length === 0) {
+  if (!data || data.length === 0) {
     console.log('EmployeeService: No employees found in database');
     return [];
   }
 
-  // Fetch page access permissions for all employees
-  const employeeIds = employees.map(emp => emp.id);
-  const { data: pageAccessData, error: pageAccessError } = await supabase
-    .from('employee_page_access')
-    .select('*')
-    .in('employee_id', employeeIds);
+  console.log('EmployeeService: Fetched employees with permissions:', data.length);
 
-  if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
-  }
-
-  console.log('EmployeeService: Fetched employees with permissions:', employees.length);
-
-  return employees.map(emp => {
-    const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
-    
-    console.log(`EmployeeService: Processing employee ${emp.name}:`, {
-      adminAccess: emp.admin_access?.[0],
-      pageAccess: pageAccess,
-      email: emp.email || 'No email'
-    });
+  return data.map(emp => {
+    const pageAccess = emp.employee_page_access?.[0] as any;
     
     return {
       id: emp.id,
