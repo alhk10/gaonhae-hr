@@ -12,6 +12,7 @@ import { usePayroll } from '@/contexts/PayrollContext';
 import { getEmployees, getEmployeeById } from '@/services/employeeService';
 import { getEmployeePayrollDataOptimized } from '@/services/payrollOptimizationService';
 import { getEmployeeClaims, type Claim } from '@/services/claimsService';
+import { MISSING_EMPLOYEES_WORKAROUND, getAttendanceDataForMissingEmployees, shouldApplyWorkaround } from '@/utils/payrollWorkarounds';
 import { supabase } from '@/integrations/supabase/client';
 import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
 import EditSalaryDialog from '@/components/payroll/EditSalaryDialog';
@@ -180,6 +181,40 @@ const PayrollProcessing = () => {
           
           // Add ALL employees to payroll (this should include Wang and Siti)
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
+          
+          // EMERGENCY WORKAROUND: Force-add missing employees if they're not in payroll
+          console.log('=== APPLYING EMERGENCY WORKAROUND ===');
+          if (shouldApplyWorkaround([...payrollState.fullTimeEmployees, ...payrollState.casualEmployees])) {
+            console.log('Missing employees detected, applying workaround...');
+            
+            // Get attendance data for missing employees
+            const attendanceWorkaround = await getAttendanceDataForMissingEmployees(selectedPeriod);
+            console.log('Attendance data for missing employees:', attendanceWorkaround);
+            
+            // Force add each missing employee
+            for (const missingEmp of MISSING_EMPLOYEES_WORKAROUND) {
+              console.log(`Force adding missing employee: ${missingEmp.name}`);
+              
+              const attendanceData = attendanceWorkaround[missingEmp.id] || { totalHours: 0, totalDays: 0 };
+              
+              await addCasualEmployee({
+                employeeId: missingEmp.id,
+                name: missingEmp.name,
+                paymentType: missingEmp.paymentType,
+                hourlyRate: missingEmp.hourlyRate || 0,
+                dailyRate: 0,
+                baseSalary: missingEmp.baseSalary || 0,
+                hoursWorked: attendanceData.totalHours,
+                daysWorked: attendanceData.totalDays,
+                claims: 0
+              });
+              
+              console.log(`Successfully force-added ${missingEmp.name}`);
+            }
+            
+            toast.success('Applied workaround for missing employees');
+          }
+          console.log('=== WORKAROUND COMPLETE ===');
           
           console.log('DEBUG: Finished adding employees to payroll context');
           console.log('Loaded optimized payroll data');
