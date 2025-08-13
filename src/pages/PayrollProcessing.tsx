@@ -182,37 +182,59 @@ const PayrollProcessing = () => {
           // Add ALL employees to payroll (this should include Wang and Siti)
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
+          // Wait for payroll state to update before applying workaround
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           // EMERGENCY WORKAROUND: Force-add missing employees if they're not in payroll
           console.log('=== APPLYING EMERGENCY WORKAROUND ===');
-          if (shouldApplyWorkaround([...payrollState.fullTimeEmployees, ...payrollState.casualEmployees])) {
-            console.log('Missing employees detected, applying workaround...');
+          try {
+            const currentEmployeesInPayroll = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees];
+            console.log('Current employees in payroll:', currentEmployeesInPayroll.map(emp => emp.name));
             
-            // Get attendance data for missing employees
-            const attendanceWorkaround = await getAttendanceDataForMissingEmployees(selectedPeriod);
-            console.log('Attendance data for missing employees:', attendanceWorkaround);
-            
-            // Force add each missing employee
-            for (const missingEmp of MISSING_EMPLOYEES_WORKAROUND) {
-              console.log(`Force adding missing employee: ${missingEmp.name}`);
+            if (shouldApplyWorkaround(currentEmployeesInPayroll)) {
+              console.log('Missing employees detected, applying workaround...');
               
-              const attendanceData = attendanceWorkaround[missingEmp.id] || { totalHours: 0, totalDays: 0 };
+              // Get attendance data for missing employees
+              const attendanceWorkaround = await getAttendanceDataForMissingEmployees(selectedPeriod);
+              console.log('Attendance data for missing employees:', attendanceWorkaround);
               
-              await addCasualEmployee({
-                employeeId: missingEmp.id,
-                name: missingEmp.name,
-                paymentType: missingEmp.paymentType,
-                hourlyRate: missingEmp.hourlyRate || 0,
-                dailyRate: 0,
-                baseSalary: missingEmp.baseSalary || 0,
-                hoursWorked: attendanceData.totalHours,
-                daysWorked: attendanceData.totalDays,
-                claims: 0
-              });
+              // Force add each missing employee
+              for (const missingEmp of MISSING_EMPLOYEES_WORKAROUND) {
+                // Check if this employee is already in payroll
+                const alreadyExists = currentEmployeesInPayroll.some(emp => 
+                  emp.employeeId === missingEmp.id || emp.name === missingEmp.name
+                );
+                
+                if (!alreadyExists) {
+                  console.log(`Force adding missing employee: ${missingEmp.name}`);
+                  
+                  const attendanceData = attendanceWorkaround[missingEmp.id] || { totalHours: 0, totalDays: 0 };
+                  
+                  await addCasualEmployee({
+                    employeeId: missingEmp.id,
+                    name: missingEmp.name,
+                    paymentType: missingEmp.paymentType,
+                    hourlyRate: missingEmp.hourlyRate || 0,
+                    dailyRate: 0,
+                    baseSalary: missingEmp.baseSalary || 0,
+                    hoursWorked: attendanceData.totalHours,
+                    daysWorked: attendanceData.totalDays,
+                    claims: 0
+                  });
+                  
+                  console.log(`Successfully force-added ${missingEmp.name}`);
+                } else {
+                  console.log(`${missingEmp.name} already exists in payroll, skipping`);
+                }
+              }
               
-              console.log(`Successfully force-added ${missingEmp.name}`);
+              toast.success('Applied workaround for missing employees');
+            } else {
+              console.log('All employees are present, no workaround needed');
             }
-            
-            toast.success('Applied workaround for missing employees');
+          } catch (workaroundError) {
+            console.error('Error in workaround logic:', workaroundError);
+            // Don't fail the entire loading process if workaround fails
           }
           console.log('=== WORKAROUND COMPLETE ===');
           
@@ -221,7 +243,8 @@ const PayrollProcessing = () => {
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
-        toast('Error loading employee data');
+        toast.error('Failed to load employee data. Please try refreshing the page.');
+        // Don't keep the loading state if there's an error
       } finally {
         setLoading(false);
       }
