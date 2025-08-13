@@ -427,6 +427,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPayrollState(prevState => ({
       ...prevState,
       currentPeriod: period,
+      fullTimeEmployees: [], // Clear employees when period changes
+      casualEmployees: [], // Clear employees when period changes
       lastUpdated: new Date(),
     }));
   }, []);
@@ -542,6 +544,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
 
     for (const employee of employeesToAdd) {
+      // Check for duplicates before adding
+      const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
+      const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
+      
+      if (existsInFullTime || existsInCasual) {
+        console.log(`Employee ${employee.name} already exists in payroll, skipping...`);
+        continue;
+      }
+
       if (employee.type === 'Full-Time') {
         addFullTimeEmployee({
           employeeId: employee.id,
@@ -563,7 +574,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
       }
     }
-  }, [payrollState.availableEmployees, addFullTimeEmployee, addCasualEmployee]);
+  }, [payrollState.availableEmployees, payrollState.fullTimeEmployees, payrollState.casualEmployees, addFullTimeEmployee, addCasualEmployee]);
 
   const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
     // Remove from both full-time and casual employees

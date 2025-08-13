@@ -30,7 +30,8 @@ const PayrollProcessing = () => {
     autoAddCasualEmployeesWithAttendance,
     addCasualEmployee,
     removeCasualEmployee,
-    addEmployeesToPayroll
+    addEmployeesToPayroll,
+    setCurrentPeriod
   } = usePayroll();
 
   
@@ -136,8 +137,11 @@ const PayrollProcessing = () => {
             console.log('Loaded attendance data for period:', optimizedPayrollData.attendance);
           }
           
-          // Add employees to payroll context for Payment Processing step
-          console.log('DEBUG PayrollProcessing: Adding employees to payroll context...');
+          // Clear existing payroll data and add employees for the current period only
+          console.log('DEBUG PayrollProcessing: Clearing existing payroll data and adding employees...');
+          
+          // Update the period in context (this will clear existing employees)
+          setCurrentPeriod(selectedPeriod);
           
           // Add all employees to payroll context so they appear in Payment Processing step
           const allEmployeeIds = employees.map(emp => emp.id);
