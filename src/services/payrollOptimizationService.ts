@@ -48,11 +48,20 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         .from('deductions') 
         .select('*')
         .in('employee_id', employeeIds),
-      supabase
-        .from('claims')
-        .select('*')
-        .in('employee_id', employeeIds)
-        .eq('status', 'Approved')
+      // Filter claims by the payroll period
+      attendanceFilter.startDate && attendanceFilter.endDate 
+        ? supabase
+            .from('claims')
+            .select('*')
+            .in('employee_id', employeeIds)
+            .eq('status', 'Approved')
+            .gte('submitted_date', attendanceFilter.startDate)
+            .lte('submitted_date', attendanceFilter.endDate)
+        : supabase
+            .from('claims')
+            .select('*')
+            .in('employee_id', employeeIds)
+            .eq('status', 'Approved')
     ]);
 
     // Fetch attendance data separately if period is provided
