@@ -29,8 +29,8 @@ export interface PayrollRecord {
   isLocked?: boolean;
 }
 
-export const getEmployeePayrollData = async (employeeId: string): Promise<PayrollData> => {
-  console.log('Fetching payroll data for employee:', employeeId);
+export const getEmployeePayrollData = async (employeeId: string, period?: string): Promise<PayrollData> => {
+  console.log('Fetching payroll data for employee:', employeeId, 'period:', period);
   
   try {
     // Get employee details from Supabase
@@ -67,32 +67,57 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
       .filter(claim => claim.status === 'Approved')
       .reduce((sum, claim) => sum + claim.amount, 0);
 
-    // Calculate payroll data
-    const baseSalary = employee.baseSalary || 0;
-    const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
-    const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
-    const grossSalary = baseSalary + totalAllowances;
-    
-    const age = calculateAge(employee.dateOfBirth || '');
-    const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus || 'Citizen', age);
-    
-    const netSalary = grossSalary - cpfCalc.employeeCPF - totalDeductions + approvedClaimsTotal;
+    // Check if employee is casual and needs attendance-based calculation
+    if (employee.type === 'Casual' && period) {
+      const attendanceData = await getEmployeeAttendanceForPeriod(employeeId, period);
+      console.log('Attendance data for casual employee:', attendanceData);
+      
+      // Use calculateCasualPayroll for proper calculation
+      const { calculateCasualPayroll } = await import('@/utils/payrollCalculations');
+      const casualCalc = calculateCasualPayroll(
+        employee,
+        attendanceData.totalHours,
+        attendanceData.totalDays,
+        approvedClaimsTotal
+      );
+
+      const payrollData: PayrollData = {
+        baseSalary: casualCalc.baseSalary,
+        totalAllowances: casualCalc.totalAllowances,
+        totalDeductions: casualCalc.totalDeductions,
+        grossSalary: casualCalc.grossSalary,
+        employeeCPF: casualCalc.employeeCPF,
+        employerCPF: casualCalc.employerCPF,
+        totalCPF: casualCalc.totalCPF,
+        approvedClaims: approvedClaimsTotal,
+        netSalary: casualCalc.netSalary,
+        allowances: allowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
+        deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
+      };
+
+      console.log('Generated casual payroll data with attendance:', payrollData);
+      return payrollData;
+    }
+
+    // Full-time employee calculation (existing logic)
+    const { calculateFullTimePayroll } = await import('@/utils/payrollCalculations');
+    const fullTimeCalc = calculateFullTimePayroll(employee, approvedClaimsTotal, 0);
 
     const payrollData: PayrollData = {
-      baseSalary,
-      totalAllowances,
-      totalDeductions,
-      grossSalary,
-      employeeCPF: cpfCalc.employeeCPF,
-      employerCPF: cpfCalc.employerCPF,
-      totalCPF: cpfCalc.employeeCPF + cpfCalc.employerCPF,
+      baseSalary: fullTimeCalc.baseSalary,
+      totalAllowances: fullTimeCalc.totalAllowances,
+      totalDeductions: fullTimeCalc.totalDeductions,
+      grossSalary: fullTimeCalc.grossSalary,
+      employeeCPF: fullTimeCalc.employeeCPF,
+      employerCPF: fullTimeCalc.employerCPF,
+      totalCPF: fullTimeCalc.totalCPF,
       approvedClaims: approvedClaimsTotal,
-      netSalary,
+      netSalary: fullTimeCalc.netSalary,
       allowances: allowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
       deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
     };
 
-    console.log('Generated payroll data from Supabase:', payrollData);
+    console.log('Generated full-time payroll data:', payrollData);
     return payrollData;
   } catch (error) {
     console.error('Error generating payroll data:', error);
@@ -100,10 +125,82 @@ export const getEmployeePayrollData = async (employeeId: string): Promise<Payrol
   }
 };
 
+// Helper function to get employee attendance for a specific period
+export const getEmployeeAttendanceForPeriod = async (employeeId: string, period: string): Promise<{ totalHours: number; totalDays: number }> => {
+  try {
+    // Parse period (e.g., "July 2025" or "2025-07")
+    let year: number, month: number;
+    
+    if (period.includes('-')) {
+      // Format: "2025-07"
+      const [yearStr, monthStr] = period.split('-');
+      year = parseInt(yearStr);
+      month = parseInt(monthStr);
+    } else {
+      // Format: "July 2025"
+      const [monthName, yearStr] = period.split(' ');
+      year = parseInt(yearStr);
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      month = monthNames.indexOf(monthName) + 1;
+    }
+
+    if (!year || !month || month < 1 || month > 12) {
+      console.error('Invalid period format:', period);
+      return { totalHours: 0, totalDays: 0 };
+    }
+
+    // Get attendance records for the specified month
+    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+    const endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
+
+    console.log(`Fetching attendance for employee ${employeeId} from ${startDate} to ${endDate}`);
+
+    const { data: attendanceRecords, error } = await supabase
+      .from('attendance')
+      .select('date, hours_worked, status')
+      .eq('employee_id', employeeId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .in('status', ['Present', 'Late']); // Only count working days
+
+    if (error) {
+      console.error('Error fetching attendance:', error);
+      throw error;
+    }
+
+    console.log('Raw attendance records:', attendanceRecords);
+
+    const totalHours = attendanceRecords?.reduce((sum, record) => {
+      const hours = Number(record.hours_worked) || 0;
+      return sum + hours;
+    }, 0) || 0;
+
+    const totalDays = attendanceRecords?.length || 0;
+
+    console.log(`Calculated attendance: ${totalHours} hours, ${totalDays} days`);
+    
+    return { totalHours, totalDays };
+  } catch (error) {
+    console.error('Error calculating attendance for period:', error);
+    return { totalHours: 0, totalDays: 0 };
+  }
+};
+
 export const savePayrollRecord = async (employeeId: string, month: string, payrollData: PayrollData): Promise<void> => {
   console.log('Saving payroll record to Supabase:', { employeeId, month, payrollData });
   
-  const year = new Date().getFullYear();
+  // Extract year from month if it's in "Month YYYY" format, otherwise use current year
+  let year = new Date().getFullYear();
+  if (month.includes(' ')) {
+    const monthParts = month.split(' ');
+    if (monthParts.length === 2 && !isNaN(Number(monthParts[1]))) {
+      year = Number(monthParts[1]);
+    }
+  }
+  
   const recordId = `${employeeId}_${year}_${month.replace(' ', '_')}`;
   
   const { error } = await supabase

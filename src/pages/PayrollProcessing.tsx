@@ -39,6 +39,7 @@ const PayrollProcessing = () => {
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [employeeAllowances, setEmployeeAllowances] = useState<{[key: string]: any[]}>({});
   const [employeeDeductions, setEmployeeDeductions] = useState<{[key: string]: any[]}>({});
+  const [payrollData, setPayrollData] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   // Edit dialog states
@@ -97,14 +98,15 @@ const PayrollProcessing = () => {
         if (employees.length > 0) {
           // Load all payroll data in a single optimized call
           const employeeIds = employees.map(emp => emp.id);
-          const payrollData = await getEmployeePayrollDataOptimized(employeeIds);
+          const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
           
-          setEmployeeAllowances(payrollData.allowances);
-          setEmployeeDeductions(payrollData.deductions);
+          setPayrollData(optimizedPayrollData);
+          setEmployeeAllowances(optimizedPayrollData.allowances);
+          setEmployeeDeductions(optimizedPayrollData.deductions);
           
           // Convert claims data to expected format
           const claimsData: {[key: string]: Claim[]} = {};
-          Object.entries(payrollData.claims).forEach(([empId, claims]) => {
+          Object.entries(optimizedPayrollData.claims).forEach(([empId, claims]) => {
             claimsData[empId] = claims.map(claim => ({
               id: claim.id,
               employeeId: claim.employee_id,
@@ -121,6 +123,12 @@ const PayrollProcessing = () => {
             }));
           });
           setEmployeeClaims(claimsData);
+          
+          // Store attendance data for casual employees
+          if (optimizedPayrollData.attendance) {
+            console.log('Loaded attendance data for period:', optimizedPayrollData.attendance);
+            // You can add state to store this if needed for the UI
+          }
           
           console.log('Loaded optimized payroll data');
         }
@@ -597,8 +605,12 @@ const PayrollProcessing = () => {
                         // Calculate proper CPF and net pay for casual employees
                         const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
                         
-                        // Calculate attendance-based pay for casual employees
-                        const casualPayrollCalc = calculateCasualPayroll(employee, undefined, undefined, approvedClaims);
+                        // Calculate attendance-based pay for casual employees using proper attendance data
+                        const attendanceData = payrollData.attendance?.[employee.id];
+                        const hoursWorked = attendanceData?.totalHours || 0;
+                        const daysWorked = attendanceData?.totalDays || 0;
+                        
+                        const casualPayrollCalc = calculateCasualPayroll(employee, hoursWorked, daysWorked, approvedClaims);
                         const netPay = casualPayrollCalc.netSalary;
                         
                         return (

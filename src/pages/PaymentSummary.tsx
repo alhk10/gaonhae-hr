@@ -171,7 +171,7 @@ const PaymentSummary = () => {
       
       // Generate payroll data for each selected employee
       for (const employeeId of selectedEmployees) {
-        const payrollData = await getEmployeePayrollData(employeeId);
+        const payrollData = await getEmployeePayrollData(employeeId, newPayrollPeriod);
         const year = new Date().getFullYear();
         
         await savePayrollRecord(employeeId, newPayrollPeriod, payrollData);
