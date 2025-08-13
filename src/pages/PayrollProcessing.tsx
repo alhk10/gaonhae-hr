@@ -937,8 +937,8 @@ const PayrollProcessing = () => {
       <Navbar />
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
-        <main className="flex-1 p-4 md:p-6">
-          <div className="space-y-6 h-full overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-lg border">
               <div className="flex items-center justify-between">
                 <div>
