@@ -35,6 +35,7 @@ export interface FullTimeEmployee {
   cpfEmployee: number;
   cpfEmployer: number;
   paymentType?: 'Monthly' | 'Hourly' | 'Daily';
+  claims?: number;
   // Add support for allowances and deductions arrays
   allowancesArray?: EmployeeAllowance[];
   deductions?: EmployeeDeduction[];
@@ -48,6 +49,7 @@ export interface CasualEmployee {
   hoursWorked: number;
   totalPay: number;
   employeeCPF: number;
+  claims?: number;
   employerCPF: number;
   grossPay: number;
   daysWorked?: number;
@@ -91,7 +93,7 @@ export interface PayrollContextType {
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<void>;
   setPayrollStatus: (status: PayrollState['status']) => void;
-  addEmployeesToPayroll: (employeeIds: string[]) => Promise<void>;
+  addEmployeesToPayroll: (employeeIds: string[], claimsData?: any) => Promise<void>;
   removeEmployeeFromPayroll: (employeeId: string) => void;
   refreshAvailableEmployees: () => Promise<void>;
   autoAddCasualEmployeesWithAttendance: () => Promise<{ addedCount: number; employees: any[] }>;
@@ -240,7 +242,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'>) => {
+  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }) => {
     const id = uuidv4();
     
     // Find the employee profile from available employees for complete data
@@ -331,13 +333,16 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Use proper payroll calculation
+    // Use proper payroll calculation with claims
+    const approvedClaims = employee.claims || 0;
     const calculation = calculateCasualPayroll(
       employeeProfile,
       employee.hoursWorked || 0,
       employee.daysWorked || 0,
-      0 // approved claims - can be added later
+      approvedClaims // approved claims amount
     );
+    
+    console.log(`Adding ${employee.name} to casual payroll with ${approvedClaims} in claims, ${employee.hoursWorked} hours, ${employee.daysWorked} days`);
 
     const newEmployee: CasualEmployee = {
       ...employee,
@@ -538,10 +543,22 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  const addEmployeesToPayroll = useCallback(async (employeeIds: string[]) => {
+  const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any) => {
     const employeesToAdd = payrollState.availableEmployees.filter(emp => 
       employeeIds.includes(emp.id)
     );
+
+    // Fetch optimized payroll data including claims if not provided
+    let payrollOptimizedData = null;
+    if (!claimsData) {
+      try {
+        const { getEmployeePayrollDataOptimized } = await import('@/services/payrollOptimizationService');
+        payrollOptimizedData = await getEmployeePayrollDataOptimized(employeeIds, payrollState.currentPeriod);
+        console.log('Fetched optimized payroll data in addEmployeesToPayroll:', payrollOptimizedData);
+      } catch (error) {
+        console.error('Error fetching optimized payroll data:', error);
+      }
+    }
 
     for (const employee of employeesToAdd) {
       // Check for duplicates before adding
@@ -553,6 +570,12 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         continue;
       }
 
+      // Get claims for this employee
+      const employeeClaims = payrollOptimizedData?.claims?.[employee.id] || claimsData?.claims?.[employee.id] || [];
+      const totalClaims = employeeClaims.reduce((sum: number, claim: any) => sum + (claim.amount || 0), 0);
+      
+      console.log(`Adding ${employee.name} with ${employeeClaims.length} claims totaling ${totalClaims}`);
+
       if (employee.type === 'Full-Time') {
         addFullTimeEmployee({
           employeeId: employee.id,
@@ -560,21 +583,28 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           baseSalary: employee.baseSalary || 0,
           allowances: 0, // This will be overridden by the calculation
           cpfContribution: 20,
+          claims: totalClaims
         });
       } else {
+        // Get attendance data for casual employees
+        const attendanceData = payrollOptimizedData?.attendance?.[employee.id];
+        const hoursWorked = attendanceData?.totalHours || 0;
+        const daysWorked = attendanceData?.totalDays || 0;
+        
         await addCasualEmployee({
           employeeId: employee.id,
           name: employee.name,
           hourlyRate: employee.hourlyRate || 0,
-          hoursWorked: 0,
-          daysWorked: 0,
+          hoursWorked: hoursWorked,
+          daysWorked: daysWorked,
           paymentType: employee.paymentType,
           dailyRate: employee.dailyRate,
-          baseSalary: employee.baseSalary
+          baseSalary: employee.baseSalary,
+          claims: totalClaims
         });
       }
     }
-  }, [payrollState.availableEmployees, payrollState.fullTimeEmployees, payrollState.casualEmployees, addFullTimeEmployee, addCasualEmployee]);
+  }, [payrollState.availableEmployees, payrollState.fullTimeEmployees, payrollState.casualEmployees, payrollState.currentPeriod, addFullTimeEmployee, addCasualEmployee]);
 
   const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
     // Remove from both full-time and casual employees

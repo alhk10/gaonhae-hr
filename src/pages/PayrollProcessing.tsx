@@ -145,7 +145,7 @@ const PayrollProcessing = () => {
           
           // Add all employees to payroll context so they appear in Payment Processing step
           const allEmployeeIds = employees.map(emp => emp.id);
-          await addEmployeesToPayroll(allEmployeeIds);
+          await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
           
           console.log('DEBUG PayrollProcessing: Added employees to payroll context');
           console.log('Loaded optimized payroll data');
