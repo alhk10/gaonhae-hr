@@ -5,36 +5,48 @@ import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees with permissions from database...');
   
-  // Single optimized query with join
-  const { data, error } = await supabase
-    .from('employees')
-    .select(`
-      *,
-      allowances (*),
-      deductions (*),
-      admin_access (*),
-      certificates (*),
-      employee_page_access (*)
-    `)
-    .order('name')
-    .limit(100); // Add pagination
+  try {
+    // Fetch employees with related data in one query
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances (*),
+        deductions (*),
+        admin_access (*),
+        certificates (*)
+      `)
+      .order('name')
+      .limit(100); // Add pagination
 
-  if (error) {
-    console.error('EmployeeService: Error fetching employees:', error);
-    throw error;
-  }
+    if (error) {
+      console.error('EmployeeService: Error fetching employees:', error);
+      throw error;
+    }
 
-  if (!data || data.length === 0) {
-    console.log('EmployeeService: No employees found in database');
-    return [];
-  }
+    if (!employees || employees.length === 0) {
+      console.log('EmployeeService: No employees found in database');
+      return [];
+    }
 
-  console.log('EmployeeService: Fetched employees with permissions:', data.length);
+    // Fetch page access permissions separately for better reliability
+    const employeeIds = employees.map(emp => emp.id);
+    const { data: pageAccessData, error: pageAccessError } = await supabase
+      .from('employee_page_access')
+      .select('*')
+      .in('employee_id', employeeIds);
 
-  return data.map(emp => {
-    const pageAccess = emp.employee_page_access?.[0] as any;
-    
-    return {
+    if (pageAccessError) {
+      console.error('EmployeeService: Error fetching page access:', pageAccessError);
+      // Don't throw error, continue without page access data
+    }
+
+    console.log('EmployeeService: Fetched employees with permissions:', employees.length);
+
+    return employees.map(emp => {
+      const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
+      
+      return {
       id: emp.id,
       name: emp.name,
       nric: emp.nric || '',
@@ -111,6 +123,10 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       }
     };
   });
+} catch (error) {
+  console.error('EmployeeService: Error in getEmployees:', error);
+  throw error;
+}
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
