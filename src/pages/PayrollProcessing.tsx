@@ -922,45 +922,57 @@ const PayrollProcessing = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {payrollState.fullTimeEmployees.map((employee) => {
-              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-              const totalAllowanceAmount = employee.allowancesArray?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
-              return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
-                  <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
-                  <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                      {payrollState.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {payrollState.casualEmployees.map((employee) => {
-              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-              const totalAllowanceAmount = employee.allowances?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
-              
-              return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
-                  <TableCell>S${(employee.hourlyRate || employee.dailyRate || 0).toFixed(2)}</TableCell>
-                  <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
-                  <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                      {payrollState.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {payrollState.fullTimeEmployees
+              .filter((employee) => {
+                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+                const residencyStatus = employeeDetails?.residencyStatus;
+                return residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen' || residencyStatus === 'PR';
+              })
+              .map((employee) => {
+                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+                const totalAllowanceAmount = employee.allowancesArray?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
+                return (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">{employee.name}</TableCell>
+                    <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
+                    <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
+                    <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
+                    <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
+                    <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                        {payrollState.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            {payrollState.casualEmployees
+              .filter((employee) => {
+                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+                const residencyStatus = employeeDetails?.residencyStatus;
+                return residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen' || residencyStatus === 'PR';
+              })
+              .map((employee) => {
+                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+                const totalAllowanceAmount = employee.allowances?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
+                
+                return (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">{employee.name}</TableCell>
+                    <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
+                    <TableCell>S${(employee.hourlyRate || employee.dailyRate || 0).toFixed(2)}</TableCell>
+                    <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
+                    <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
+                    <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
+                        {payrollState.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
         <div className="flex justify-between mt-4">
