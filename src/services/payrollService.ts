@@ -337,7 +337,11 @@ export const updatePayrollLockStatus = async (recordId: string, isLocked: boolea
   
   const { error } = await supabase
     .from('payroll_records')
-    .update({ is_locked: isLocked })
+    .update({ 
+      is_locked: isLocked,
+      status: isLocked ? 'finalized' : 'draft',
+      updated_at: new Date().toISOString()
+    })
     .eq('id', recordId);
 
   if (error) {

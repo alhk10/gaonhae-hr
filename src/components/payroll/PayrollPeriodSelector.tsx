@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp } from 'lucide-react';
-import { getAllPayrollRecords, PayrollRecord, getPayrollStatus } from '@/services/payrollService';
+import { getAllPayrollRecords, PayrollRecord, getPayrollStatus, updatePayrollLockStatus } from '@/services/payrollService';
 import { formatCurrency } from '@/utils/payrollCalculations';
 import { usePayroll } from '@/contexts/PayrollContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
@@ -32,6 +33,8 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const [isLoadingPeriods, setIsLoadingPeriods] = useState(false);
   const [localPayrollStatus, setLocalPayrollStatus] = useState<PayrollStatus | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
   
   const payrollContext = usePayroll();
   const { toast } = useToast();
@@ -127,11 +130,23 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
 
   useEffect(() => {
     loadAvailablePeriodsAndStats();
+    checkUserRole();
   }, []);
 
   useEffect(() => {
     loadPayrollStatus();
   }, [selectedPeriod]);
+
+  const checkUserRole = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_current_user_role');
+      if (!error) {
+        setUserRole(data || '');
+      }
+    } catch (error) {
+      console.error('Error checking user role:', error);
+    }
+  };
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     let newMonth = selectedMonthIndex;
@@ -161,6 +176,38 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
 
   const currentPeriodStats = periodStats[selectedPeriod];
   const hasPeriodData = availablePeriods.includes(selectedPeriod);
+  const isLocked = localPayrollStatus?.status === 'finalized';
+
+  const handleUnlockPayroll = async () => {
+    if (!isLocked || userRole !== 'superadmin') return;
+    
+    try {
+      setIsUnlocking(true);
+      const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+      
+      // Find the period record ID
+      const recordId = `PERIOD_${formattedPeriod}`;
+      
+      await updatePayrollLockStatus(recordId, false);
+      
+      // Refresh status
+      await loadPayrollStatus();
+      
+      toast({
+        title: "Payroll Unlocked",
+        description: `Payroll for ${selectedPeriod} has been unlocked and can now be edited.`,
+      });
+    } catch (error) {
+      console.error('Error unlocking payroll:', error);
+      toast({
+        title: "Error",
+        description: "Failed to unlock payroll. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
 
   return (
     <Card className="mb-6">
@@ -250,6 +297,24 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
             <Badge variant={isCurrentPeriod() ? "default" : isPastPeriod() ? "secondary" : "outline"}>
               {isCurrentPeriod() ? "Current Period" : isPastPeriod() ? "Past Period" : "Future Period"}
             </Badge>
+            
+            {isLocked && (
+              <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+                🔒 Locked
+              </Badge>
+            )}
+            
+            {isLocked && isPastPeriod() && userRole === 'superadmin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUnlockPayroll}
+                disabled={isUnlocking}
+                className="text-xs px-2 py-1 h-6"
+              >
+                {isUnlocking ? 'Unlocking...' : 'Unlock'}
+              </Button>
+            )}
             
             {hasPeriodData && (
               <Badge variant="outline" className="text-green-600 border-green-200">

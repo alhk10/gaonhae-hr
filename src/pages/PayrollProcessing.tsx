@@ -21,6 +21,8 @@ import EditDeductionsDialog from '@/components/payroll/EditDeductionsDialog';
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
+import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus } from '@/services/payrollService';
+import { supabase as authService } from '@/integrations/supabase/client';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -46,6 +48,8 @@ const PayrollProcessing = () => {
   const [employeeDeductions, setEmployeeDeductions] = useState<{[key: string]: any[]}>({});
   const [payrollData, setPayrollData] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [isPeriodLocked, setIsPeriodLocked] = useState(false);
+  const [periodStatus, setPeriodStatus] = useState<{ status: string; finalizedBy?: string; finalizedAt?: string } | null>(null);
 
   // Edit dialog states
   const [editSalaryDialog, setEditSalaryDialog] = useState<{
@@ -95,6 +99,22 @@ const PayrollProcessing = () => {
         setLoading(true);
         console.log(`Loading employee data for period: ${selectedPeriod}`);
         console.log('DEBUG: Selected period format:', selectedPeriod);
+        
+        // Load period status and lock info
+        const formatPeriodForAPI = (period: string): string => {
+          const [monthName, year] = period.split(' ');
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          const monthIndex = monthNames.indexOf(monthName) + 1;
+          return `${year}-${monthIndex.toString().padStart(2, '0')}`;
+        };
+        
+        const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+        const status = await getPayrollStatus(formattedPeriod);
+        setPeriodStatus(status);
+        setIsPeriodLocked(status?.status === 'finalized' || false);
         
         // Get all employees with full payroll data
         const employees = await getEmployeesForPayroll();
@@ -440,10 +460,38 @@ const PayrollProcessing = () => {
     toast("Payments processed. Moving to CPF submission.");
   };
 
-  const handleCPFSubmission = () => {
-    setPayrollStatus('completed');
-    toast("CPF contributions submitted. Payroll process completed.");
-    navigate('/payroll');
+  const handleCPFSubmission = async () => {
+    try {
+      await savePayrollToSupabase();
+      
+      // Get current user
+      const { data: { user } } = await authService.auth.getUser();
+      const userId = user?.email || 'system';
+      
+      // Auto-lock payroll after completion
+      const formatPeriodForAPI = (period: string): string => {
+        const [monthName, year] = period.split(' ');
+        const monthNames = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthIndex = monthNames.indexOf(monthName) + 1;
+        return `${year}-${monthIndex.toString().padStart(2, '0')}`;
+      };
+      
+      const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+      await finalizePayroll(formattedPeriod, userId);
+      
+      setPayrollStatus('completed');
+      setIsPeriodLocked(true);
+      setPeriodStatus({ status: 'finalized', finalizedBy: userId, finalizedAt: new Date().toISOString() });
+      
+      toast('CPF contributions submitted and payroll locked successfully!');
+      navigate('/payroll-history');
+    } catch (error) {
+      console.error('Error submitting CPF:', error);
+      toast('Error submitting CPF contributions');
+    }
   };
 
   const handleBackStep = () => {
@@ -595,14 +643,16 @@ const PayrollProcessing = () => {
                                 <div className="font-medium">
                                   S${(employee.baseSalary || 0).toLocaleString()}
                                 </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleEditSalary(employee)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
+                                {!isPeriodLocked && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => handleEditSalary(employee)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -620,14 +670,16 @@ const PayrollProcessing = () => {
                                   ) : (
                                     <span className="text-gray-400 text-sm">None</span>
                                   )}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditAllowances(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
+                                  {!isPeriodLocked && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleEditAllowances(employee)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </TableCell>
@@ -646,14 +698,16 @@ const PayrollProcessing = () => {
                                   ) : (
                                     <span className="text-gray-400 text-sm">None</span>
                                   )}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditDeductions(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
+                                  {!isPeriodLocked && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleEditDeductions(employee)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </TableCell>
@@ -773,14 +827,16 @@ const PayrollProcessing = () => {
                                     <div>S${employee.baseSalary}/month</div>
                                   )}
                                 </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleEditSalary(employee)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
+                                {!isPeriodLocked && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => handleEditSalary(employee)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -798,14 +854,16 @@ const PayrollProcessing = () => {
                                   ) : (
                                     <span className="text-gray-400 text-sm">None</span>
                                   )}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditAllowances(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
+                                  {!isPeriodLocked && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleEditAllowances(employee)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </TableCell>
@@ -824,14 +882,16 @@ const PayrollProcessing = () => {
                                   ) : (
                                     <span className="text-gray-400 text-sm">None</span>
                                   )}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditDeductions(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
+                                  {!isPeriodLocked && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleEditDeductions(employee)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </TableCell>
@@ -1105,7 +1165,19 @@ const PayrollProcessing = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
-                  <p className="text-gray-600 mt-2">Process payroll for {selectedPeriod}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-gray-600">Process payroll for {selectedPeriod}</p>
+                    {isPeriodLocked && (
+                      <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+                        🔒 Locked
+                      </Badge>
+                    )}
+                  </div>
+                  {periodStatus?.finalizedBy && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Finalized by {periodStatus.finalizedBy} on {new Date(periodStatus.finalizedAt || '').toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center space-x-3">
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
