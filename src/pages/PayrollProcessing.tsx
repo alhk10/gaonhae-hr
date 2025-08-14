@@ -9,7 +9,7 @@ import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, T
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
-import { getEmployees, getEmployeeById } from '@/services/employeeService';
+import { getEmployees, getEmployeeById, getEmployeesForPayroll } from '@/services/employeeService';
 import { getEmployeePayrollDataOptimized } from '@/services/payrollOptimizationService';
 import { getEmployeeClaims, type Claim } from '@/services/claimsService';
 import { MISSING_EMPLOYEES_WORKAROUND, getAttendanceDataForMissingEmployees, shouldApplyWorkaround } from '@/utils/payrollWorkarounds';
@@ -96,8 +96,8 @@ const PayrollProcessing = () => {
         console.log(`Loading employee data for period: ${selectedPeriod}`);
         console.log('DEBUG: Selected period format:', selectedPeriod);
         
-        // Get all employees
-        const employees = await getEmployees();
+        // Get all employees with full payroll data
+        const employees = await getEmployeesForPayroll();
         setAllEmployees(employees);
         console.log('=== EMPLOYEE LOADING DEBUG ===');
         console.log('Total employees loaded:', employees.length);
@@ -570,7 +570,7 @@ const PayrollProcessing = () => {
                       {fullTimeEmployees.map((employee) => {
                         const allowances = employeeAllowances[employee.id] || [];
                         const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+                        const approvedClaims = getApprovedClaimsTotal(employee.id);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
@@ -725,7 +725,7 @@ const PayrollProcessing = () => {
                       {casualEmployees.map((employee) => {
                         const allowances = employeeAllowances[employee.id] || [];
                         const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+                        const approvedClaims = getApprovedClaimsTotal(employee.id);
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
@@ -948,7 +948,7 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {payrollState.fullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+              const approvedClaims = getApprovedClaimsTotal(employee.id);
               // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               
@@ -968,7 +968,7 @@ const PayrollProcessing = () => {
               );
             })}
             {payrollState.casualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.employeeId);
+              const approvedClaims = getApprovedClaimsTotal(employee.id);
               // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               
