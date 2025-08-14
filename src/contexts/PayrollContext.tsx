@@ -752,7 +752,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .from('payroll_records')
         .upsert({
           id: recordId,
-          employee_id: 'system',
+          employee_id: null,
           month: payrollData.month,
           year: parseInt(payrollData.year),
           payroll_data: payrollData as any,
