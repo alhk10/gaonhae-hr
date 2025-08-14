@@ -87,8 +87,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
         allowances (*),
         deductions (*),
         admin_access (*),
-        certificates (*),
-        employee_page_access (*)
+        certificates (*)
       `)
       .order('name')
       .limit(200);
@@ -105,82 +104,97 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
 
     console.log('EmployeeService: Full payroll employees fetched:', employees.length);
 
-    return employees.map((emp: any) => ({
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric || '',
-      dateOfBirth: emp.date_of_birth || '',
-      residencyStatus: emp.residency_status || '',
-      type: emp.type as 'Full-Time' | 'Casual',
-      baseSalary: emp.base_salary || 0,
-      hourlyRate: emp.hourly_rate || 0,
-      dailyRate: emp.daily_rate || 0,
-      dailyWeekdayRate: emp.daily_weekday_rate || 0,
-      dailyWeekendRate: emp.daily_weekend_rate || 0,
-      paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily' || 'Monthly',
-      bankName: emp.bank_name || '',
-      bankAccount: emp.bank_account || '',
-      branch: '', // This field doesn't exist in DB
-      department: emp.department || '',
-      position: emp.position || '',
-      phone: emp.phone || '',
-      address: emp.address || '',
-      email: emp.email || null,
-      joinDate: emp.join_date || undefined,
-      resignDate: emp.resign_date || undefined,
-      allowances: (emp.allowances || []).map((allowance: any) => ({
-        id: allowance.id.toString(),
-        name: allowance.name,
-        amount: allowance.amount,
-        type: allowance.type
-      })),
-      deductions: (emp.deductions || []).map((deduction: any) => ({
-        id: deduction.id.toString(),
-        name: deduction.name,
-        amount: deduction.amount,
-        type: deduction.type
-      })),
-      certificates: (emp.certificates || []).map((cert: any) => ({
-        id: cert.id,
-        name: cert.name,
-        fileName: cert.file_name,
-        uploadDate: cert.upload_date,
-        fileSize: cert.file_size,
-        fileType: cert.file_type
-      })),
-      adminAccess: emp.admin_access ? {
-        employees: emp.admin_access.employees || false,
-        payroll: emp.admin_access.payroll || false,
-        leaveManagement: emp.admin_access.leave_management || false,
-        claims: emp.admin_access.claims || false,
-        attendance: emp.admin_access.attendance || false,
-        slotBooking: emp.admin_access.slot_booking || false,
-        reports: emp.admin_access.reports || false
-      } : {
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      pageAccess: emp.employee_page_access ? {
-        profile: emp.employee_page_access.profile ?? true,
-        applyLeave: emp.employee_page_access.apply_leave ?? true,
-        submitClaim: emp.employee_page_access.submit_claim ?? true,
-        payslips: emp.employee_page_access.payslips ?? true,
-        myAttendance: emp.employee_page_access.my_attendance ?? true,
-        slotBookingEmployee: emp.employee_page_access.slot_booking_employee ?? true
-      } : {
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      }
-    }));
+    // Fetch page access data separately since there's no foreign key relationship
+    const employeeIds = employees.map(emp => emp.id);
+    const { data: pageAccessData, error: pageAccessError } = await supabase
+      .from('employee_page_access')
+      .select('*')
+      .in('employee_id', employeeIds);
+
+    if (pageAccessError) {
+      console.error('EmployeeService: Error fetching page access:', pageAccessError);
+    }
+
+    return employees.map((emp: any) => {
+      const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
+      
+      return {
+        id: emp.id,
+        name: emp.name,
+        nric: emp.nric || '',
+        dateOfBirth: emp.date_of_birth || '',
+        residencyStatus: emp.residency_status || '',
+        type: emp.type as 'Full-Time' | 'Casual',
+        baseSalary: emp.base_salary || 0,
+        hourlyRate: emp.hourly_rate || 0,
+        dailyRate: emp.daily_rate || 0,
+        dailyWeekdayRate: emp.daily_weekday_rate || 0,
+        dailyWeekendRate: emp.daily_weekend_rate || 0,
+        paymentType: emp.payment_type as 'Monthly' | 'Hourly' | 'Daily' || 'Monthly',
+        bankName: emp.bank_name || '',
+        bankAccount: emp.bank_account || '',
+        branch: '', // This field doesn't exist in DB
+        department: emp.department || '',
+        position: emp.position || '',
+        phone: emp.phone || '',
+        address: emp.address || '',
+        email: emp.email || null,
+        joinDate: emp.join_date || undefined,
+        resignDate: emp.resign_date || undefined,
+        allowances: (emp.allowances || []).map((allowance: any) => ({
+          id: allowance.id.toString(),
+          name: allowance.name,
+          amount: allowance.amount,
+          type: allowance.type
+        })),
+        deductions: (emp.deductions || []).map((deduction: any) => ({
+          id: deduction.id.toString(),
+          name: deduction.name,
+          amount: deduction.amount,
+          type: deduction.type
+        })),
+        certificates: (emp.certificates || []).map((cert: any) => ({
+          id: cert.id,
+          name: cert.name,
+          fileName: cert.file_name,
+          uploadDate: cert.upload_date,
+          fileSize: cert.file_size,
+          fileType: cert.file_type
+        })),
+        adminAccess: emp.admin_access ? {
+          employees: emp.admin_access.employees || false,
+          payroll: emp.admin_access.payroll || false,
+          leaveManagement: emp.admin_access.leave_management || false,
+          claims: emp.admin_access.claims || false,
+          attendance: emp.admin_access.attendance || false,
+          slotBooking: emp.admin_access.slot_booking || false,
+          reports: emp.admin_access.reports || false
+        } : {
+          employees: false,
+          payroll: false,
+          leaveManagement: false,
+          claims: false,
+          attendance: false,
+          slotBooking: false,
+          reports: false
+        },
+        pageAccess: pageAccess ? {
+          profile: pageAccess.profile ?? true,
+          applyLeave: pageAccess.apply_leave ?? true,
+          submitClaim: pageAccess.submit_claim ?? true,
+          payslips: pageAccess.payslips ?? true,
+          myAttendance: pageAccess.my_attendance ?? true,
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+        } : {
+          profile: true,
+          applyLeave: true,
+          submitClaim: true,
+          payslips: true,
+          myAttendance: true,
+          slotBookingEmployee: true
+        }
+      };
+    });
   } catch (error) {
     console.error('EmployeeService: Error in getEmployeesForPayroll:', error);
     throw error;
