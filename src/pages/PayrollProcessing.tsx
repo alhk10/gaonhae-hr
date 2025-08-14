@@ -487,7 +487,7 @@ const PayrollProcessing = () => {
       setPeriodStatus({ status: 'finalized', finalizedBy: userId, finalizedAt: new Date().toISOString() });
       
       toast('CPF contributions submitted and payroll locked successfully!');
-      navigate('/payroll-history');
+      navigate('/payroll');
     } catch (error) {
       console.error('Error submitting CPF:', error);
       toast('Error submitting CPF contributions');
