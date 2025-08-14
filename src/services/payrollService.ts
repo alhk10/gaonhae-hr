@@ -360,7 +360,7 @@ export const saveDraftPayroll = async (period: string, payrollData: any): Promis
     .from('payroll_records')
     .upsert({
       id: recordId,
-      employee_id: 'SYSTEM',
+      employee_id: null,
       month: period,
       year: parseInt(year),
       payroll_data: payrollData,

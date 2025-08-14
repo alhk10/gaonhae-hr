@@ -868,7 +868,7 @@ export type Database = {
       payroll_records: {
         Row: {
           created_at: string | null
-          employee_id: string
+          employee_id: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
@@ -881,7 +881,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          employee_id: string
+          employee_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id: string
@@ -894,7 +894,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          employee_id?: string
+          employee_id?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
