@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1324,20 +1324,20 @@ export type Database = {
         Args: { employee_id: string; reference_year?: number }
         Returns: {
           base_annual_leave: number
-          years_of_service: number
-          service_bonus_days: number
-          total_annual_leave: number
-          monday_holiday_bonus: number
           final_annual_leave: number
           medical_leave: number
+          monday_holiday_bonus: number
+          service_bonus_days: number
+          total_annual_leave: number
+          years_of_service: number
         }[]
       }
       calculate_unused_leave_for_encashment: {
         Args: { employee_id: string; reference_year?: number }
         Returns: {
-          unused_annual_leave: number
           total_entitlement: number
           total_used: number
+          unused_annual_leave: number
         }[]
       }
       calculate_years_of_service: {
@@ -1363,19 +1363,19 @@ export type Database = {
       get_eligible_employees_with_entitlements: {
         Args: { reference_year?: number }
         Returns: {
+          base_annual_leave: number
+          email: string
           employee_id: string
           employee_name: string
-          employee_type: string
           employee_position: string
+          employee_type: string
+          final_annual_leave: number
           join_date: string
-          email: string
-          years_of_service: number
-          base_annual_leave: number
+          medical_leave: number
+          monday_holiday_bonus: number
           service_bonus_days: number
           total_annual_leave: number
-          monday_holiday_bonus: number
-          final_annual_leave: number
-          medical_leave: number
+          years_of_service: number
         }[]
       }
       has_admin_access: {
@@ -1388,21 +1388,21 @@ export type Database = {
       }
       log_booking_attempt: {
         Args: {
-          p_employee_id: string
-          p_employee_name: string
+          p_attempt_result: string
           p_booking_date: string
           p_branch_id: string
-          p_attempt_result: string
+          p_employee_id: string
+          p_employee_name: string
           p_error_details?: Json
         }
         Returns: undefined
       }
       log_booking_failure: {
         Args: {
-          employee_email: string
-          employee_name: string
           booking_date: string
           branch_id: string
+          employee_email: string
+          employee_name: string
           failure_reason: string
           system_details?: Json
         }
@@ -1410,16 +1410,16 @@ export type Database = {
       }
       log_security_event: {
         Args: {
-          p_user_email: string
           p_action: string
           p_details?: Json
           p_ip_address?: string
           p_user_agent?: string
+          p_user_email: string
         }
         Returns: undefined
       }
       process_leave_encashment: {
-        Args: { p_employee_id: string; p_year: number; p_processed_by?: string }
+        Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
         Returns: string
       }
     }
