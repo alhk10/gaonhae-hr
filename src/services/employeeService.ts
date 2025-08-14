@@ -3,21 +3,15 @@ import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions 
 import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching employees with permissions from database...');
+  console.log('EmployeeService: Fetching employees (optimized for performance)...');
   
   try {
-    // Fetch employees with related data in one query
+    // Optimized query - fetch only essential fields for list view
     const { data: employees, error } = await supabase
       .from('employees')
-      .select(`
-        *,
-        allowances (*),
-        deductions (*),
-        admin_access (*),
-        certificates (*)
-      `)
+      .select('id, name, nric, type, email, join_date, resign_date, position, department')
       .order('name')
-      .limit(100); // Add pagination
+      .limit(100);
 
     if (error) {
       console.error('EmployeeService: Error fetching employees:', error);
@@ -29,75 +23,36 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       return [];
     }
 
-    // Fetch page access permissions separately for better reliability
-    const employeeIds = employees.map(emp => emp.id);
-    const { data: pageAccessData, error: pageAccessError } = await supabase
-      .from('employee_page_access')
-      .select('*')
-      .in('employee_id', employeeIds);
+    console.log('EmployeeService: Optimized employees fetched:', employees.length);
 
-    if (pageAccessError) {
-      console.error('EmployeeService: Error fetching page access:', pageAccessError);
-      // Don't throw error, continue without page access data
-    }
-
-    console.log('EmployeeService: Fetched employees with permissions:', employees.length);
-
-    return employees.map(emp => {
-      const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
-      
-      return {
+    // Return minimal data for list view - load details on demand
+    return employees.map(emp => ({
       id: emp.id,
       name: emp.name,
       nric: emp.nric || '',
-      dateOfBirth: emp.date_of_birth,
-      residencyStatus: emp.residency_status,
+      dateOfBirth: '', // Load on demand
+      residencyStatus: '', // Load on demand
       type: emp.type as 'Full-Time' | 'Casual',
-      baseSalary: emp.base_salary || undefined,
-      hourlyRate: emp.hourly_rate || undefined,
-      dailyRate: emp.daily_rate || undefined,
-      dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-      dailyWeekendRate: emp.daily_weekend_rate || undefined,
-      paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
-      bankName: emp.bank_name || '',
-      bankAccount: emp.bank_account || '',
-      branch: emp.department || 'Main Office',
+      baseSalary: 0, // Load on demand
+      hourlyRate: 0, // Load on demand
+      dailyRate: 0, // Load on demand
+      dailyWeekdayRate: 0, // Load on demand
+      dailyWeekendRate: 0, // Load on demand
+      paymentType: 'Monthly' as 'Monthly' | 'Hourly' | 'Daily', // Load on demand
+      bankName: '', // Load on demand
+      bankAccount: '', // Load on demand
+      branch: '', // Load on demand
       department: emp.department || '',
       position: emp.position || '',
-      phone: emp.phone || '',
-      address: emp.address || '',
-      email: emp.email || null, // Properly handle nullable email
-      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
+      phone: '', // Load on demand
+      address: '', // Load on demand
+      email: emp.email || null,
+      joinDate: emp.join_date || undefined,
       resignDate: emp.resign_date || undefined,
-      allowances: emp.allowances?.map(a => ({
-        id: String(a.id),
-        name: a.name,
-        amount: Number(a.amount),
-        type: (a.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      deductions: emp.deductions?.map(d => ({
-        id: String(d.id),
-        name: d.name,
-        amount: Number(d.amount),
-        type: (d.type || 'Fixed') as 'Fixed' | 'Percentage' | 'Manual'
-      })) || [],
-      certificates: emp.certificates?.map(cert => ({
-        id: cert.id,
-        name: cert.name,
-        fileName: cert.file_name,
-        uploadDate: cert.upload_date,
-        fileSize: cert.file_size,
-        fileType: cert.file_type
-      })) || [],
-      adminAccess: emp.admin_access?.[0] ? {
-        employees: emp.admin_access[0].employees || false,
-        payroll: emp.admin_access[0].payroll || false,
-        leaveManagement: emp.admin_access[0].leave_management || false,
-        claims: emp.admin_access[0].claims || false,
-        attendance: emp.admin_access[0].attendance || false,
-        slotBooking: emp.admin_access[0].slot_booking || false,
-        reports: emp.admin_access[0].reports || false
-      } : {
+      allowances: [], // Load on demand
+      deductions: [], // Load on demand
+      certificates: [], // Load on demand
+      adminAccess: {
         employees: false,
         payroll: false,
         leaveManagement: false,
@@ -105,28 +60,20 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         attendance: false,
         slotBooking: false,
         reports: false
-      },
-      pageAccess: pageAccess ? {
-        profile: pageAccess.profile !== false,
-        applyLeave: pageAccess.apply_leave !== false,
-        submitClaim: pageAccess.submit_claim !== false,
-        payslips: pageAccess.payslips !== false,
-        myAttendance: pageAccess.my_attendance !== false,
-        slotBookingEmployee: pageAccess.slot_booking_employee !== false
-      } : {
+      }, // Load on demand
+      pageAccess: {
         profile: true,
         applyLeave: true,
         submitClaim: true,
         payslips: true,
         myAttendance: true,
         slotBookingEmployee: true
-      }
-    };
-  });
-} catch (error) {
-  console.error('EmployeeService: Error in getEmployees:', error);
-  throw error;
-}
+      } // Load on demand
+    }));
+  } catch (error) {
+    console.error('EmployeeService: Error in getEmployees:', error);
+    throw error;
+  }
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {

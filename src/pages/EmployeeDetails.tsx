@@ -18,6 +18,9 @@ import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
+import EmployeeClaimHistory from '@/components/employee/EmployeeClaimHistory';
+import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
+import EmployeePayrollHistory from '@/components/employee/EmployeePayrollHistory';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -495,6 +498,24 @@ const EmployeeDetails = () => {
               employeeName={employeeData.name}
             />
           )}
+
+          {/* History Sections */}
+          <div className="space-y-6 mt-8">
+            <EmployeeClaimHistory 
+              employeeId={employeeData.id} 
+              employeeName={employeeData.name} 
+            />
+            
+            <EmployeeLeaveHistory 
+              employeeId={employeeData.id} 
+              employeeName={employeeData.name} 
+            />
+            
+            <EmployeePayrollHistory 
+              employeeId={employeeData.id} 
+              employeeName={employeeData.name} 
+            />
+          </div>
         </div>
       </ResponsiveLayout>
     </AuthGuard>
