@@ -82,7 +82,7 @@ const EditAllowancesDialog = ({
       id: Date.now().toString(),
       name: systemAllowance.name,
       amount: systemAllowance.default_amount,
-      type: 'Fixed'
+      type: 'Adhoc'
     };
 
     setEditingAllowances([...editingAllowances, newAllowance]);
@@ -106,7 +106,7 @@ const EditAllowancesDialog = ({
       id: Date.now().toString(),
       name: customAllowance.name,
       amount: customAllowance.amount,
-      type: 'Manual'
+      type: 'Adhoc'
     };
 
     setEditingAllowances([...editingAllowances, newAllowance]);
@@ -146,6 +146,8 @@ const EditAllowancesDialog = ({
         return 'Fixed Allowance';
       case 'Manual':
         return 'Custom';
+      case 'Adhoc':
+        return 'One-Time Adhoc';
       default:
         return type;
     }
@@ -157,6 +159,8 @@ const EditAllowancesDialog = ({
         return 'default';
       case 'Manual':
         return 'secondary';
+      case 'Adhoc':
+        return 'destructive';
       default:
         return 'outline';
     }
@@ -168,14 +172,14 @@ const EditAllowancesDialog = ({
         <DialogHeader>
           <DialogTitle>Edit Allowances - {employeeName}</DialogTitle>
           <DialogDescription>
-            Add system-defined allowances or create custom ones for this employee
+            Add one-time allowances for this payroll period. These are temporary additions and won't affect the employee's permanent allowances.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-4">
           {/* Add System Allowance */}
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-            <h4 className="font-medium mb-3 text-blue-900">Add System Allowance</h4>
+            <h4 className="font-medium mb-3 text-blue-900">Add One-Time System Allowance</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-2">
                 <Label htmlFor="system-allowance">Select Allowance</Label>
@@ -200,7 +204,7 @@ const EditAllowancesDialog = ({
               <div className="flex items-end">
                 <Button onClick={handleAddSystemAllowance} className="w-full">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add System Allowance
+                  Add One-Time
                 </Button>
               </div>
             </div>
@@ -208,7 +212,7 @@ const EditAllowancesDialog = ({
 
           {/* Add Custom Allowance */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium mb-3">Add Custom Allowance</h4>
+            <h4 className="font-medium mb-3">Add One-Time Custom Allowance</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <Label htmlFor="custom-allowance-name">Name</Label>
@@ -233,7 +237,7 @@ const EditAllowancesDialog = ({
               <div className="flex items-end">
                 <Button onClick={handleAddCustomAllowance} variant="secondary" className="w-full">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Custom
+                  Add One-Time
                 </Button>
               </div>
             </div>

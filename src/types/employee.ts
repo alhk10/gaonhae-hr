@@ -31,21 +31,21 @@ export interface EmployeeAllowance {
   id: string;
   name: string;
   amount: number;
-  type: 'Fixed' | 'Percentage' | 'Manual';
+  type: 'Fixed' | 'Percentage' | 'Manual' | 'Adhoc';
 }
 
 export interface EmployeeDeduction {
   id: string;
   name: string;
   amount: number;
-  type: 'Fixed' | 'Percentage' | 'Manual';
+  type: 'Fixed' | 'Percentage' | 'Manual' | 'Adhoc';
 }
 
 export interface AllowanceDeduction {
   id: string;
   name: string;
   amount: number;
-  type: 'Fixed' | 'Percentage' | 'Manual';
+  type: 'Fixed' | 'Percentage' | 'Manual' | 'Adhoc';
 }
 
 export interface EmployeeCertificate {
