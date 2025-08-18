@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             department: 'Administration'
           };
           
-          console.log('AuthContext: Setting superladmin user object:', superadminUser);
+          console.log('AuthContext: Setting superadmin user object:', superadminUser);
           setUser(superadminUser);
           setUserRole('superadmin');
           setUserDetails(userData);
