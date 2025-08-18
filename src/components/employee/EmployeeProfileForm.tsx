@@ -9,7 +9,7 @@ import { getEmployeeById, updateEmployee } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 
 const EmployeeProfileForm = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,7 +86,7 @@ const EmployeeProfileForm = () => {
       };
 
       // Only include name if user is superadmin
-      if (user.role === 'superadmin') {
+      if (userrole === 'superadmin') {
         updatedEmployeeData.name = formData.name;
       }
 
@@ -97,7 +97,7 @@ const EmployeeProfileForm = () => {
         ...employee,
         ...updatedEmployeeData,
         // Keep original name if not superadmin
-        name: user.role === 'superadmin' ? formData.name : employee.name
+        name: userrole === 'superadmin' ? formData.name : employee.name
       });
       
       toast.success('Profile updated successfully');
@@ -157,10 +157,10 @@ const EmployeeProfileForm = () => {
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter your full name"
-                disabled={user?.role !== 'superadmin'}
-                className={user?.role !== 'superadmin' ? 'bg-gray-100 text-gray-600' : ''}
+                disabled={userrole !== 'superadmin'}
+                className={userrole !== 'superadmin' ? 'bg-gray-100 text-gray-600' : ''}
               />
-              {user?.role !== 'superadmin' && (
+              {userrole !== 'superadmin' && (
                 <p className="text-xs text-gray-500 mt-1">
                   Only administrators can modify the full name
                 </p>

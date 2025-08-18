@@ -16,7 +16,7 @@ export interface AuthContextType {
   isLoading: boolean;
   requiresPasswordChange: boolean;
   updatePassword: (newPassword: string) => Promise<boolean>;
-  userRole: 'employee' | 'admin' | 'superadmin' | null;
+  userrole: 'employee' | 'admin' | 'superadmin' | null;
   userDetails: any;
   adminAccess: any;
   pageAccess: any;

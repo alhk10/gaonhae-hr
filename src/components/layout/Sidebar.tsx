@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
@@ -27,32 +26,17 @@ interface MenuItem {
 }
 
 const Sidebar = () => {
-  const { user, userRole } = useAuth();
+  const { user, userrole } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Debug current user state
-  useEffect(() => {
-    console.log('Sidebar: User state updated:', user);
-    console.log('Sidebar: UserRole from context:', userRole);
-    if (user) {
-      console.log('Sidebar: User role (from user object):', user.role);
-      console.log('Sidebar: User email:', user.email);
-    }
-  }, [user, userRole]);
-
   useEffect(() => {
     const loadCurrentEmployee = async () => {
-      console.log('Sidebar: Loading current employee data for user:', user);
-      console.log('Sidebar: UserRole check before loading employee data:', userRole, user?.role);
-      
       // Skip employee data loading for superadmins - they don't need it
-      if (userRole === 'superadmin' || user?.role === 'superadmin') {
-        console.log('Sidebar: Superadmin detected - skipping employee data load');
-        setCurrentEmployee(null);
+      if (userrole === 'superadmin') {
         setIsLoading(false);
         return;
       }
@@ -62,17 +46,11 @@ const Sidebar = () => {
         try {
           setIsLoading(true);
           const employees = await getEmployees();
-          console.log('Sidebar: All employees:', employees);
-          
           const employee = employees.find(emp => emp.email === user.email);
-          console.log('Sidebar: Found employee for current user:', employee);
           
           if (employee) {
             setCurrentEmployee(employee);
-            console.log('Sidebar: Current employee loaded with admin access:', employee.adminAccess);
-            console.log('Sidebar: Current employee loaded with page access:', employee.pageAccess);
           } else {
-            console.log('Sidebar: Employee not found for email:', user.email);
             setCurrentEmployee(null);
           }
         } catch (error) {
@@ -82,29 +60,19 @@ const Sidebar = () => {
           setIsLoading(false);
         }
       } else {
-        console.log('Sidebar: No user email - skipping employee data load');
         setCurrentEmployee(null);
         setIsLoading(false);
       }
     };
 
     loadCurrentEmployee();
-  }, [user, userRole]);
+  }, [user, userrole]);
 
-  const getMenuItems = (): MenuItem[] => {
-    console.log('Sidebar: Getting menu items for user:', user);
-    console.log('Sidebar: UserRole from context:', userRole);
-    console.log('Sidebar: User role from user object:', user?.role);
-    
-    const baseItems: MenuItem[] = [
-      { icon: BarChart3, label: 'Dashboard', path: '/' },
-    ];
-
-    // Superadmin gets admin-only access - check both userRole and user.role for safety
-    if (userRole === 'superadmin' || user?.role === 'superadmin') {
-      console.log('Sidebar: Returning superadmin menu items - detected via userRole:', userRole, 'or user.role:', user?.role);
+  const getMenuItems = useCallback((): MenuItem[] => {
+    // Superadmin gets admin-only access
+    if (userrole === 'superadmin') {
       const adminItems = [
-        ...baseItems,
+        { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Employee Management', path: '/employees' },
         { icon: DollarSign, label: 'Payroll Management', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
@@ -113,54 +81,16 @@ const Sidebar = () => {
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
-      console.log('Sidebar: Superadmin menu items created:', adminItems);
       return adminItems;
     }
 
-    // For managers and employees, build menu based on specific permissions
-    console.log('Sidebar: Building menu items based on specific permissions');
-    let menuItems: MenuItem[] = [
-      ...baseItems,
-    ];
+    // Manager/Admin role access - can see items based on admin access
+    if (userrole === 'admin' && currentEmployee?.adminAccess) {
+      const menuItems: MenuItem[] = [
+        { icon: BarChart3, label: 'Dashboard', path: '/' }
+      ];
+      const { adminAccess, pageAccess } = currentEmployee;
 
-    // If still loading employee data, return basic items
-    if (isLoading) {
-      console.log('Sidebar: Still loading employee data, returning basic items');
-      return menuItems;
-    }
-
-    // Check page access permissions and add allowed personal items first
-    if (currentEmployee?.pageAccess) {
-      const pageAccess = currentEmployee.pageAccess;
-      console.log('Sidebar: Employee page access permissions:', pageAccess);
-      
-      if (pageAccess.profile) {
-        menuItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });
-      }
-      if (pageAccess.applyLeave) {
-        menuItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
-      }
-      if (pageAccess.submitClaim) {
-        menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
-      }
-      if (pageAccess.payslips) {
-        menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
-      }
-      if (pageAccess.myAttendance) {
-        menuItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
-      }
-      if (pageAccess.slotBookingEmployee) {
-        menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
-      }
-    } else {
-      console.log('Sidebar: No page access permissions found for employee');
-    }
-
-    // Check individual admin access permissions and add allowed admin items
-    if (currentEmployee?.adminAccess) {
-      const adminAccess = currentEmployee.adminAccess;
-      console.log('Sidebar: Employee has admin access permissions:', adminAccess);
-      
       // Add admin menu items based on specific permissions
       if (adminAccess.employees) {
         menuItems.push({ icon: Users, label: 'Employees', path: '/employees' });
@@ -181,12 +111,59 @@ const Sidebar = () => {
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
 
-      console.log('Sidebar: Added admin items based on specific permissions');
+      // Add employee page access items
+      if (pageAccess?.profile) {
+        menuItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });
+      }
+      if (pageAccess?.applyLeave) {
+        menuItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
+      }
+      if (pageAccess?.submitClaim) {
+        menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
+      }
+      if (pageAccess?.payslips) {
+        menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
+      }
+      if (pageAccess?.myAttendance) {
+        menuItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
+      }
+      if (pageAccess?.slotBookingEmployee) {
+        menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
+      }
+
+      return menuItems;
     }
 
-    console.log('Sidebar: Final menu items:', menuItems);
+    // Employee role access - based on page permissions only
+    let menuItems: MenuItem[] = [
+      { icon: BarChart3, label: 'Dashboard', path: '/' },
+    ];
+
+    if (currentEmployee?.pageAccess) {
+      const pageAccess = currentEmployee.pageAccess;
+      
+      if (pageAccess.profile) {
+        menuItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });
+      }
+      if (pageAccess.applyLeave) {
+        menuItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
+      }
+      if (pageAccess.submitClaim) {
+        menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
+      }
+      if (pageAccess.payslips) {
+        menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
+      }
+      if (pageAccess.myAttendance) {
+        menuItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
+      }
+      if (pageAccess.slotBookingEmployee) {
+        menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
+      }
+    }
+
     return menuItems;
-  };
+  }, [userrole, currentEmployee]);
 
   const menuItems = getMenuItems();
 
@@ -199,8 +176,6 @@ const Sidebar = () => {
       setMobileMenuOpen(false);
     }
   };
-
-  console.log('Sidebar: Rendering sidebar with user:', user, 'and menu items:', menuItems);
 
   // Show loading state while auth is loading
   if (!user) {

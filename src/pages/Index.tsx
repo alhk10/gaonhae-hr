@@ -10,12 +10,12 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 
 const Index = () => {
-  const { user, requiresPasswordChange, isLoading, login } = useAuth();
+  const { user, userrole, requiresPasswordChange, isLoading, login } = useAuth();
 
   console.log('Index: Rendering with state:', { 
     user: !!user, 
     userEmail: user?.email,
-    userRole: user?.role,
+    userrole,
     requiresPasswordChange, 
     isLoading 
   });
@@ -43,22 +43,18 @@ const Index = () => {
     );
   }
 
-  console.log('Index: User authenticated, showing dashboard for role:', user.role);
+  console.log('Index: User authenticated, showing dashboard for role:', userrole);
 
   const renderDashboard = () => {
-    switch (user.role) {
+    switch (userrole) {
       case 'superadmin':
-        console.log('Index: Rendering SuperadminDashboard');
         return <SuperadminDashboard />;
-      case 'manager':
-        console.log('Index: Rendering ManagerDashboard');
+      case 'admin':
         return <ManagerDashboard />;
       case 'employee':
-        console.log('Index: Rendering EmployeeDashboard');
         return <EmployeeDashboard />;
       default:
-        console.error('Index: Invalid user role:', user.role);
-        return <div>Invalid user role: {user.role}</div>;
+        return <EmployeeDashboard />;
     }
   };
 

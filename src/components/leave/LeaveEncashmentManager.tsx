@@ -32,7 +32,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 
 const LeaveEncashmentManager = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeesWithUnusedLeave, setEmployeesWithUnusedLeave] = useState<any[]>([]);
   const [encashmentRecords, setEncashmentRecords] = useState<LeaveEncashmentRecord[]>([]);
@@ -133,7 +133,7 @@ const LeaveEncashmentManager = () => {
     .filter(record => record.status === 'Processed')
     .reduce((sum, record) => sum + record.total_encashment_amount, 0);
 
-  if (!user || user.role !== 'superadmin') {
+  if (!user || userrole !== 'superadmin') {
     return (
       <Card>
         <CardContent className="p-6">

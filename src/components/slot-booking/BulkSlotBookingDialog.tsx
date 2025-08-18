@@ -42,7 +42,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   selectedDate,
   onSuccess
 }) => {
-  const { userRole, adminAccess } = useAuth();
+  const { userrole, adminAccess } = useAuth();
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
@@ -54,8 +54,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const [overrideSlotLimit, setOverrideSlotLimit] = useState(false);
 
   // Check if user can override slot limits
-  const canOverrideSlots = userRole === 'superadmin' || 
-                          (userRole === 'admin' && adminAccess?.slot_booking);
+  const canOverrideSlots = userrole === 'superadmin' || 
+                          (userrole === 'admin' && adminAccess?.slot_booking);
 
   useEffect(() => {
     if (isOpen) {

@@ -10,7 +10,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<'employee' | 'admin' | 'superadmin' | null>(null);
+  const [userrole, setUserrole] = useState<'employee' | 'admin' | 'superadmin' | null>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
   const [adminAccess, setAdminAccess] = useState<any>(null);
   const [pageAccess, setPageAccess] = useState<any>(null);
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Fast path for no session - immediately set loading to false
     if (!session?.user) {
       setUser(null);
-      setUserRole(null);
+      setUserrole(null);
       setUserDetails(null);
       setAdminAccess(null);
       setPageAccess(null);
@@ -53,21 +53,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             id: session.user.id,
             email: session.user.email!,
             name: userData?.name || session.user.user_metadata?.full_name || 'Superadmin',
-            role: 'superadmin' as const,
             employeeId: userData?.id,
             department: 'Administration'
           };
           
-          console.log('AuthContext: Setting superadmin user object:', superadminUser);
           setUser(superadminUser);
-          setUserRole('superadmin');
+          setUserrole('superadmin');
           setUserDetails(userData);
-          setAdminAccess(null); // Superadmins don't use admin_access table
-          setPageAccess(null);  // Superadmins don't use page_access table
-          
-          console.log('AuthContext: SUPERADMIN USER SETUP COMPLETE');
-          console.log('AuthContext: Final user state:', superadminUser);
-          console.log('AuthContext: Final userRole state:', 'superadmin');
           
           setIsLoading(false);
           return;
@@ -91,14 +83,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Determine role based on admin access
           const hasAdminRights = adminData && Object.values(adminData).some(Boolean);
-          const role = hasAdminRights ? 'manager' : 'employee';
-          setUserRole(hasAdminRights ? 'admin' : 'employee');
+          setUserrole(hasAdminRights ? 'admin' : 'employee');
           
           setUser({
             id: session.user.id,
             email: session.user.email!,
             name: userData.name,
-            role: role,
             employeeId: userData.id,
             department: userData.department,
             position: userData.position
@@ -106,12 +96,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           console.log('AuthContext: User role determined:', hasAdminRights ? 'admin' : 'employee');
         } else {
-          console.log('AuthContext: No employee data found for user');
           setUser({
             id: session.user.id,
             email: session.user.email!,
-            name: 'Unknown User',
-            role: 'employee'
+            name: 'Unknown User'
           });
         }
       } catch (error) {
@@ -124,7 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } else {
       setUser(null);
-      setUserRole(null);
+      setUserrole(null);
       setUserDetails(null);
       setAdminAccess(null);
       setPageAccess(null);
@@ -243,7 +231,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value: AuthContextType = {
     user,
-    userRole,
+    userrole,
     userDetails,
     adminAccess,
     pageAccess,

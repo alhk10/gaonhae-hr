@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 
 const EnhancedLeaveSummary = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [eligibleEmployees, setEligibleEmployees] = useState<EligibleEmployee[]>([]);
   const [entitlements, setEntitlements] = useState<Record<string, LeaveEntitlementCalculation>>({});
   const [unusedLeaveData, setUnusedLeaveData] = useState<any[]>([]);
@@ -93,7 +93,7 @@ const EnhancedLeaveSummary = () => {
   };
 
   const handleCleanupIneligibleData = async () => {
-    if (!user || user.role !== 'superadmin') {
+    if (!user || userrole !== 'superadmin') {
       toast({
         title: "Access Denied",
         description: "Only superadmin can perform data cleanup",
@@ -236,7 +236,7 @@ const EnhancedLeaveSummary = () => {
       </div>
 
       {/* Admin Actions */}
-      {user?.role === 'superadmin' && (
+      {userrole === 'superadmin' && (
         <Card className="border-red-200 bg-red-50">
           <CardHeader>
             <CardTitle className="text-red-800 flex items-center">

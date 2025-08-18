@@ -34,7 +34,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const [localPayrollStatus, setLocalPayrollStatus] = useState<PayrollStatus | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const [userRole, setUserRole] = useState<string>('');
+  const [userrole, setUserrole] = useState<string>('');
   
   const payrollContext = usePayroll();
   const { toast } = useToast();
@@ -141,7 +141,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
     try {
       const { data, error } = await supabase.rpc('get_current_user_role');
       if (!error) {
-        setUserRole(data || '');
+        setUserrole(data || '');
       }
     } catch (error) {
       console.error('Error checking user role:', error);
@@ -179,7 +179,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const isLocked = localPayrollStatus?.status === 'finalized';
 
   const handleUnlockPayroll = async () => {
-    if (!isLocked || userRole !== 'superadmin') return;
+    if (!isLocked || userrole !== 'superadmin') return;
     
     try {
       setIsUnlocking(true);
@@ -304,7 +304,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
               </Badge>
             )}
             
-            {isLocked && isPastPeriod() && userRole === 'superadmin' && (
+            {isLocked && isPastPeriod() && userrole === 'superadmin' && (
               <Button
                 variant="outline"
                 size="sm"
