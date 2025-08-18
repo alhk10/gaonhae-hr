@@ -1344,6 +1344,10 @@ export type Database = {
         Args: { join_date: string; reference_date?: string }
         Returns: number
       }
+      check_employee_admin_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       force_book_eldon_slots: {
         Args: Record<PropertyKey, never>
         Returns: Json
