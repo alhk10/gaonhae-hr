@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   const handleUserSession = async (session: Session | null) => {
-    console.log('AuthContext: Processing user session...');
+    console.log('AuthContext: Processing user session with enhanced debugging...', session?.user?.email);
     
     // Fast path for no session - immediately set loading to false
     if (!session?.user) {
@@ -35,24 +35,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (session?.user) {
       try {
+        console.log('AuthContext: Starting user setup for:', session.user.email);
+        
+        // Check if user is superadmin FIRST with enhanced logging
+        console.log('AuthContext: Checking superadmin status for:', session.user.email);
+        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
+        console.log('AuthContext: Superadmin check result for', session.user.email, ':', isSuperadmin);
+        
+        if (isSuperadmin) {
+          console.log('AuthContext: User IS SUPERADMIN - setting up superadmin user');
+          
+          // Get basic user data for name
+          const userData = await getUserData(session.user.email!);
+          console.log('AuthContext: Got user data for superadmin:', userData);
+          
+          const superadminUser = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: userData?.name || session.user.user_metadata?.full_name || 'Superadmin',
+            role: 'superadmin' as const,
+            employeeId: userData?.id,
+            department: 'Administration'
+          };
+          
+          console.log('AuthContext: Setting superladmin user object:', superadminUser);
+          setUser(superadminUser);
+          setUserRole('superadmin');
+          setUserDetails(userData);
+          setAdminAccess(null); // Superadmins don't use admin_access table
+          setPageAccess(null);  // Superadmins don't use page_access table
+          
+          console.log('AuthContext: SUPERADMIN USER SETUP COMPLETE');
+          console.log('AuthContext: Final user state:', superadminUser);
+          console.log('AuthContext: Final userRole state:', 'superadmin');
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('AuthContext: User is NOT superadmin, proceeding with regular user setup');
+        
         // Get user details with proper timeout
         const userData = await getUserData(session.user.email!);
         setUserDetails(userData);
 
-        // Check if user is superadmin with shorter timeout
-        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        
-        if (isSuperadmin) {
-          setUserRole('superadmin');
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: userData?.name || 'Superadmin',
-            role: 'superadmin',
-            employeeId: userData?.id
-          });
-          console.log('AuthContext: User identified as superadmin');
-        } else if (userData) {
+        if (userData) {
           // Get admin access and page access for non-superadmin users
           const [adminData, pageData] = await Promise.all([
             getUserAdminAccess(userData.id),
