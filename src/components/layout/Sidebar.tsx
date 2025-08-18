@@ -27,7 +27,7 @@ interface MenuItem {
 }
 
 const Sidebar = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
@@ -37,17 +37,27 @@ const Sidebar = () => {
   // Debug current user state
   useEffect(() => {
     console.log('Sidebar: User state updated:', user);
+    console.log('Sidebar: UserRole from context:', userRole);
     if (user) {
-      console.log('Sidebar: User role:', user.role);
+      console.log('Sidebar: User role (from user object):', user.role);
       console.log('Sidebar: User email:', user.email);
     }
-  }, [user]);
+  }, [user, userRole]);
 
   useEffect(() => {
     const loadCurrentEmployee = async () => {
       console.log('Sidebar: Loading current employee data for user:', user);
+      console.log('Sidebar: UserRole check before loading employee data:', userRole, user?.role);
       
-      // Load employee data for all users (including those with admin permissions)
+      // Skip employee data loading for superadmins - they don't need it
+      if (userRole === 'superadmin' || user?.role === 'superadmin') {
+        console.log('Sidebar: Superadmin detected - skipping employee data load');
+        setCurrentEmployee(null);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Load employee data for non-superadmin users
       if (user?.email) {
         try {
           setIsLoading(true);
@@ -79,30 +89,31 @@ const Sidebar = () => {
     };
 
     loadCurrentEmployee();
-  }, [user]);
+  }, [user, userRole]);
 
   const getMenuItems = (): MenuItem[] => {
     console.log('Sidebar: Getting menu items for user:', user);
-    console.log('Sidebar: User role check:', user?.role);
+    console.log('Sidebar: UserRole from context:', userRole);
+    console.log('Sidebar: User role from user object:', user?.role);
     
     const baseItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
-    // Superadmin gets admin-only access - no personal employee functions
-    if (user?.role === 'superadmin') {
-      console.log('Sidebar: Returning superadmin menu items');
+    // Superadmin gets admin-only access - check both userRole and user.role for safety
+    if (userRole === 'superadmin' || user?.role === 'superadmin') {
+      console.log('Sidebar: Returning superadmin menu items - detected via userRole:', userRole, 'or user.role:', user?.role);
       const adminItems = [
         ...baseItems,
-        { icon: Users, label: 'Employees', path: '/employees' },
-        { icon: DollarSign, label: 'Payroll', path: '/payroll' },
+        { icon: Users, label: 'Employee Management', path: '/employees' },
+        { icon: DollarSign, label: 'Payroll Management', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
-        { icon: FileText, label: 'Claims', path: '/claims' },
-        { icon: UserCheck, label: 'Attendance', path: '/attendance' },
-        { icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' },
+        { icon: FileText, label: 'Claims Management', path: '/claims' },
+        { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },
+        { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
-      console.log('Sidebar: Admin menu items:', adminItems);
+      console.log('Sidebar: Superadmin menu items created:', adminItems);
       return adminItems;
     }
 
