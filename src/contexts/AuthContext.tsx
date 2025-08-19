@@ -6,7 +6,19 @@ import { useToast } from '@/components/ui/use-toast';
 import { getUserData, getUserAdminAccess, getUserPageAccess, checkSuperadminStatus } from '@/services/authOptimizationService';
 import { AuthContextType } from '@/types/auth';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create context with default values
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  userrole: null,
+  userDetails: null,
+  adminAccess: null,
+  pageAccess: null,
+  isLoading: true,
+  requiresPasswordChange: false,
+  login: async () => false,
+  logout: async () => {},
+  updatePassword: async () => false,
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
@@ -262,7 +274,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  // Context should always have a value now, but let's add a sanity check
+  if (!context || context.isLoading === undefined) {
+    console.error('useAuth: Context appears to be invalid:', context);
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
