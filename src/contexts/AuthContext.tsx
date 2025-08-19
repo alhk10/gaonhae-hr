@@ -45,12 +45,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('🚀 Starting session setup...');
       
-      // Get user employee data
-      const userData = await getUserData(session.user.email!);
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Session setup timeout')), 10000)
+      );
+      
+      // Get user employee data with timeout
+      const userData = await Promise.race([
+        getUserData(session.user.email!),
+        timeoutPromise
+      ]);
+      
       console.log('📊 User data fetched:', userData);
       
       if (!userData) {
         console.log('❌ No employee record found');
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.email!.split('@')[0],
+        });
         setUserrole('employee');
         setUserDetails(null);
         setAdminAccess(null);
@@ -70,18 +84,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setAdminAccess(null); // Superadmin has full access
         setPageAccess(null);
       } else {
-        // Check admin access
-        const [adminAccess, pageAccess] = await Promise.all([
-          getUserAdminAccess(userData.id),
-          getUserPageAccess(userData.id)
-        ]);
-        
-        if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
-          role = 'admin';
-          console.log('🔐 User identified as admin');
+        // Check admin access with timeout
+        try {
+          const accessData = await Promise.race([
+            Promise.all([
+              getUserAdminAccess(userData.id),
+              getUserPageAccess(userData.id)
+            ]),
+            timeoutPromise
+          ]) as [any, any];
+          
+          const [adminAccess, pageAccess] = accessData;
+          
+          if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+            role = 'admin';
+            console.log('🔐 User identified as admin');
+          }
+          setAdminAccess(adminAccess);
+          setPageAccess(pageAccess);
+        } catch (accessError) {
+          console.warn('⚠️ Access check timeout, using defaults');
+          setAdminAccess({});
+          setPageAccess({
+            profile: true,
+            apply_leave: true,
+            submit_claim: true,
+            payslips: true,
+            my_attendance: true,
+            slot_booking_employee: true
+          });
         }
-        setAdminAccess(adminAccess);
-        setPageAccess(pageAccess);
       }
 
       setUser({
@@ -99,10 +131,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
     } catch (error) {
       console.error('❌ Session setup error:', error);
+      
+      // Fallback: Set basic user info even if database queries fail
+      setUser({
+        id: session.user.id,
+        email: session.user.email!,
+        name: session.user.email!.split('@')[0],
+      });
       setUserrole('employee');
       setUserDetails(null);
-      setAdminAccess(null);
-      setPageAccess(null);
+      setAdminAccess({});
+      setPageAccess({
+        profile: true,
+        apply_leave: true,
+        submit_claim: true,
+        payslips: true,
+        my_attendance: true,
+        slot_booking_employee: true
+      });
       setIsLoading(false);
     }
   };
