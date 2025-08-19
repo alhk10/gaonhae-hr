@@ -60,7 +60,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(superadminUser);
           setUserrole('superadmin');
           setUserDetails(userData);
+          // Clear admin/page access for superadmin since they have full access
+          setAdminAccess(null);
+          setPageAccess(null);
           
+          console.log('AuthContext: Superadmin setup complete - userrole set to:', 'superadmin');
           setIsLoading(false);
           return;
         }

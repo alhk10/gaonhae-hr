@@ -69,18 +69,22 @@ const Sidebar = () => {
   }, [user, userrole]);
 
   const getMenuItems = useCallback((): MenuItem[] => {
+    console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email);
+    
     // Superadmin gets admin-only access
     if (userrole === 'superadmin') {
+      console.log('Sidebar: Generating superadmin menu - full access granted');
       const adminItems = [
         { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Employee Management', path: '/employees' },
-        { icon: DollarSign, label: 'Payroll Management', path: '/payroll' },
+        { icon: DollarSign, label: 'Payroll Processing', path: '/payroll-processing' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims Management', path: '/claims' },
         { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
+      console.log('Sidebar: Superadmin menu items:', adminItems.length);
       return adminItems;
     }
 

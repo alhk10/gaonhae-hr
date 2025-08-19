@@ -23,7 +23,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
     </div>
   )
 }) => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
@@ -34,12 +34,12 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
       console.log('PageAccessGuard: Current user:', {
         id: user?.id,
         email: user?.email,
-        role: user?.role,
+        userrole: userrole,
         employeeId: user?.employeeId
       });
       
       // Superadmin has access to all pages
-      if (user?.role === 'superadmin') {
+      if (userrole === 'superadmin') {
         console.log('PageAccessGuard: Superadmin access granted');
         setHasAccess(true);
         setIsLoading(false);
