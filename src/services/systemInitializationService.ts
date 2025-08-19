@@ -1,5 +1,4 @@
 import { executeBookingFixPlan, checkBookingSystemHealth } from './bookingFixService';
-import { toast } from 'sonner';
 
 export const initializeBookingSystemFix = async (): Promise<void> => {
   try {
@@ -11,7 +10,6 @@ export const initializeBookingSystemFix = async (): Promise<void> => {
     
     if (healthCheck.criticalErrors.length > 0) {
       console.error('SystemInitialization: Critical errors detected:', healthCheck.criticalErrors);
-      toast.error(`System health issues detected: ${healthCheck.criticalErrors.join(', ')}`);
     }
 
     // Step 2: Execute the comprehensive fix plan
@@ -22,7 +20,6 @@ export const initializeBookingSystemFix = async (): Promise<void> => {
     
   } catch (error) {
     console.error('SystemInitialization: Failed to initialize booking system fix:', error);
-    toast.error(`Failed to initialize booking system fix: ${error}`);
     throw error;
   }
 };

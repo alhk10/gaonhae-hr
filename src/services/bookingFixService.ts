@@ -1,5 +1,4 @@
 import { createAuthAccountsForJasonAndEldon, verifyBookingCreation } from './authFixService';
-import { toast } from 'sonner';
 
 export const executeBookingFixPlan = async (): Promise<void> => {
   try {
@@ -11,10 +10,8 @@ export const executeBookingFixPlan = async (): Promise<void> => {
     
     if (authResult.errors.length > 0) {
       console.warn('BookingFixService: Authentication issues detected:', authResult.errors);
-      toast.warning(`Authentication setup completed with warnings: ${authResult.errors.length} issues detected`);
     } else {
       console.log('BookingFixService: Authentication accounts verified successfully');
-      toast.success('Authentication accounts verified for both users');
     }
 
     // Step 2: Verify manual bookings were created
@@ -30,14 +27,9 @@ export const executeBookingFixPlan = async (): Promise<void> => {
         eldon: eldonCount
       });
       
-      if (jasonCount >= 2 && eldonCount >= 2) {
-        toast.success(`Manual bookings verified: Jason (${jasonCount} bookings), Eldon (${eldonCount} bookings)`);
-      } else {
-        toast.warning(`Manual bookings partially created: Jason (${jasonCount}/2), Eldon (${eldonCount}/2)`);
-      }
+      console.log(`Manual bookings verified: Jason (${jasonCount} bookings), Eldon (${eldonCount} bookings)`);
     } else {
       console.error('BookingFixService: Failed to verify manual bookings');
-      toast.error('Failed to verify manual bookings');
     }
 
     // Step 3: Log the completion
@@ -58,7 +50,6 @@ export const executeBookingFixPlan = async (): Promise<void> => {
 
   } catch (error) {
     console.error('BookingFixService: Fatal error during plan execution:', error);
-    toast.error(`Failed to execute booking fix plan: ${error}`);
     throw error;
   }
 };
