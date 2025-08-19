@@ -25,13 +25,30 @@ interface MenuItem {
   path: string;
 }
 
+import { validateSuperadminAccess, logAuthState } from '@/utils/authValidation';
+import { systemValidator } from '@/utils/systemTestValidator';
+
 const Sidebar = () => {
-  const { user, userrole } = useAuth();
+  const authData = useAuth();
+  const { user, userrole } = authData;
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Log auth state for debugging
+  logAuthState('Sidebar Component', authData);
+
+  // Run system validation for superadmin users (only once per session)
+  useEffect(() => {
+    if (userrole === 'superadmin' && user?.email) {
+      console.log('🧪 Running system validation for superadmin user...');
+      systemValidator.runAllTests(user.email).then(results => {
+        console.log('🧪 System validation complete for', user.email);
+      });
+    }
+  }, [userrole, user?.email]);
 
   useEffect(() => {
     const loadCurrentEmployee = async () => {
@@ -71,9 +88,9 @@ const Sidebar = () => {
   const getMenuItems = useCallback((): MenuItem[] => {
     console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email);
     
-    // Superadmin gets admin-only access
-    if (userrole === 'superadmin') {
-      console.log('Sidebar: Generating superadmin menu - full access granted');
+    // Superladmin gets full admin access with validation
+    if (validateSuperadminAccess(userrole, user?.email)) {
+      console.log('Sidebar: ✅ SUPERADMIN ACCESS GRANTED - Full menu generated');
       const adminItems = [
         { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Employee Management', path: '/employees' },
@@ -84,7 +101,7 @@ const Sidebar = () => {
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
         { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
-      console.log('Sidebar: Superadmin menu items:', adminItems.length);
+      console.log('Sidebar: Superladmin menu items:', adminItems.length, 'total items');
       return adminItems;
     }
 

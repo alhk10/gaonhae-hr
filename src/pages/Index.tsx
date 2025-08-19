@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
 import LoggedOutPage from '@/components/auth/LoggedOutPage';
 import PasswordChangeModal from '@/components/auth/PasswordChangeModal';
+import SystemStatus from '@/components/SystemStatus';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import SuperadminDashboard from '@/components/dashboard/SuperadminDashboard';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
@@ -60,6 +61,7 @@ const Index = () => {
 
   return (
     <ResponsiveLayout>
+      <SystemStatus />
       {renderDashboard()}
     </ResponsiveLayout>
   );

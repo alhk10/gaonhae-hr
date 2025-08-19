@@ -8,6 +8,7 @@ import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, TrendingUp } fro
 import { getAllPayrollRecords, PayrollRecord, getPayrollStatus, updatePayrollLockStatus } from '@/services/payrollService';
 import { formatCurrency } from '@/utils/payrollCalculations';
 import { usePayroll } from '@/contexts/PayrollContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,6 +40,18 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const payrollContext = usePayroll();
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Get user role from auth context
+  const authContext = useAuth();
+  const authUserrole = authContext.userrole;
+
+  useEffect(() => {
+    if (authUserrole) {
+      setUserrole(authUserrole);
+    } else {
+      checkUserRole();
+    }
+  }, [authUserrole]);
   
   // Safety check - ensure context is available
   if (!payrollContext) {
@@ -138,6 +151,13 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   }, [selectedPeriod]);
 
   const checkUserRole = async () => {
+    if (authUserrole) {
+      // Use role from auth context if available
+      setUserrole(authUserrole);
+      return;
+    }
+    
+    // Fallback to direct Supabase call if needed
     try {
       const { data, error } = await supabase.rpc('get_current_user_role');
       if (!error) {
