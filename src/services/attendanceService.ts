@@ -183,52 +183,16 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
   });
   const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-  console.log('=== ATTENDANCE SERVICE DEBUG START ===');
-  console.log('Clock action requested:', { employeeId, action, location, currentDate, currentTime });
-  console.log('Server timezone info:', { 
-    utcNow: new Date().toISOString(),
-    localNow: new Date().toString(),
-    timezoneOffset: new Date().getTimezoneOffset()
-  });
-
   try {
     // Check if employee is casual and validate slot booking for clock in
     if (action === 'in') {
-      console.log('Processing clock-in validation...');
-      
       const employeeData = await getEmployeeById(employeeId);
-      console.log('Employee data retrieved:', {
-        found: !!employeeData,
-        employeeId: employeeData?.id,
-        name: employeeData?.name,
-        type: employeeData?.type,
-        email: employeeData?.email
-      });
       
       if (employeeData && employeeData.type === 'Casual') {
-        console.log('=== CASUAL EMPLOYEE SLOT VALIDATION START ===');
-        console.log('Validating slot booking for casual employee:', employeeId);
-        console.log('Looking for approved slot on date:', currentDate);
-        
         // Get all slot bookings from Supabase
-        console.log('Fetching slot bookings from getAllSlotBookings()...');
         const allSlotBookings = await getAllSlotBookings();
-        console.log('Total slot bookings retrieved:', allSlotBookings.length);
-        
-        // Log all bookings for this employee
-        const employeeBookings = allSlotBookings.filter(booking => booking.employeeId === employeeId);
-        console.log(`All bookings for employee ${employeeId}:`, employeeBookings.map(booking => ({
-          id: booking.id,
-          employeeId: booking.employeeId,
-          employeeName: booking.employeeName,
-          date: booking.date,
-          status: booking.status,
-          branchId: booking.branchId,
-          branchName: booking.branchName
-        })));
         
         // Direct database query validation as fallback
-        console.log('Performing direct database query validation...');
         const { data: directBookings, error: directError } = await supabase
           .from('slot_bookings_new')
           .select('*')
@@ -236,68 +200,18 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
           .eq('date', currentDate)
           .eq('status', 'approved');
         
-        console.log('Direct database query results:', {
-          error: directError,
-          found: directBookings?.length || 0,
-          bookings: directBookings?.map(booking => ({
-            id: booking.id,
-            employee_id: booking.employee_id,
-            employee_name: booking.employee_name,
-            date: booking.date,
-            status: booking.status,
-            branch_id: booking.branch_id,
-            branch_name: booking.branch_name
-          }))
-        });
-        
         // Find approved slot booking for this employee and date
         const matchingBookings = allSlotBookings.filter(booking => {
-          const employeeMatch = booking.employeeId === employeeId;
-          const dateMatch = booking.date === currentDate;
-          const statusMatch = booking.status === 'approved';
-          
-          console.log('Checking booking:', {
-            bookingId: booking.id,
-            employeeId: booking.employeeId,
-            date: booking.date,
-            status: booking.status,
-            employeeMatch,
-            dateMatch,
-            statusMatch,
-            overallMatch: employeeMatch && dateMatch && statusMatch
-          });
-          
-          return employeeMatch && dateMatch && statusMatch;
+          return booking.employeeId === employeeId && 
+                 booking.date === currentDate && 
+                 booking.status === 'approved';
         });
         
         const hasApprovedSlot = matchingBookings.length > 0;
         
-        console.log('=== SLOT VALIDATION RESULTS ===');
-        console.log('Matching bookings found:', matchingBookings.length);
-        console.log('Has approved slot (cached query):', hasApprovedSlot);
-        console.log('Has approved slot (direct query):', (directBookings?.length || 0) > 0);
-        console.log('Date format comparison:', {
-          searchDate: currentDate,
-          searchEmployeeId: employeeId,
-          dateType: typeof currentDate,
-          employeeIdType: typeof employeeId
-        });
-        
-        if (matchingBookings.length > 0) {
-          console.log('Approved slot booking details:', matchingBookings[0]);
-        }
-        
         if (!hasApprovedSlot && (directBookings?.length || 0) === 0) {
-          console.log('=== VALIDATION FAILED ===');
-          console.log('No approved slot booking found via both methods');
-          console.log('Employee bookings on other dates:', employeeBookings.filter(b => b.date !== currentDate));
-          console.log('Bookings for current date (all employees):', allSlotBookings.filter(b => b.date === currentDate));
-          
           throw new Error('Casual employees can only clock in with an approved slot booking for today. Please ensure you have booked and got approval for a slot before attempting to clock in.');
         }
-        
-        console.log('=== SLOT VALIDATION PASSED ===');
-        console.log('Proceeding with clock-in...');
       }
     }
 

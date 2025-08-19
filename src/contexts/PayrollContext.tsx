@@ -127,7 +127,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const initializePayroll = async () => {
       try {
-        console.log('PayrollContext initialized');
         await loadPayrollFromSupabase();
       } catch (error) {
         console.error('Error initializing PayrollContext:', error);
@@ -142,7 +141,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (payrollState.currentPeriod) {
       const loadPayrollData = async () => {
         try {
-          console.log('📊 PayrollContext: Auto-loading payroll data for period', payrollState.currentPeriod);
           await loadPayrollFromSupabase();
         } catch (error) {
           console.error('Error auto-loading payroll data:', error);
@@ -342,7 +340,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       approvedClaims // approved claims amount
     );
     
-    console.log(`Adding ${employee.name} to casual payroll with ${approvedClaims} in claims, ${employee.hoursWorked} hours, ${employee.daysWorked} days`);
+    
 
     const newEmployee: CasualEmployee = {
       ...employee,
@@ -447,7 +445,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const refreshAvailableEmployees = useCallback(async () => {
-    console.log('DEBUG: refreshAvailableEmployees called');
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     try {
       const { data: employees, error } = await supabase
@@ -455,8 +452,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
 
       if (error) throw error;
-      
-      console.log('DEBUG: Fetched employees from Supabase:', employees?.length || 0);
       
       // AUTO-FIX: Ensure Wang Pot Chien and Siti Aisyah are always included
       const missingEmployeeData = [
