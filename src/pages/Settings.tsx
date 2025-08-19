@@ -13,9 +13,30 @@ import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 
 const Settings = () => {
-  const { userrole } = useAuth();
+  const { userrole, isLoading, user, userDetails } = useAuth();
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
+
+  // Debug logging
+  console.log('Settings Page Debug:', {
+    userrole,
+    isLoading,
+    userEmail: user?.email,
+    userDetailsIsSuperadmin: userDetails?.isSuperadmin
+  });
+
+  // Show loading while auth is being resolved
+  if (isLoading) {
+    return (
+      <ResponsiveLayout>
+        <div className="p-6">
+          <div className="text-center text-gray-500">
+            Loading...
+          </div>
+        </div>
+      </ResponsiveLayout>
+    );
+  }
 
   // Only superadmins can access settings
   if (userrole !== 'superadmin') {
