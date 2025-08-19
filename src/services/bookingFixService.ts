@@ -50,12 +50,11 @@ export const executeBookingFixPlan = async (): Promise<void> => {
       authErrors: authResult.errors.length
     });
 
-    // Final status message
-    if (authResult.jason && authResult.eldon && bookingResult.success) {
-      toast.success('🎉 Booking issues resolved! Jason and Eldon should now be able to access the system and see their approved bookings.');
-    } else {
-      toast.warning('⚠️ Partial resolution achieved. Some issues may remain. Check console for details.');
-    }
+    // Final status logging (notifications removed as issues are resolved)
+    console.log('BookingFixService: Execution completed', {
+      authSuccess: authResult.jason && authResult.eldon,
+      bookingSuccess: bookingResult.success
+    });
 
   } catch (error) {
     console.error('BookingFixService: Fatal error during plan execution:', error);

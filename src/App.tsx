@@ -6,8 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
 import AuthGuard from './components/auth/AuthGuard';
 import PageAccessGuard from './components/auth/PageAccessGuard';
-// Initialize booking system fixes
-import '@/services/systemInitializationService';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
 import EmployeeDetails from './pages/EmployeeDetails';
