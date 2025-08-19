@@ -262,19 +262,23 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
   try {
     console.log('AuthOptimization: Checking superadmin status for:', email);
     
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log('AuthOptimization: Normalized email for superadmin check:', normalizedEmail);
+    
     const data = await fetchWithRetry(
       () => supabase
         .from('superadmin_users')
         .select('id, is_active')
-        .eq('employee_email', email.toLowerCase())
+        .eq('employee_email', normalizedEmail)
         .eq('is_active', true)
         .maybeSingle(),
       5000, // Reduced to 5 seconds
       2 // 2 retries
     );
     
+    console.log('AuthOptimization: Superadmin query result:', data);
     const superadminStatus = !!data?.data;
-    console.log('AuthOptimization: Superadmin status determined:', email, superadminStatus);
+    console.log('AuthOptimization: Final superadmin status for', email, ':', superadminStatus);
     return superadminStatus;
   } catch (error) {
     console.error('AuthOptimization: Exception checking superadmin status:', error);
