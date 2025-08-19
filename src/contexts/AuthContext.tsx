@@ -38,21 +38,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('AuthContext: Starting user setup for:', session.user.email);
         
         // Check if user is superadmin FIRST with enhanced logging
-        console.log('AuthContext: Checking superadmin status for:', session.user.email);
+        console.log('🔐 AuthContext: Checking superadmin status for:', session.user.email);
+        console.log('🔐 AuthContext: Session user object:', {
+          id: session.user.id,
+          email: session.user.email,
+          metadata: session.user.user_metadata
+        });
+        
         const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        console.log('AuthContext: Superadmin check result for', session.user.email, ':', isSuperadmin);
+        console.log('🔐 AuthContext: *** CRITICAL *** Superadmin check result for', session.user.email, ':', isSuperadmin);
         
         if (isSuperadmin) {
-          console.log('AuthContext: User IS SUPERADMIN - setting up superadmin user');
+          console.log('🔐 AuthContext: *** SUPERADMIN DETECTED *** Setting up superadmin user');
           
           // Get basic user data for name
           const userData = await getUserData(session.user.email!);
-          console.log('AuthContext: Got user data for superadmin:', userData);
+          console.log('🔐 AuthContext: Got user data for superadmin:', userData);
           
           const superadminUser = {
             id: session.user.id,
             email: session.user.email!,
-            name: userData?.name || session.user.user_metadata?.full_name || 'Superadmin',
+            name: userData?.name || session.user.user_metadata?.full_name || 'System Administrator',
             employeeId: userData?.id,
             department: 'Administration'
           };
@@ -64,7 +70,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setAdminAccess(null);
           setPageAccess(null);
           
-          console.log('AuthContext: Superadmin setup complete - userrole set to:', 'superadmin');
+          console.log('🔐 AuthContext: *** SUPERADMIN SETUP COMPLETE *** userrole set to:', 'superadmin');
+          console.log('🔐 AuthContext: Final superadmin user object:', superadminUser);
           setIsLoading(false);
           return;
         }

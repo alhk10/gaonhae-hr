@@ -257,31 +257,53 @@ export const checkSuperadminStatus = async (email: string): Promise<boolean> => 
   return checkSuperadminStatusCached(email);
 };
 
-// Optimized superadmin check with reduced timeout and retry
+// Optimized superadmin check with enhanced debugging and direct table access
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
-    console.log('AuthOptimization: Checking superadmin status for:', email);
+    console.log('🔍 SUPERADMIN CHECK: Starting for email:', email);
     
     const normalizedEmail = email.toLowerCase().trim();
-    console.log('AuthOptimization: Normalized email for superadmin check:', normalizedEmail);
+    console.log('🔍 SUPERADMIN CHECK: Normalized email:', normalizedEmail);
     
-    const data = await fetchWithRetry(
-      () => supabase
+    // First try direct query with detailed logging
+    console.log('🔍 SUPERADMIN CHECK: Executing direct Supabase query...');
+    const { data, error } = await supabase
+      .from('superadmin_users')
+      .select('id, employee_email, employee_name, is_active, created_at')
+      .eq('employee_email', normalizedEmail)
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    console.log('🔍 SUPERADMIN CHECK: Raw query result:', { data, error });
+    
+    if (error) {
+      console.error('❌ SUPERADMIN CHECK: Database error:', error);
+      return false;
+    }
+    
+    if (data) {
+      console.log('✅ SUPERADMIN CHECK: SUCCESS - Found superadmin record:', {
+        id: data.id,
+        email: data.employee_email,
+        name: data.employee_name,
+        isActive: data.is_active
+      });
+      return true;
+    } else {
+      console.log('❌ SUPERADMIN CHECK: FAILED - No superadmin record found for:', normalizedEmail);
+      
+      // Additional debugging: Check what records exist
+      console.log('🔍 SUPERADMIN CHECK: Checking all superadmin records for debugging...');
+      const { data: allRecords } = await supabase
         .from('superadmin_users')
-        .select('id, is_active')
-        .eq('employee_email', normalizedEmail)
-        .eq('is_active', true)
-        .maybeSingle(),
-      5000, // Reduced to 5 seconds
-      2 // 2 retries
-    );
-    
-    console.log('AuthOptimization: Superadmin query result:', data);
-    const superadminStatus = !!data?.data;
-    console.log('AuthOptimization: Final superadmin status for', email, ':', superadminStatus);
-    return superadminStatus;
+        .select('employee_email, is_active')
+        .limit(10);
+      console.log('🔍 SUPERADMIN CHECK: All superadmin records:', allRecords);
+      
+      return false;
+    }
   } catch (error) {
-    console.error('AuthOptimization: Exception checking superadmin status:', error);
+    console.error('❌ SUPERADMIN CHECK: Exception during check:', error);
     return false;
   }
 };
