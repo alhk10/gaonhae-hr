@@ -45,6 +45,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
+    // Add maximum timeout for entire session setup (30 seconds)
+    const sessionTimeout = setTimeout(() => {
+      console.error('AuthContext: Session setup timed out after 30 seconds');
+      setIsLoading(false);
+      toast({
+        title: "Session Timeout",
+        description: "Session setup took too long. Please refresh the page.",
+        variant: "destructive",
+      });
+    }, 30000);
+
     if (session?.user) {
       try {
         console.log('AuthContext: Starting user setup for:', session.user.email);
@@ -84,6 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           console.log('🔐 AuthContext: *** SUPERADMIN SETUP COMPLETE *** userrole set to:', 'superadmin');
           console.log('🔐 AuthContext: Final superadmin user object:', superadminUser);
+          clearTimeout(sessionTimeout);
           setIsLoading(false);
           return;
         }
@@ -132,6 +144,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: "There was an error setting up your session. Please try logging in again.",
           variant: "destructive",
         });
+        // CRITICAL FIX: Always set loading to false on error
+        setIsLoading(false);
+        
+        // Set minimal user state on error to prevent complete failure
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata?.full_name || 'User'
+        });
+        setUserrole('employee'); // Default safe role
       }
     } else {
       setUser(null);
@@ -141,6 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPageAccess(null);
     }
     
+    clearTimeout(sessionTimeout);
     setIsLoading(false);
   };
 
