@@ -16,7 +16,7 @@ import { getEmployees } from '@/services/employeeService';
 import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { testUploadFunctionality } from '@/services/receiptUploadService';
+
 
 const SubmitClaim = () => {
   const { user } = useAuth();
@@ -28,7 +28,7 @@ const SubmitClaim = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [employeeLoadError, setEmployeeLoadError] = useState<string | null>(null);
-  const [uploadTestResult, setUploadTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  
   const [formData, setFormData] = useState({
     type: '',
     amount: '',
@@ -40,22 +40,6 @@ const SubmitClaim = () => {
 
   console.log('SubmitClaim: Component rendered with user:', user?.email);
 
-  // Test upload functionality on component mount
-  useEffect(() => {
-    const runUploadTest = async () => {
-      console.log('SubmitClaim: Running upload functionality test...');
-      try {
-        const result = await testUploadFunctionality();
-        setUploadTestResult(result);
-        console.log('SubmitClaim: Upload test result:', result);
-      } catch (error) {
-        console.error('SubmitClaim: Upload test error:', error);
-        setUploadTestResult({ success: false, message: 'Test failed to run' });
-      }
-    };
-
-    runUploadTest();
-  }, []);
 
   // Load claim types from database
   useEffect(() => {
@@ -273,11 +257,6 @@ const SubmitClaim = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading employee information...</p>
-            {uploadTestResult && (
-              <p className="text-xs text-gray-500 mt-2">
-                Upload system: {uploadTestResult.success ? '✅' : '❌'} {uploadTestResult.message}
-              </p>
-            )}
           </div>
         </div>
       </ResponsiveLayout>
@@ -305,16 +284,6 @@ const SubmitClaim = () => {
   return (
     <ResponsiveLayout>
       <div className={`space-y-4 md:space-y-8 ${isMobile ? 'px-1' : 'max-w-7xl mx-auto'}`}>
-        {/* Upload Test Status */}
-        {uploadTestResult && (
-          <div className={`p-2 rounded-lg text-xs ${
-            uploadTestResult.success 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            Upload System Status: {uploadTestResult.success ? '✅' : '❌'} {uploadTestResult.message}
-          </div>
-        )}
 
         <div className="flex items-center justify-end">
           <Button 
