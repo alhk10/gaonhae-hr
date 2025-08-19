@@ -13,12 +13,12 @@ import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { userrole } = useAuth();
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
 
   // Only superadmins can access settings
-  if (user?.role !== 'superadmin') {
+  if (userrole !== 'superadmin') {
     return (
       <ResponsiveLayout>
         <div className="p-6">
