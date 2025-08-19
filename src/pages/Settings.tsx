@@ -39,17 +39,32 @@ const Settings = () => {
   }
 
   // Only superadmins can access settings
-  if (userrole !== 'superadmin') {
+  const hasAccess = userrole === 'superadmin';
+  console.log('Settings Access Check:', {
+    userrole,
+    hasAccess,
+    userroleLengthso: userrole?.length,
+    useroleCharCodes: userrole?.split('').map(c => c.charCodeAt(0)),
+    comparison: `'${userrole}' === 'superadmin'`,
+    strictEquals: userrole === 'superadmin'
+  });
+
+  if (!hasAccess) {
+    console.log('ACCESS DENIED for:', { userrole, user: user?.email });
     return (
       <ResponsiveLayout>
         <div className="p-6">
           <div className="text-center text-gray-500">
             Access denied. Only superadmins can access system settings.
+            <br />
+            <small>Current role: "{userrole}" (Debug: {JSON.stringify({ userrole, hasAccess })})</small>
           </div>
         </div>
       </ResponsiveLayout>
     );
   }
+
+  console.log('ACCESS GRANTED for:', { userrole, user: user?.email });
 
   const handleEmployeesUpdate = async () => {
     try {
