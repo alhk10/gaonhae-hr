@@ -95,7 +95,7 @@ const Sidebar = () => {
       const adminItems = [
         { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Employee Management', path: '/employees' },
-        { icon: DollarSign, label: 'Payroll Processing', path: '/payroll-processing' },
+        { icon: DollarSign, label: 'Payroll Processing', path: '/payroll' },
         { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
         { icon: FileText, label: 'Claims Management', path: '/claims' },
         { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },

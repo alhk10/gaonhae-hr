@@ -71,7 +71,7 @@ const PaymentSummary = () => {
   }, []);
 
   const handleProcessPayroll = () => {
-    navigate('/payroll-processing');
+    navigate('/payroll');
   };
 
   const handleViewPayroll = (payrollId: string) => {
