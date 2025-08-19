@@ -46,16 +46,16 @@ export class SystemTestValidator {
           component: 'Database',
           test: 'Superadmin Detection',
           status: 'FAIL',
-          message: `❌ No superladmin record found for ${email}`,
+          message: `❌ No superadmin record found for ${email}`,
           details: { email }
         };
       }
     } catch (error) {
       return {
         component: 'Database',
-        test: 'Superladmin Detection',
+        test: 'Superadmin Detection',
         status: 'FAIL',
-        message: `Exception during superladmin check: ${error}`,
+        message: `Exception during superadmin check: ${error}`,
         details: { error, email }
       };
     }
@@ -115,7 +115,7 @@ export class SystemTestValidator {
     try {
       // Test basic read access to key tables
       const tables = [
-        'superladmin_users',
+        'superadmin_users',
         'employees', 
         'admin_access',
         'employee_page_access'
