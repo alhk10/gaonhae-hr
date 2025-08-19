@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,9 +30,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   const handleUserSession = async (session: Session | null) => {
-    console.log('AuthContext: Processing user session with enhanced debugging...', session?.user?.email);
+    console.log('🔍 Processing user session for:', session?.user?.email);
     
-    // Fast path for no session - immediately set loading to false
     if (!session?.user) {
       setUser(null);
       setUserrole(null);
@@ -41,130 +39,72 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setAdminAccess(null);
       setPageAccess(null);
       setIsLoading(false);
-      console.log('AuthContext: No session found, cleared state');
       return;
     }
 
-    // Add maximum timeout for entire session setup (30 seconds)
-    const sessionTimeout = setTimeout(() => {
-      console.error('AuthContext: Session setup timed out after 30 seconds');
-      setIsLoading(false);
-      toast({
-        title: "Session Timeout",
-        description: "Session setup took too long. Please refresh the page.",
-        variant: "destructive",
-      });
-    }, 30000);
-
-    if (session?.user) {
-      try {
-        console.log('AuthContext: Starting user setup for:', session.user.email);
-        
-        // Check if user is superadmin FIRST with enhanced logging
-        console.log('🔐 AuthContext: Checking superadmin status for:', session.user.email);
-        console.log('🔐 AuthContext: Session user object:', {
-          id: session.user.id,
-          email: session.user.email,
-          metadata: session.user.user_metadata
-        });
-        
-        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        console.log('🔐 AuthContext: *** CRITICAL *** Superadmin check result for', session.user.email, ':', isSuperadmin);
-        
-        if (isSuperadmin) {
-          console.log('🔐 AuthContext: *** SUPERADMIN DETECTED *** Setting up superadmin user');
-          
-          // Get basic user data for name
-          const userData = await getUserData(session.user.email!);
-          console.log('🔐 AuthContext: Got user data for superadmin:', userData);
-          
-          const superadminUser = {
-            id: session.user.id,
-            email: session.user.email!,
-            name: userData?.name || session.user.user_metadata?.full_name || 'System Administrator',
-            employeeId: userData?.id,
-            department: 'Administration'
-          };
-          
-          setUser(superadminUser);
-          setUserrole('superadmin');
-          setUserDetails(userData);
-          // Clear admin/page access for superadmin since they have full access
-          setAdminAccess(null);
-          setPageAccess(null);
-          
-          console.log('🔐 AuthContext: *** SUPERADMIN SETUP COMPLETE *** userrole set to:', 'superadmin');
-          console.log('🔐 AuthContext: Final superadmin user object:', superadminUser);
-          clearTimeout(sessionTimeout);
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log('AuthContext: User is NOT superadmin, proceeding with regular user setup');
-        
-        // Get user details with proper timeout
-        const userData = await getUserData(session.user.email!);
-        setUserDetails(userData);
-
-        if (userData) {
-          // Get admin access and page access for non-superadmin users
-          const [adminData, pageData] = await Promise.all([
-            getUserAdminAccess(userData.id),
-            getUserPageAccess(userData.id)
-          ]);
-          
-          setAdminAccess(adminData);
-          setPageAccess(pageData);
-          
-          // Determine role based on admin access
-          const hasAdminRights = adminData && Object.values(adminData).some(Boolean);
-          setUserrole(hasAdminRights ? 'admin' : 'employee');
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: userData.name,
-            employeeId: userData.id,
-            department: userData.department,
-            position: userData.position
-          });
-          
-          console.log('AuthContext: User role determined:', hasAdminRights ? 'admin' : 'employee');
-        } else {
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: 'Unknown User'
-          });
-        }
-      } catch (error) {
-        console.error('AuthContext: Error setting up user session:', error);
-        toast({
-          title: "Session Setup Error",
-          description: "There was an error setting up your session. Please try logging in again.",
-          variant: "destructive",
-        });
-        // CRITICAL FIX: Always set loading to false on error
+    try {
+      console.log('🚀 Starting session setup...');
+      
+      // Get user employee data
+      const userData = await getUserData(session.user.email!);
+      console.log('📊 User data fetched:', userData);
+      
+      if (!userData) {
+        console.log('❌ No employee record found');
+        setUserrole('employee');
+        setUserDetails(null);
+        setAdminAccess(null);
+        setPageAccess(null);
         setIsLoading(false);
-        
-        // Set minimal user state on error to prevent complete failure
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata?.full_name || 'User'
-        });
-        setUserrole('employee'); // Default safe role
+        return;
       }
-    } else {
-      setUser(null);
-      setUserrole(null);
+
+      // Set user details
+      setUserDetails(userData);
+      
+      // Determine user role
+      let role: 'employee' | 'admin' | 'superadmin' = 'employee';
+      if (userData.isSuperadmin) {
+        role = 'superadmin';
+        console.log('👑 User identified as superadmin');
+        setAdminAccess(null); // Superadmin has full access
+        setPageAccess(null);
+      } else {
+        // Check admin access
+        const [adminAccess, pageAccess] = await Promise.all([
+          getUserAdminAccess(userData.id),
+          getUserPageAccess(userData.id)
+        ]);
+        
+        if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+          role = 'admin';
+          console.log('🔐 User identified as admin');
+        }
+        setAdminAccess(adminAccess);
+        setPageAccess(pageAccess);
+      }
+
+      setUser({
+        id: session.user.id,
+        email: session.user.email!,
+        name: userData.name,
+        employeeId: userData.id,
+        department: userData.department,
+        position: userData.position
+      });
+      
+      setUserrole(role);
+      console.log('✅ Session setup complete - Role:', role);
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error('❌ Session setup error:', error);
+      setUserrole('employee');
       setUserDetails(null);
       setAdminAccess(null);
       setPageAccess(null);
+      setIsLoading(false);
     }
-    
-    clearTimeout(sessionTimeout);
-    setIsLoading(false);
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {

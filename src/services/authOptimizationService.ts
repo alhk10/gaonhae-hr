@@ -1,151 +1,145 @@
 import { supabase } from '@/integrations/supabase/client';
 
+// Get current user employee data
 export const getCurrentUserEmployee = async (email: string): Promise<any> => {
-  console.log('🔍 getCurrentUserEmployee: Starting for email:', email);
-  
   try {
-    // Check for superadmin first with timeout
-    const isSuperadmin = await checkSuperadminStatusCached(email);
-    console.log('🔍 getCurrentUserEmployee: Superadmin status:', isSuperadmin);
+    console.log('[AuthOptimization] Fetching employee data for:', email);
     
-    // Fetch employee data with timeout
-    const employeeResult = await Promise.race([
-      supabase
-        .from('employees')
-        .select('*')
-        .eq('email', email.toLowerCase().trim())
-        .maybeSingle(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Employee fetch timeout')), 10000)
-      )
-    ]) as any;
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-    if (!employeeResult?.data) {
-      console.log('🔍 getCurrentUserEmployee: No employee found for email:', email);
+    if (error) {
+      console.error('[AuthOptimization] Employee query error:', error);
+      throw error;
+    }
+
+    if (!data) {
+      console.log('[AuthOptimization] No employee found for email:', email);
       return null;
     }
 
-    const employee = employeeResult.data;
-    console.log('🔍 getCurrentUserEmployee: Found employee:', employee.id, employee.name);
+    // Check superadmin status
+    const isSuperadmin = await checkSuperadminStatusCached(email);
     
-    // Return result with superadmin flag
-    const result = {
-      ...employee,
-      adminAccess: null,
-      pageAccess: null,
+    console.log('[AuthOptimization] Employee data retrieved:', {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      isSuperadmin
+    });
+
+    return {
+      ...data,
       isSuperadmin
     };
-    
-    return result;
   } catch (error) {
-    console.error('🔍 getCurrentUserEmployee: Error fetching user data:', error);
+    console.error('[AuthOptimization] Error in getCurrentUserEmployee:', error);
     throw error;
   }
 };
 
+// Alias for backward compatibility
 export const getUserData = async (email: string) => {
   return getCurrentUserEmployee(email);
 };
 
+// Get user admin access
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
-    const { data } = await supabase
+    console.log('[AuthOptimization] Fetching admin access for:', employeeId);
+    
+    const { data, error } = await supabase
       .from('admin_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
-    
-    if (data) {
-      return {
-        employees: data.employees || false,
-        payroll: data.payroll || false,
-        leaveManagement: data.leave_management || false,
-        claims: data.claims || false,
-        attendance: data.attendance || false,
-        slotBooking: data.slot_booking || false,
-        reports: data.reports || false
-      };
+
+    if (error) {
+      console.error('[AuthOptimization] Admin access query error:', error);
+      throw error;
     }
-    return null;
+
+    return data || {
+      employees: false,
+      payroll: false,
+      leave_management: false,
+      claims: false,
+      attendance: false,
+      slot_booking: false,
+      reports: false
+    };
   } catch (error) {
-    console.error('Error fetching admin access:', error);
-    return null;
+    console.error('[AuthOptimization] Error in getUserAdminAccess:', error);
+    throw error;
   }
 };
 
+// Get user page access
 export const getUserPageAccess = async (employeeId: string) => {
   try {
-    const { data } = await supabase
+    console.log('[AuthOptimization] Fetching page access for:', employeeId);
+    
+    const { data, error } = await supabase
       .from('employee_page_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
-    
-    if (data) {
-      return {
-        profile: data.profile !== false,
-        applyLeave: data.apply_leave || false,
-        submitClaim: data.submit_claim !== false,
-        payslips: data.payslips || false,
-        myAttendance: data.my_attendance !== false,
-        slotBookingEmployee: data.slot_booking_employee || false
-      };
+
+    if (error) {
+      console.error('[AuthOptimization] Page access query error:', error);
+      throw error;
     }
-    return null;
+
+    return data || {
+      profile: true,
+      apply_leave: true,
+      submit_claim: true,
+      payslips: true,
+      my_attendance: true,
+      slot_booking_employee: true
+    };
   } catch (error) {
-    console.error('Error fetching page access:', error);
-    return null;
+    console.error('[AuthOptimization] Error in getUserPageAccess:', error);
+    throw error;
   }
 };
 
+// Check superadmin status - public interface
 export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
   return checkSuperadminStatusCached(email);
 };
 
+// Check superadmin status
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
-    console.log('🔍 SUPERADMIN CHECK: Starting for email:', email);
+    console.log('[AuthOptimization] Checking superadmin status for:', email);
     
-    const normalizedEmail = email.toLowerCase().trim();
-    console.log('🔍 SUPERADMIN CHECK: Normalized email:', normalizedEmail);
-    
-    const { data, error } = await Promise.race([
-      supabase
-        .from('superadmin_users')
-        .select('id, employee_email, employee_name, is_active, created_at')
-        .eq('employee_email', normalizedEmail)
-        .eq('is_active', true)
-        .maybeSingle(),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Superadmin check timeout')), 8000)
-      )
-    ]);
-    
-    console.log('🔍 SUPERADMIN CHECK: Raw query result:', { data, error });
-    
+    const { data, error } = await supabase
+      .from('superadmin_users')
+      .select('is_active')
+      .eq('employee_email', email)
+      .eq('is_active', true)
+      .maybeSingle();
+
     if (error) {
-      console.error('❌ SUPERADMIN CHECK: Database error:', error);
+      console.error('[AuthOptimization] Superadmin query error:', error);
       return false;
     }
+
+    const isSuperadmin = !!data?.is_active;
+    console.log('[AuthOptimization] Superadmin check result:', { email, isSuperadmin });
     
-    if (data) {
-      console.log('✅ SUPERADMIN CHECK: SUCCESS - Found superadmin record:', {
-        id: data.id,
-        email: data.employee_email,
-        name: data.employee_name,
-        isActive: data.is_active
-      });
-      return true;
-    } else {
-      console.log('❌ SUPERADMIN CHECK: FAILED - No superadmin record found for:', normalizedEmail);
-      return false;
-    }
+    return isSuperadmin;
   } catch (error) {
-    console.error('❌ SUPERADMIN CHECK: Exception during check:', error);
+    console.error('[AuthOptimization] Error checking superadmin status:', error);
     return false;
   }
 };
 
+// Clear authentication cache (placeholder for future implementation)
 export const clearAuthCache = () => {
-  console.log('AuthOptimization: Cache cleared');
+  console.log('[AuthOptimization] Cache cleared');
 };
