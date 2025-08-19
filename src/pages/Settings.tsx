@@ -7,7 +7,7 @@ import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings
 import PublicHolidayManagement from '@/components/settings/PublicHolidayManagement';
 import SystemAllowanceDeductionManagement from '@/components/settings/SystemAllowanceDeductionManagement';
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
-import AuthenticationMonitor from '@/components/admin/AuthenticationMonitor';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -51,9 +51,8 @@ const Settings = () => {
           <p className="text-gray-600">Manage system configuration and user access</p>
         </div>
 
-        <Tabs defaultValue="auth-monitor" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="auth-monitor">Auth Monitor</TabsTrigger>
+        <Tabs defaultValue="auth-users" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
             <TabsTrigger value="user-management">User Management</TabsTrigger>
             <TabsTrigger value="employee-modules">Employee Modules</TabsTrigger>
@@ -61,9 +60,6 @@ const Settings = () => {
             <TabsTrigger value="holidays">Public Holidays</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="auth-monitor" className="mt-6">
-            <AuthenticationMonitor />
-          </TabsContent>
 
           <TabsContent value="auth-users" className="mt-6">
             <BulkUserCreationManager />
