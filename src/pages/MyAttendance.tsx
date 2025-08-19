@@ -73,7 +73,7 @@ const MyAttendance = () => {
     
     try {
       console.log('MyAttendance: Starting location check for user:', user.employeeId);
-      const locationCheck = await isWithinBranchRange(3000);
+      const locationCheck = await isWithinBranchRange(3000, user.employeeId);
       console.log('MyAttendance: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
@@ -230,7 +230,7 @@ const MyAttendance = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(3000);
+        const locationCheck = await isWithinBranchRange(3000, user.employeeId);
         if (!locationCheck.withinRange) {
           toast.error(
             `You must be within 3000m of a branch to clock in/out. ` +
