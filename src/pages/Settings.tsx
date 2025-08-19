@@ -17,6 +17,21 @@ const Settings = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
 
+  // Handle employees update - defined before useEffect
+  const handleEmployeesUpdate = async () => {
+    try {
+      const employeeData = await getEmployees();
+      setEmployees(employeeData);
+    } catch (error) {
+      console.error('Settings: Error fetching employees:', error);
+    }
+  };
+
+  // All hooks must be called before any conditional returns
+  useEffect(() => {
+    handleEmployeesUpdate();
+  }, []);
+
   // Debug logging
   console.log('Settings Page Debug:', {
     userrole,
@@ -65,19 +80,6 @@ const Settings = () => {
   }
 
   console.log('ACCESS GRANTED for:', { userrole, user: user?.email });
-
-  const handleEmployeesUpdate = async () => {
-    try {
-      const employeeData = await getEmployees();
-      setEmployees(employeeData);
-    } catch (error) {
-      console.error('Settings: Error fetching employees:', error);
-    }
-  };
-
-  useEffect(() => {
-    handleEmployeesUpdate();
-  }, []);
 
   return (
     <ResponsiveLayout>
