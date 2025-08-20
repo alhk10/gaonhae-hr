@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
 import AuthGuard from './components/auth/AuthGuard';
 import PageAccessGuard from './components/auth/PageAccessGuard';
+import SalesAccessGuard from './components/sales/SalesAccessGuard';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
 import EmployeeDetails from './pages/EmployeeDetails';
@@ -26,6 +27,8 @@ import Payslips from './pages/Payslips';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import SalesDashboard from './pages/sales/SalesDashboard';
+import SalesSettings from './pages/sales/SalesSettings';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -226,6 +229,88 @@ function App() {
                   } 
                 />
                 
+                {/* Protected Sales Module Routes */}
+                <Route 
+                  path="/sales" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <SalesDashboard />
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/settings" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <SalesSettings />
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/students" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <div className="min-h-screen bg-background flex items-center justify-center">
+                          <div className="text-center space-y-4">
+                            <h1 className="text-2xl font-bold">Student Management</h1>
+                            <p className="text-muted-foreground">Coming in Milestone 3 - Student 360</p>
+                          </div>
+                        </div>
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/products" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <div className="min-h-screen bg-background flex items-center justify-center">
+                          <div className="text-center space-y-4">
+                            <h1 className="text-2xl font-bold">Products & Inventory</h1>
+                            <p className="text-muted-foreground">Coming in Milestone 5</p>
+                          </div>
+                        </div>
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/invoices" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <div className="min-h-screen bg-background flex items-center justify-center">
+                          <div className="text-center space-y-4">
+                            <h1 className="text-2xl font-bold">Invoices & Payments</h1>
+                            <p className="text-muted-foreground">Coming in Milestone 6</p>
+                          </div>
+                        </div>
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/reports" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <div className="min-h-screen bg-background flex items-center justify-center">
+                          <div className="text-center space-y-4">
+                            <h1 className="text-2xl font-bold">Sales Reports</h1>
+                            <p className="text-muted-foreground">Coming in Milestone 8</p>
+                          </div>
+                        </div>
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

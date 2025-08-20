@@ -13,11 +13,16 @@ import {
   Clock,
   CalendarClock,
   Menu,
-  X
+  X,
+  ShoppingCart,
+  Package,
+  Receipt,
+  TrendingUp
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSalesModuleAccess } from '@/hooks/useSalesModuleAccess';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -37,6 +42,7 @@ const Sidebar = () => {
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { hasAccess: hasSalesAccess } = useSalesModuleAccess();
 
   // Log auth state for debugging
   logAuthState('Sidebar Component', authData);
@@ -100,8 +106,27 @@ const Sidebar = () => {
         { icon: FileText, label: 'Claims Management', path: '/claims' },
         { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
-        { icon: Settings, label: 'System Settings', path: '/settings' },
       ];
+
+      // Add Sales Module items if user has access
+      if (hasSalesAccess) {
+        console.log('Sidebar: ✅ SALES MODULE ACCESS GRANTED - Adding sales menu items');
+        adminItems.push(
+          { icon: ShoppingCart, label: 'Sales Dashboard', path: '/sales' },
+          { icon: Users, label: 'Student Management', path: '/sales/students' },
+          { icon: Package, label: 'Products & Inventory', path: '/sales/products' },
+          { icon: Receipt, label: 'Invoices & Payments', path: '/sales/invoices' },
+          { icon: TrendingUp, label: 'Sales Reports', path: '/sales/reports' }
+        );
+      }
+
+      adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
+
+      // Add Sales Settings if user has access
+      if (hasSalesAccess) {
+        adminItems.push({ icon: Settings, label: 'Sales Settings', path: '/sales/settings' });
+      }
+
       console.log('Sidebar: Superladmin menu items:', adminItems.length, 'total items');
       return adminItems;
     }
@@ -185,7 +210,7 @@ const Sidebar = () => {
     }
 
     return menuItems;
-  }, [userrole, currentEmployee]);
+  }, [userrole, currentEmployee, hasSalesAccess]);
 
   const menuItems = getMenuItems();
 
