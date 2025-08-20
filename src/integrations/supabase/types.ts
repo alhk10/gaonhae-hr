@@ -221,6 +221,60 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_timetables: {
+        Row: {
+          belt_range_max: string | null
+          belt_range_min: string | null
+          branch_id: string
+          class_type: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          instructor_name: string | null
+          is_active: boolean | null
+          max_capacity: number | null
+          start_time: string
+          updated_at: string
+          updated_by: string | null
+          weekday: number
+        }
+        Insert: {
+          belt_range_max?: string | null
+          belt_range_min?: string | null
+          branch_id: string
+          class_type: string
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          instructor_name?: string | null
+          is_active?: boolean | null
+          max_capacity?: number | null
+          start_time: string
+          updated_at?: string
+          updated_by?: string | null
+          weekday: number
+        }
+        Update: {
+          belt_range_max?: string | null
+          belt_range_min?: string | null
+          branch_id?: string
+          class_type?: string
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          instructor_name?: string | null
+          is_active?: boolean | null
+          max_capacity?: number | null
+          start_time?: string
+          updated_at?: string
+          updated_by?: string | null
+          weekday?: number
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string
@@ -368,6 +422,82 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_attendance: {
+        Row: {
+          attendance_method: string | null
+          branch_id: string
+          class_date: string
+          created_at: string
+          created_by: string | null
+          entitlement_id: string | null
+          id: string
+          notes: string | null
+          recorded_at: string | null
+          recorded_by: string | null
+          status: string
+          student_id: string
+          timetable_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          attendance_method?: string | null
+          branch_id: string
+          class_date: string
+          created_at?: string
+          created_by?: string | null
+          entitlement_id?: string | null
+          id?: string
+          notes?: string | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          status: string
+          student_id: string
+          timetable_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          attendance_method?: string | null
+          branch_id?: string
+          class_date?: string
+          created_at?: string
+          created_by?: string | null
+          entitlement_id?: string | null
+          id?: string
+          notes?: string | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          status?: string
+          student_id?: string
+          timetable_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_attendance_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_attendance_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "branch_timetables"
             referencedColumns: ["id"]
           },
         ]
@@ -557,6 +687,87 @@ export type Database = {
         }
         Relationships: []
       }
+      entitlements: {
+        Row: {
+          belt_level_scope: string | null
+          branch_scope: string | null
+          class_type_scope: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          product_id: string | null
+          sessions_remaining: number | null
+          sessions_total: number
+          sessions_used: number
+          source_id: string | null
+          source_type: string
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          belt_level_scope?: string | null
+          branch_scope?: string | null
+          class_type_scope?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          product_id?: string | null
+          sessions_remaining?: number | null
+          sessions_total?: number
+          sessions_used?: number
+          source_id?: string | null
+          source_type: string
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          belt_level_scope?: string | null
+          branch_scope?: string | null
+          class_type_scope?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          product_id?: string | null
+          sessions_remaining?: number | null
+          sessions_total?: number
+          sessions_used?: number
+          source_id?: string | null
+          source_type?: string
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entitlements_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       failed_login_attempts: {
         Row: {
           attempt_time: string | null
@@ -577,6 +788,317 @@ export type Database = {
           ip_address?: string | null
         }
         Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          cost_per_unit: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          location_id: string
+          product_id: string
+          quantity_on_hand: number
+          quantity_reserved: number
+          reorder_point: number | null
+          reorder_quantity: number | null
+          size_variant: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cost_per_unit?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id: string
+          product_id: string
+          quantity_on_hand?: number
+          quantity_reserved?: number
+          reorder_point?: number | null
+          reorder_quantity?: number | null
+          size_variant?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cost_per_unit?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id?: string
+          product_id?: string
+          quantity_on_hand?: number
+          quantity_reserved?: number
+          reorder_point?: number | null
+          reorder_quantity?: number | null
+          size_variant?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_locations: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          location_id: string
+          movement_date: string | null
+          movement_type: string
+          notes: string | null
+          product_id: string
+          quantity_delta: number
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+          size_variant: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id: string
+          movement_date?: string | null
+          movement_type: string
+          notes?: string | null
+          product_id: string
+          quantity_delta: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          size_variant?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id?: string
+          movement_date?: string | null
+          movement_type?: string
+          notes?: string | null
+          product_id?: string
+          quantity_delta?: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          size_variant?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          invoice_id: string
+          metadata: Json | null
+          product_id: string
+          quantity: number
+          size_variant: string | null
+          tax_amount: number
+          tax_rate: number
+          total_amount: number
+          unit_price: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          invoice_id: string
+          metadata?: Json | null
+          product_id: string
+          quantity?: number
+          size_variant?: string | null
+          tax_amount?: number
+          tax_rate?: number
+          total_amount: number
+          unit_price: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          invoice_id?: string
+          metadata?: Json | null
+          product_id?: string
+          quantity?: number
+          size_variant?: string | null
+          tax_amount?: number
+          tax_rate?: number
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_paid: number
+          balance_due: number
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          discount_amount: number
+          due_date: string | null
+          id: string
+          internal_notes: string | null
+          invoice_number: string
+          issue_date: string | null
+          notes: string | null
+          payment_terms_days: number | null
+          status: string | null
+          student_id: string
+          subtotal: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount_paid?: number
+          balance_due?: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_number: string
+          issue_date?: string | null
+          notes?: string | null
+          payment_terms_days?: number | null
+          status?: string | null
+          student_id: string
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          balance_due?: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_number?: string
+          issue_date?: string | null
+          notes?: string | null
+          payment_terms_days?: number | null
+          status?: string | null
+          student_id?: string
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_encashment_config: {
         Row: {
@@ -865,6 +1387,65 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          payment_number: string
+          processed_by: string | null
+          proof_of_payment_url: string | null
+          reference_number: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          payment_number: string
+          processed_by?: string | null
+          proof_of_payment_url?: string | null
+          reference_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_number?: string
+          processed_by?: string | null
+          proof_of_payment_url?: string | null
+          reference_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_records: {
         Row: {
           created_at: string | null
@@ -911,6 +1492,184 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_rules: {
+        Row: {
+          belt_max: string | null
+          belt_min: string | null
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          discount_percentage: number | null
+          effective_from: string | null
+          effective_to: string | null
+          id: string
+          is_active: boolean | null
+          price_override: number | null
+          product_id: string
+          rule_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          belt_max?: string | null
+          belt_min?: string | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_percentage?: number | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_override?: number | null
+          product_id: string
+          rule_name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          belt_max?: string | null
+          belt_min?: string | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_percentage?: number | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_override?: number | null
+          product_id?: string
+          rule_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_rules_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          available_sizes: string[] | null
+          base_price: number
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_recurring: boolean | null
+          max_belt_level: string | null
+          metadata: Json | null
+          min_belt_level: string | null
+          name: string
+          requires_belt_level: boolean | null
+          requires_size: boolean | null
+          session_count: number | null
+          sku: string
+          tax_rate: number | null
+          updated_at: string
+          updated_by: string | null
+          validity_months: number | null
+        }
+        Insert: {
+          available_sizes?: string[] | null
+          base_price?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recurring?: boolean | null
+          max_belt_level?: string | null
+          metadata?: Json | null
+          min_belt_level?: string | null
+          name: string
+          requires_belt_level?: boolean | null
+          requires_size?: boolean | null
+          session_count?: number | null
+          sku: string
+          tax_rate?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          validity_months?: number | null
+        }
+        Update: {
+          available_sizes?: string[] | null
+          base_price?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recurring?: boolean | null
+          max_belt_level?: string | null
+          metadata?: Json | null
+          min_belt_level?: string | null
+          name?: string
+          requires_belt_level?: boolean | null
+          requires_size?: boolean | null
+          session_count?: number | null
+          sku?: string
+          tax_rate?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          validity_months?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -1079,6 +1838,243 @@ export type Database = {
           },
         ]
       }
+      student_emergency_contacts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_primary: boolean | null
+          name: string
+          phone: string
+          relationship: string
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name: string
+          phone: string
+          relationship: string
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name?: string
+          phone?: string
+          relationship?: string
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_emergency_contacts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_grading_history: {
+        Row: {
+          belt_from: string | null
+          belt_to: string
+          branch_id: string | null
+          certificate_issued: boolean | null
+          created_at: string
+          created_by: string | null
+          examiner_name: string | null
+          grading_date: string
+          id: string
+          notes: string | null
+          result: string | null
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          belt_from?: string | null
+          belt_to: string
+          branch_id?: string | null
+          certificate_issued?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          examiner_name?: string | null
+          grading_date: string
+          id?: string
+          notes?: string | null
+          result?: string | null
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          belt_from?: string | null
+          belt_to?: string
+          branch_id?: string | null
+          certificate_issued?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          examiner_name?: string | null
+          grading_date?: string
+          id?: string
+          notes?: string | null
+          result?: string | null
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_grading_history_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_medical_notes: {
+        Row: {
+          allergies: string | null
+          created_at: string
+          created_by: string | null
+          dietary_restrictions: string | null
+          id: string
+          last_updated_at: string | null
+          medical_condition: string | null
+          medications: string | null
+          other_notes: string | null
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allergies?: string | null
+          created_at?: string
+          created_by?: string | null
+          dietary_restrictions?: string | null
+          id?: string
+          last_updated_at?: string | null
+          medical_condition?: string | null
+          medications?: string | null
+          other_notes?: string | null
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allergies?: string | null
+          created_at?: string
+          created_by?: string | null
+          dietary_restrictions?: string | null
+          id?: string
+          last_updated_at?: string | null
+          medical_condition?: string | null
+          medications?: string | null
+          other_notes?: string | null
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_medical_notes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          address: string | null
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          current_belt: string | null
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
+          enrollment_date: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          status: string | null
+          student_number: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          address?: string | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          enrollment_date?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          status?: string | null
+          student_number: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          address?: string | null
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          enrollment_date?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          status?: string | null
+          student_number?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       superadmin_users: {
         Row: {
           created_at: string | null
@@ -1178,6 +2174,48 @@ export type Database = {
           setting_key?: string
           setting_value?: Json
           updated_at?: string
+        }
+        Relationships: []
+      }
+      term_calendars: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
