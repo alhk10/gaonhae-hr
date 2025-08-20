@@ -2424,6 +2424,10 @@ export type Database = {
         Args: { permission_type: string }
         Returns: boolean
       }
+      has_sales_module_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_superadmin: {
         Args: { user_email: string }
         Returns: boolean
