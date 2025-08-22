@@ -214,7 +214,7 @@ const SalesDashboard: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                <Badge variant="outline">📋 Next</Badge>
+                <Badge variant="default" className="bg-blue-100 text-blue-800">🚧 In Progress</Badge>
                 <span className="font-medium">Milestone 4: Student Management</span>
                 <span className="text-sm text-muted-foreground">CRUD operations</span>
               </div>

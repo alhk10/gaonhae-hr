@@ -30,6 +30,7 @@ import NotFound from './pages/NotFound';
 import SalesDashboard from './pages/sales/SalesDashboard';
 import SalesSettings from './pages/sales/SalesSettings';
 import StudentProfile from './pages/sales/StudentProfile';
+import StudentManagement from './pages/sales/StudentManagement';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -276,7 +277,7 @@ function App() {
                   element={
                     <AuthGuard>
                       <SalesAccessGuard>
-                        <SalesDashboard />
+                        <StudentManagement />
                       </SalesAccessGuard>
                     </AuthGuard>
                   } 
