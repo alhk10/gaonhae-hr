@@ -29,6 +29,7 @@ import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import SalesDashboard from './pages/sales/SalesDashboard';
 import SalesSettings from './pages/sales/SalesSettings';
+import StudentProfile from './pages/sales/StudentProfile';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -241,11 +242,31 @@ function App() {
                   } 
                 />
                 <Route 
+                  path="/sales/dashboard" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <SalesDashboard />
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
                   path="/sales/settings" 
                   element={
                     <AuthGuard>
                       <SalesAccessGuard>
                         <SalesSettings />
+                      </SalesAccessGuard>
+                    </AuthGuard>
+                  } 
+                />
+                <Route 
+                  path="/sales/student/:studentId" 
+                  element={
+                    <AuthGuard>
+                      <SalesAccessGuard>
+                        <StudentProfile />
                       </SalesAccessGuard>
                     </AuthGuard>
                   } 
