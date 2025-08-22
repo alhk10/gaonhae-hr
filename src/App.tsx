@@ -276,12 +276,7 @@ function App() {
                   element={
                     <AuthGuard>
                       <SalesAccessGuard>
-                        <div className="min-h-screen bg-background flex items-center justify-center">
-                          <div className="text-center space-y-4">
-                            <h1 className="text-2xl font-bold">Student Management</h1>
-                            <p className="text-muted-foreground">Coming in Milestone 3 - Student 360</p>
-                          </div>
-                        </div>
+                        <SalesDashboard />
                       </SalesAccessGuard>
                     </AuthGuard>
                   } 
