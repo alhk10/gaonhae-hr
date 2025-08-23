@@ -116,13 +116,13 @@ const StudentManagement: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-medium">🚧 In Development</h4>
+                <h4 className="font-medium">✅ Recently Completed</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Add new student form</li>
                   <li>• Edit existing students</li>
                   <li>• Delete students</li>
-                  <li>• Bulk operations</li>
-                  <li>• CSV import/export</li>
+                  <li>• Bulk operations (activate/deactivate/delete)</li>
+                  <li>• CSV import/export functionality</li>
                 </ul>
               </div>
             </div>

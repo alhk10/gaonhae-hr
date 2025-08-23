@@ -509,3 +509,180 @@ export async function getStudentStats(studentId: string): Promise<{
     throw error;
   }
 }
+
+// Bulk operations
+export const bulkUpdateStudentStatus = async (studentIds: string[], status: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('students')
+      .update({ status, updated_at: new Date().toISOString() })
+      .in('id', studentIds);
+
+    if (error) {
+      console.error('Error updating student status:', error);
+      throw new Error(`Failed to update student status: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in bulkUpdateStudentStatus:', error);
+    throw error;
+  }
+};
+
+export const bulkDeleteStudents = async (studentIds: string[]): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('students')
+      .delete()
+      .in('id', studentIds);
+
+    if (error) {
+      console.error('Error deleting students:', error);
+      throw new Error(`Failed to delete students: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in bulkDeleteStudents:', error);
+    throw error;
+  }
+};
+
+// CSV export
+export const exportStudentsToCSV = async (studentIds?: string[]): Promise<string> => {
+  try {
+    let query = supabase.from('students').select('*');
+    
+    if (studentIds && studentIds.length > 0) {
+      query = query.in('id', studentIds);
+    }
+
+    const { data: students, error } = await query;
+
+    if (error) {
+      console.error('Error fetching students for export:', error);
+      throw new Error(`Failed to fetch students: ${error.message}`);
+    }
+
+    if (!students || students.length === 0) {
+      return '';
+    }
+
+    // Create CSV headers
+    const headers = [
+      'Student Number',
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Date of Birth',
+      'Gender',
+      'Current Belt',
+      'Status',
+      'Enrollment Date',
+      'Branch',
+      'Parent/Guardian Name',
+      'Emergency Contact',
+      'Emergency Phone',
+      'Medical Conditions',
+      'Notes'
+    ];
+
+    // Create CSV rows
+    const rows = students.map(student => [
+      student.student_number || '',
+      student.first_name || '',
+      student.last_name || '',
+      student.email || '',
+      student.phone || '',
+      student.date_of_birth || '',
+      student.gender || '',
+      student.current_belt || '',
+      student.status || '',
+      student.enrollment_date || '',
+      student.branch_id || '',
+      '', // parent_guardian_name not in database
+      student.emergency_contact_name || '',
+      student.emergency_contact_phone || '',
+      '', // medical_conditions not in database
+      student.notes || ''
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    return csvContent;
+  } catch (error) {
+    console.error('Error in exportStudentsToCSV:', error);
+    throw error;
+  }
+};
+
+// CSV import
+export const importStudentsFromCSV = async (csvContent: string): Promise<{ success: number; errors: string[] }> => {
+  try {
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      throw new Error('CSV file must contain at least a header row and one data row');
+    }
+
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+    const dataRows = lines.slice(1);
+
+    const studentsToInsert: CreateStudentData[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      try {
+        const values = dataRows[i].split(',').map(v => v.replace(/"/g, '').trim());
+        
+        if (values.length !== headers.length) {
+          errors.push(`Row ${i + 2}: Column count mismatch`);
+          continue;
+        }
+
+        const student: CreateStudentData = {
+          first_name: values[1] || '',
+          last_name: values[2] || '',
+          email: values[3] || undefined,
+          phone: values[4] || undefined,
+          date_of_birth: values[5] || undefined,
+          gender: values[6] || undefined,
+          current_belt: values[7] || undefined,
+          status: values[8] || 'active',
+          branch_id: values[10] || undefined,
+          emergency_contact_name: values[12] || undefined,
+          emergency_contact_phone: values[13] || undefined,
+          notes: values[15] || undefined
+        };
+
+        // Validate required fields
+        if (!student.first_name || !student.last_name) {
+          errors.push(`Row ${i + 2}: First name and last name are required`);
+          continue;
+        }
+
+        studentsToInsert.push(student);
+      } catch (rowError) {
+        errors.push(`Row ${i + 2}: ${rowError instanceof Error ? rowError.message : 'Unknown error'}`);
+      }
+    }
+
+    let successCount = 0;
+
+    if (studentsToInsert.length > 0) {
+      for (const studentData of studentsToInsert) {
+        try {
+          await createStudent(studentData);
+          successCount++;
+        } catch (error) {
+          errors.push(`Failed to create student ${studentData.first_name} ${studentData.last_name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+    }
+
+    return { success: successCount, errors };
+  } catch (error) {
+    console.error('Error in importStudentsFromCSV:', error);
+    throw error;
+  }
+};

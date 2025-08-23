@@ -26,7 +26,15 @@ import {
   MoreHorizontal,
   UserPlus
 } from 'lucide-react';
-import { getStudents, Student, deleteStudent } from '@/services/studentService';
+import { 
+  getStudents, 
+  Student, 
+  deleteStudent, 
+  bulkUpdateStudentStatus, 
+  bulkDeleteStudents,
+  exportStudentsToCSV,
+  importStudentsFromCSV 
+} from '@/services/studentService';
 import AddStudentDialog from './AddStudentDialog';
 import EditStudentDialog from './EditStudentDialog';
 
@@ -98,14 +106,40 @@ const StudentManagementList: React.FC = () => {
     }
   };
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = async (action: string) => {
     if (selectedStudents.length === 0) {
       toast.error('Please select students first');
       return;
     }
     
-    // TODO: Implement bulk actions
-    toast.info(`Bulk ${action} for ${selectedStudents.length} students - Coming soon`);
+    try {
+      switch (action) {
+        case 'activate':
+          await bulkUpdateStudentStatus(selectedStudents, 'active');
+          toast.success(`${selectedStudents.length} students activated`);
+          break;
+        case 'deactivate':
+          await bulkUpdateStudentStatus(selectedStudents, 'inactive');
+          toast.success(`${selectedStudents.length} students deactivated`);
+          break;
+        case 'delete':
+          await bulkDeleteStudents(selectedStudents);
+          toast.success(`${selectedStudents.length} students deleted`);
+          break;
+        case 'export':
+          await handleExportStudents(selectedStudents);
+          return; // Don't reload for export
+        default:
+          toast.info(`Bulk ${action} - Not implemented yet`);
+          return;
+      }
+      
+      setSelectedStudents([]);
+      loadStudents();
+    } catch (error) {
+      console.error(`Error in bulk ${action}:`, error);
+      toast.error(`Failed to ${action} students`);
+    }
   };
 
   const handleDeleteStudent = async (studentId: string) => {
@@ -122,6 +156,50 @@ const StudentManagementList: React.FC = () => {
   const handleStudentUpdated = () => {
     loadStudents(); // Reload the list
     setEditingStudent(null);
+  };
+
+  const handleExportStudents = async (studentIds?: string[]) => {
+    try {
+      const csvContent = await exportStudentsToCSV(studentIds);
+      if (!csvContent) {
+        toast.error('No students to export');
+        return;
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `students_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Students exported successfully');
+    } catch (error) {
+      console.error('Error exporting students:', error);
+      toast.error('Failed to export students');
+    }
+  };
+
+  const handleImportStudents = async (file: File) => {
+    try {
+      const text = await file.text();
+      const result = await importStudentsFromCSV(text);
+      
+      if (result.errors.length > 0) {
+        console.warn('Import errors:', result.errors);
+        toast.error(`Import completed with ${result.errors.length} errors. Check console for details.`);
+      } else {
+        toast.success(`Successfully imported ${result.success} students`);
+      }
+      
+      loadStudents(); // Reload the list
+    } catch (error) {
+      console.error('Error importing students:', error);
+      toast.error('Failed to import students');
+    }
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -152,15 +230,28 @@ const StudentManagementList: React.FC = () => {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => toast.info('Import students - Coming soon')}
+            onClick={() => document.getElementById('csv-import')?.click()}
             className="flex items-center gap-2"
           >
             <Upload className="w-4 h-4" />
             Import
           </Button>
+          <input
+            id="csv-import"
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleImportStudents(file);
+                e.target.value = ''; // Reset input
+              }
+            }}
+          />
           <Button
             variant="outline"
-            onClick={() => toast.info('Export students - Coming soon')}
+            onClick={() => handleExportStudents()}
             className="flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
@@ -267,6 +358,13 @@ const StudentManagementList: React.FC = () => {
                   onClick={() => handleBulkAction('export')}
                 >
                   Export Selected
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleBulkAction('delete')}
+                >
+                  Delete Selected
                 </Button>
               </div>
             </div>
