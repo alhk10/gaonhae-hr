@@ -4,9 +4,11 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import ProductManagementList from '@/components/sales/ProductManagementList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Package, 
@@ -18,20 +20,23 @@ import {
 } from 'lucide-react';
 
 const ProductManagement: React.FC = () => {
+  const navigate = useNavigate();
+  
   return (
     <ResponsiveLayout>
       <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Products</h2>
-              <p className="text-muted-foreground">
-                Complete product management system
-              </p>
-            </div>
-            <Button onClick={() => navigate('/sales/products')}>
-              View All Products
-            </Button>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Product Management</h1>
+            <p className="text-muted-foreground">
+              Manage classes, courses, and merchandise - Milestone 5
+            </p>
           </div>
+          <Badge variant="default" className="bg-blue-100 text-blue-800">
+            Milestone 5 - In Development
+          </Badge>
+        </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

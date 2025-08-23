@@ -31,6 +31,7 @@ import SalesDashboard from './pages/sales/SalesDashboard';
 import SalesSettings from './pages/sales/SalesSettings';
 import StudentProfile from './pages/sales/StudentProfile';
 import StudentManagement from './pages/sales/StudentManagement';
+import ProductManagement from './pages/sales/ProductManagement';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -287,12 +288,7 @@ function App() {
                   element={
                     <AuthGuard>
                       <SalesAccessGuard>
-                        <div className="min-h-screen bg-background flex items-center justify-center">
-                          <div className="text-center space-y-4">
-                            <h1 className="text-2xl font-bold">Products & Inventory</h1>
-                            <p className="text-muted-foreground">Coming in Milestone 5</p>
-                          </div>
-                        </div>
+                        <ProductManagement />
                       </SalesAccessGuard>
                     </AuthGuard>
                   } 
