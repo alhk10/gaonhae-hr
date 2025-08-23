@@ -1,9 +1,9 @@
 /**
- * Add Student Dialog
- * Modal form for creating new students
+ * Edit Student Dialog
+ * Modal form for updating existing students
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,21 +13,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucide-react';
+import { Edit, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucide-react';
+import { Student, updateStudent, CreateStudentData } from '@/services/studentService';
 
-interface AddStudentDialogProps {
+interface EditStudentDialogProps {
   trigger: React.ReactNode;
-  onStudentAdded?: () => void;
+  student: Student;
+  onStudentUpdated?: () => void;
 }
 
-const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
+const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
   trigger,
-  onStudentAdded
+  student,
+  onStudentUpdated
 }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    // Personal Information
+  const [formData, setFormData] = useState<CreateStudentData>({
     first_name: '',
     last_name: '',
     preferred_name: '',
@@ -35,8 +37,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     gender: '',
     nationality: '',
     nric_passport: '',
-    
-    // Contact Information
     email: '',
     phone: '',
     address: '',
@@ -44,19 +44,45 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
-    
-    // Training Information
     current_belt: '',
     previous_experience: '',
     training_goals: '',
     medical_conditions: '',
     dietary_restrictions: '',
-    
-    // Administrative
     branch_id: '',
     status: 'active',
     notes: ''
   });
+
+  // Initialize form data when student changes
+  useEffect(() => {
+    if (student) {
+      setFormData({
+        first_name: student.first_name || '',
+        last_name: student.last_name || '',
+        preferred_name: student.preferred_name || '',
+        date_of_birth: student.date_of_birth || '',
+        gender: student.gender || '',
+        nationality: student.nationality || '',
+        nric_passport: student.nric_passport || '',
+        email: student.email || '',
+        phone: student.phone || '',
+        address: student.address || '',
+        postal_code: student.postal_code || '',
+        emergency_contact_name: student.emergency_contact_name || '',
+        emergency_contact_phone: student.emergency_contact_phone || '',
+        emergency_contact_relationship: student.emergency_contact_relationship || '',
+        current_belt: student.current_belt || '',
+        previous_experience: student.previous_experience || '',
+        training_goals: student.training_goals || '',
+        medical_conditions: student.medical_conditions || '',
+        dietary_restrictions: student.dietary_restrictions || '',
+        branch_id: student.branch_id || '',
+        status: student.status || 'active',
+        notes: student.notes || ''
+      });
+    }
+  }, [student]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -82,44 +108,17 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     setLoading(true);
     
     try {
-      // Import the createStudent function
-      const { createStudent } = await import('@/services/studentService');
+      await updateStudent(student.id, formData);
       
-      await createStudent(formData);
-      
-      toast.success('Student added successfully');
+      toast.success('Student updated successfully');
       setOpen(false);
-      setFormData({
-        first_name: '',
-        last_name: '',
-        preferred_name: '',
-        date_of_birth: '',
-        gender: '',
-        nationality: '',
-        nric_passport: '',
-        email: '',
-        phone: '',
-        address: '',
-        postal_code: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        emergency_contact_relationship: '',
-        current_belt: '',
-        previous_experience: '',
-        training_goals: '',
-        medical_conditions: '',
-        dietary_restrictions: '',
-        branch_id: '',
-        status: 'active',
-        notes: ''
-      });
       
-      if (onStudentAdded) {
-        onStudentAdded();
+      if (onStudentUpdated) {
+        onStudentUpdated();
       }
     } catch (error) {
-      console.error('Error adding student:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to add student');
+      console.error('Error updating student:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update student');
     } finally {
       setLoading(false);
     }
@@ -133,11 +132,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            Add New Student
+            <Edit className="w-5 h-5" />
+            Edit Student: {student.first_name} {student.last_name}
           </DialogTitle>
           <DialogDescription>
-            Enter the student's information below. Required fields are marked with an asterisk (*).
+            Update the student's information below. Required fields are marked with an asterisk (*).
           </DialogDescription>
         </DialogHeader>
 
@@ -291,49 +290,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       placeholder="123456"
                     />
                   </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-4">Emergency Contact</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="emergency_contact_name">Name</Label>
-                        <Input
-                          id="emergency_contact_name"
-                          value={formData.emergency_contact_name}
-                          onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
-                          placeholder="Emergency contact name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="emergency_contact_phone">Phone</Label>
-                        <Input
-                          id="emergency_contact_phone"
-                          value={formData.emergency_contact_phone}
-                          onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                          placeholder="+65 9123 4567"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <Label htmlFor="emergency_contact_relationship">Relationship</Label>
-                      <Select 
-                        value={formData.emergency_contact_relationship} 
-                        onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select relationship" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="parent">Parent</SelectItem>
-                          <SelectItem value="guardian">Guardian</SelectItem>
-                          <SelectItem value="spouse">Spouse</SelectItem>
-                          <SelectItem value="sibling">Sibling</SelectItem>
-                          <SelectItem value="friend">Friend</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -446,7 +402,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   </div>
 
                   <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Label htmlFor="notes">Notes</Label>
                     <Textarea
                       id="notes"
                       value={formData.notes}
@@ -470,7 +426,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Student'}
+              {loading ? 'Updating...' : 'Update Student'}
             </Button>
           </DialogFooter>
         </form>
@@ -479,4 +435,4 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   );
 };
 
-export default AddStudentDialog;
+export default EditStudentDialog;

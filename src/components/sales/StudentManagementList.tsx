@@ -26,7 +26,9 @@ import {
   MoreHorizontal,
   UserPlus
 } from 'lucide-react';
-import { getStudents, Student } from '@/services/studentService';
+import { getStudents, Student, deleteStudent } from '@/services/studentService';
+import AddStudentDialog from './AddStudentDialog';
+import EditStudentDialog from './EditStudentDialog';
 
 const StudentManagementList: React.FC = () => {
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ const StudentManagementList: React.FC = () => {
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   
   const itemsPerPage = 20;
 
@@ -105,6 +108,22 @@ const StudentManagementList: React.FC = () => {
     toast.info(`Bulk ${action} for ${selectedStudents.length} students - Coming soon`);
   };
 
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      await deleteStudent(studentId);
+      toast.success('Student deleted successfully');
+      loadStudents(); // Reload the list
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      toast.error('Failed to delete student');
+    }
+  };
+
+  const handleStudentUpdated = () => {
+    loadStudents(); // Reload the list
+    setEditingStudent(null);
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
@@ -147,13 +166,15 @@ const StudentManagementList: React.FC = () => {
             <Download className="w-4 h-4" />
             Export
           </Button>
-          <Button
-            onClick={() => toast.info('Add new student - Coming soon')}
-            className="flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Student
-          </Button>
+          <AddStudentDialog
+            trigger={
+              <Button className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Add Student
+              </Button>
+            }
+            onStudentAdded={loadStudents}
+          />
         </div>
       </div>
 
@@ -274,10 +295,15 @@ const StudentManagementList: React.FC = () => {
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No students found</p>
-              <Button className="mt-4" onClick={() => toast.info('Add new student - Coming soon')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add First Student
-              </Button>
+              <AddStudentDialog
+                trigger={
+                  <Button className="mt-4">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add First Student
+                  </Button>
+                }
+                onStudentAdded={loadStudents}
+              />
             </div>
           ) : (
             <>
@@ -354,13 +380,15 @@ const StudentManagementList: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toast.info('Edit student - Coming soon')}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                          <EditStudentDialog
+                            trigger={
+                              <Button variant="ghost" size="sm">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            }
+                            student={student}
+                            onStudentUpdated={handleStudentUpdated}
+                          />
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="sm">
@@ -378,7 +406,7 @@ const StudentManagementList: React.FC = () => {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => toast.info('Delete student - Coming soon')}
+                                  onClick={() => handleDeleteStudent(student.id)}
                                 >
                                   Delete
                                 </AlertDialogAction>

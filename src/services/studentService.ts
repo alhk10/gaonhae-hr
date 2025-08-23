@@ -11,10 +11,15 @@ export interface Student {
   student_number: string;
   first_name: string;
   last_name: string;
+  preferred_name?: string;
   date_of_birth: string;
+  gender?: string;
+  nationality?: string;
+  nric_passport?: string;
   phone?: string;
   email?: string;
   address?: string;
+  postal_code?: string;
   branch_id?: string;
   current_belt?: string; // Match database field name
   class_type?: string;
@@ -26,6 +31,10 @@ export interface Student {
   medical_conditions?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  previous_experience?: string;
+  training_goals?: string;
+  dietary_restrictions?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -299,6 +308,144 @@ export async function searchStudents(query: string, limit: number = 10): Promise
     console.error('Error searching students:', error);
     throw error;
   }
+}
+
+export interface CreateStudentData {
+  first_name: string;
+  last_name: string;
+  preferred_name?: string;
+  date_of_birth?: string;
+  gender?: string;
+  nationality?: string;
+  nric_passport?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  postal_code?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  current_belt?: string;
+  previous_experience?: string;
+  training_goals?: string;
+  medical_conditions?: string;
+  dietary_restrictions?: string;
+  branch_id?: string;
+  status: string;
+  notes?: string;
+}
+
+/**
+ * Create a new student
+ */
+export async function createStudent(studentData: CreateStudentData): Promise<Student> {
+  try {
+    // Generate student number
+    const studentNumber = await generateStudentNumber();
+    
+    const { data, error } = await supabase
+      .from('students')
+      .insert({
+        ...studentData,
+        student_number: studentNumber,
+        enrollment_date: new Date().toISOString().split('T')[0]
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating student:', error);
+      await logSalesModuleAccess('create_student', false, { error: error.message });
+      throw error;
+    }
+
+    // Create emergency contact if provided
+    if (studentData.emergency_contact_name && studentData.emergency_contact_phone) {
+      await supabase
+        .from('student_emergency_contacts')
+        .insert({
+          student_id: data.id,
+          name: studentData.emergency_contact_name,
+          phone: studentData.emergency_contact_phone,
+          relationship: studentData.emergency_contact_relationship || 'Emergency Contact',
+          is_primary: true
+        });
+    }
+
+    await logSalesModuleAccess('create_student', true, { studentId: data.id });
+    
+    return data;
+  } catch (error) {
+    console.error('Error creating student:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing student
+ */
+export async function updateStudent(studentId: string, studentData: Partial<CreateStudentData>): Promise<Student> {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .update(studentData)
+      .eq('id', studentId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating student:', error);
+      await logSalesModuleAccess('update_student', false, { error: error.message, studentId });
+      throw error;
+    }
+
+    await logSalesModuleAccess('update_student', true, { studentId });
+    
+    return data;
+  } catch (error) {
+    console.error('Error updating student:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a student
+ */
+export async function deleteStudent(studentId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('students')
+      .delete()
+      .eq('id', studentId);
+
+    if (error) {
+      console.error('Error deleting student:', error);
+      await logSalesModuleAccess('delete_student', false, { error: error.message, studentId });
+      throw error;
+    }
+
+    await logSalesModuleAccess('delete_student', true, { studentId });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a unique student number
+ */
+async function generateStudentNumber(): Promise<string> {
+  const year = new Date().getFullYear().toString().slice(-2);
+  
+  // Get the count of students created this year
+  const { count } = await supabase
+    .from('students')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', `${new Date().getFullYear()}-01-01`)
+    .lt('created_at', `${new Date().getFullYear() + 1}-01-01`);
+
+  const nextNumber = (count || 0) + 1;
+  return `STU${year}${nextNumber.toString().padStart(4, '0')}`;
 }
 
 /**
