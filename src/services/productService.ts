@@ -1,0 +1,294 @@
+/**
+ * Product Service
+ * Handles all product-related database operations for the Sales Module
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  description?: string;
+  category_id?: string;
+  category_name?: string; // Joined from product_categories
+  base_price: number;
+  tax_rate?: number;
+  available_sizes?: string[];
+  requires_size?: boolean;
+  min_belt_level?: string;
+  max_belt_level?: string;
+  requires_belt_level?: boolean;
+  session_count?: number;
+  validity_months?: number;
+  is_recurring?: boolean;
+  is_active: boolean;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface ProductsResponse {
+  products: Product[];
+  total: number;
+}
+
+/**
+ * Get products with pagination and filtering
+ */
+export const getProducts = async (
+  page: number = 1,
+  limit: number = 20,
+  searchQuery?: string,
+  categoryFilter?: string
+): Promise<ProductsResponse> => {
+  try {
+    let query = supabase
+      .from('products')
+      .select(`
+        *,
+        product_categories(name)
+      `, { count: 'exact' });
+
+    // Apply search filter
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+    }
+
+    // Apply category filter
+    if (categoryFilter) {
+      query = query.eq('category_id', categoryFilter);
+    }
+
+    // Apply pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    // Order by name
+    query = query.order('name', { ascending: true });
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      throw new Error(`Failed to fetch products: ${error.message}`);
+    }
+
+    // Transform the data to include category name
+    const transformedProducts = (data || []).map(product => ({
+      ...product,
+      category_name: product.product_categories?.name
+    }));
+
+    return {
+      products: transformedProducts,
+      total: count || 0
+    };
+  } catch (error) {
+    console.error('Error in getProducts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Search products by name or description
+ */
+export const searchProducts = async (
+  searchTerm: string,
+  limit: number = 10
+): Promise<Partial<Product>[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        sku,
+        description,
+        base_price,
+        is_active,
+        product_categories(name)
+      `)
+      .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%`)
+      .eq('is_active', true)
+      .limit(limit)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error searching products:', error);
+      throw new Error(`Failed to search products: ${error.message}`);
+    }
+
+    // Transform the data
+    return (data || []).map(product => ({
+      ...product,
+      category_name: product.product_categories?.name
+    }));
+  } catch (error) {
+    console.error('Error in searchProducts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a single product by ID
+ */
+export const getProductById = async (productId: string): Promise<Product | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        product_categories(name)
+      `)
+      .eq('id', productId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Product not found
+      }
+      console.error('Error fetching product:', error);
+      throw new Error(`Failed to fetch product: ${error.message}`);
+    }
+
+    return {
+      ...data,
+      category_name: data.product_categories?.name
+    };
+  } catch (error) {
+    console.error('Error in getProductById:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new product
+ */
+export const createProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{
+        name: productData.name,
+        sku: productData.sku,
+        description: productData.description,
+        category_id: productData.category_id,
+        base_price: productData.base_price,
+        tax_rate: productData.tax_rate,
+        available_sizes: productData.available_sizes,
+        requires_size: productData.requires_size,
+        min_belt_level: productData.min_belt_level,
+        max_belt_level: productData.max_belt_level,
+        requires_belt_level: productData.requires_belt_level,
+        session_count: productData.session_count,
+        validity_months: productData.validity_months,
+        is_recurring: productData.is_recurring,
+        is_active: productData.is_active,
+        metadata: productData.metadata,
+        created_by: productData.created_by,
+        updated_by: productData.updated_by
+      }])
+      .select(`
+        *,
+        product_categories(name)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error creating product:', error);
+      throw new Error(`Failed to create product: ${error.message}`);
+    }
+
+    return {
+      ...data,
+      category_name: data.product_categories?.name
+    };
+  } catch (error) {
+    console.error('Error in createProduct:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an existing product
+ */
+export const updateProduct = async (
+  productId: string, 
+  updates: Partial<Omit<Product, 'id' | 'created_at'>>
+): Promise<Product> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId)
+      .select(`
+        *,
+        product_categories(name)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error updating product:', error);
+      throw new Error(`Failed to update product: ${error.message}`);
+    }
+
+    return {
+      ...data,
+      category_name: data.product_categories?.name
+    };
+  } catch (error) {
+    console.error('Error in updateProduct:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a product
+ */
+export const deleteProduct = async (productId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      console.error('Error deleting product:', error);
+      throw new Error(`Failed to delete product: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in deleteProduct:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get product categories
+ */
+export const getProductCategories = async (): Promise<Array<{id: string, name: string}>> => {
+  try {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching product categories:', error);
+      throw new Error(`Failed to fetch categories: ${error.message}`);
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getProductCategories:', error);
+    throw error;
+  }
+};

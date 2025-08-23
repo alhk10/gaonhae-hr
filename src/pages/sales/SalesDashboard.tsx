@@ -53,7 +53,7 @@ const SalesDashboard: React.FC = () => {
             </p>
           </div>
           <Badge variant="default" className="bg-green-100 text-green-800">
-            Milestone 3 Complete
+            Milestone 4 Complete
           </Badge>
         </div>
 
@@ -214,15 +214,21 @@ const SalesDashboard: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                <Badge variant="default" className="bg-blue-100 text-blue-800">🚧 In Progress</Badge>
+                <Badge variant="default" className="bg-green-100 text-green-800">✓ Complete</Badge>
                 <span className="font-medium">Milestone 4: Student Management</span>
                 <span className="text-sm text-muted-foreground">CRUD operations</span>
               </div>
 
               <div className="flex items-center gap-3">
+                <Badge variant="default" className="bg-blue-100 text-blue-800">🚧 In Progress</Badge>
+                <span className="font-medium">Milestone 5: Product Management</span>
+                <span className="text-sm text-muted-foreground">Classes, courses, merchandise</span>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <Badge variant="outline">📋 Planned</Badge>
-                <span className="font-medium">Milestone 5-10</span>
-                <span className="text-sm text-muted-foreground">Products, Invoices, Analytics</span>
+                <span className="font-medium">Milestone 6-10</span>
+                <span className="text-sm text-muted-foreground">Invoicing, Payments, Analytics</span>
               </div>
             </div>
           </CardContent>
