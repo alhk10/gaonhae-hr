@@ -34,6 +34,7 @@ import StudentManagement from './pages/sales/StudentManagement';
 import ProductManagement from './pages/sales/ProductManagement';
 import InvoiceManagement from './pages/sales/InvoiceManagement';
 import PaymentManagement from './pages/sales/PaymentManagement';
+import SalesAnalytics from './pages/sales/SalesAnalytics';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -311,6 +312,16 @@ function App() {
                      <AuthGuard>
                        <SalesAccessGuard>
                          <PaymentManagement />
+                       </SalesAccessGuard>
+                     </AuthGuard>
+                   } 
+                 />
+                 <Route 
+                   path="/sales/analytics" 
+                   element={
+                     <AuthGuard>
+                       <SalesAccessGuard>
+                         <SalesAnalytics />
                        </SalesAccessGuard>
                      </AuthGuard>
                    } 

@@ -198,6 +198,77 @@ const SalesDashboard: React.FC = () => {
           </Card>
         </div>
 
+        {/* Second Row - Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Products</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">✓</div>
+              <p className="text-xs text-muted-foreground">
+                Milestone 5 complete
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => navigate('/sales/products')}
+              >
+                Manage Products
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Analytics</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">✓</div>
+              <p className="text-xs text-muted-foreground">
+                Milestone 8 complete
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => navigate('/sales/analytics')}
+              >
+                View Analytics
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Reports</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">
+                Coming in Milestone 9
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Automation</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">-</div>
+              <p className="text-xs text-muted-foreground">
+                Coming in Milestone 10
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Development Roadmap */}
         <Card>
           <CardHeader>
@@ -254,9 +325,15 @@ const SalesDashboard: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
+                <Badge variant="default" className="bg-green-100 text-green-800">✓ Complete</Badge>
+                <span className="font-medium">Milestone 8: Sales Analytics</span>
+                <span className="text-sm text-muted-foreground">Reports, insights, dashboards</span>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <Badge variant="outline">📋 Planned</Badge>
-                <span className="font-medium">Milestone 8-10</span>
-                <span className="text-sm text-muted-foreground">Analytics, Reports, Advanced Features</span>
+                <span className="font-medium">Milestone 9-10</span>
+                <span className="text-sm text-muted-foreground">Advanced Features, Automation</span>
               </div>
             </div>
           </CardContent>
