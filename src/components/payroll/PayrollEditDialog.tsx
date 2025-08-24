@@ -501,7 +501,7 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
             <div className="flex items-center space-x-4 bg-green-50 p-4 rounded-lg">
               <Plus className="w-5 h-5 text-green-600" />
               <span className="font-medium text-green-900">Add Employee:</span>
-              <Select onValueChange={handleAddEmployee} value="">
+              <Select onValueChange={handleAddEmployee}>
                 <SelectTrigger className="w-[240px]">
                   <SelectValue placeholder="Select employee to add" />
                 </SelectTrigger>
