@@ -158,13 +158,21 @@ const SalesDashboard: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Invoices</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
+              <div className="text-2xl font-bold text-green-600">✓</div>
               <p className="text-xs text-muted-foreground">
-                Coming in Milestone 6
+                Milestone 6 complete
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => navigate('/sales/invoices')}
+              >
+                Manage Invoices
+              </Button>
             </CardContent>
           </Card>
 
@@ -226,9 +234,15 @@ const SalesDashboard: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
+                <Badge variant="default" className="bg-green-100 text-green-800">✓ Complete</Badge>
+                <span className="font-medium">Milestone 6: Invoice Management</span>
+                <span className="text-sm text-muted-foreground">Multi-item invoices, billing</span>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <Badge variant="outline">📋 Planned</Badge>
-                <span className="font-medium">Milestone 6-10</span>
-                <span className="text-sm text-muted-foreground">Invoicing, Payments, Analytics</span>
+                <span className="font-medium">Milestone 7-10</span>
+                <span className="text-sm text-muted-foreground">Payments, Analytics, Reports</span>
               </div>
             </div>
           </CardContent>

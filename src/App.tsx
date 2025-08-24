@@ -32,6 +32,7 @@ import SalesSettings from './pages/sales/SalesSettings';
 import StudentProfile from './pages/sales/StudentProfile';
 import StudentManagement from './pages/sales/StudentManagement';
 import ProductManagement from './pages/sales/ProductManagement';
+import InvoiceManagement from './pages/sales/InvoiceManagement';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -295,19 +296,14 @@ function App() {
                 />
                 <Route 
                   path="/sales/invoices" 
-                  element={
-                    <AuthGuard>
-                      <SalesAccessGuard>
-                        <div className="min-h-screen bg-background flex items-center justify-center">
-                          <div className="text-center space-y-4">
-                            <h1 className="text-2xl font-bold">Invoices & Payments</h1>
-                            <p className="text-muted-foreground">Coming in Milestone 6</p>
-                          </div>
-                        </div>
-                      </SalesAccessGuard>
-                    </AuthGuard>
-                  } 
-                />
+                   element={
+                     <AuthGuard>
+                       <SalesAccessGuard>
+                         <InvoiceManagement />
+                       </SalesAccessGuard>
+                     </AuthGuard>
+                   } 
+                 />
                 <Route 
                   path="/sales/reports" 
                   element={
