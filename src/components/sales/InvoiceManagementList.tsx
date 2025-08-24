@@ -66,8 +66,8 @@ const InvoiceManagementList: React.FC = () => {
         currentPage,
         pageSize,
         searchQuery || undefined,
-        statusFilter || undefined,
-        studentFilter || undefined
+        statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
+        studentFilter && studentFilter !== 'all' ? studentFilter : undefined
       );
       setInvoices(response.invoices);
       setTotalInvoices(response.total);
@@ -194,7 +194,7 @@ const InvoiceManagementList: React.FC = () => {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
@@ -208,7 +208,7 @@ const InvoiceManagementList: React.FC = () => {
                 <SelectValue placeholder="All Students" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Students</SelectItem>
+                <SelectItem value="all">All Students</SelectItem>
                 {students.map((student) => (
                   <SelectItem key={student.id} value={student.id}>
                     {student.name}
@@ -221,8 +221,8 @@ const InvoiceManagementList: React.FC = () => {
               variant="outline" 
               onClick={() => {
                 setSearchQuery('');
-                setStatusFilter('');
-                setStudentFilter('');
+                setStatusFilter('all');
+                setStudentFilter('all');
               }}
             >
               Clear

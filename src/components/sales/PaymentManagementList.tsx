@@ -55,7 +55,7 @@ const PaymentManagementList: React.FC = () => {
         currentPage,
         pageSize,
         searchQuery || undefined,
-        methodFilter || undefined,
+        methodFilter && methodFilter !== 'all' ? methodFilter : undefined,
         dateFromFilter || undefined,
         dateToFilter || undefined
       );
@@ -133,7 +133,7 @@ const PaymentManagementList: React.FC = () => {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setMethodFilter('');
+    setMethodFilter('all');
     setDateFromFilter('');
     setDateToFilter('');
   };
@@ -188,7 +188,7 @@ const PaymentManagementList: React.FC = () => {
                 <SelectValue placeholder="Payment Method" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Methods</SelectItem>
+                <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="cash">Cash</SelectItem>
                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                 <SelectItem value="credit_card">Credit Card</SelectItem>
