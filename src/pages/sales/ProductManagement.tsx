@@ -33,8 +33,8 @@ const ProductManagement: React.FC = () => {
               Manage classes, courses, and merchandise - Milestone 5
             </p>
           </div>
-          <Badge variant="default" className="bg-blue-100 text-blue-800">
-            Milestone 5 - In Development
+          <Badge variant="default" className="bg-green-100 text-green-800">
+            Milestone 5 - Complete
           </Badge>
         </div>
 
