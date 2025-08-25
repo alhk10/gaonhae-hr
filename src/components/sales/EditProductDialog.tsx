@@ -63,13 +63,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         name: product.name || '',
         sku: product.sku || '',
         description: product.description || '',
-        category_id: product.category_id || '',
+        category_id: product.category_id || 'none',
         base_price: Number(product.base_price) || 0,
         tax_rate: Number(product.tax_rate) || 8,
         available_sizes: product.available_sizes || [],
         requires_size: product.requires_size || false,
-        min_belt_level: product.min_belt_level || '',
-        max_belt_level: product.max_belt_level || '',
+        min_belt_level: product.min_belt_level || 'none',
+        max_belt_level: product.max_belt_level || 'none',
         requires_belt_level: product.requires_belt_level || false,
         session_count: product.session_count || 0,
         validity_months: product.validity_months || 0,
@@ -112,6 +112,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
       await updateProduct(product.id, {
         ...formData,
+        category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
+        min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
+        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
         updated_by: 'current_user' // This should be replaced with actual user context
       });
 
@@ -200,9 +203,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No Category</SelectItem>
-                      {categories.map((category) => (
+                     <SelectContent>
+                       <SelectItem value="none">No Category</SelectItem>
+                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
@@ -264,9 +267,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                       <SelectTrigger>
                         <SelectValue placeholder="Select minimum belt level" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">No Minimum</SelectItem>
-                        {BELT_LEVELS.map((level) => (
+                       <SelectContent>
+                         <SelectItem value="none">No Minimum</SelectItem>
+                         {BELT_LEVELS.map((level) => (
                           <SelectItem key={level} value={level}>
                             {level}
                           </SelectItem>
@@ -283,9 +286,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                       <SelectTrigger>
                         <SelectValue placeholder="Select maximum belt level" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">No Maximum</SelectItem>
-                        {BELT_LEVELS.map((level) => (
+                       <SelectContent>
+                         <SelectItem value="none">No Maximum</SelectItem>
+                         {BELT_LEVELS.map((level) => (
                           <SelectItem key={level} value={level}>
                             {level}
                           </SelectItem>

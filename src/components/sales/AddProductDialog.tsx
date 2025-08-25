@@ -87,13 +87,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         name: formData.name.trim(),
         sku: formData.sku.trim(),
         description: formData.description.trim() || undefined,
-        category_id: formData.category_id || undefined,
+        category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         base_price: formData.base_price ? parseFloat(formData.base_price) : 0,
         tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : undefined,
         available_sizes: formData.available_sizes.length > 0 ? formData.available_sizes : undefined,
         requires_size: formData.requires_size,
-        min_belt_level: formData.min_belt_level.trim() || undefined,
-        max_belt_level: formData.max_belt_level.trim() || undefined,
+        min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
+        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
         requires_belt_level: formData.requires_belt_level,
         session_count: formData.session_count ? parseInt(formData.session_count) : undefined,
         validity_months: formData.validity_months ? parseInt(formData.validity_months) : undefined,
@@ -199,8 +199,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
+                   <SelectContent>
+                     <SelectItem value="none">No Category</SelectItem>
+                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
@@ -263,9 +264,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                     <SelectTrigger>
                       <SelectValue placeholder="Select minimum belt level" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No Minimum</SelectItem>
-                      {BELT_LEVELS.map((level) => (
+                     <SelectContent>
+                       <SelectItem value="none">No Minimum</SelectItem>
+                       {BELT_LEVELS.map((level) => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
@@ -283,9 +284,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                     <SelectTrigger>
                       <SelectValue placeholder="Select maximum belt level" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No Maximum</SelectItem>
-                      {BELT_LEVELS.map((level) => (
+                     <SelectContent>
+                       <SelectItem value="none">No Maximum</SelectItem>
+                       {BELT_LEVELS.map((level) => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
