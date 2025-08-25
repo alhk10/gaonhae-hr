@@ -326,21 +326,16 @@ function App() {
                      </AuthGuard>
                    } 
                  />
-                <Route 
-                  path="/sales/reports" 
-                  element={
-                    <AuthGuard>
-                      <SalesAccessGuard>
-                        <div className="min-h-screen bg-background flex items-center justify-center">
-                          <div className="text-center space-y-4">
-                            <h1 className="text-2xl font-bold">Sales Reports</h1>
-                            <p className="text-muted-foreground">Coming in Milestone 8</p>
-                          </div>
-                        </div>
-                      </SalesAccessGuard>
-                    </AuthGuard>
-                  } 
-                />
+                 <Route 
+                   path="/sales/reports" 
+                   element={
+                     <AuthGuard>
+                       <SalesAccessGuard>
+                         <SalesAnalytics />
+                       </SalesAccessGuard>
+                     </AuthGuard>
+                   } 
+                 />
 
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
