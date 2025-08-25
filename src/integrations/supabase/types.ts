@@ -2005,6 +2005,7 @@ export type Database = {
           created_by: string | null
           current_belt: string | null
           date_of_birth: string | null
+          dietary_restrictions: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -2014,11 +2015,17 @@ export type Database = {
           gender: string | null
           id: string
           last_name: string
+          medical_conditions: string | null
+          nationality: string | null
           notes: string | null
+          nric_passport: string | null
           phone: string | null
           postal_code: string | null
+          preferred_name: string | null
+          previous_experience: string | null
           status: string | null
           student_number: string
+          training_goals: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -2029,6 +2036,7 @@ export type Database = {
           created_by?: string | null
           current_belt?: string | null
           date_of_birth?: string | null
+          dietary_restrictions?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -2038,11 +2046,17 @@ export type Database = {
           gender?: string | null
           id?: string
           last_name: string
+          medical_conditions?: string | null
+          nationality?: string | null
           notes?: string | null
+          nric_passport?: string | null
           phone?: string | null
           postal_code?: string | null
+          preferred_name?: string | null
+          previous_experience?: string | null
           status?: string | null
           student_number: string
+          training_goals?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -2053,6 +2067,7 @@ export type Database = {
           created_by?: string | null
           current_belt?: string | null
           date_of_birth?: string | null
+          dietary_restrictions?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -2062,11 +2077,17 @@ export type Database = {
           gender?: string | null
           id?: string
           last_name?: string
+          medical_conditions?: string | null
+          nationality?: string | null
           notes?: string | null
+          nric_passport?: string | null
           phone?: string | null
           postal_code?: string | null
+          preferred_name?: string | null
+          previous_experience?: string | null
           status?: string | null
           student_number?: string
+          training_goals?: string | null
           updated_at?: string
           updated_by?: string | null
         }

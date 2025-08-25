@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucide-react';
+import { useBranches } from '@/hooks/useBranches';
 
 interface AddStudentDialogProps {
   trigger: React.ReactNode;
@@ -26,6 +28,24 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { branches, loading: branchesLoading } = useBranches();
+  
+  // Common nationalities for the dropdown
+  const commonNationalities = [
+    'Singapore', 'Malaysia', 'Indonesia', 'Thailand', 'Philippines', 'Vietnam',
+    'China', 'India', 'Japan', 'South Korea', 'Myanmar', 'Cambodia', 'Laos',
+    'Brunei', 'Australia', 'New Zealand', 'United Kingdom', 'United States',
+    'Canada', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Switzerland'
+  ];
+
+  // Belt progression system
+  const beltLevels = [
+    'Foundation 1', 'Foundation 2', 'Foundation 3',
+    'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+    'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+    'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
+    'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
+  ];
   const [formData, setFormData] = useState({
     // Personal Information
     first_name: '',
@@ -219,11 +239,13 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="nationality">Nationality</Label>
-                      <Input
-                        id="nationality"
+                      <SearchableSelect
                         value={formData.nationality}
-                        onChange={(e) => handleInputChange('nationality', e.target.value)}
-                        placeholder="e.g., Singapore, Malaysia"
+                        onValueChange={(value) => handleInputChange('nationality', value)}
+                        options={commonNationalities}
+                        placeholder="Select or type nationality"
+                        searchPlaceholder="Search nationalities..."
+                        allowAddNew={true}
                       />
                     </div>
                     <div>
@@ -351,13 +373,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                         <SelectValue placeholder="Select belt level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="white">White Belt</SelectItem>
-                        <SelectItem value="yellow">Yellow Belt</SelectItem>
-                        <SelectItem value="orange">Orange Belt</SelectItem>
-                        <SelectItem value="green">Green Belt</SelectItem>
-                        <SelectItem value="blue">Blue Belt</SelectItem>
-                        <SelectItem value="brown">Brown Belt</SelectItem>
-                        <SelectItem value="black">Black Belt</SelectItem>
+                        {beltLevels.map((belt) => (
+                          <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
+                            {belt}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -417,16 +437,20 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                 <CardContent className="space-y-4">
                   <div>
                     <Label htmlFor="branch_id">Primary Branch</Label>
-                    <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
+                    <Select 
+                      value={formData.branch_id} 
+                      onValueChange={(value) => handleInputChange('branch_id', value)}
+                      disabled={branchesLoading}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select primary branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select primary branch"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="main">Main Branch</SelectItem>
-                        <SelectItem value="north">North Branch</SelectItem>
-                        <SelectItem value="south">South Branch</SelectItem>
-                        <SelectItem value="east">East Branch</SelectItem>
-                        <SelectItem value="west">West Branch</SelectItem>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -439,8 +463,10 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                        <SelectItem value="medical-leave">Medical Leave</SelectItem>
+                        <SelectItem value="examination-leave">Examination Leave</SelectItem>
+                        <SelectItem value="on-holiday">On Holiday</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
