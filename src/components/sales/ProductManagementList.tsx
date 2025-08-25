@@ -27,9 +27,11 @@ import {
   XCircle
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
+import { getProductInventory, ProductInventory } from '@/services/inventoryService';
 import AddProductDialog from './AddProductDialog';
 import { EditProductDialog } from './EditProductDialog';
 import { ProductDetailDialog } from './ProductDetailDialog';
+import { InventoryStatusBadge } from './InventoryStatusBadge';
 
 const ProductManagementList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,6 +46,7 @@ const ProductManagementList: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [inventory, setInventory] = useState<Record<string, ProductInventory>>({});
   
   const itemsPerPage = 20;
 
@@ -77,6 +80,13 @@ const ProductManagementList: React.FC = () => {
       
       setProducts(filteredProducts);
       setTotal(result.total);
+      
+      // Load inventory for the products
+      if (filteredProducts.length > 0) {
+        const productIds = filteredProducts.map(p => p.id);
+        const inventoryData = await getProductInventory(productIds);
+        setInventory(inventoryData);
+      }
     } catch (error) {
       console.error('Error loading products:', error);
       toast.error('Failed to load products');
@@ -343,12 +353,13 @@ const ProductManagementList: React.FC = () => {
                         className="rounded"
                       />
                     </TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Belt Level</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                     <TableHead>Product</TableHead>
+                     <TableHead>SKU</TableHead>
+                     <TableHead>Belt Level</TableHead>
+                     <TableHead>Price</TableHead>
+                     <TableHead>Inventory</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -378,16 +389,29 @@ const ProductManagementList: React.FC = () => {
                     {product.min_belt_level || 'Any Level'}
                   </Badge>
                         </TableCell>
-                        <TableCell>
-                          <div className="font-medium">
-                            ${product.base_price || '0.00'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(product.is_active)}>
-                            {product.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
+                         <TableCell>
+                           <div className="font-medium">
+                             ${product.base_price || '0.00'}
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           {inventory[product.id] ? (
+                             <InventoryStatusBadge
+                               status={inventory[product.id].status}
+                               quantity={inventory[product.id].available_quantity}
+                               reorderNeeded={inventory[product.id].reorder_needed}
+                             />
+                           ) : (
+                             <Badge variant="outline" className="bg-gray-100 text-gray-800">
+                               No Inventory
+                             </Badge>
+                           )}
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant={getStatusBadgeVariant(product.is_active)}>
+                             {product.is_active ? 'Active' : 'Inactive'}
+                           </Badge>
+                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button
