@@ -15,6 +15,16 @@ import { toast } from 'sonner';
 import { createProduct, getProductCategories } from '@/services/productService';
 import { Loader2 } from 'lucide-react';
 
+const BELT_LEVELS = [
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green', 
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
+];
+
+const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+
 interface AddProductDialogProps {
   trigger: React.ReactNode;
   onProductAdded?: () => void;
@@ -246,22 +256,42 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="min_belt_level">Minimum Belt Level</Label>
-                  <Input
-                    id="min_belt_level"
+                  <Select
                     value={formData.min_belt_level}
-                    onChange={(e) => handleInputChange('min_belt_level', e.target.value)}
-                    placeholder="e.g., White Belt"
-                  />
+                    onValueChange={(value) => handleInputChange('min_belt_level', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select minimum belt level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Minimum</SelectItem>
+                      {BELT_LEVELS.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="max_belt_level">Maximum Belt Level</Label>
-                  <Input
-                    id="max_belt_level"
+                  <Select
                     value={formData.max_belt_level}
-                    onChange={(e) => handleInputChange('max_belt_level', e.target.value)}
-                    placeholder="e.g., Black Belt"
-                  />
+                    onValueChange={(value) => handleInputChange('max_belt_level', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select maximum belt level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Maximum</SelectItem>
+                      {BELT_LEVELS.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}

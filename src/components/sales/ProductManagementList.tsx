@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { 
   Package, 
@@ -21,10 +22,14 @@ import {
   Filter,
   Download,
   Upload,
-  PackagePlus
+  PackagePlus,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
-import { getProducts, Product, getProductCategories } from '@/services/productService';
+import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import AddProductDialog from './AddProductDialog';
+import { EditProductDialog } from './EditProductDialog';
+import { ProductDetailDialog } from './ProductDetailDialog';
 
 const ProductManagementList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -36,6 +41,9 @@ const ProductManagementList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   
   const itemsPerPage = 20;
 
@@ -110,17 +118,36 @@ const ProductManagementList: React.FC = () => {
     return isActive ? 'default' : 'secondary';
   };
 
-  const getProductTypeBadge = (type: string) => {
-    switch (type) {
-      case 'class':
-        return { variant: 'default', label: 'Class' };
-      case 'course':
-        return { variant: 'secondary', label: 'Course' };
-      case 'merchandise':
-        return { variant: 'outline', label: 'Merchandise' };
-      default:
-        return { variant: 'outline', label: type };
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    try {
+      await deleteProduct(product.id);
+      toast.success('Product deleted successfully');
+      loadProducts();
+      setDeletingProduct(null);
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error('Failed to delete product');
     }
+  };
+
+  const handleBulkActivate = async () => {
+    toast.info('Bulk activate functionality coming soon');
+  };
+
+  const handleBulkDeactivate = async () => {
+    toast.info('Bulk deactivate functionality coming soon');
+  };
+
+  const handleBulkDelete = async () => {
+    toast.info('Bulk delete functionality coming soon');
   };
 
   const totalPages = Math.ceil(total / itemsPerPage);
@@ -184,19 +211,19 @@ const ProductManagementList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             </div>
             
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -237,15 +264,17 @@ const ProductManagementList: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => toast.info('Bulk activate coming soon')}
+                  onClick={handleBulkActivate}
                 >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
                   Activate
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => toast.info('Bulk deactivate coming soon')}
+                  onClick={handleBulkDeactivate}
                 >
+                  <XCircle className="w-4 h-4 mr-2" />
                   Deactivate
                 </Button>
                 <Button
@@ -253,13 +282,15 @@ const ProductManagementList: React.FC = () => {
                   size="sm"
                   onClick={() => toast.info('Bulk export coming soon')}
                 >
+                  <Download className="w-4 h-4 mr-2" />
                   Export Selected
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => toast.info('Bulk delete coming soon')}
+                  onClick={handleBulkDelete}
                 >
+                  <Trash2 className="w-4 h-4 mr-2" />
                   Delete Selected
                 </Button>
               </div>
@@ -362,21 +393,21 @@ const ProductManagementList: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toast.info('Product view coming soon')}
+                              onClick={() => handleViewProduct(product)}
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toast.info('Product edit coming soon')}
+                              onClick={() => handleEditProduct(product)}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toast.info('Product delete coming soon')}
+                              onClick={() => setDeletingProduct(product)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -417,6 +448,42 @@ const ProductManagementList: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Product Dialog */}
+      <EditProductDialog
+        product={editingProduct!}
+        open={!!editingProduct}
+        onOpenChange={(open) => !open && setEditingProduct(null)}
+        onProductUpdated={loadProducts}
+      />
+
+      {/* Product Detail Dialog */}
+      <ProductDetailDialog
+        product={viewingProduct}
+        open={!!viewingProduct}
+        onOpenChange={(open) => !open && setViewingProduct(null)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingProduct?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deletingProduct && handleDeleteProduct(deletingProduct)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
