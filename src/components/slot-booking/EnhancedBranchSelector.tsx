@@ -1,4 +1,5 @@
 
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,7 +22,7 @@ const EnhancedBranchSelector: React.FC<EnhancedBranchSelectorProps> = ({
   isLoading = false
 }) => {
   const getBranchColorStyle = (color: string) => {
-    return color || '#3b82f6';
+    return convertTailwindColorToHex(color || '#3b82f6');
   };
 
   return (

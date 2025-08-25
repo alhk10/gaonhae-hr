@@ -1,4 +1,5 @@
 
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +80,7 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
           <div className="flex items-center gap-2">
             <div 
               className="w-2.5 h-2.5 rounded-full border-2" 
-              style={{ backgroundColor: branchColor, borderColor: branchColor }}
+              style={{ backgroundColor: convertTailwindColorToHex(branchColor), borderColor: convertTailwindColorToHex(branchColor) }}
             ></div>
             <span>Your selections</span>
           </div>

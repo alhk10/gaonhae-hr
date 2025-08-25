@@ -1,4 +1,5 @@
 
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -266,7 +267,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                       <div className="flex items-center space-x-2">
                         <div 
                           className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: branch.color }}
+                          style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
                         ></div>
                         <span>{branch.name}</span>
                       </div>

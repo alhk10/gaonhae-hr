@@ -1,4 +1,5 @@
 
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,14 +57,14 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
                 key={index}
                 className="flex items-center justify-between p-2 rounded border text-sm"
                 style={{ 
-                  backgroundColor: `${branchColor}08`,
-                  borderColor: `${branchColor}30`
+                  backgroundColor: `${convertTailwindColorToHex(branchColor)}08`,
+                  borderColor: `${convertTailwindColorToHex(branchColor)}30`
                 }}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div 
                     className="w-2 h-2 rounded-full flex-shrink-0" 
-                    style={{ backgroundColor: branchColor }}
+                    style={{ backgroundColor: convertTailwindColorToHex(branchColor) }}
                   ></div>
                   <span className="font-medium truncate">
                     {format(date, 'MMM dd')}

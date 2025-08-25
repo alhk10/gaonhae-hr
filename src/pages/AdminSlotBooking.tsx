@@ -37,6 +37,7 @@ import {
   updateSlotBookingBranch
 } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
@@ -581,10 +582,10 @@ const AdminSlotBooking = () => {
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center space-x-3">
-                                      <div 
-                                        className="w-3 h-3 rounded-full flex-shrink-0" 
-                                        style={{ backgroundColor: branches.find(b => b.id === booking.branchId)?.color || '#3B82F6' }}
-                                      />
+                                        <div 
+                                          className="w-3 h-3 rounded-full flex-shrink-0" 
+                                          style={{ backgroundColor: convertTailwindColorToHex(branches.find(b => b.id === booking.branchId)?.color || '#3B82F6') }}
+                                        />
                                       <div>
                                         <p className="font-medium">{booking.employeeName}</p>
                                         <p className="text-sm text-gray-600">
@@ -646,7 +647,7 @@ const AdminSlotBooking = () => {
                                 <div className="flex items-center space-x-2 mb-3">
                                   <div 
                                     className="w-3 h-3 rounded-full" 
-                                    style={{ backgroundColor: branch.color }}
+                                    style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
                                   ></div>
                                   <h4 className="font-medium">{branch.name}</h4>
                                 </div>
@@ -751,7 +752,7 @@ const AdminSlotBooking = () => {
                             <div className="flex items-center space-x-2">
                               <div 
                                 className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: branch.color }}
+                                style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
                               ></div>
                               <span>{branch.name}</span>
                             </div>
@@ -818,11 +819,11 @@ const AdminSlotBooking = () => {
                                             handleApprovalClick(booking, e);
                                           }}
                                           className={`px-0.5 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-xs leading-tight' : 'text-xs'}`}
-                                          style={{ 
-                                            backgroundColor: branch?.color || '#6b7280',
-                                            ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
-                                            ...(booking.status === 'approved' && { border: '1px solid #10b981' })
-                                          }}
+                                           style={{ 
+                                             backgroundColor: convertTailwindColorToHex(branch?.color || '#6b7280'),
+                                             ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
+                                             ...(booking.status === 'approved' && { border: '1px solid #10b981' })
+                                           }}
                                           title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
                                         >
                                           <span className="truncate">
@@ -880,7 +881,7 @@ const AdminSlotBooking = () => {
                           <div className="flex items-center space-x-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: branch?.color || '#6b7280' }}
+                              style={{ backgroundColor: convertTailwindColorToHex(branch?.color || '#6b7280') }}
                             ></div>
                             <div>
                               <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>
@@ -1028,7 +1029,7 @@ const AdminSlotBooking = () => {
                             <div className="flex items-center space-x-2">
                               <div 
                                 className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: branch.color }}
+                                style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
                               ></div>
                               <span>{branch.name}</span>
                               {branch.id === selectedBookingForApproval?.branchId && (
