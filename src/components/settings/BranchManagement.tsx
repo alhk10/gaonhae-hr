@@ -20,7 +20,6 @@ import {
   Edit, 
   Trash2, 
   Building,
-  Users,
   Calendar,
   Palette,
   Save,
@@ -39,8 +38,7 @@ const BranchManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    color: 'bg-blue-500',
-    total_slots: 0
+    color: 'bg-blue-500'
   });
 
   const colorOptions = [
@@ -75,8 +73,7 @@ const BranchManagement: React.FC = () => {
     setFormData({
       name: '',
       address: '',
-      color: 'bg-blue-500',
-      total_slots: 0
+      color: 'bg-blue-500'
     });
   };
 
@@ -90,8 +87,7 @@ const BranchManagement: React.FC = () => {
       await saveBranch({
         name: formData.name.trim(),
         address: formData.address.trim(),
-        color: formData.color,
-        total_slots: formData.total_slots
+        color: formData.color
       });
       
       toast.success('Branch created successfully');
@@ -109,8 +105,7 @@ const BranchManagement: React.FC = () => {
     setFormData({
       name: branch.name,
       address: branch.address,
-      color: branch.color || 'bg-blue-500',
-      total_slots: branch.total_slots || 0
+      color: branch.color || 'bg-blue-500'
     });
     setIsEditDialogOpen(true);
   };
@@ -126,8 +121,7 @@ const BranchManagement: React.FC = () => {
         ...editingBranch,
         name: formData.name.trim(),
         address: formData.address.trim(),
-        color: formData.color,
-        total_slots: formData.total_slots
+        color: formData.color
       });
       
       toast.success('Branch updated successfully');
@@ -235,20 +229,9 @@ const BranchManagement: React.FC = () => {
                             </div>
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="add-slots">Total Slots</Label>
-                    <Input
-                      id="add-slots"
-                      type="number"
-                      min="0"
-                      placeholder="e.g., 50"
-                      value={formData.total_slots}
-                      onChange={(e) => setFormData(prev => ({ ...prev, total_slots: parseInt(e.target.value) || 0 }))}
-                    />
-                  </div>
+                  </SelectContent>
+                </Select>
+              </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => {
@@ -286,22 +269,10 @@ const BranchManagement: React.FC = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-green-600" />
+              <Palette className="h-8 w-8 text-purple-600" />
               <div>
-                <p className="text-2xl font-bold">{branches.reduce((sum, branch) => sum + (branch.total_slots || 0), 0)}</p>
-                <p className="text-sm text-muted-foreground">Total Slots</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <MapPin className="h-8 w-8 text-purple-600" />
-              <div>
-                <p className="text-2xl font-bold">{branches.filter(b => (b.total_slots || 0) > 0).length}</p>
-                <p className="text-sm text-muted-foreground">Active Branches</p>
+                <p className="text-2xl font-bold">{new Set(branches.map(b => b.color)).size}</p>
+                <p className="text-sm text-muted-foreground">Color Variants</p>
               </div>
             </div>
           </CardContent>
@@ -331,7 +302,6 @@ const BranchManagement: React.FC = () => {
                     <TableHead>Branch</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead>Color</TableHead>
-                    <TableHead>Total Slots</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -360,11 +330,6 @@ const BranchManagement: React.FC = () => {
                             {colorOptions.find(c => c.value === branch.color)?.label || 'Gray'}
                           </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={branch.total_slots && branch.total_slots > 0 ? 'default' : 'secondary'}>
-                          {branch.total_slots || 0} slots
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -458,17 +423,6 @@ const BranchManagement: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-slots">Total Slots</Label>
-              <Input
-                id="edit-slots"
-                type="number"
-                min="0"
-                placeholder="e.g., 50"
-                value={formData.total_slots}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_slots: parseInt(e.target.value) || 0 }))}
-              />
             </div>
           </div>
           <DialogFooter>

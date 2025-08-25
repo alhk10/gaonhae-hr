@@ -7,7 +7,6 @@ export interface Branch {
   name: string;
   address: string;
   color?: string;
-  total_slots?: number;
 }
 
 // Use Supabase branches table directly
@@ -29,8 +28,7 @@ export const getBranches = async (): Promise<Branch[]> => {
       id: branch.id,
       name: branch.name,
       address: branch.address,
-      color: branch.color,
-      total_slots: branch.total_slots
+      color: branch.color
     }));
 
     console.log('SettingsService: Successfully loaded branches:', branches.length);
@@ -54,8 +52,7 @@ export const saveBranch = async (branch: Omit<Branch, 'id'>): Promise<string> =>
         id: branchId,
         name: branch.name,
         address: branch.address,
-        color: branch.color || 'bg-blue-500',
-        total_slots: branch.total_slots || 0
+        color: branch.color || 'bg-blue-500'
       });
 
     if (error) {
@@ -80,8 +77,7 @@ export const updateBranch = async (branch: Branch): Promise<void> => {
       .update({
         name: branch.name,
         address: branch.address,
-        color: branch.color,
-        total_slots: branch.total_slots
+        color: branch.color
       })
       .eq('id', branch.id);
 
