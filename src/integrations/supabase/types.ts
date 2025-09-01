@@ -25,7 +25,7 @@ export type Database = {
           leave_management: boolean | null
           payroll: boolean | null
           reports: boolean | null
-          slot_booking: boolean | null
+          slotBooking: boolean | null
         }
         Insert: {
           attendance?: boolean | null
@@ -37,7 +37,7 @@ export type Database = {
           leave_management?: boolean | null
           payroll?: boolean | null
           reports?: boolean | null
-          slot_booking?: boolean | null
+          slotBooking?: boolean | null
         }
         Update: {
           attendance?: boolean | null
@@ -49,7 +49,7 @@ export type Database = {
           leave_management?: boolean | null
           payroll?: boolean | null
           reports?: boolean | null
-          slot_booking?: boolean | null
+          slotBooking?: boolean | null
         }
         Relationships: [
           {
