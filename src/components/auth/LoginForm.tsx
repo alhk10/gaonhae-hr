@@ -5,12 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import EmailVerificationDialog from './EmailVerificationDialog';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const { login, isLoading } = useAuth();
@@ -18,6 +21,7 @@ const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setResetMessage('');
     
     try {
       const loginSuccess = await login(email, password);
@@ -32,6 +36,33 @@ const LoginForm = () => {
       }
     } catch (err) {
       setError('Invalid credentials. Please check your email and password.');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setError('');
+    setResetMessage('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetMessage(`Password reset email sent to ${email}. Please check your inbox and follow the instructions.`);
+      }
+    } catch (err) {
+      setError('Failed to send password reset email. Please try again.');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -83,9 +114,27 @@ const LoginForm = () => {
                   {error}
                 </div>
               )}
+              {resetMessage && (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">
+                  {resetMessage}
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+              
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleForgotPassword}
+                  disabled={isResettingPassword}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  {isResettingPassword ? 'Sending reset email...' : 'Forgot Password?'}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
