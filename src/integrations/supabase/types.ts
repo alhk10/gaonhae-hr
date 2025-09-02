@@ -25,6 +25,7 @@ export type Database = {
           leave_management: boolean | null
           payroll: boolean | null
           reports: boolean | null
+          slot_booking: boolean | null
           slotBooking: boolean | null
         }
         Insert: {
@@ -37,6 +38,7 @@ export type Database = {
           leave_management?: boolean | null
           payroll?: boolean | null
           reports?: boolean | null
+          slot_booking?: boolean | null
           slotBooking?: boolean | null
         }
         Update: {
@@ -49,6 +51,7 @@ export type Database = {
           leave_management?: boolean | null
           payroll?: boolean | null
           reports?: boolean | null
+          slot_booking?: boolean | null
           slotBooking?: boolean | null
         }
         Relationships: [
@@ -218,6 +221,60 @@ export type Database = {
           updated_at?: string | null
           wednesday_end?: string | null
           wednesday_start?: string | null
+        }
+        Relationships: []
+      }
+      attendance_statuses: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      booking_statuses: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
         }
         Relationships: []
       }
@@ -603,6 +660,30 @@ export type Database = {
           profile?: boolean | null
           slot_booking_employee?: boolean | null
           submit_claim?: boolean | null
+        }
+        Relationships: []
+      }
+      employee_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
         }
         Relationships: []
       }
@@ -1381,6 +1462,30 @@ export type Database = {
           id?: string
           password_hash?: string
           salt?: string
+        }
+        Relationships: []
+      }
+      payment_methods: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
         }
         Relationships: []
       }
