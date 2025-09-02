@@ -68,7 +68,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
       leave_management: false,
       claims: false,
       attendance: false,
-      slot_booking: false,
+      slotBooking: false,
       reports: false
     };
   } catch (error) {
