@@ -62,7 +62,8 @@ export const getUserAdminAccess = async (employeeId: string) => {
       throw error;
     }
 
-    return data || {
+    // Convert snake_case database fields to camelCase for frontend consistency
+    const adminAccess = data || {
       employees: false,
       payroll: false,
       leave_management: false,
@@ -70,6 +71,16 @@ export const getUserAdminAccess = async (employeeId: string) => {
       attendance: false,
       slotBooking: false,
       reports: false
+    };
+
+    return {
+      employees: adminAccess.employees,
+      payroll: adminAccess.payroll,
+      leaveManagement: adminAccess.leave_management,
+      claims: adminAccess.claims,
+      attendance: adminAccess.attendance,
+      slotBooking: adminAccess.slotBooking,
+      reports: adminAccess.reports
     };
   } catch (error) {
     console.error('[AuthOptimization] Error in getUserAdminAccess:', error);
@@ -93,13 +104,23 @@ export const getUserPageAccess = async (employeeId: string) => {
       throw error;
     }
 
-    return data || {
+    // Convert snake_case database fields to camelCase for frontend consistency
+    const pageAccess = data || {
       profile: true,
       apply_leave: true,
       submit_claim: true,
       payslips: true,
       my_attendance: true,
       slot_booking_employee: true
+    };
+
+    return {
+      profile: pageAccess.profile,
+      applyLeave: pageAccess.apply_leave,
+      submitClaim: pageAccess.submit_claim,
+      payslips: pageAccess.payslips,
+      myAttendance: pageAccess.my_attendance,
+      slotBookingEmployee: pageAccess.slot_booking_employee
     };
   } catch (error) {
     console.error('[AuthOptimization] Error in getUserPageAccess:', error);
