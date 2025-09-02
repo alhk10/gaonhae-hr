@@ -73,6 +73,10 @@ const Sidebar = () => {
           const employee = employees.find(emp => emp.email === user.email);
           
           if (employee) {
+            console.log('Sidebar: Loaded employee admin access:', {
+              email: employee.email,
+              adminAccess: employee.adminAccess
+            });
             setCurrentEmployee(employee);
           } else {
             setCurrentEmployee(null);
