@@ -20,22 +20,43 @@ const KimHasungPasswordReset: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Generate salt and hash the default password
+      // Step 1: Get Kim Hasung's Supabase Auth user ID
+      const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+      
+      if (listError) {
+        throw new Error(`Failed to list users: ${listError.message}`);
+      }
+
+      const kimUser = users?.find((user: any) => user.email === employeeEmail);
+      
+      if (!kimUser) {
+        throw new Error(`No Supabase Auth user found for ${employeeEmail}. User may need to be created in Supabase Auth first.`);
+      }
+
+      // Step 2: Reset password in Supabase Auth (this is what the login system uses)
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        kimUser.id,
+        { password: defaultPassword }
+      );
+
+      if (authError) {
+        throw new Error(`Supabase Auth password reset failed: ${authError.message}`);
+      }
+
+      console.log('KimHasungPasswordReset: Supabase Auth password updated successfully');
+
+      // Step 3: Also update custom password table for consistency
       const salt = generateSalt();
       const hashedPassword = await hashPassword(defaultPassword, salt);
 
-      console.log('KimHasungPasswordReset: Generated password hash for:', employeeEmail);
-
-      // Use the secure admin function to reset password
-      const { error: resetError } = await supabase.rpc('admin_reset_password', {
+      const { error: customResetError } = await supabase.rpc('admin_reset_password', {
         target_email: employeeEmail,
         new_password_hash: hashedPassword,
         new_salt: salt
       });
 
-      if (resetError) {
-        console.error('KimHasungPasswordReset: Password reset error:', resetError);
-        throw new Error(`Password reset failed: ${resetError.message}`);
+      if (customResetError) {
+        console.warn('Custom password table update failed, but Supabase Auth was successful:', customResetError);
       }
 
       // Log security event
