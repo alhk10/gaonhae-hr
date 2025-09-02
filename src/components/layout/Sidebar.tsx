@@ -32,7 +32,6 @@ interface MenuItem {
 
 import { validateSuperadminAccess, logAuthState } from '@/utils/authValidation';
 import { systemValidator } from '@/utils/systemTestValidator';
-import '@/utils/forceAuthRefresh';
 
 const Sidebar = () => {
   const authData = useAuth();
