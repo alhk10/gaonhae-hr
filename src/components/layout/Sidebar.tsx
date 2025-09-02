@@ -99,6 +99,16 @@ const Sidebar = () => {
   const getMenuItems = useCallback((): MenuItem[] => {
     console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email);
     
+    // Enhanced debugging for Kim Hasung
+    if (user?.email === 'hasung534@gmail.com') {
+      console.log('🔍 [Kim Hasung Sidebar Debug] Current state:');
+      console.log('  - userrole:', userrole);
+      console.log('  - currentEmployee:', currentEmployee);
+      console.log('  - adminAccess:', currentEmployee?.adminAccess);
+      console.log('  - slotBooking permission:', currentEmployee?.adminAccess?.slotBooking);
+      console.log('  - authData.adminAccess:', authData.adminAccess);
+    }
+    
     // Superladmin gets full admin access with validation
     if (validateSuperadminAccess(userrole, user?.email)) {
       console.log('Sidebar: ✅ SUPERADMIN ACCESS GRANTED - Full menu generated');
@@ -135,12 +145,22 @@ const Sidebar = () => {
       return adminItems;
     }
 
-    // Manager/Admin role access - can see items based on admin access
-    if (userrole === 'admin' && currentEmployee?.adminAccess) {
+    // Manager/Admin role access - check both currentEmployee data AND authData for admin access
+    const adminAccessData = currentEmployee?.adminAccess || authData.adminAccess;
+    
+    if (userrole === 'admin' && adminAccessData) {
+      // Enhanced debugging for Kim Hasung
+      if (user?.email === 'hasung534@gmail.com') {
+        console.log('🔍 [Kim Hasung Sidebar Debug] Admin menu generation:');
+        console.log('  - Using adminAccess from:', currentEmployee?.adminAccess ? 'currentEmployee' : 'authData');
+        console.log('  - adminAccess data:', adminAccessData);
+        console.log('  - slotBooking:', adminAccessData.slotBooking);
+      }
       const menuItems: MenuItem[] = [
         { icon: BarChart3, label: 'Dashboard', path: '/' }
       ];
-      const { adminAccess, pageAccess } = currentEmployee;
+      const adminAccess = adminAccessData;
+      const pageAccess = currentEmployee?.pageAccess || authData.pageAccess;
 
       // Add admin menu items based on specific permissions
       if (adminAccess.employees) {
@@ -159,6 +179,9 @@ const Sidebar = () => {
         menuItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
       }
       if (adminAccess.slotBooking) {
+        if (user?.email === 'hasung534@gmail.com') {
+          console.log('🔍 [Kim Hasung Sidebar Debug] ✅ Adding Admin Slot Booking menu item');
+        }
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
 
@@ -190,10 +213,20 @@ const Sidebar = () => {
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
-    // Check if employee has any admin permissions and show corresponding admin menu items
-    if (currentEmployee?.adminAccess) {
-      const { adminAccess } = currentEmployee;
+    // Check admin permissions from both currentEmployee and authData (fallback)
+    const employeeAdminAccess = currentEmployee?.adminAccess || authData.adminAccess;
+    
+    if (employeeAdminAccess) {
+      const adminAccess = employeeAdminAccess;
       console.log('Sidebar: Employee has admin access:', adminAccess);
+      
+      // Enhanced debugging for Kim Hasung
+      if (user?.email === 'hasung534@gmail.com') {
+        console.log('🔍 [Kim Hasung Sidebar Debug] Employee with admin access:');
+        console.log('  - adminAccess source:', currentEmployee?.adminAccess ? 'currentEmployee' : 'authData fallback');
+        console.log('  - adminAccess:', adminAccess);
+        console.log('  - slotBooking permission:', adminAccess?.slotBooking);
+      }
       
       if (adminAccess.employees) {
         menuItems.push({ icon: Users, label: 'Employees', path: '/employees' });
@@ -212,13 +245,17 @@ const Sidebar = () => {
       }
       if (adminAccess.slotBooking) {
         console.log('Sidebar: ✅ Adding Admin Slot Booking for employee with slotBooking permission');
+        if (user?.email === 'hasung534@gmail.com') {
+          console.log('🔍 [Kim Hasung Sidebar Debug] ✅ SUCCESS: Adding Admin Slot Booking menu item!');
+        }
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
     }
 
-    // Add regular employee page access items
-    if (currentEmployee?.pageAccess) {
-      const pageAccess = currentEmployee.pageAccess;
+    // Add regular employee page access items (with fallback to authData)
+    const employeePageAccess = currentEmployee?.pageAccess || authData.pageAccess;
+    if (employeePageAccess) {
+      const pageAccess = employeePageAccess;
       
       if (pageAccess.profile) {
         menuItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });

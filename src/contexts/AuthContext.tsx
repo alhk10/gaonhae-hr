@@ -45,9 +45,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('🚀 Starting session setup...');
       
-      // Add timeout to prevent infinite loading
+      // Add timeout to prevent infinite loading (increased to 15s for complex admin access queries)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Session setup timeout')), 10000)
+        setTimeout(() => reject(new Error('Session setup timeout')), 15000)
       );
       
       // Get user employee data with timeout
@@ -96,36 +96,72 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           const [adminAccess, pageAccess] = accessData;
           
+          // Enhanced debugging for Kim Hasung
+          if (session.user.email === 'hasung534@gmail.com') {
+            console.log('🔍 [Kim Hasung Debug] Admin Access Data:', adminAccess);
+            console.log('🔍 [Kim Hasung Debug] Page Access Data:', pageAccess);
+            console.log('🔍 [Kim Hasung Debug] Has slotBooking permission:', adminAccess?.slotBooking);
+          }
+          
           if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
             role = 'admin';
             console.log('🔐 User identified as admin');
+            if (session.user.email === 'hasung534@gmail.com') {
+              console.log('🔍 [Kim Hasung Debug] Role set to admin due to permissions:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+            }
           }
           setAdminAccess(adminAccess);
           setPageAccess(pageAccess);
         } catch (accessError) {
           console.warn('⚠️ Access check timeout, trying individual queries...');
           
-          // Try to get at least admin access if possible
-          try {
-            const adminAccess = await getUserAdminAccess(userData.id);
-            if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
-              role = 'admin';
-              console.log('🔐 User identified as admin (fallback)');
+          // Enhanced retry mechanism for admin access
+          let retryCount = 0;
+          let adminAccess = null;
+          
+          while (retryCount < 2 && !adminAccess) {
+            try {
+              console.log(`🔄 Retry attempt ${retryCount + 1} for admin access...`);
+              adminAccess = await getUserAdminAccess(userData.id);
+              
+              // Enhanced debugging for Kim Hasung
+              if (session.user.email === 'hasung534@gmail.com') {
+                console.log(`🔍 [Kim Hasung Debug] Retry ${retryCount + 1} Admin Access:`, adminAccess);
+              }
+              
+              if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+                role = 'admin';
+                console.log('🔐 User identified as admin (retry success)');
+                if (session.user.email === 'hasung534@gmail.com') {
+                  console.log('🔍 [Kim Hasung Debug] Admin role confirmed on retry:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+                }
+                break;
+              }
+              retryCount++;
+            } catch (retryError) {
+              console.warn(`⚠️ Retry ${retryCount + 1} failed:`, retryError);
+              retryCount++;
+              if (retryCount < 2) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              }
             }
-            setAdminAccess(adminAccess || {});
-          } catch (adminError) {
-            console.warn('⚠️ Admin access fallback failed, using empty permissions');
-            setAdminAccess({});
           }
           
-          // Set default page access
+          if (!adminAccess) {
+            console.warn('⚠️ All admin access retries failed, using empty permissions');
+            adminAccess = {};
+          }
+          
+          setAdminAccess(adminAccess);
+          
+          // Set default page access with camelCase field names
           setPageAccess({
             profile: true,
-            apply_leave: true,
-            submit_claim: true,
+            applyLeave: true,
+            submitClaim: true,
             payslips: true,
-            my_attendance: true,
-            slot_booking_employee: true
+            myAttendance: true,
+            slotBookingEmployee: true
           });
         }
       }
@@ -141,6 +177,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       setUserrole(role);
       console.log('✅ Session setup complete - Role:', role);
+      
+      // Enhanced debugging for Kim Hasung - final state
+      if (session.user.email === 'hasung534@gmail.com') {
+        console.log('🔍 [Kim Hasung Debug] FINAL SESSION STATE:');
+        console.log('  - Role:', role);
+        console.log('  - AdminAccess:', adminAccess);
+        console.log('  - Has slotBooking:', adminAccess?.slotBooking);
+        console.log('  - Should see Admin Slot Booking menu:', role === 'admin' && adminAccess?.slotBooking);
+      }
+      
       setIsLoading(false);
       
     } catch (error) {
@@ -157,11 +203,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setAdminAccess({});
       setPageAccess({
         profile: true,
-        apply_leave: true,
-        submit_claim: true,
+        applyLeave: true,
+        submitClaim: true,
         payslips: true,
-        my_attendance: true,
-        slot_booking_employee: true
+        myAttendance: true,
+        slotBookingEmployee: true
       });
       setIsLoading(false);
     }
