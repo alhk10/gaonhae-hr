@@ -59,6 +59,13 @@ export type Database = {
             foreignKeyName: "admin_access_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_access_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -90,6 +97,13 @@ export type Database = {
           type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "allowances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "allowances_employee_id_fkey"
             columns: ["employee_id"]
@@ -146,6 +160,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_employee_id_fkey"
             columns: ["employee_id"]
@@ -392,6 +413,13 @@ export type Database = {
             foreignKeyName: "certificates_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -471,6 +499,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "claims_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "claims_employee_id_fkey"
             columns: ["employee_id"]
@@ -618,6 +653,13 @@ export type Database = {
           type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deductions_employee_id_fkey"
             columns: ["employee_id"]
@@ -1211,6 +1253,13 @@ export type Database = {
             foreignKeyName: "leave_encashment_config_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: true
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_encashment_config_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -1270,6 +1319,13 @@ export type Database = {
             foreignKeyName: "leave_encashment_records_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_encashment_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -1322,6 +1378,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leave_requests_employee_id_fkey"
             columns: ["employee_id"]
@@ -1397,6 +1460,13 @@ export type Database = {
             foreignKeyName: "location_exceptions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_exceptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -1425,6 +1495,13 @@ export type Database = {
           id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "monday_holiday_leave_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "monday_holiday_leave_adjustments_employee_id_fkey"
             columns: ["employee_id"]
@@ -1589,6 +1666,13 @@ export type Database = {
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payroll_records_employee_id_fkey"
             columns: ["employee_id"]
@@ -1872,6 +1956,13 @@ export type Database = {
             foreignKeyName: "slot_bookings_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_bookings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -1929,6 +2020,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_bookings_new_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
             referencedColumns: ["id"]
           },
           {
@@ -2478,7 +2576,84 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_employees: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          bank_name: string | null
+          base_salary: number | null
+          created_at: string | null
+          daily_rate: number | null
+          daily_weekday_rate: number | null
+          daily_weekend_rate: number | null
+          date_of_birth: string | null
+          department: string | null
+          email: string | null
+          hourly_rate: number | null
+          id: string | null
+          join_date: string | null
+          name: string | null
+          nric: string | null
+          payment_type: string | null
+          phone: string | null
+          position: string | null
+          residency_status: string | null
+          resign_date: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          base_salary?: number | null
+          created_at?: string | null
+          daily_rate?: number | null
+          daily_weekday_rate?: number | null
+          daily_weekend_rate?: number | null
+          date_of_birth?: string | null
+          department?: string | null
+          email?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          join_date?: string | null
+          name?: string | null
+          nric?: string | null
+          payment_type?: string | null
+          phone?: string | null
+          position?: string | null
+          residency_status?: string | null
+          resign_date?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          base_salary?: number | null
+          created_at?: string | null
+          daily_rate?: number | null
+          daily_weekday_rate?: number | null
+          daily_weekend_rate?: number | null
+          date_of_birth?: string | null
+          department?: string | null
+          email?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          join_date?: string | null
+          name?: string | null
+          nric?: string | null
+          payment_type?: string | null
+          phone?: string | null
+          position?: string | null
+          residency_status?: string | null
+          resign_date?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_reset_password: {
