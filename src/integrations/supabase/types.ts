@@ -2376,6 +2376,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_reset_password: {
+        Args: {
+          new_password_hash: string
+          new_salt: string
+          target_email: string
+        }
+        Returns: undefined
+      }
       calculate_annual_leave_entitlement: {
         Args: { employee_id: string; reference_year?: number }
         Returns: {

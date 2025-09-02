@@ -26,26 +26,16 @@ const KimHasungPasswordReset: React.FC = () => {
 
       console.log('KimHasungPasswordReset: Generated password hash for:', employeeEmail);
 
-      // Update/insert password in database with mandatory change flag
-      const { error: upsertError } = await supabase
-        .from('user_passwords')
-        .upsert({
-          email: employeeEmail,
-          password_hash: hashedPassword,
-          salt: salt,
-          must_change_password: true,
-          requires_change: true,
-          password_complexity_met: false,
-          last_password_change: new Date().toISOString(),
-          failed_attempts: 0,
-          locked_until: null
-        }, {
-          onConflict: 'email'
-        });
+      // Use the secure admin function to reset password
+      const { error: resetError } = await supabase.rpc('admin_reset_password', {
+        target_email: employeeEmail,
+        new_password_hash: hashedPassword,
+        new_salt: salt
+      });
 
-      if (upsertError) {
-        console.error('KimHasungPasswordReset: Database error:', upsertError);
-        throw new Error(`Database error: ${upsertError.message}`);
+      if (resetError) {
+        console.error('KimHasungPasswordReset: Password reset error:', resetError);
+        throw new Error(`Password reset failed: ${resetError.message}`);
       }
 
       // Log security event
