@@ -35,20 +35,17 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
 }) => {
   
   const getSlotAvailability = (date: Date) => {
-    if (!currentBranch || !weeklySlotConfig) return null;
+    if (!currentBranch || !weeklySlotConfig) return 0;
     
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const config = weeklySlotConfig[currentBranch.id];
     
-    if (!config) return null;
+    if (!config) return 0;
     
     return config[dayName] || 0;
   };
   
-  const isWeekendWithNoSlots = (date: Date) => {
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) return false; // Not a weekend
-    
+  const isDayWithNoSlots = (date: Date) => {
     const availableSlots = getSlotAvailability(date);
     return availableSlots === 0;
   };
@@ -116,7 +113,7 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
                 return employeeBookingDates.has(dateString);
               },
               noSlots: (date) => {
-                return isWeekendWithNoSlots(date);
+                return isDayWithNoSlots(date);
               }
             }}
             modifiersStyles={{

@@ -458,7 +458,8 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
       return 0;
     }
 
-    const totalSlots = configData[dayName] || 0;
+    // Handle null values as 0 slots
+    const totalSlots = configData[dayName] ?? 0;
     console.log(`Total ${dayName} slots for ${branchId}:`, totalSlots);
 
     // Only count non-cancelled bookings

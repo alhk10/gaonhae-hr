@@ -227,6 +227,13 @@ const SlotBooking = () => {
     const dateString = format(date, 'yyyy-MM-dd');
     if (employeeBookingDates.has(dateString)) return true;
     
+    // Check if branch has 0 slots available for this day
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+    const branchConfig = weeklySlotConfig[selectedBranch];
+    const totalSlots = branchConfig ? branchConfig[dayName] : 0;
+    
+    if (totalSlots === 0) return true;
+    
     return false;
   };
 
