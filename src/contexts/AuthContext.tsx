@@ -103,8 +103,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setAdminAccess(adminAccess);
           setPageAccess(pageAccess);
         } catch (accessError) {
-          console.warn('⚠️ Access check timeout, using defaults');
-          setAdminAccess({});
+          console.warn('⚠️ Access check timeout, trying individual queries...');
+          
+          // Try to get at least admin access if possible
+          try {
+            const adminAccess = await getUserAdminAccess(userData.id);
+            if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+              role = 'admin';
+              console.log('🔐 User identified as admin (fallback)');
+            }
+            setAdminAccess(adminAccess || {});
+          } catch (adminError) {
+            console.warn('⚠️ Admin access fallback failed, using empty permissions');
+            setAdminAccess({});
+          }
+          
+          // Set default page access
           setPageAccess({
             profile: true,
             apply_leave: true,

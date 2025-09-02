@@ -185,11 +185,38 @@ const Sidebar = () => {
       return menuItems;
     }
 
-    // Employee role access - based on page permissions only
+    // Employee role access - check both page permissions AND admin permissions
     let menuItems: MenuItem[] = [
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
+    // Check if employee has any admin permissions and show corresponding admin menu items
+    if (currentEmployee?.adminAccess) {
+      const { adminAccess } = currentEmployee;
+      console.log('Sidebar: Employee has admin access:', adminAccess);
+      
+      if (adminAccess.employees) {
+        menuItems.push({ icon: Users, label: 'Employees', path: '/employees' });
+      }
+      if (adminAccess.payroll) {
+        menuItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
+      }
+      if (adminAccess.leaveManagement) {
+        menuItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
+      }
+      if (adminAccess.claims) {
+        menuItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
+      }
+      if (adminAccess.attendance) {
+        menuItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
+      }
+      if (adminAccess.slotBooking) {
+        console.log('Sidebar: ✅ Adding Admin Slot Booking for employee with slotBooking permission');
+        menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
+      }
+    }
+
+    // Add regular employee page access items
     if (currentEmployee?.pageAccess) {
       const pageAccess = currentEmployee.pageAccess;
       
