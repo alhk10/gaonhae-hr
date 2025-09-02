@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
-import { getEmployeeById as getLocalEmployeeById } from '@/data/employeeData';
+
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
 import { isWithinBranchRange } from '@/services/geolocationService';
@@ -175,10 +175,6 @@ const EmployeeDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
-      const localEmployee = getLocalEmployeeById(user.employeeId);
-      if (localEmployee) {
-        setEmployeeData(localEmployee);
-      }
     }
   };
 

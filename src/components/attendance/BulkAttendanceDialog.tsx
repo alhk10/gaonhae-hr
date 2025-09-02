@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,12 +60,9 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   const loadBranches = async () => {
     try {
       setLoadingBranches(true);
-      console.log('BulkAttendanceDialog: Loading branches from settings service...');
       const branchData = await getBranches();
-      console.log('BulkAttendanceDialog: Loaded branches:', branchData);
       setBranches(branchData);
       
-      // Set first branch as default if available
       if (branchData.length > 0) {
         setSelectedBranch(branchData[0].name);
       }
@@ -80,31 +77,17 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   const loadAllEmployees = async () => {
     try {
       setLoadingEmployees(true);
-      console.log('BulkAttendanceDialog: Loading all employees from Supabase...');
       
-      // Load employees directly from the service to ensure we get all employees
       const employeeData = await getEmployees();
-      console.log('BulkAttendanceDialog: Loaded employees from service:', employeeData.length, 'employees');
       
-      // Filter out partners from attendance
       const filteredEmployees = employeeData.filter(emp => emp.type?.toLowerCase() !== 'partner');
-      console.log('BulkAttendanceDialog: Filtered out partners, remaining employees:', filteredEmployees.length);
-      console.log('BulkAttendanceDialog: Employee names:', filteredEmployees.map(emp => emp.name));
-      
-      // Check if "Ng Kai Rui Jovious" is in the data
-      const ngKaiRui = filteredEmployees.find(emp => 
-        emp.name.toLowerCase().includes('ng kai rui') || 
-        emp.name.toLowerCase().includes('jovious')
-      );
-      console.log('BulkAttendanceDialog: Found Ng Kai Rui Jovious:', ngKaiRui);
       
       setEmployees(filteredEmployees);
     } catch (error) {
       console.error('BulkAttendanceDialog: Error loading employees:', error);
       toast('Error loading employees');
-      // Fallback to prop employees if service fails, also filter out partners
+      
       const fallbackEmployees = (propEmployees || []).filter(emp => emp.type?.toLowerCase() !== 'partner');
-      console.log('BulkAttendanceDialog: Falling back to prop employees (filtered):', fallbackEmployees.length);
       setEmployees(fallbackEmployees);
     } finally {
       setLoadingEmployees(false);
@@ -120,15 +103,10 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
     const matchesType = employeeTypeFilter === 'all' || 
       employee.type?.toLowerCase() === employeeTypeFilter.toLowerCase();
     
-    // Always exclude partners
     const isNotPartner = employee.type?.toLowerCase() !== 'partner';
     
     return matchesSearch && matchesType && isNotPartner;
   });
-
-  console.log('BulkAttendanceDialog: Filtered employees count:', filteredEmployees.length);
-  console.log('BulkAttendanceDialog: Search term:', searchTerm);
-  console.log('BulkAttendanceDialog: Type filter:', employeeTypeFilter);
 
   const handleEmployeeToggle = (employeeId: string) => {
     setSelectedEmployees(prev => 
@@ -169,8 +147,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
 
     try {
       setLoading(true);
-      console.log('BulkAttendanceDialog: Creating attendance records for', selectedEmployees.length, 'employees');
-
+      
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const hoursWorked = calculateHours(checkInTime, checkOutTime);
 
