@@ -23,6 +23,7 @@ import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
 import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
+import KimHasungPasswordReset from '@/components/KimHasungPasswordReset';
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -1131,6 +1132,9 @@ const PayrollProcessing = () => {
                 </div>
               </div>
             </div>
+
+            {/* Kim Hasung Password Reset */}
+            <KimHasungPasswordReset />
 
             {currentStep === 'processing' && renderProcessingStep()}
             {currentStep === 'payment' && renderPaymentStep()}
