@@ -6,10 +6,13 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   console.log('EmployeeService: Fetching employees (optimized for performance)...');
   
   try {
-    // Optimized query - fetch only essential fields for list view
+    // Optimized query - fetch essential fields plus admin access for list view
     const { data: employees, error } = await supabase
       .from('employees')
-      .select('id, name, nric, type, email, join_date, resign_date, position, department')
+      .select(`
+        id, name, nric, type, email, join_date, resign_date, position, department,
+        admin_access (*)
+      `)
       .order('name')
       .limit(100);
 
@@ -25,51 +28,81 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
 
     console.log('EmployeeService: Optimized employees fetched:', employees.length);
 
+    // Fetch page access data separately for the employee IDs
+    const employeeIds = employees.map(emp => emp.id);
+    const { data: pageAccessData, error: pageAccessError } = await supabase
+      .from('employee_page_access')
+      .select('*')
+      .in('employee_id', employeeIds);
+
+    if (pageAccessError) {
+      console.error('EmployeeService: Error fetching page access:', pageAccessError);
+    }
+
     // Return minimal data for list view - load details on demand
-    return employees.map(emp => ({
-      id: emp.id,
-      name: emp.name,
-      nric: emp.nric || '',
-      dateOfBirth: '', // Load on demand
-      residencyStatus: '', // Load on demand
-      type: emp.type as 'Full-Time' | 'Casual',
-      baseSalary: 0, // Load on demand
-      hourlyRate: 0, // Load on demand
-      dailyRate: 0, // Load on demand
-      dailyWeekdayRate: 0, // Load on demand
-      dailyWeekendRate: 0, // Load on demand
-      paymentType: 'Monthly' as 'Monthly' | 'Hourly' | 'Daily', // Load on demand
-      bankName: '', // Load on demand
-      bankAccount: '', // Load on demand
-      branch: '', // Load on demand
-      department: emp.department || '',
-      position: emp.position || '',
-      phone: '', // Load on demand
-      address: '', // Load on demand
-      email: emp.email || null,
-      joinDate: emp.join_date || undefined,
-      resignDate: emp.resign_date || undefined,
-      allowances: [], // Load on demand
-      deductions: [], // Load on demand
-      certificates: [], // Load on demand
-      adminAccess: {
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      }, // Load on demand
-      pageAccess: {
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      } // Load on demand
-    }));
+    return employees.map((emp: any) => {
+      const pageAccess = pageAccessData?.find(pa => pa.employee_id === emp.id);
+      
+      return {
+        id: emp.id,
+        name: emp.name,
+        nric: emp.nric || '',
+        dateOfBirth: '', // Load on demand
+        residencyStatus: '', // Load on demand
+        type: emp.type as 'Full-Time' | 'Casual',
+        baseSalary: 0, // Load on demand
+        hourlyRate: 0, // Load on demand
+        dailyRate: 0, // Load on demand
+        dailyWeekdayRate: 0, // Load on demand
+        dailyWeekendRate: 0, // Load on demand
+        paymentType: 'Monthly' as 'Monthly' | 'Hourly' | 'Daily', // Load on demand
+        bankName: '', // Load on demand
+        bankAccount: '', // Load on demand
+        branch: '', // Load on demand
+        department: emp.department || '',
+        position: emp.position || '',
+        phone: '', // Load on demand
+        address: '', // Load on demand
+        email: emp.email || null,
+        joinDate: emp.join_date || undefined,
+        resignDate: emp.resign_date || undefined,
+        allowances: [], // Load on demand
+        deductions: [], // Load on demand
+        certificates: [], // Load on demand
+        adminAccess: emp.admin_access ? {
+          employees: emp.admin_access.employees || false,
+          payroll: emp.admin_access.payroll || false,
+          leaveManagement: emp.admin_access.leave_management || false,
+          claims: emp.admin_access.claims || false,
+          attendance: emp.admin_access.attendance || false,
+          slotBooking: emp.admin_access.slotBooking || false,
+          reports: emp.admin_access.reports || false
+        } : {
+          employees: false,
+          payroll: false,
+          leaveManagement: false,
+          claims: false,
+          attendance: false,
+          slotBooking: false,
+          reports: false
+        },
+        pageAccess: pageAccess ? {
+          profile: pageAccess.profile ?? true,
+          applyLeave: pageAccess.apply_leave ?? true,
+          submitClaim: pageAccess.submit_claim ?? true,
+          payslips: pageAccess.payslips ?? true,
+          myAttendance: pageAccess.my_attendance ?? true,
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+        } : {
+          profile: true,
+          applyLeave: true,
+          submitClaim: true,
+          payslips: true,
+          myAttendance: true,
+          slotBookingEmployee: true
+        }
+      };
+    });
   } catch (error) {
     console.error('EmployeeService: Error in getEmployees:', error);
     throw error;
@@ -167,7 +200,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           leaveManagement: emp.admin_access.leave_management || false,
           claims: emp.admin_access.claims || false,
           attendance: emp.admin_access.attendance || false,
-          slotBooking: emp.admin_access.slot_booking || false,
+          slotBooking: emp.admin_access.slotBooking || false,
           reports: emp.admin_access.reports || false
         } : {
           employees: false,
@@ -285,7 +318,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         leaveManagement: emp.admin_access[0]?.leave_management || false,
         claims: emp.admin_access[0]?.claims || false,
         attendance: emp.admin_access[0]?.attendance || false,
-        slotBooking: emp.admin_access[0]?.slot_booking || false,
+        slotBooking: emp.admin_access[0]?.slotBooking || false,
         reports: emp.admin_access[0]?.reports || false
       } : {
         employees: false,
@@ -401,7 +434,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
       attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slot_booking || false,
+      slotBooking: employee.admin_access[0]?.slotBooking || false,
       reports: employee.admin_access[0]?.reports || false
     } : {
       employees: false,
@@ -649,7 +682,7 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     leave_management: adminAccess.leaveManagement,
     claims: adminAccess.claims,
     attendance: adminAccess.attendance,
-    slot_booking: adminAccess.slotBooking,
+    slotBooking: adminAccess.slotBooking,
     reports: adminAccess.reports
   };
 
