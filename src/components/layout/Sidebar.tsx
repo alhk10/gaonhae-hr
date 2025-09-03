@@ -144,8 +144,8 @@ const Sidebar = () => {
       return adminItems;
     }
 
-    // Manager/Admin role access - check both currentEmployee data AND authData for admin access
-    const adminAccessData = currentEmployee?.adminAccess || authData.adminAccess;
+    // Manager/Admin role access - prioritize authData.adminAccess as it's more reliable
+    const adminAccessData = authData.adminAccess || currentEmployee?.adminAccess;
     
     if (userrole === 'admin' && adminAccessData) {
       // Enhanced debugging for Kim Hasung
@@ -212,8 +212,8 @@ const Sidebar = () => {
       { icon: BarChart3, label: 'Dashboard', path: '/' },
     ];
 
-    // Check admin permissions from both currentEmployee and authData (fallback)
-    const employeeAdminAccess = currentEmployee?.adminAccess || authData.adminAccess;
+    // Check admin permissions - prioritize authData.adminAccess as it's more reliable  
+    const employeeAdminAccess = authData.adminAccess || currentEmployee?.adminAccess;
     
     if (employeeAdminAccess) {
       const adminAccess = employeeAdminAccess;
@@ -251,8 +251,8 @@ const Sidebar = () => {
       }
     }
 
-    // Add regular employee page access items (with fallback to authData)
-    const employeePageAccess = currentEmployee?.pageAccess || authData.pageAccess;
+    // Add regular employee page access items - prioritize authData.pageAccess as it's more reliable
+    const employeePageAccess = authData.pageAccess || currentEmployee?.pageAccess;
     if (employeePageAccess) {
       const pageAccess = employeePageAccess;
       
@@ -291,8 +291,20 @@ const Sidebar = () => {
     }
   };
 
-  // Show loading state while auth is loading
-  if (!user) {
+  // Show loading state while auth or admin access data is loading
+  const isAuthLoading = !user || authData.isLoading;
+  const isDataLoading = userrole === 'employee' && isLoading && !currentEmployee && !authData.adminAccess;
+  
+  if (isAuthLoading || isDataLoading) {
+    // Enhanced debugging for Kim Hasung
+    if (user?.email === 'hasung534@gmail.com') {
+      console.log('🔍 [Kim Hasung Sidebar Debug] Loading state check:');
+      console.log('  - isAuthLoading:', isAuthLoading);
+      console.log('  - isDataLoading:', isDataLoading);
+      console.log('  - currentEmployee loaded:', !!currentEmployee);
+      console.log('  - authData.adminAccess available:', !!authData.adminAccess);
+    }
+    
     return (
       <div className={`${isMobile ? 'hidden' : 'w-64'} bg-white border-r border-gray-200 h-full`}>
         <div className="p-6">
@@ -303,6 +315,14 @@ const Sidebar = () => {
   }
 
   if (isMobile) {
+    // Enhanced debugging for Kim Hasung mobile view
+    if (user?.email === 'hasung534@gmail.com') {
+      console.log('🔍 [Kim Hasung Mobile Debug] Mobile sidebar rendering:');
+      console.log('  - menuItems count:', menuItems.length);
+      console.log('  - menuItems labels:', menuItems.map(item => item.label));
+      console.log('  - Has Admin Slot Booking:', menuItems.some(item => item.label === 'Admin Slot Booking'));
+    }
+    
     return (
       <>
         {/* Mobile Menu Button */}

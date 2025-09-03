@@ -103,12 +103,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('🔍 [Kim Hasung Debug] Has slotBooking permission:', adminAccess?.slotBooking);
           }
           
-          if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+          // Check if user has any admin permissions - if so, they should be admin role
+          const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(access => access === true);
+          if (hasAdminPermissions) {
             role = 'admin';
-            console.log('🔐 User identified as admin');
+            console.log('🔐 User identified as admin with permissions:', Object.keys(adminAccess).filter(key => adminAccess[key]));
             if (session.user.email === 'hasung534@gmail.com') {
-              console.log('🔍 [Kim Hasung Debug] Role set to admin due to permissions:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+              console.log('🔍 [Kim Hasung Debug] ✅ ADMIN ROLE ASSIGNED - Permissions found:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+              console.log('🔍 [Kim Hasung Debug] Specifically has slotBooking:', adminAccess.slotBooking);
             }
+          } else {
+            console.log('🔍 No admin permissions found, keeping employee role');
           }
           setAdminAccess(adminAccess);
           setPageAccess(pageAccess);
@@ -129,11 +134,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 console.log(`🔍 [Kim Hasung Debug] Retry ${retryCount + 1} Admin Access:`, adminAccess);
               }
               
-              if (adminAccess && Object.values(adminAccess).some(access => access === true)) {
+              const hasAdminPermissionsRetry = adminAccess && Object.values(adminAccess).some(access => access === true);
+              if (hasAdminPermissionsRetry) {
                 role = 'admin';
-                console.log('🔐 User identified as admin (retry success)');
+                console.log('🔐 User identified as admin (retry success) with permissions:', Object.keys(adminAccess).filter(key => adminAccess[key]));
                 if (session.user.email === 'hasung534@gmail.com') {
-                  console.log('🔍 [Kim Hasung Debug] Admin role confirmed on retry:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+                  console.log('🔍 [Kim Hasung Debug] ✅ ADMIN ROLE CONFIRMED ON RETRY - Permissions:', Object.keys(adminAccess).filter(key => adminAccess[key]));
+                  console.log('🔍 [Kim Hasung Debug] Retry confirms slotBooking:', adminAccess.slotBooking);
                 }
                 break;
               }
