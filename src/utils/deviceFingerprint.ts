@@ -52,15 +52,10 @@ export const getCurrentDeviceId = (): string => {
   return deviceId;
 };
 
-// Helper function to clear any existing device IDs from storage
+// Helper function to clear any existing device IDs from storage (no-op for security compliance)
 export const clearStoredDeviceIds = (): void => {
-  try {
-    sessionStorage.removeItem('device_id');
-    localStorage.removeItem('device_id');
-    console.log('Cleared any stored device IDs');
-  } catch (error) {
-    console.warn('Could not clear stored device IDs:', error);
-  }
+  // Storage disabled for security compliance - no action needed
+  console.log('Storage disabled for security compliance');
 };
 
 // Generate a unique session token for additional security

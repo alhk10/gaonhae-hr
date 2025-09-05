@@ -79,10 +79,8 @@ const Employees = () => {
     });
   }, [employees, statusFilter]);
 
-  // Store filtered employees in localStorage for navigation in details page
-  React.useEffect(() => {
-    localStorage.setItem('filteredEmployeeIds', JSON.stringify(filteredEmployees.map(emp => emp.id)));
-  }, [filteredEmployees]);
+  // Note: Removed localStorage storage for security compliance
+  // Filtered employee data is now handled through state management only
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
