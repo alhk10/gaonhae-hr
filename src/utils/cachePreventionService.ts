@@ -17,26 +17,40 @@ export const createNormalHeaders = (): HeadersInit => ({
   'X-Requested-With': 'XMLHttpRequest'
 });
 
-// Enhanced fetch wrapper with selective cache prevention
+// Enhanced fetch wrapper with selective cache prevention for HR data only
 export const fetchWithHRSecurity = async (
   url: string | URL | Request,
   options: RequestInit = {}
 ): Promise<Response> => {
-  const hrHeaders = createHRDataCacheHeaders();
-  
-  // Add timestamp only for HR data requests
-  const urlWithTimestamp = typeof url === 'string' 
-    ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`
-    : url;
+  // Only apply aggressive cache prevention to HR-specific endpoints
+  const isHREndpoint = typeof url === 'string' && (
+    url.includes('/employees') ||
+    url.includes('/payroll') ||
+    url.includes('/claims') ||
+    url.includes('/attendance') ||
+    url.includes('/slot_bookings')
+  );
 
-  return fetch(urlWithTimestamp, {
-    ...options,
-    headers: {
-      ...hrHeaders,
-      ...options.headers,
-    },
-    cache: 'no-store',
-  });
+  if (isHREndpoint) {
+    const hrHeaders = createHRDataCacheHeaders();
+    
+    // Add timestamp for HR data requests only
+    const urlWithTimestamp = typeof url === 'string' 
+      ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+      : url;
+
+    return fetch(urlWithTimestamp, {
+      ...options,
+      headers: {
+        ...hrHeaders,
+        ...options.headers,
+      },
+      cache: 'no-store',
+    });
+  }
+  
+  // For non-HR requests (including auth), use normal caching
+  return fetchWithNormalCache(url, options);
 };
 
 // Regular fetch for non-sensitive data

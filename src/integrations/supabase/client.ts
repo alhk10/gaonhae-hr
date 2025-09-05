@@ -14,5 +14,28 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true, // Enable session persistence for UX
     detectSessionInUrl: true, // Enable URL session detection
     flowType: 'pkce' // Use PKCE flow for better security
+  },
+  global: {
+    // Only add cache headers for non-authentication requests
+    fetch: (url: string, options: RequestInit = {}) => {
+      const isAuthRequest = url.includes('/auth/') || url.includes('/token');
+      
+      if (!isAuthRequest) {
+        // Only apply cache prevention to non-auth database queries
+        const headers = {
+          ...(options.headers as Record<string, string> || {}),
+          'Cache-Control': 'no-cache, max-age=0',
+          'X-Requested-With': 'XMLHttpRequest'
+        };
+        
+        return fetch(url, {
+          ...options,
+          headers
+        });
+      }
+      
+      // For auth requests, use default behavior
+      return fetch(url, options);
+    }
   }
 });

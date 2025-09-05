@@ -21,10 +21,16 @@ const Index = () => {
   });
 
   if (isLoading) {
-    console.log('Index: Showing loading state');
+    console.log('Index: Showing enhanced loading state');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
+          <div className="mt-4 text-gray-600">
+            <p className="text-lg font-medium">Loading your workspace...</p>
+            <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -46,15 +52,34 @@ const Index = () => {
   console.log('Index: User authenticated, showing dashboard for role:', userrole);
 
   const renderDashboard = () => {
-    switch (userrole) {
-      case 'superadmin':
-        return <SuperadminDashboard />;
-      case 'admin':
-        return <ManagerDashboard />;
-      case 'employee':
-        return <EmployeeDashboard />;
-      default:
-        return <EmployeeDashboard />;
+    try {
+      switch (userrole) {
+        case 'superadmin':
+          return <SuperadminDashboard />;
+        case 'admin':
+          return <ManagerDashboard />;
+        case 'employee':
+          return <EmployeeDashboard />;
+        default:
+          console.log('Index: Unknown role, defaulting to employee dashboard');
+          return <EmployeeDashboard />;
+      }
+    } catch (error) {
+      console.error('Index: Error rendering dashboard:', error);
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="text-lg font-medium">Something went wrong</p>
+            <p className="text-sm mt-2">Please try refreshing the page</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
     }
   };
 
