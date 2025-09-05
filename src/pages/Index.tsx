@@ -20,6 +20,18 @@ const Index = () => {
     isLoading 
   });
 
+  // Add error boundary logging
+  React.useEffect(() => {
+    console.log('Index: Component mounted');
+    return () => {
+      console.log('Index: Component unmounted');
+    };
+  }, []);
+
+  React.useEffect(() => {
+    console.log('Index: Auth state changed:', { user: !!user, userrole, isLoading });
+  }, [user, userrole, isLoading]);
+
   if (isLoading) {
     console.log('Index: Showing enhanced loading state');
     return (
@@ -53,17 +65,30 @@ const Index = () => {
 
   const renderDashboard = () => {
     try {
+      console.log('Index: Starting dashboard render for role:', userrole);
+      
+      let dashboard;
       switch (userrole) {
         case 'superadmin':
-          return <SuperadminDashboard />;
+          console.log('Index: Loading SuperadminDashboard');
+          dashboard = <SuperadminDashboard />;
+          break;
         case 'admin':
-          return <ManagerDashboard />;
+          console.log('Index: Loading ManagerDashboard');
+          dashboard = <ManagerDashboard />;
+          break;
         case 'employee':
-          return <EmployeeDashboard />;
+          console.log('Index: Loading EmployeeDashboard');
+          dashboard = <EmployeeDashboard />;
+          break;
         default:
           console.log('Index: Unknown role, defaulting to employee dashboard');
-          return <EmployeeDashboard />;
+          dashboard = <EmployeeDashboard />;
       }
+      
+      console.log('Index: Dashboard component created successfully');
+      return dashboard;
+      
     } catch (error) {
       console.error('Index: Error rendering dashboard:', error);
       return (
@@ -83,11 +108,30 @@ const Index = () => {
     }
   };
 
-  return (
-    <ResponsiveLayout>
-      {renderDashboard()}
-    </ResponsiveLayout>
-  );
+  try {
+    console.log('Index: Starting ResponsiveLayout render');
+    return (
+      <ResponsiveLayout>
+        {renderDashboard()}
+      </ResponsiveLayout>
+    );
+  } catch (error) {
+    console.error('Index: Error in ResponsiveLayout:', error);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="text-lg font-medium">Layout Error</p>
+          <p className="text-sm mt-2">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default Index;

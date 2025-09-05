@@ -228,6 +228,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         slotBookingEmployee: true
       });
       setIsLoading(false);
+      
+      // Show user-friendly message about fallback mode
+      toast({
+        title: "Limited Access Mode",
+        description: "Running in limited access mode. Some features may not be available. Contact support if this persists.",
+        variant: "default",
+      });
     }
   };
 
