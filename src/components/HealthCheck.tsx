@@ -43,17 +43,16 @@ const HealthCheck: React.FC = () => {
 
       // Test 3: Database query
       console.log('HealthCheck: Testing database query...');
-      const { data: queryTest, error: queryError } = await supabase
+      const { count, error: queryError } = await supabase
         .from('employees')
-        .select('count(*)')
-        .limit(1);
+        .select('*', { count: 'exact', head: true });
       
       if (queryError) {
         throw queryError;
       }
       
       newStatus.databaseQuery = true;
-      console.log('HealthCheck: ✅ Database query OK');
+      console.log('HealthCheck: ✅ Database query OK, employee count:', count);
 
     } catch (error) {
       console.error('HealthCheck: ❌ Health check failed:', error);
