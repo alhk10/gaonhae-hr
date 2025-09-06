@@ -13,15 +13,7 @@ interface PageAccessGuardProps {
 const PageAccessGuard: React.FC<PageAccessGuardProps> = ({ 
   children, 
   requiredPermission,
-  fallback = (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Access Denied</h2>
-        <p className="text-gray-600">You don't have permission to access this page.</p>
-        <p className="text-sm text-gray-500">Please contact your administrator if you believe this is an error.</p>
-      </div>
-    </div>
-  )
+  fallback
 }) => {
   const { user, userrole } = useAuth();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
@@ -37,6 +29,14 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
         userrole: userrole,
         employeeId: user?.employeeId
       });
+      
+      // Check if user is authenticated first
+      if (!user) {
+        console.log('PageAccessGuard: No user found - authentication required');
+        setHasAccess(false);
+        setIsLoading(false);
+        return;
+      }
       
       // Superadmin has access to all pages
       if (userrole === 'superadmin') {
@@ -128,7 +128,27 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
   }
 
   if (!hasAccess) {
-    return <>{fallback}</>;
+    // Provide different messages based on authentication status
+    const accessDeniedFallback = !user ? (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Authentication Required</h2>
+          <p className="text-gray-600">Please log in to access this page.</p>
+          <p className="text-sm text-gray-500">Your session may have expired.</p>
+        </div>
+      </div>
+    ) : (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to access this page.</p>
+          <p className="text-sm text-gray-500">Required permission: {requiredPermission}</p>
+          <p className="text-sm text-gray-500">Please contact your administrator if you believe this is an error.</p>
+        </div>
+      </div>
+    );
+    
+    return <>{fallback || accessDeniedFallback}</>;
   }
 
   return <>{children}</>;
