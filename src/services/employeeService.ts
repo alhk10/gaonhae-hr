@@ -75,7 +75,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           leaveManagement: emp.admin_access.leave_management || false,
           claims: emp.admin_access.claims || false,
           attendance: emp.admin_access.attendance || false,
-          slotBooking: emp.admin_access.slotBooking || false,
+          slotBooking: emp.admin_access.slot_booking || false,
           reports: emp.admin_access.reports || false
         } : {
           employees: false,
