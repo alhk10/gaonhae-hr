@@ -72,6 +72,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (!userData) {
         console.log('❌ No employee record found, proceeding with basic access');
+        // Try to get basic employee ID for PageAccessGuard compatibility
+        try {
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('email', session.user.email!)
+            .single();
+          
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.email!.split('@')[0],
+            employeeId: employeeData?.id || undefined
+          });
+        } catch {
+          // If even basic lookup fails, proceed without employeeId
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.email!.split('@')[0]
+          });
+        }
+        
         setUserrole('employee');
         setUserDetails(null);
         setAdminAccess({});
@@ -211,11 +234,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('❌ Session setup error:', error);
       
       // Fallback: Set basic user info even if database queries fail
-      setUser({
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.email!.split('@')[0],
-      });
+      // Try to get basic employee ID for PageAccessGuard compatibility
+      try {
+        const { data: employeeData } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('email', session.user.email!)
+          .single();
+        
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.email!.split('@')[0],
+          employeeId: employeeData?.id || undefined
+        });
+      } catch {
+        // If even basic lookup fails, proceed without employeeId
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.email!.split('@')[0]
+        });
+      }
       setUserrole('employee');
       setUserDetails(null);
       setAdminAccess({});
