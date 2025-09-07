@@ -5,11 +5,19 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
   try {
     console.log('[AuthOptimization] Fetching employee data for:', email);
     
-    const { data, error } = await supabase
+    // Add timeout wrapper for the entire operation
+    const employeeDataPromise = supabase
       .from('employees')
       .select('*')
       .eq('email', email)
       .maybeSingle();
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Employee query timeout after 5 seconds')), 5000)
+    );
+
+    const result = await Promise.race([employeeDataPromise, timeoutPromise]);
+    const { data, error } = result;
 
     if (error) {
       console.error('[AuthOptimization] Employee query error:', error);
@@ -21,8 +29,18 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
       return null;
     }
 
-    // Check superadmin status
-    const isSuperadmin = await checkSuperadminStatusCached(email);
+    // Check superadmin status with timeout
+    let isSuperadmin = false;
+    try {
+      const superadminPromise = checkSuperadminStatusCached(email);
+      const superadminTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Superadmin check timeout')), 3000)
+      );
+      isSuperadmin = await Promise.race([superadminPromise, superadminTimeout]) as boolean;
+    } catch (superadminError) {
+      console.warn('[AuthOptimization] Superadmin check failed, defaulting to false:', superadminError);
+      isSuperadmin = false;
+    }
     
     console.log('[AuthOptimization] Employee data retrieved:', {
       id: data.id,
@@ -51,11 +69,19 @@ export const getUserAdminAccess = async (employeeId: string) => {
   try {
     console.log('[AuthOptimization] Fetching admin access for:', employeeId);
     
-    const { data, error } = await supabase
+    // Add timeout for admin access query
+    const adminAccessPromise = supabase
       .from('admin_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Admin access query timeout after 5 seconds')), 5000)
+    );
+
+    const result = await Promise.race([adminAccessPromise, timeoutPromise]);
+    const { data, error } = result;
 
     if (error) {
       console.error('[AuthOptimization] Admin access query error:', error);
@@ -93,11 +119,19 @@ export const getUserPageAccess = async (employeeId: string) => {
   try {
     console.log('[AuthOptimization] Fetching page access for:', employeeId);
     
-    const { data, error } = await supabase
+    // Add timeout for page access query
+    const pageAccessPromise = supabase
       .from('employee_page_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Page access query timeout after 5 seconds')), 5000)
+    );
+
+    const result = await Promise.race([pageAccessPromise, timeoutPromise]);
+    const { data, error } = result;
 
     if (error) {
       console.error('[AuthOptimization] Page access query error:', error);
