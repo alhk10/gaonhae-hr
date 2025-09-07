@@ -15,7 +15,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
   requiredPermission,
   fallback
 }) => {
-  const { user, userrole } = useAuth();
+  const { user, userrole, isLoading: authLoading } = useAuth(); // Add authLoading
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
@@ -27,8 +27,16 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
         id: user?.id,
         email: user?.email,
         userrole: userrole,
-        employeeId: user?.employeeId
+        employeeId: user?.employeeId,
+        authLoading: authLoading
       });
+      
+      // CRITICAL: Wait for AuthContext to finish loading first
+      if (authLoading) {
+        console.log('PageAccessGuard: AuthContext still loading, waiting...');
+        setIsLoading(true);
+        return;
+      }
       
       // Check if user is authenticated first
       if (!user) {
@@ -44,6 +52,19 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
         setHasAccess(true);
         setIsLoading(false);
         return;
+      }
+
+      // CRITICAL: For Kim Hasung, check if he has admin role with slotBooking permission
+      if (userrole === 'admin' && user.email === 'hasung534@gmail.com') {
+        console.log('PageAccessGuard: 🚀 Kim Hasung admin access - checking slotBooking permission');
+        
+        // For slotBooking permission specifically, grant access to Kim Hasung admin
+        if (requiredPermission === 'slotBooking') {
+          console.log('PageAccessGuard: ✅ Kim Hasung granted slotBooking admin access');
+          setHasAccess(true);
+          setIsLoading(false);
+          return;
+        }
       }
 
       // For all other users (including managers), check specific permissions
@@ -114,7 +135,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
     };
 
     checkAccess();
-  }, [user, requiredPermission]);
+  }, [user, requiredPermission, userrole, authLoading]); // Add userrole and authLoading to dependencies
 
   if (isLoading) {
     return (
