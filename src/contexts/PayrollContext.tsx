@@ -499,23 +499,22 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       ];
       
-      // Check for missing employees and add them
-      const existingEmployeeIds = new Set(employees?.map(emp => emp.id) || []);
-      const employeesToAdd = missingEmployeeData.filter(emp => !existingEmployeeIds.has(emp.id));
+      // REMOVED: Auto-fix workaround that was interfering with authentication
+      // This workaround should only run in PayrollProcessing.tsx, not in global context
+      // The workaround was creating fake employee data with empty emails, preventing login
       
       let allEmployees = employees || [];
-      if (employeesToAdd.length > 0) {
-        console.log('AUTO-FIX: Adding missing employees:', employeesToAdd.map(emp => emp.name));
-        // Merge missing employees with fetched employees
-        allEmployees = [...allEmployees, ...employeesToAdd];
-      }
-      console.log('DEBUG: Employee names:', employees?.map(emp => emp.name) || []);
+      console.log('PayrollContext: Loaded employees from database:', allEmployees.length);
       
-      // Check for Wang Pot Chien and Siti Aisyah
+      // Enhanced logging for authentication debugging
       const wangInDb = employees?.find(emp => emp.id === 'EMP1752646101747');
       const sitiInDb = employees?.find(emp => emp.id === 'EMP1752551410290');
-      console.log('DEBUG: Wang Pot Chien found in DB:', wangInDb);
-      console.log('DEBUG: Siti Aisyah found in DB:', sitiInDb);
+      const ryanInDb = employees?.find(emp => emp.id === 'EMP1751006984631');
+      
+      console.log('PayrollContext - Real DB Data:');
+      console.log('  Wang Pot Chien:', wangInDb ? `${wangInDb.name} (${wangInDb.email})` : 'Not found');
+      console.log('  Siti Aisyah:', sitiInDb ? `${sitiInDb.name} (${sitiInDb.email})` : 'Not found');
+      console.log('  Ryan Goh:', ryanInDb ? `${ryanInDb.name} (${ryanInDb.email})` : 'Not found');
 
       // Fetch allowances and deductions for all employees
       const allEmployeeIds = allEmployees.map(emp => emp.id);
@@ -594,14 +593,18 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
        })) || [];
 
-      console.log('DEBUG: Processed availableEmployees:', availableEmployees.length);
-      console.log('DEBUG: Available employee names:', availableEmployees.map(emp => emp.name));
+      console.log('PayrollContext: Processed availableEmployees:', availableEmployees.length);
+      console.log('PayrollContext: Available employee names:', availableEmployees.map(emp => emp.name));
       
-      // Final check for our missing employees
+      // Verify employees have correct email addresses for authentication
       const wangInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752646101747');
       const sitiInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752551410290');
-      console.log('DEBUG: Wang Pot Chien in processed availableEmployees:', wangInAvailable);
-      console.log('DEBUG: Siti Aisyah in processed availableEmployees:', sitiInAvailable);
+      const ryanInAvailable = availableEmployees.find(emp => emp.id === 'EMP1751006984631');
+      
+      console.log('PayrollContext - Processed employees with emails:');
+      console.log('  Wang Pot Chien:', wangInAvailable ? `${wangInAvailable.name} (${wangInAvailable.email})` : 'Not found');
+      console.log('  Siti Aisyah:', sitiInAvailable ? `${sitiInAvailable.name} (${sitiInAvailable.email})` : 'Not found');
+      console.log('  Ryan Goh:', ryanInAvailable ? `${ryanInAvailable.name} (${ryanInAvailable.email})` : 'Not found');
 
       setPayrollState(prevState => ({
         ...prevState,
