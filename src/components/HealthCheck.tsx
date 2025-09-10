@@ -25,34 +25,50 @@ const HealthCheck: React.FC = () => {
     };
 
     try {
-      // Test 1: Basic Supabase connection
+      // Test 1: Basic Supabase connection with extended timeout
       console.log('HealthCheck: Testing Supabase connection...');
-      const { data: connectionTest } = await supabase
+      const connectionPromise = supabase
         .from('employees')
         .select('id')
         .limit(1);
       
+      const connectionTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout after 15 seconds')), 15000)
+      );
+      
+      await Promise.race([connectionPromise, connectionTimeout]);
       newStatus.supabaseConnection = true;
       console.log('HealthCheck: ✅ Supabase connection OK');
 
-      // Test 2: Auth service
+      // Test 2: Auth service with extended timeout
       console.log('HealthCheck: Testing auth service...');
-      const { data: sessionData } = await supabase.auth.getSession();
+      const authPromise = supabase.auth.getSession();
+      const authTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Auth timeout after 10 seconds')), 10000)
+      );
+      
+      const authResult: any = await Promise.race([authPromise, authTimeout]);
       newStatus.authService = true;
-      console.log('HealthCheck: ✅ Auth service OK, session:', !!sessionData?.session);
+      console.log('HealthCheck: ✅ Auth service OK, session:', !!authResult?.data?.session);
 
-      // Test 3: Database query
+      // Test 3: Database query with extended timeout
       console.log('HealthCheck: Testing database query...');
-      const { count, error: queryError } = await supabase
+      const queryPromise = supabase
         .from('employees')
         .select('*', { count: 'exact', head: true });
       
-      if (queryError) {
-        throw queryError;
+      const queryTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout after 15 seconds')), 15000)
+      );
+      
+      const queryResult: any = await Promise.race([queryPromise, queryTimeout]);
+      
+      if (queryResult.error) {
+        throw queryResult.error;
       }
       
       newStatus.databaseQuery = true;
-      console.log('HealthCheck: ✅ Database query OK, employee count:', count);
+      console.log('HealthCheck: ✅ Database query OK, employee count:', queryResult.count);
 
     } catch (error) {
       console.error('HealthCheck: ❌ Health check failed:', error);
