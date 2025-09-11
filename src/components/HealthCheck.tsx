@@ -17,7 +17,7 @@ const HealthCheck: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   const runHealthCheck = async () => {
-    console.log('HealthCheck: Starting system health check...');
+    // HealthCheck: run system health checks
     const newStatus: HealthStatus = {
       supabaseConnection: false,
       authService: false,
@@ -25,10 +25,10 @@ const HealthCheck: React.FC = () => {
     };
 
     try {
-      // Test 1: Basic Supabase connection with extended timeout
+      // Test 1: Basic Supabase connection with extended timeout against a public table
       console.log('HealthCheck: Testing Supabase connection...');
       const connectionPromise = supabase
-        .from('employees')
+        .from('public_holidays')
         .select('id')
         .limit(1);
       
