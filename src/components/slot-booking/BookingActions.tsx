@@ -25,10 +25,12 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   onBookSlots,
   onBulkBookingOpen
 }) => {
-  const { user } = useAuth();
+  const { user, userDetails } = useAuth();
   
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
   const isEmployee = user?.role === 'employee';
+  const isCasualEmployee = userDetails?.type === 'Casual';
+  const canAccessBulkBooking = user?.role !== 'employee'; // Only admins/superadmins
 
   return (
     <Card className="w-full">
@@ -66,17 +68,30 @@ const BookingActions: React.FC<BookingActionsProps> = ({
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              onClick={onBulkBookingOpen}
-              className="flex-1"
-              variant="default"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Bulk Booking
-            </Button>
-          </div>
+          {/* Action Buttons - Only show bulk booking for admins/superadmins */}
+          {canAccessBulkBooking && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={onBulkBookingOpen}
+                className="flex-1"
+                variant="default"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Bulk Booking
+              </Button>
+            </div>
+          )}
+          
+          {/* Show message for non-casual employees */}
+          {isEmployee && !isCasualEmployee && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-800">Slot booking unavailable</p>
+                <p className="text-blue-700">Slot booking is only available for casual employees.</p>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

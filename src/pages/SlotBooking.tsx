@@ -31,7 +31,7 @@ import BookingActions from '@/components/slot-booking/BookingActions';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const SlotBooking = () => {
-  const { user } = useAuth();
+  const { user, userDetails } = useAuth();
   const isMobile = useIsMobile();
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
@@ -274,9 +274,16 @@ const SlotBooking = () => {
       return;
     }
     
+    // Only allow admins/superadmins to access bulk booking
     if (user?.role !== 'employee') {
       setSelectedDateForBulk(date);
       setIsBulkDialogOpen(true);
+      return;
+    }
+    
+    // Only casual employees can book individual slots
+    if (userDetails?.type !== 'Casual') {
+      toast.error("Slot booking is only available for casual employees");
       return;
     }
 
@@ -515,14 +522,32 @@ const SlotBooking = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs defaultValue="booking" className="w-full">
-          <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
-            <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>
-            <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Booking History</TabsTrigger>
-          </TabsList>
+        {/* Show restriction message for full-time employees */}
+        {user?.role === 'employee' && userDetails?.type !== 'Casual' && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-blue-800">Slot Booking Unavailable</p>
+                  <p className="text-blue-700 text-sm mt-1">
+                    Slot booking is only available for casual employees. Full-time employees do not need to book slots.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          <TabsContent value="booking" className="mt-6">
+        {/* Tabs - Only show for casual employees and admins */}
+        {(user?.role !== 'employee' || userDetails?.type === 'Casual') && (
+          <Tabs defaultValue="booking" className="w-full">
+            <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
+              <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>
+              <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Booking History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="booking" className="mt-6">
             {/* Single Column Layout */}
             <div className="space-y-6">
               <EnhancedBranchSelector
@@ -641,7 +666,8 @@ const SlotBooking = () => {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+          </Tabs>
+        )}
       </div>
 
       <BulkSlotBookingDialog
