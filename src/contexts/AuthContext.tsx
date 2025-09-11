@@ -96,55 +96,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setAdminAccess(null); // Superadmin has full access
           setPageAccess(null);
           setIsLoading(false);
-          
-          console.log('🔧 [Superadmin Fallback] Completed - userrole set to:', 'superadmin');
           return;
         }
         
-        // For Kim Hasung specifically, set his known permissions directly as fallback
-        if (session.user.email === 'hasung534@gmail.com') {
-          console.log('🔧 [Kim Hasung Fallback] Setting known permissions directly');
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: 'Kim Hasung',
-            employeeId: 'EMP1750863118850' // Known employee ID
-          });
-          
-          setUserrole('admin'); // Known to have admin role
-          setUserDetails({
-            id: 'EMP1750863118850',
-            name: 'Kim Hasung',
-            email: 'hasung534@gmail.com',
-            type: 'Full-Time',
-            position: 'Senior Instructor',
-            isSuperadmin: false
-          });
-          
-          // Set known admin permissions for Kim Hasung
-          setAdminAccess({
-            employees: false,
-            payroll: false,
-            leaveManagement: false,
-            claims: false,
-            attendance: false,
-            slotBooking: true, // Kim Hasung has slot booking access
-            reports: false
-          });
-          
-          setPageAccess({
-            profile: true,
-            applyLeave: true,
-            submitClaim: true,
-            payslips: true,
-            myAttendance: true,
-            slotBookingEmployee: true
-          });
-          
-          setIsLoading(false);
-          return;
-        }
         
         // Try to get basic employee ID for PageAccessGuard compatibility
         try {
@@ -252,11 +206,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('✅ Admin role confirmed with permissions:', 
             Object.keys(adminAccessData).filter(key => adminAccessData[key]));
           
-          // Enhanced logging for specific user
-          if (session.user.email === 'hasung534@gmail.com') {
-            console.log('🔍 [Kim Hasung Debug] Admin permissions:', adminAccessData);
-            console.log('🔍 [Kim Hasung Debug] Has slotBooking:', (adminAccessData as any)?.slotBooking);
-          }
         }
         
         // Update state with loaded permissions
@@ -282,13 +231,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Keep default page access
         }
         
-        // Final debug logging
-        if (session.user.email === 'hasung534@gmail.com') {
-          console.log('🔍 [Kim Hasung Debug] FINAL SESSION STATE:');
-          console.log('  - Role:', role);
-          console.log('  - AdminAccess:', adminAccessData);
-          console.log('  - Has slotBooking:', (adminAccessData as any)?.slotBooking);
-        }
         
       } catch (permissionError) {
         console.warn('⚠️ Admin permission load failed, proceeding with employee role:', permissionError);
@@ -334,54 +276,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setAdminAccess(null); // Superadmin has full access
         setPageAccess(null);
         setIsLoading(false);
-        
-        console.log('🆘 [Superadmin Emergency Fallback] Completed - userrole set to:', 'superadmin');
         return;
       }
       
-      // For Kim Hasung specifically, set his known permissions directly as emergency fallback
-      if (session.user.email === 'hasung534@gmail.com') {
-        console.log('🆘 [Kim Hasung Emergency Fallback] Database issues - using hardcoded permissions');
-        
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: 'Kim Hasung',
-          employeeId: 'EMP1750863118850'
-        });
-        
-        setUserrole('admin');
-        setUserDetails({
-          id: 'EMP1750863118850',
-          name: 'Kim Hasung',
-          email: 'hasung534@gmail.com',
-          type: 'Full-Time',
-          position: 'Senior Instructor',
-          isSuperadmin: false
-        });
-        
-        setAdminAccess({
-          employees: false,
-          payroll: false,
-          leaveManagement: false,
-          claims: false,
-          attendance: false,
-          slotBooking: true,
-          reports: false
-        });
-        
-        setPageAccess({
-          profile: true,
-          applyLeave: true,
-          submitClaim: true,
-          payslips: true,
-          myAttendance: true,
-          slotBookingEmployee: true
-        });
-        
-        setIsLoading(false);
-        return;
-      }
       
       // Try to get basic employee ID for PageAccessGuard compatibility
       try {

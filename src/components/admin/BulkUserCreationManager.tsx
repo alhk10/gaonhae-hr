@@ -60,25 +60,6 @@ const BulkUserCreationManager = () => {
     }
   };
 
-  const handleCreateKimHasung = async () => {
-    try {
-      setIsCreating(true);
-      toast("Setting up authentication account for Kim Hasung...");
-      
-      const success = await createSingleSupabaseAuthUser('hasung534@gmail.com', 'Kim Hasung');
-      
-      if (success) {
-        toast("Successfully set up authentication account for Kim Hasung! Password reset email sent.");
-      } else {
-        toast("Failed to set up authentication account for Kim Hasung");
-      }
-    } catch (error) {
-      console.error('BulkUserCreationManager: Error creating Kim Hasung user:', error);
-      toast("An error occurred while setting up the account");
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -107,26 +88,14 @@ const BulkUserCreationManager = () => {
             </AlertDescription>
           </Alert>
 
-          <div className="flex gap-3">
-            <Button 
-              onClick={handleCreateKimHasung}
-              disabled={isCreating}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Mail className="h-4 w-4" />
-              Setup Kim Hasung Account
-            </Button>
-
-            <Button 
-              onClick={handleBulkCreation}
-              disabled={isCreating}
-              className="flex items-center gap-2"
-            >
-              <Users className="h-4 w-4" />
-              {isCreating ? 'Setting Up Accounts...' : 'Setup All Employee Accounts'}
-            </Button>
-          </div>
+          <Button 
+            onClick={handleBulkCreation}
+            disabled={isCreating}
+            className="flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            {isCreating ? 'Setting Up Accounts...' : 'Setup All Employee Accounts'}
+          </Button>
 
           {isCreating && (
             <div className="space-y-2">

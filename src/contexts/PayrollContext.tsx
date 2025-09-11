@@ -1007,24 +1007,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             type: deduction.type || 'Fixed'
           })) : [];
           
-          // Debug logging for Kim Hasung specifically
-          if (emp.name === 'Kim Hasung') {
-            console.log(`🔍 PayrollContext: Kim Hasung data transformation:`, {
-              originalData: {
-                employeeCPF: emp.employeeCPF,
-                employerCPF: emp.employerCPF,
-                netSalary: emp.netSalary,
-                allowances: emp.allowances
-              },
-              transformedData: {
-                cpfEmployee: emp.employeeCPF || emp.cpfEmployee || 0,
-                cpfEmployer: emp.employerCPF || emp.cpfEmployer || 0,
-                netPay: emp.netSalary || emp.netPay || 0,
-                allowancesCount: allowances.length,
-                allowancesDetail: allowances
-              }
-            });
-          }
           
           return {
             ...emp,

@@ -22,21 +22,6 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
         resign_date: null,
         isSuperadmin: true
       },
-      'hasung534@gmail.com': {
-        id: 'EMP1750863118850',
-        name: 'Kim Hasung',
-        email: 'hasung534@gmail.com',
-        type: 'Full-Time',
-        position: 'Senior Instructor',
-        department: null,
-        phone: null,
-        address: null,
-        nric: null,
-        base_salary: null,
-        join_date: null,
-        resign_date: null,
-        isSuperadmin: false
-      },
       'ryangohjj21@gmail.com': {
         id: 'EMP1751006984631',
         name: 'Goh Jun Jie Ryan',
@@ -174,15 +159,6 @@ export const getUserAdminAccess = async (employeeId: string) => {
     
     // Emergency admin access fallbacks for known employees during connectivity issues
     const adminAccessFallbacks: Record<string, any> = {
-      'EMP1750863118850': { // Kim Hasung
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: true,
-        reports: false
-      },
       'EMP1751006984631': { // Ryan Goh
         employees: false,
         payroll: false,

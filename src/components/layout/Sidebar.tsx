@@ -98,15 +98,6 @@ const Sidebar = () => {
   const getMenuItems = useCallback((): MenuItem[] => {
     console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email);
     
-    // Enhanced debugging for Kim Hasung
-    if (user?.email === 'hasung534@gmail.com') {
-      console.log('🔍 [Kim Hasung Sidebar Debug] Current state:');
-      console.log('  - userrole:', userrole);
-      console.log('  - currentEmployee:', currentEmployee);
-      console.log('  - adminAccess:', currentEmployee?.adminAccess);
-      console.log('  - slotBooking permission:', currentEmployee?.adminAccess?.slotBooking);
-      console.log('  - authData.adminAccess:', authData.adminAccess);
-    }
     
     // Superladmin gets full admin access with validation
     if (validateSuperadminAccess(userrole, user?.email)) {
@@ -148,13 +139,6 @@ const Sidebar = () => {
     const adminAccessData = authData.adminAccess || currentEmployee?.adminAccess;
     
     if (userrole === 'admin' && adminAccessData) {
-      // Enhanced debugging for Kim Hasung
-      if (user?.email === 'hasung534@gmail.com') {
-        console.log('🔍 [Kim Hasung Sidebar Debug] Admin menu generation:');
-        console.log('  - Using adminAccess from:', currentEmployee?.adminAccess ? 'currentEmployee' : 'authData');
-        console.log('  - adminAccess data:', adminAccessData);
-        console.log('  - slotBooking:', adminAccessData.slotBooking);
-      }
       const menuItems: MenuItem[] = [
         { icon: BarChart3, label: 'Dashboard', path: '/' }
       ];
@@ -178,9 +162,6 @@ const Sidebar = () => {
         menuItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
       }
       if (adminAccess.slotBooking) {
-        if (user?.email === 'hasung534@gmail.com') {
-          console.log('🔍 [Kim Hasung Sidebar Debug] ✅ Adding Admin Slot Booking menu item');
-        }
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
 
@@ -219,13 +200,6 @@ const Sidebar = () => {
       const adminAccess = employeeAdminAccess;
       console.log('Sidebar: Employee has admin access:', adminAccess);
       
-      // Enhanced debugging for Kim Hasung
-      if (user?.email === 'hasung534@gmail.com') {
-        console.log('🔍 [Kim Hasung Sidebar Debug] Employee with admin access:');
-        console.log('  - adminAccess source:', currentEmployee?.adminAccess ? 'currentEmployee' : 'authData fallback');
-        console.log('  - adminAccess:', adminAccess);
-        console.log('  - slotBooking permission:', adminAccess?.slotBooking);
-      }
       
       if (adminAccess.employees) {
         menuItems.push({ icon: Users, label: 'Employees', path: '/employees' });
@@ -244,9 +218,6 @@ const Sidebar = () => {
       }
       if (adminAccess.slotBooking) {
         console.log('Sidebar: ✅ Adding Admin Slot Booking for employee with slotBooking permission');
-        if (user?.email === 'hasung534@gmail.com') {
-          console.log('🔍 [Kim Hasung Sidebar Debug] ✅ SUCCESS: Adding Admin Slot Booking menu item!');
-        }
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
     }
@@ -296,14 +267,6 @@ const Sidebar = () => {
   const isDataLoading = userrole === 'employee' && isLoading && !currentEmployee && !authData.adminAccess;
   
   if (isAuthLoading || isDataLoading) {
-    // Enhanced debugging for Kim Hasung
-    if (user?.email === 'hasung534@gmail.com') {
-      console.log('🔍 [Kim Hasung Sidebar Debug] Loading state check:');
-      console.log('  - isAuthLoading:', isAuthLoading);
-      console.log('  - isDataLoading:', isDataLoading);
-      console.log('  - currentEmployee loaded:', !!currentEmployee);
-      console.log('  - authData.adminAccess available:', !!authData.adminAccess);
-    }
     
     return (
       <div className={`${isMobile ? 'hidden' : 'w-64'} bg-white border-r border-gray-200 h-full`}>
@@ -315,13 +278,6 @@ const Sidebar = () => {
   }
 
   if (isMobile) {
-    // Enhanced debugging for Kim Hasung mobile view
-    if (user?.email === 'hasung534@gmail.com') {
-      console.log('🔍 [Kim Hasung Mobile Debug] Mobile sidebar rendering:');
-      console.log('  - menuItems count:', menuItems.length);
-      console.log('  - menuItems labels:', menuItems.map(item => item.label));
-      console.log('  - Has Admin Slot Booking:', menuItems.some(item => item.label === 'Admin Slot Booking'));
-    }
     
     return (
       <>

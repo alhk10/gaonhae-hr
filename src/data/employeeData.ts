@@ -317,49 +317,6 @@ const mockEmployees: EmployeeProfile[] = [
       slotBookingEmployee: true
     }
   },
-  {
-    id: 'EMP004',
-    name: 'Kim Ha-sung',
-    nric: 'S9012345I',
-    dateOfBirth: '1987-02-14',
-    residencyStatus: 'Citizen',
-    type: 'Full-Time',
-    baseSalary: 6200,
-    paymentType: 'Monthly',
-    bankName: 'DBS Bank',
-    bankAccount: '901-234567-8',
-    branch: 'Marina Bay Branch',
-    position: 'Team Lead',
-    phone: '+65 9901 2345',
-    address: '159 Marina Boulevard, Singapore 018971',
-    email: 'hasung534@gmail.com',
-    joinDate: '2020-08-01',
-    allowances: [
-      { id: '6', name: 'Leadership Allowance', amount: 500, type: 'Fixed' },
-      { id: '7', name: 'Transport Allowance', amount: 250, type: 'Fixed' }
-    ],
-    deductions: [
-      { id: '3', name: 'Medical Insurance', amount: 75, type: 'Fixed' }
-    ],
-    certificates: [],
-    adminAccess: {
-      employees: true,
-      payroll: true,
-      leaveManagement: true,
-      claims: true,
-      attendance: true,
-      slotBooking: true,
-      reports: true
-    },
-    pageAccess: {
-      profile: true,
-      applyLeave: true,
-      submitClaim: true,
-      payslips: true,
-      myAttendance: true,
-      slotBookingEmployee: true
-    }
-  }
 ];
 
 export const getEmployees = (): EmployeeProfile[] => {

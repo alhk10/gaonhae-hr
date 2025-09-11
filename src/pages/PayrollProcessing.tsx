@@ -23,7 +23,7 @@ import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
 import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
-import KimHasungPasswordReset from '@/components/KimHasungPasswordReset';
+
 
 const PayrollProcessing = () => {
   const navigate = useNavigate();
@@ -381,14 +381,6 @@ const PayrollProcessing = () => {
       .filter(claim => claim.status === 'Approved')
       .reduce((sum, claim) => sum + claim.amount, 0);
     
-    // Debug logging for Kim Hasung and Lee Soohyuk
-    if (employeeId === 'EMP1750863118850' || employeeId === 'EMP1750866645618') {
-      console.log(`Claims for ${employeeId}:`, {
-        allClaims: claims,
-        approvedClaims: claims.filter(claim => claim.status === 'Approved'),
-        total: total
-      });
-    }
     
     return total;
   };
@@ -1133,8 +1125,6 @@ const PayrollProcessing = () => {
               </div>
             </div>
 
-            {/* Kim Hasung Password Reset */}
-            <KimHasungPasswordReset />
 
             {currentStep === 'processing' && renderProcessingStep()}
             {currentStep === 'payment' && renderPaymentStep()}
