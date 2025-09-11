@@ -7,6 +7,21 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
     
     // Emergency fallbacks for known problematic employees during Supabase connectivity issues
     const emergencyFallbacks: Record<string, any> = {
+      'alhk10@gmail.com': {
+        id: 'EMP1751003565851',
+        name: 'Lee Heng Keong Alvin',
+        email: 'alhk10@gmail.com',
+        type: 'Full-Time',
+        position: 'System Administrator',
+        department: null,
+        phone: null,
+        address: null,
+        nric: null,
+        base_salary: null,
+        join_date: null,
+        resign_date: null,
+        isSuperadmin: true
+      },
       'hasung534@gmail.com': {
         id: 'EMP1750863118850',
         name: 'Kim Hasung',
@@ -124,10 +139,19 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
 
     console.log('[AuthOptimization] Employee data fetched successfully for:', email);
     
+    // Check superadmin status
+    let isSuperadmin = false;
+    try {
+      isSuperadmin = await checkSuperadminStatusCached(email);
+      console.log('[AuthOptimization] Superadmin check for', email, ':', isSuperadmin);
+    } catch (superadminError) {
+      console.warn('[AuthOptimization] Failed to check superadmin status for', email, ':', superadminError);
+    }
+    
     // Add additional processing fields
     const userData = {
       ...data,
-      isSuperadmin: false // Default value
+      isSuperadmin
     };
 
     return userData;
