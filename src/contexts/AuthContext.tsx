@@ -408,10 +408,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Get initial session immediately
+    // Get initial session immediately with timeout fallback to avoid infinite loading
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const getSessionPromise = supabase.auth.getSession();
+        const timeout = new Promise<{ data: { session: Session | null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 8000)
+        );
+        const { data: { session } } = await Promise.race([getSessionPromise as any, timeout]);
         await handleUserSession(session);
       } catch (error) {
         console.error('AuthContext: Error getting initial session:', error);
@@ -422,9 +426,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription }, } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('AuthContext: Auth state changed:', event);
       await handleUserSession(session);
     });
