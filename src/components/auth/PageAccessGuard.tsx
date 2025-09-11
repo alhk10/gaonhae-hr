@@ -31,6 +31,16 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
         authLoading: authLoading
       });
       
+      // CRITICAL: Debug log for alhk10@gmail.com specifically
+      if (user?.email === 'alhk10@gmail.com') {
+        console.log('🚨 [PageAccessGuard Debug] alhk10@gmail.com status:', {
+          userrole: userrole,
+          requiredPermission: requiredPermission,
+          isSuperadmin: userrole === 'superadmin',
+          authLoading: authLoading
+        });
+      }
+      
       // CRITICAL: Wait for AuthContext to finish loading first
       if (authLoading) {
         console.log('PageAccessGuard: AuthContext still loading, waiting...');

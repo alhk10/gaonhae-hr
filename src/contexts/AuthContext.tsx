@@ -96,6 +96,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setAdminAccess(null); // Superadmin has full access
           setPageAccess(null);
           setIsLoading(false);
+          
+          console.log('🔧 [Superadmin Fallback] Completed - userrole set to:', 'superadmin');
           return;
         }
         
@@ -332,6 +334,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setAdminAccess(null); // Superadmin has full access
         setPageAccess(null);
         setIsLoading(false);
+        
+        console.log('🆘 [Superadmin Emergency Fallback] Completed - userrole set to:', 'superadmin');
         return;
       }
       
