@@ -173,8 +173,6 @@ const SlotBooking = () => {
       
       setApprovedBookingDates(approvedDates);
       console.log('SlotBooking: Approved booking dates loaded for branch', selectedBranch, ':', approvedDates.size);
-      
-      setSelectedDates([]);
     } catch (error) {
       console.error('SlotBooking: Error loading approved booking dates:', error);
       toast.error('Failed to load branch booking data');

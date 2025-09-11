@@ -27,6 +27,9 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
   const isEmployee = user?.role === 'employee';
   const isCasualEmployee = userDetails?.type === 'Casual';
+  
+  // Show book button even if userDetails is still loading (database timeout issues)
+  const shouldShowBookButton = isEmployee && (isCasualEmployee || userDetails === null) && canBook;
 
   return (
     <Card className="w-full">
@@ -65,7 +68,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
           )}
 
           {/* Book Button for Casual Employees */}
-          {isEmployee && isCasualEmployee && canBook && (
+          {shouldShowBookButton && (
             <div className="flex flex-col gap-3">
               <Button 
                 onClick={onBookSlots}
