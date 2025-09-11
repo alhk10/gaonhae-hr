@@ -32,7 +32,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
   return (
     <Card className="w-full">
-      <CardContent className="pt-6">
+      <CardContent className="pt-3">
         <div className="space-y-4">
           {/* Employee Verification Status */}
           {employeeVerified === false && (
