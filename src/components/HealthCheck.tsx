@@ -26,7 +26,7 @@ const HealthCheck: React.FC = () => {
 
     try {
       // Test 1: Basic Supabase connection with extended timeout against a public table
-      console.log('HealthCheck: Testing Supabase connection...');
+      
       const connectionPromise = supabase
         .from('public_holidays')
         .select('id')
@@ -38,10 +38,10 @@ const HealthCheck: React.FC = () => {
       
       await Promise.race([connectionPromise, connectionTimeout]);
       newStatus.supabaseConnection = true;
-      console.log('HealthCheck: ✅ Supabase connection OK');
+      
 
       // Test 2: Auth service with extended timeout
-      console.log('HealthCheck: Testing auth service...');
+      
       const authPromise = supabase.auth.getSession();
       const authTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Auth timeout after 10 seconds')), 10000)
@@ -49,12 +49,11 @@ const HealthCheck: React.FC = () => {
       
       const authResult: any = await Promise.race([authPromise, authTimeout]);
       newStatus.authService = true;
-      console.log('HealthCheck: ✅ Auth service OK, session:', !!authResult?.data?.session);
+      
 
       // Test 3: Database query with extended timeout
-      console.log('HealthCheck: Testing database query...');
       const queryPromise = supabase
-        .from('employees')
+        .from('public_holidays')
         .select('*', { count: 'exact', head: true });
       
       const queryTimeout = new Promise<never>((_, reject) =>
@@ -68,7 +67,7 @@ const HealthCheck: React.FC = () => {
       }
       
       newStatus.databaseQuery = true;
-      console.log('HealthCheck: ✅ Database query OK, employee count:', queryResult.count);
+      
 
     } catch (error) {
       console.error('HealthCheck: ❌ Health check failed:', error);
