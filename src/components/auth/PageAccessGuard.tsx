@@ -15,7 +15,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
   requiredPermission,
   fallback
 }) => {
-  const { user, userrole, isLoading: authLoading } = useAuth(); // Add authLoading
+  const { user, userrole, isLoading: authLoading, pageAccess, adminAccess } = useAuth(); // Include access from context
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
