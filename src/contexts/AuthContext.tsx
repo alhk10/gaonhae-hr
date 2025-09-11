@@ -71,7 +71,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (!userData) {
-        console.log('❌ No employee record found, proceeding with basic access');
+        
+        // For superadmin alhk10@gmail.com, set superadmin permissions directly as fallback
+        if (session.user.email === 'alhk10@gmail.com') {
+          console.log('🔧 [Superadmin Fallback] Setting superadmin permissions for alhk10@gmail.com');
+          
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            name: 'Lee Heng Keong Alvin',
+            employeeId: 'EMP1751003565851'
+          });
+          
+          setUserrole('superadmin'); // Set as superadmin
+          setUserDetails({
+            id: 'EMP1751003565851',
+            name: 'Lee Heng Keong Alvin',
+            email: 'alhk10@gmail.com',
+            type: 'Full-Time',
+            position: 'System Administrator',
+            isSuperadmin: true
+          });
+          
+          setAdminAccess(null); // Superadmin has full access
+          setPageAccess(null);
+          setIsLoading(false);
+          return;
+        }
         
         // For Kim Hasung specifically, set his known permissions directly as fallback
         if (session.user.email === 'hasung534@gmail.com') {
@@ -281,6 +307,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Fallback: Set basic user info even if database queries fail
       console.log('❌ Session setup error - implementing emergency fallback');
+      
+      // For superadmin alhk10@gmail.com emergency fallback
+      if (session.user.email === 'alhk10@gmail.com') {
+        console.log('🆘 [Superadmin Emergency Fallback] Database issues - using superadmin permissions');
+        
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: 'Lee Heng Keong Alvin',
+          employeeId: 'EMP1751003565851'
+        });
+        
+        setUserrole('superadmin');
+        setUserDetails({
+          id: 'EMP1751003565851',
+          name: 'Lee Heng Keong Alvin',
+          email: 'alhk10@gmail.com',
+          type: 'Full-Time',
+          position: 'System Administrator',
+          isSuperadmin: true
+        });
+        
+        setAdminAccess(null); // Superadmin has full access
+        setPageAccess(null);
+        setIsLoading(false);
+        return;
+      }
       
       // For Kim Hasung specifically, set his known permissions directly as emergency fallback
       if (session.user.email === 'hasung534@gmail.com') {
