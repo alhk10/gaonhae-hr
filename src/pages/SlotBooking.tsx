@@ -270,14 +270,14 @@ const SlotBooking = () => {
       }
       return;
     }
-    
-    // Only casual employees can book individual slots
-    if (userDetails?.type !== 'Casual') {
-      toast.error("Slot booking is only available for casual employees");
-      return;
-    }
 
     const dateString = format(date, 'yyyy-MM-dd');
+    
+    // Allow date selection for all employees, but show warning for non-casual employees
+    if (userDetails?.type !== 'Casual') {
+      console.log('SlotBooking: Non-casual employee selecting date. UserDetails:', userDetails);
+      // Still allow selection but they won't be able to book
+    }
     
     // Enhanced existing booking check with detailed feedback
     try {

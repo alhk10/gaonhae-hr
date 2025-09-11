@@ -24,6 +24,14 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 }) => {
   const { user, userDetails } = useAuth();
   
+  // Debug logging to understand user type
+  console.log('BookingActions: User details debug:', {
+    userRole: user?.role,
+    userDetailsType: userDetails?.type,
+    userDetails: userDetails,
+    employeeVerified: employeeVerified
+  });
+  
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
   const isEmployee = user?.role === 'employee';
   const isCasualEmployee = userDetails?.type === 'Casual';
@@ -80,8 +88,20 @@ const BookingActions: React.FC<BookingActionsProps> = ({
             </div>
           )}
           
-          {/* Show message for non-casual employees */}
-          {isEmployee && !isCasualEmployee && (
+          {/* Show message for non-casual employees with selected dates */}
+          {isEmployee && !isCasualEmployee && selectedDates.length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-800">Cannot book selected dates</p>
+                <p className="text-blue-700">Slot booking is only available for casual employees.</p>
+                <p className="text-blue-600 mt-1">Selected: {selectedDates.length} slot{selectedDates.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Show general message for non-casual employees */}
+          {isEmployee && !isCasualEmployee && selectedDates.length === 0 && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <div className="text-sm">
