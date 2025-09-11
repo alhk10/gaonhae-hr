@@ -2,8 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface BookingActionsProps {
@@ -13,7 +12,6 @@ interface BookingActionsProps {
   isBooking: boolean;
   employeeVerified: boolean | null;
   onBookSlots: () => void;
-  onBulkBookingOpen: () => void;
 }
 
 const BookingActions: React.FC<BookingActionsProps> = ({
@@ -22,15 +20,13 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   branchColor,
   isBooking,
   employeeVerified,
-  onBookSlots,
-  onBulkBookingOpen
+  onBookSlots
 }) => {
   const { user, userDetails } = useAuth();
   
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
   const isEmployee = user?.role === 'employee';
   const isCasualEmployee = userDetails?.type === 'Casual';
-  const canAccessBulkBooking = user?.role !== 'employee'; // Only admins/superadmins
 
   return (
     <Card className="w-full">
@@ -68,16 +64,18 @@ const BookingActions: React.FC<BookingActionsProps> = ({
             </div>
           )}
 
-          {/* Action Buttons - Only show bulk booking for admins/superadmins */}
-          {canAccessBulkBooking && (
-            <div className="flex flex-col sm:flex-row gap-3">
+          {/* Book Button for Casual Employees */}
+          {isEmployee && isCasualEmployee && canBook && (
+            <div className="flex flex-col gap-3">
               <Button 
-                onClick={onBulkBookingOpen}
-                className="flex-1"
+                onClick={onBookSlots}
+                disabled={!canBook || isBooking}
+                className="w-full"
                 variant="default"
+                style={{ backgroundColor: branchColor }}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Bulk Booking
+                <Calendar className="w-4 h-4 mr-2" />
+                {isBooking ? 'Booking...' : `Book ${selectedDates.length} Slot${selectedDates.length !== 1 ? 's' : ''}`}
               </Button>
             </div>
           )}

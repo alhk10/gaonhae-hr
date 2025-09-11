@@ -23,7 +23,6 @@ import {
   type SlotBooking as SlotBookingType,
   type WeeklySlotConfig
 } from '@/services/slotBookingService';
-import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
 import EnhancedCalendar from '@/components/slot-booking/EnhancedCalendar';
 import EnhancedBranchSelector from '@/components/slot-booking/EnhancedBranchSelector';
 import SelectedDatesManager from '@/components/slot-booking/SelectedDatesManager';
@@ -35,8 +34,6 @@ const SlotBooking = () => {
   const isMobile = useIsMobile();
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
-  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
-  const [selectedDateForBulk, setSelectedDateForBulk] = useState<Date>(new Date());
   const [branches, setBranches] = useState<Branch[]>([]);
   const [approvedBookingsCount, setApprovedBookingsCount] = useState(0);
   const [employeeBookings, setEmployeeBookings] = useState<SlotBookingType[]>([]);
@@ -274,13 +271,6 @@ const SlotBooking = () => {
       return;
     }
     
-    // Only allow admins/superadmins to access bulk booking
-    if (user?.role !== 'employee') {
-      setSelectedDateForBulk(date);
-      setIsBulkDialogOpen(true);
-      return;
-    }
-    
     // Only casual employees can book individual slots
     if (userDetails?.type !== 'Casual') {
       toast.error("Slot booking is only available for casual employees");
@@ -459,15 +449,6 @@ const SlotBooking = () => {
     }
   };
 
-  const handleBulkBookingSuccess = async () => {
-    toast.success('Bulk slot bookings created successfully');
-    await Promise.all([
-      loadInitialData(),
-      loadEmployeeBookings(),
-      loadApprovedBookingDates()
-    ]);
-  };
-
   const getBranchColorStyle = (color: string) => {
     return color || '#3b82f6';
   };
@@ -586,7 +567,6 @@ const SlotBooking = () => {
                 isBooking={isBooking}
                 employeeVerified={employeeVerified}
                 onBookSlots={handleBookSlots}
-                onBulkBookingOpen={() => setIsBulkDialogOpen(true)}
               />
             </div>
           </TabsContent>
@@ -670,12 +650,6 @@ const SlotBooking = () => {
         )}
       </div>
 
-      <BulkSlotBookingDialog
-        isOpen={isBulkDialogOpen}
-        onClose={() => setIsBulkDialogOpen(false)}
-        selectedDate={selectedDateForBulk}
-        onSuccess={handleBulkBookingSuccess}
-      />
     </ResponsiveLayout>
   );
 };
