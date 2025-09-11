@@ -68,38 +68,14 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
-            {isEmployee ? (
-              <Button 
-                onClick={onBookSlots} 
-                className="flex-1"
-                disabled={!canBook}
-                style={{ 
-                  backgroundColor: canBook ? branchColor : undefined,
-                  borderColor: branchColor
-                }}
-              >
-                {isBooking ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-b-transparent mr-2"></div>
-                    Booking...
-                  </>
-                ) : (
-                  <>
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Book {selectedDates.length > 0 ? selectedDates.length : ''} Slot{selectedDates.length !== 1 ? 's' : ''}
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button 
-                onClick={onBulkBookingOpen}
-                className="flex-1"
-                variant="default"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Bulk Booking
-              </Button>
-            )}
+            <Button 
+              onClick={onBulkBookingOpen}
+              className="flex-1"
+              variant="default"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Bulk Booking
+            </Button>
           </div>
         </div>
       </CardContent>

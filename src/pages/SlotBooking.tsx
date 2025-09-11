@@ -90,10 +90,20 @@ const SlotBooking = () => {
         getWeeklySlotConfig()
       ]);
       
-      setBranches(branchesData);
+      // Filter out branches with no slots available
+      const filteredBranches = branchesData.filter(branch => {
+        const config = weeklyConfig[branch.id];
+        if (!config) return false;
+        
+        // Check if branch has at least one day with slots > 0
+        const hasSlots = Object.values(config).some(slots => (slots as number) > 0);
+        return hasSlots;
+      });
+      
+      setBranches(filteredBranches);
       setWeeklySlotConfig(weeklyConfig);
       
-      console.log('SlotBooking: Loaded branches with colors:', branchesData);
+      console.log('SlotBooking: Loaded branches with colors:', filteredBranches);
       console.log('SlotBooking: Loaded weekly slot config:', weeklyConfig);
     } catch (error) {
       console.error('SlotBooking: Error loading initial data:', error);
@@ -489,12 +499,6 @@ const SlotBooking = () => {
             )}
           </div>
           
-          {user?.role !== 'employee' && (
-            <Button onClick={() => setIsBulkDialogOpen(true)} className={isMobile ? 'w-full' : ''}>
-              <Plus className="w-4 h-4 mr-2" />
-              Bulk Booking
-            </Button>
-          )}
         </div>
 
         {/* Stats Card */}
@@ -519,52 +523,46 @@ const SlotBooking = () => {
           </TabsList>
 
           <TabsContent value="booking" className="mt-6">
-            {/* Enhanced 2-Column Layout with Dynamic Calendar */}
-            <div className={`grid gap-6 h-[600px] ${isMobile ? 'grid-cols-1 h-auto' : 'grid-cols-5'}`}>
-              {/* Left Column - Controls (40% width = 2/5) */}
-              <div className={`${isMobile ? 'col-span-1' : 'col-span-2'} space-y-6 flex flex-col`}>
-                <EnhancedBranchSelector
-                  branches={branches}
-                  selectedBranch={selectedBranch}
-                  onBranchChange={handleBranchChange}
-                  currentBranch={currentBranch}
-                  isLoading={isBranchDataLoading}
-                />
-                
-                <SelectedDatesManager
-                  selectedDates={selectedDates}
-                  onRemoveDate={handleRemoveDate}
-                  onClearAll={handleClearAllDates}
-                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
-                  branchName={currentBranch?.name || ''}
-                />
-                
-                <BookingActions
-                  selectedDates={selectedDates}
-                  branchName={currentBranch?.name || ''}
-                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
-                  isBooking={isBooking}
-                  employeeVerified={employeeVerified}
-                  onBookSlots={handleBookSlots}
-                  onBulkBookingOpen={() => setIsBulkDialogOpen(true)}
-                />
-              </div>
-
-              {/* Right Column - Calendar (60% width = 3/5) with Dynamic Stretching */}
-              <div className={`${isMobile ? 'col-span-1 h-[500px]' : 'col-span-3 h-full'} flex flex-col`}>
-                <EnhancedCalendar
-                  selectedDates={selectedDates}
-                  onDateSelect={handleDateSelect}
-                  onDatesChange={setSelectedDates}
-                  isDateDisabled={isDateDisabled}
-                  approvedBookingDates={approvedBookingDates}
-                  employeeBookingDates={employeeBookingDates}
-                  branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
-                  isLoading={isBranchDataLoading}
-                  currentBranch={currentBranch}
-                  weeklySlotConfig={weeklySlotConfig}
-                />
-              </div>
+            {/* Single Column Layout */}
+            <div className="space-y-6">
+              <EnhancedBranchSelector
+                branches={branches}
+                selectedBranch={selectedBranch}
+                onBranchChange={handleBranchChange}
+                currentBranch={currentBranch}
+                isLoading={isBranchDataLoading}
+              />
+              
+              <EnhancedCalendar
+                selectedDates={selectedDates}
+                onDateSelect={handleDateSelect}
+                onDatesChange={setSelectedDates}
+                isDateDisabled={isDateDisabled}
+                approvedBookingDates={approvedBookingDates}
+                employeeBookingDates={employeeBookingDates}
+                branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                isLoading={isBranchDataLoading}
+                currentBranch={currentBranch}
+                weeklySlotConfig={weeklySlotConfig}
+              />
+              
+              <SelectedDatesManager
+                selectedDates={selectedDates}
+                onRemoveDate={handleRemoveDate}
+                onClearAll={handleClearAllDates}
+                branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                branchName={currentBranch?.name || ''}
+              />
+              
+              <BookingActions
+                selectedDates={selectedDates}
+                branchName={currentBranch?.name || ''}
+                branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
+                isBooking={isBooking}
+                employeeVerified={employeeVerified}
+                onBookSlots={handleBookSlots}
+                onBulkBookingOpen={() => setIsBulkDialogOpen(true)}
+              />
             </div>
           </TabsContent>
 
