@@ -24,14 +24,6 @@ const BookingActions: React.FC<BookingActionsProps> = ({
 }) => {
   const { user, userDetails } = useAuth();
   
-  // Debug logging to understand user type
-  console.log('BookingActions: User details debug:', {
-    userRole: user?.role,
-    userDetailsType: userDetails?.type,
-    userDetails: userDetails,
-    employeeVerified: employeeVerified
-  });
-  
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
   const isEmployee = user?.role === 'employee';
   const isCasualEmployee = userDetails?.type === 'Casual';

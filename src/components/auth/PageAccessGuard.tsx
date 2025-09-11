@@ -15,7 +15,7 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
   requiredPermission,
   fallback
 }) => {
-  const { user, userrole, isLoading: authLoading, pageAccess, adminAccess } = useAuth(); // Include access from context
+  const { user, userrole, userDetails, isLoading: authLoading, pageAccess, adminAccess } = useAuth(); // Include context access and details
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
@@ -54,6 +54,34 @@ const PageAccessGuard: React.FC<PageAccessGuardProps> = ({
         return;
       }
 
+
+      // Special restriction: Slot Booking page is strictly for casual employees
+      if (requiredPermission === 'slotBookingEmployee' && user?.role === 'employee') {
+        if (!userDetails || userDetails.type !== 'Casual') {
+          setHasAccess(false);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Context-first permission check to avoid heavy DB calls
+      if (pageAccess || adminAccess) {
+        let hasPermission = false;
+        let hasAny = false;
+        if (pageAccess && (requiredPermission in pageAccess)) {
+          hasAny = true;
+          hasPermission = Boolean((pageAccess as any)[requiredPermission as any]);
+        }
+        if (!hasPermission && adminAccess && (requiredPermission in adminAccess)) {
+          hasAny = true;
+          hasPermission = Boolean((adminAccess as any)[requiredPermission as any]);
+        }
+        if (hasAny) {
+          setHasAccess(hasPermission);
+          setIsLoading(false);
+          return;
+        }
+      }
 
       // For all other users (including managers), check specific permissions
       if (user?.email && user?.employeeId) {
