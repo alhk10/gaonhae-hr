@@ -502,7 +502,7 @@ const SlotBooking = () => {
         </Card>
 
         {/* Show restriction message for full-time employees */}
-        {user?.role === 'employee' && userDetails?.type !== 'Casual' && (
+        {user?.role === 'employee' && userDetails && userDetails.type !== 'Casual' && (
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -519,7 +519,7 @@ const SlotBooking = () => {
         )}
 
         {/* Tabs - Only show for casual employees and admins */}
-        {(user?.role !== 'employee' || userDetails?.type === 'Casual') && (
+        {(user?.role !== 'employee' || userDetails?.type === 'Casual' || userDetails === null) && (
           <Tabs defaultValue="booking" className="w-full">
             <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
               <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>

@@ -92,11 +92,6 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
           <Calendar
             mode="multiple"
             selected={selectedDates}
-            onSelect={(dates) => {
-              if (dates) {
-                onDatesChange(dates);
-              }
-            }}
             onDayClick={onDateSelect}
             className={cn(
               "rounded-md border w-full flex-1 h-full",

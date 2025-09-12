@@ -84,7 +84,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
           )}
           
           {/* Show message for non-casual employees with selected dates */}
-          {isEmployee && !isCasualEmployee && selectedDates.length > 0 && (
+          {isEmployee && userDetails && !isCasualEmployee && selectedDates.length > 0 && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <div className="text-sm">
@@ -96,7 +96,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
           )}
           
           {/* Show general message for non-casual employees */}
-          {isEmployee && !isCasualEmployee && selectedDates.length === 0 && (
+          {isEmployee && userDetails && !isCasualEmployee && selectedDates.length === 0 && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <div className="text-sm">
