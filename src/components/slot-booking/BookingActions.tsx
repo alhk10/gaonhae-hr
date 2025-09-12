@@ -22,10 +22,10 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   employeeVerified,
   onBookSlots
 }) => {
-  const { user, userDetails } = useAuth();
+  const { user, userDetails, userrole } = useAuth();
   
   const canBook = selectedDates.length > 0 && employeeVerified !== false && !isBooking;
-  const isEmployee = user?.role === 'employee';
+  const isEmployee = userrole === 'employee' || user?.role === 'employee';
   const isCasualEmployee = userDetails?.type === 'Casual';
   
   // Show book button even if userDetails is still loading (database timeout issues)
