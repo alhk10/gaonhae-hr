@@ -98,6 +98,31 @@ export interface CasualEmployeePayroll extends PayrollEmployee {
   employerCPF: number;
 }
 
+export interface EmployeeQualifications {
+  danFirst?: boolean;
+  danSecond?: boolean;
+  danThird?: boolean;
+  danFourthAbove?: boolean;
+  stfPoomsaeCoachLevel1?: boolean;
+  stfPoomsaeCoachLevel2?: boolean;
+  stfPoomsaeCoachLevel3?: boolean;
+  sgCoachLevel1?: boolean;
+  sgCoachLevel2?: boolean;
+  sgCoachLevel3?: boolean;
+  stfCoachInduction?: boolean;
+  stfPoomsaeReferee?: boolean;
+  stfKyorugiReferee?: boolean;
+  kukkiwonMastersClass3?: boolean;
+  kukkiwonMastersClass2?: boolean;
+  kukkiwonMastersClass1?: boolean;
+  kukkiwonPoomDanExaminerClass3?: boolean;
+  kukkiwonPoomDanExaminerClass2?: boolean;
+  kukkiwonPoomDanExaminerClass1?: boolean;
+  wtKyorugiCoachLevel1?: boolean;
+  wtKyorugiCoachLevel2?: boolean;
+  wtPoomsaeCoach?: boolean;
+}
+
 export interface EmployeeProfile {
   id: string;
   name: string;
@@ -127,4 +152,5 @@ export interface EmployeeProfile {
   certificates: EmployeeCertificate[];
   adminAccess: AdminAccessPermissions;
   pageAccess: EmployeePageAccessPermissions;
+  qualifications?: EmployeeQualifications;
 }

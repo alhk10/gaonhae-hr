@@ -445,6 +445,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       slotBooking: false,
       reports: false
     },
+    qualifications: (employee.qualifications as any) || {},
     pageAccess: pageAccess ? {
       profile: pageAccess.profile || false,
       applyLeave: pageAccess.apply_leave || false,
@@ -608,7 +609,8 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     phone: employeeData.phone,
     address: employeeData.address,
     email: employeeData.email,
-    join_date: employeeData.joinDate || null
+    join_date: employeeData.joinDate || null,
+    qualifications: employeeData.qualifications || {}
   };
 
   console.log('EmployeeService: Processed update data for Supabase:', updateData);

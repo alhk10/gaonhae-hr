@@ -750,6 +750,7 @@ export type Database = {
           payment_type: string | null
           phone: string | null
           position: string | null
+          qualifications: Json | null
           residency_status: string
           resign_date: string | null
           type: string
@@ -775,6 +776,7 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          qualifications?: Json | null
           residency_status: string
           resign_date?: string | null
           type: string
@@ -800,6 +802,7 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          qualifications?: Json | null
           residency_status?: string
           resign_date?: string | null
           type?: string

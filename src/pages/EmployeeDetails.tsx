@@ -17,11 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
+import EmployeeQualificationsManager from '@/components/employee/EmployeeQualificationsManager';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
 import EmployeeClaimHistory from '@/components/employee/EmployeeClaimHistory';
 import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
 import EmployeePayrollHistory from '@/components/employee/EmployeePayrollHistory';
-import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
+import { AdminAccessPermissions, EmployeePageAccessPermissions, EmployeeQualifications } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 
 const EmployeeDetails = () => {
@@ -50,6 +51,7 @@ const EmployeeDetails = () => {
     myAttendance: true,
     slotBookingEmployee: true
   });
+  const [qualifications, setQualifications] = useState<EmployeeQualifications>({});
 
   // Check for edit parameter on load
   useEffect(() => {
@@ -88,6 +90,7 @@ const EmployeeDetails = () => {
         myAttendance: true,
         slotBookingEmployee: true
       });
+      setQualifications(employee.qualifications || {});
     }
   }, [employee]);
 
@@ -148,7 +151,7 @@ const EmployeeDetails = () => {
     try {
       await updateEmployeeMutation.mutateAsync({
         id: employeeData.id,
-        data: employeeData
+        data: { ...employeeData, qualifications }
       });
       await updateEmployeeAdminAccess(employeeData.id, adminAccess);
       await updateEmployeePageAccess(employeeData.id, pageAccess);
@@ -451,37 +454,43 @@ const EmployeeDetails = () => {
                     </div>
                   </>
                 )}
-              </div>
-
-              <div>
-                <Label htmlFor="address">Address</Label>
-                <textarea
-                  id="address"
-                  name="address"
-                  rows={3}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  value={employeeData.address || ''}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                />
-              </div>
-
-              {isEditing && (
-                <div className="border-t pt-6">
-                  <AdminAccessManager
-                    adminAccess={adminAccess}
-                    pageAccess={pageAccess}
-                    onAdminAccessChange={handleAdminAccessChange}
-                    onPageAccessChange={handlePageAccessChange}
-                    isEditing={isEditing}
+                <div className="md:col-span-2">
+                  <Label htmlFor="address">Address</Label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    rows={3}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={employeeData.address || ''}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
                   />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
 
-          {/* Allowances & Deductions Management */}
-          <Card>
+            {isEditing && (
+              <div className="border-t pt-6">
+                <AdminAccessManager
+                  adminAccess={adminAccess}
+                  pageAccess={pageAccess}
+                  onAdminAccessChange={handleAdminAccessChange}
+                  onPageAccessChange={handlePageAccessChange}
+                  isEditing={isEditing}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Qualifications & Certifications */}
+        <EmployeeQualificationsManager
+          qualifications={qualifications}
+          onChange={setQualifications}
+          disabled={!isEditing}
+        />
+
+        {/* Allowances & Deductions Management */}
+        <Card>
             <CardContent className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Allowances & Deductions</h3>
               <AllowanceDeductionManager
