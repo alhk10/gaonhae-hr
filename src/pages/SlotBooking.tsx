@@ -9,6 +9,9 @@ import { CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import { getEmployeeById } from '@/services/employeeService';
+import { EmployeeQualifications } from '@/types/employee';
+import { calculateSlotPay, getPayBreakdown, isFromNovember2024 } from '@/utils/slotPayCalculation';
 import {
   getBranches,
   addSlotBooking,
@@ -46,6 +49,8 @@ const SlotBooking = () => {
   const [employeeVerified, setEmployeeVerified] = useState<boolean | null>(null);
   const [isBranchDataLoading, setIsBranchDataLoading] = useState(false);
   const [weeklySlotConfig, setWeeklySlotConfig] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
+  const [employeeQualifications, setEmployeeQualifications] = useState<EmployeeQualifications | null>(null);
+  const [calculatedPay, setCalculatedPay] = useState<{ date: string; amount: number; breakdown: { item: string; amount: number }[] }[]>([]);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -57,8 +62,13 @@ const SlotBooking = () => {
     if (user?.employeeId) {
       loadEmployeeBookings();
       verifyCurrentEmployee();
+      loadEmployeeQualifications();
     }
   }, [user?.employeeId]);
+
+  useEffect(() => {
+    calculatePayForSelectedDates();
+  }, [selectedDates, employeeQualifications]);
 
   useEffect(() => {
     if (selectedBranch && branches.length > 0) {
@@ -141,6 +151,38 @@ const SlotBooking = () => {
       console.error('SlotBooking: Error verifying employee:', error);
       setEmployeeVerified(false);
     }
+  };
+
+  const loadEmployeeQualifications = async () => {
+    if (!user?.employeeId) return;
+    
+    try {
+      const employee = await getEmployeeById(user.employeeId);
+      setEmployeeQualifications(employee?.qualifications || null);
+    } catch (error) {
+      console.error('SlotBooking: Error loading employee qualifications:', error);
+    }
+  };
+
+  const calculatePayForSelectedDates = () => {
+    if (selectedDates.length === 0) {
+      setCalculatedPay([]);
+      return;
+    }
+
+    const payData = selectedDates.map(date => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const amount = calculateSlotPay(dateStr, employeeQualifications || undefined);
+      const breakdown = getPayBreakdown(dateStr, employeeQualifications || undefined);
+      
+      return {
+        date: dateStr,
+        amount,
+        breakdown
+      };
+    });
+
+    setCalculatedPay(payData);
   };
 
   const loadEmployeeBookings = async () => {
@@ -565,6 +607,8 @@ const SlotBooking = () => {
                 onClearAll={handleClearAllDates}
                 branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
                 branchName={currentBranch?.name || ''}
+                calculatedPay={calculatedPay}
+                showPricing={selectedDates.some(date => isFromNovember2024(format(date, 'yyyy-MM-dd')))}
               />
               
               <BookingActions
