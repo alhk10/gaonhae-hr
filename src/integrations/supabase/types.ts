@@ -1923,6 +1923,75 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_booking_pricing_config: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dan_first_bonus: number
+          dan_second_bonus: number
+          dan_third_above_bonus: number
+          effective_from: string | null
+          id: string
+          is_active: boolean | null
+          sg_coach_level1_bonus: number
+          sg_coach_level2_bonus: number
+          stf_coach_induction_bonus: number
+          stf_kyorugi_referee_bonus: number
+          stf_poomsae_coach_level1_bonus: number
+          stf_poomsae_coach_level2_bonus: number
+          stf_poomsae_coach_level3_bonus: number
+          stf_poomsae_referee_bonus: number
+          updated_at: string
+          updated_by: string | null
+          weekday_base_rate: number
+          weekend_base_rate: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dan_first_bonus?: number
+          dan_second_bonus?: number
+          dan_third_above_bonus?: number
+          effective_from?: string | null
+          id?: string
+          is_active?: boolean | null
+          sg_coach_level1_bonus?: number
+          sg_coach_level2_bonus?: number
+          stf_coach_induction_bonus?: number
+          stf_kyorugi_referee_bonus?: number
+          stf_poomsae_coach_level1_bonus?: number
+          stf_poomsae_coach_level2_bonus?: number
+          stf_poomsae_coach_level3_bonus?: number
+          stf_poomsae_referee_bonus?: number
+          updated_at?: string
+          updated_by?: string | null
+          weekday_base_rate?: number
+          weekend_base_rate?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dan_first_bonus?: number
+          dan_second_bonus?: number
+          dan_third_above_bonus?: number
+          effective_from?: string | null
+          id?: string
+          is_active?: boolean | null
+          sg_coach_level1_bonus?: number
+          sg_coach_level2_bonus?: number
+          stf_coach_induction_bonus?: number
+          stf_kyorugi_referee_bonus?: number
+          stf_poomsae_coach_level1_bonus?: number
+          stf_poomsae_coach_level2_bonus?: number
+          stf_poomsae_coach_level3_bonus?: number
+          stf_poomsae_referee_bonus?: number
+          updated_at?: string
+          updated_by?: string | null
+          weekday_base_rate?: number
+          weekend_base_rate?: number
+        }
+        Relationships: []
+      }
       slot_bookings: {
         Row: {
           created_at: string | null

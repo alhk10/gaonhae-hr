@@ -164,23 +164,25 @@ const SlotBooking = () => {
     }
   };
 
-  const calculatePayForSelectedDates = () => {
+  const calculatePayForSelectedDates = async () => {
     if (selectedDates.length === 0) {
       setCalculatedPay([]);
       return;
     }
 
-    const payData = selectedDates.map(date => {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const amount = calculateSlotPay(dateStr, employeeQualifications || undefined);
-      const breakdown = getPayBreakdown(dateStr, employeeQualifications || undefined);
-      
-      return {
-        date: dateStr,
-        amount,
-        breakdown
-      };
-    });
+    const payData = await Promise.all(
+      selectedDates.map(async (date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const amount = await calculateSlotPay(dateStr, employeeQualifications || undefined);
+        const breakdown = await getPayBreakdown(dateStr, employeeQualifications || undefined);
+        
+        return {
+          date: dateStr,
+          amount,
+          breakdown
+        };
+      })
+    );
 
     setCalculatedPay(payData);
   };

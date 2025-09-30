@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,8 +21,10 @@ import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDial
 import { BookingCardWithPay } from '@/components/slot-booking/BookingCardWithPay';
 import AdminSlotBookingActions from '@/components/admin/AdminSlotBookingActions';
 import AdminSlotBookingSummary from '@/components/admin/AdminSlotBookingSummary';
+import PricingSettingsTab from '@/components/slot-booking/PricingSettingsTab';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { isFromNovember2024 } from '@/utils/slotPayCalculation';
+import { isFromNovember2024, clearPricingCache } from '@/utils/slotPayCalculation';
+import { updatePricingConfig, SlotPricingConfig } from '@/services/slotPricingService';
 import {
   getBranches,
   getAllSlotBookings,
@@ -71,6 +74,7 @@ const AdminSlotBooking = () => {
   const [selectedBranchForUpdate, setSelectedBranchForUpdate] = useState('');
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
   const [isPendingApprovalsDialogOpen, setIsPendingApprovalsDialogOpen] = useState(false);
+  const [pricingConfig, setPricingConfig] = useState<Partial<SlotPricingConfig> | null>(null);
 
   // Cache for employee qualifications to avoid repeated API calls
   const [employeeQualificationsCache, setEmployeeQualificationsCache] = useState<Map<string, EmployeeQualifications | null>>(new Map());
@@ -658,50 +662,66 @@ const AdminSlotBooking = () => {
                       Settings
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Slot Booking Settings</DialogTitle>
-                      <DialogDescription>Configure weekly slot allocations for each branch. All changes will be saved to Supabase.</DialogDescription>
+                      <DialogDescription>Configure slot allocations and pricing. All changes will be saved to Supabase.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSettingsSave}>
-                      <div className="grid gap-6 py-4">
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
-                          <p className="text-sm text-gray-600">Configure the number of available slots for each branch by day of the week. Changes will be immediately saved to Supabase.</p>
-                          
-                          <div className="space-y-6">
-                            {branches.map((branch) => (
-                              <div key={branch.id} className="border rounded-lg p-4">
-                                <div className="flex items-center space-x-2 mb-3">
-                                  <div 
-                                    className="w-3 h-3 rounded-full" 
-                                    style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
-                                  ></div>
-                                  <h4 className="font-medium">{branch.name}</h4>
+                      <Tabs defaultValue="slots" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="slots">Weekly Slots</TabsTrigger>
+                          <TabsTrigger value="pricing">Dynamic Pricing</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="slots" className="space-y-4">
+                          <div className="space-y-4">
+                            <div>
+                              <h3 className="text-lg font-medium">Weekly Slot Configuration</h3>
+                              <p className="text-sm text-muted-foreground">Configure the number of available slots for each branch by day of the week.</p>
+                            </div>
+                            
+                            <div className="space-y-6">
+                              {branches.map((branch) => (
+                                <div key={branch.id} className="border rounded-lg p-4">
+                                  <div className="flex items-center space-x-2 mb-3">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
+                                    ></div>
+                                    <h4 className="font-medium">{branch.name}</h4>
+                                  </div>
+                                  <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
+                                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
+                                      <div key={day} className="space-y-1">
+                                        <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                                          {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
+                                        </Label>
+                                        <Input
+                                          name={`${branch.id}-${day}`}
+                                          type="number"
+                                          min="0"
+                                          max="50"
+                                          defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
+                                          className="text-center"
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                                <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
-                                  {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
-                                    <div key={day} className="space-y-1">
-                                      <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                        {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
-                                      </Label>
-                                      <Input
-                                        name={`${branch.id}-${day}`}
-                                        type="number"
-                                        min="0"
-                                        max="50"
-                                        defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
-                                        className="text-center"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
+                        </TabsContent>
+                        
+                        <TabsContent value="pricing">
+                          <PricingSettingsTab 
+                            onConfigChange={(config) => setPricingConfig(config)}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                      
+                      <DialogFooter className="mt-6">
                         <Button type="button" variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
                           Cancel
                         </Button>

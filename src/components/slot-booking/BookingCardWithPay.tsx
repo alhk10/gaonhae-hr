@@ -48,8 +48,8 @@ export const BookingCardWithPay: React.FC<BookingCardWithPayProps> = ({
     setIsLoadingPay(true);
     try {
       const qualifications = await getEmployeeQualifications(booking.employeeId);
-      const pay = calculateSlotPay(booking.date, qualifications || undefined);
-      const breakdown = getPayBreakdown(booking.date, qualifications || undefined);
+      const pay = await calculateSlotPay(booking.date, qualifications || undefined);
+      const breakdown = await getPayBreakdown(booking.date, qualifications || undefined);
       
       setCalculatedPay(pay);
       setPayBreakdown(breakdown);
