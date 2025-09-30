@@ -9,16 +9,19 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin, Clock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin, Clock, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { getCasualEmployees } from '@/services/employeeService';
-import { EmployeeProfile } from '@/types/employee';
+import { getCasualEmployees, getEmployeeById } from '@/services/employeeService';
+import { EmployeeProfile, EmployeeQualifications } from '@/types/employee';
 import SwapEmployeeDialog from '@/components/slot-booking/SwapEmployeeDialog';
 import BulkSlotBookingDialog from '@/components/slot-booking/BulkSlotBookingDialog';
+import { BookingCardWithPay } from '@/components/slot-booking/BookingCardWithPay';
 import AdminSlotBookingActions from '@/components/admin/AdminSlotBookingActions';
 import AdminSlotBookingSummary from '@/components/admin/AdminSlotBookingSummary';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { isFromNovember2024 } from '@/utils/slotPayCalculation';
 import {
   getBranches,
   getAllSlotBookings,
@@ -68,6 +71,9 @@ const AdminSlotBooking = () => {
   const [selectedBranchForUpdate, setSelectedBranchForUpdate] = useState('');
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
   const [isPendingApprovalsDialogOpen, setIsPendingApprovalsDialogOpen] = useState(false);
+
+  // Cache for employee qualifications to avoid repeated API calls
+  const [employeeQualificationsCache, setEmployeeQualificationsCache] = useState<Map<string, EmployeeQualifications | null>>(new Map());
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -180,6 +186,28 @@ const AdminSlotBooking = () => {
       console.log('AdminSlotBooking: Data refreshed successfully');
     } catch (error) {
       console.error('AdminSlotBooking: Error refreshing data:', error);
+    }
+  };
+
+  // Function to fetch and cache employee qualifications
+  const getEmployeeQualifications = async (employeeId: string): Promise<EmployeeQualifications | null> => {
+    // Check cache first
+    if (employeeQualificationsCache.has(employeeId)) {
+      return employeeQualificationsCache.get(employeeId) || null;
+    }
+
+    try {
+      const employee = await getEmployeeById(employeeId);
+      const qualifications = employee?.qualifications || null;
+      
+      // Update cache
+      setEmployeeQualificationsCache(prev => new Map(prev).set(employeeId, qualifications));
+      
+      return qualifications;
+    } catch (error) {
+      console.error('AdminSlotBooking: Error fetching employee qualifications:', error);
+      setEmployeeQualificationsCache(prev => new Map(prev).set(employeeId, null));
+      return null;
     }
   };
 
@@ -870,96 +898,37 @@ const AdminSlotBooking = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {getBookingsForDate(selectedDate).map((booking) => {
-                    const branch = branches.find(b => b.id === booking.branchId);
-                    const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
-                    
-                    return (
-                      <Card key={booking.id} className={`${isMobile ? 'p-2' : 'p-3'}`}>
-                        <div className={`flex items-start ${isMobile ? 'flex-col gap-2' : 'justify-between'}`}>
-                          <div className="flex items-center space-x-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: convertTailwindColorToHex(branch?.color || '#6b7280') }}
-                            ></div>
-                            <div>
-                              <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                                {booking.employeeName}
-                                {booking.status === 'approved' && hasClockedIn && (
-                                  <span className="ml-2 text-green-600" title="Employee has clocked in">✅✅</span>
-                                )}
-                              </p>
-                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{branch?.name}</p>
-                              <Badge 
-                                variant={
-                                  booking.status === 'approved' ? 'default' :
-                                  booking.status === 'pending' ? 'secondary' :
-                                  'destructive'
-                                }
-                                className={`mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}
-                              >
-                                {booking.status}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className={`flex space-x-1 ${isMobile ? 'w-full justify-end' : ''}`}>
-                            {booking.status === 'pending' && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'approved', 'Admin')}
-                                >
-                                  <Check className={`text-green-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                                  onClick={() => handleApproval(booking.id, 'rejected', 'Admin')}
-                                >
-                                  <X className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                                </Button>
-                              </>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleSwapClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <UserCheck className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleCancelClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <UserX className={`text-red-600 ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className={`p-0 ${isMobile ? 'h-8 w-8' : 'h-6 w-6'}`}
-                              onClick={() => handleApprovalClick(booking, new MouseEvent('click') as any)}
-                            >
-                              <Edit className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
+                <TooltipProvider>
+                  <div className="space-y-3">
+                    {getBookingsForDate(selectedDate).map((booking) => {
+                      const branch = branches.find(b => b.id === booking.branchId);
+                      const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
+                      const showPay = isFromNovember2024(booking.date);
+                      
+                      return (
+                        <BookingCardWithPay
+                          key={booking.id}
+                          booking={booking}
+                          branch={branch}
+                          hasClockedIn={hasClockedIn}
+                          showPay={showPay}
+                          isMobile={isMobile}
+                          getEmployeeQualifications={getEmployeeQualifications}
+                          handleApproval={handleApproval}
+                          handleSwapClick={handleSwapClick}
+                          handleCancelClick={handleCancelClick}
+                          handleApprovalClick={handleApprovalClick}
+                        />
+                      );
+                    })}
 
-                  {getBookingsForDate(selectedDate).length === 0 && (
-                    <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
-                      No bookings for this date. Click on a date to add bulk bookings.
-                    </p>
-                  )}
-                </div>
+                    {getBookingsForDate(selectedDate).length === 0 && (
+                      <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
+                        No bookings for this date. Click on a date to add bulk bookings.
+                      </p>
+                    )}
+                  </div>
+                </TooltipProvider>
               </CardContent>
             </Card>
 

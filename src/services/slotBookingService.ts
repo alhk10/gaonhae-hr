@@ -11,6 +11,7 @@ export type SlotBooking = {
   branchName: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   notes?: string | null;
+  calculatedPay?: number; // Calculated pay for the slot (from November 2024 onwards)
 };
 
 export type Branch = {
