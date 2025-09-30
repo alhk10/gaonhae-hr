@@ -608,7 +608,6 @@ const SlotBooking = () => {
                 branchColor={getBranchColorStyle(currentBranch?.color || '#3b82f6')}
                 branchName={currentBranch?.name || ''}
                 calculatedPay={calculatedPay}
-                showPricing={selectedDates.some(date => isFromNovember2024(format(date, 'yyyy-MM-dd')))}
               />
               
               <BookingActions

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { X, Calendar, Trash2, DollarSign, Info } from 'lucide-react';
 import { format } from 'date-fns';
+import { isFromNovember2024 } from '@/utils/slotPayCalculation';
 
 interface SelectedDatesManagerProps {
   selectedDates: Date[];
@@ -15,7 +16,6 @@ interface SelectedDatesManagerProps {
   branchColor: string;
   branchName: string;
   calculatedPay?: { date: string; amount: number; breakdown: { item: string; amount: number }[] }[];
-  showPricing?: boolean;
 }
 
 const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
@@ -24,17 +24,23 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
   onClearAll,
   branchColor,
   branchName,
-  calculatedPay = [],
-  showPricing = false
+  calculatedPay = []
 }) => {
   if (selectedDates.length === 0) {
     return null;
   }
 
-  const totalPay = calculatedPay.reduce((sum, item) => sum + item.amount, 0);
+  // Only calculate total for dates from November 2024 onwards
+  const totalPay = calculatedPay
+    .filter(pay => isFromNovember2024(pay.date))
+    .reduce((sum, item) => sum + item.amount, 0);
 
   const getPayForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
+    // Only return pay info if the date is from November 2024 onwards
+    if (!isFromNovember2024(dateStr)) {
+      return null;
+    }
     return calculatedPay.find(pay => pay.date === dateStr);
   };
 
@@ -88,7 +94,7 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
                     <Badge variant="outline" className="text-xs px-1 py-0">
                       {format(date, 'EEE')}
                     </Badge>
-                    {showPricing && payInfo && (
+                    {payInfo && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge variant="secondary" className="flex items-center gap-1 cursor-help ml-auto">
@@ -127,7 +133,7 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
             })}
           </div>
 
-          {showPricing && totalPay > 0 && (
+          {totalPay > 0 && (
             <div className="mt-3 pt-3 border-t flex justify-between items-center text-sm">
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Info className="w-3 h-3" />
