@@ -30,14 +30,14 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
     return null;
   }
 
-  // Only calculate total for dates from November 2024 onwards
+  // Only calculate total for dates from November 2025 onwards
   const totalPay = calculatedPay
     .filter(pay => isFromNovember2024(pay.date))
     .reduce((sum, item) => sum + item.amount, 0);
 
   const getPayForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    // Only return pay info if the date is from November 2024 onwards
+    // Only return pay info if the date is from November 2025 onwards
     if (!isFromNovember2024(dateStr)) {
       return null;
     }

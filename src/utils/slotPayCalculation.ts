@@ -33,12 +33,12 @@ export const isWeekend = (dateString: string): boolean => {
 };
 
 /**
- * Check if a date is from November 2024 onwards
+ * Check if a date is from November 2025 onwards
  */
 export const isFromNovember2024 = (dateString: string): boolean => {
   const date = new Date(dateString);
-  const november2024 = new Date('2024-11-01');
-  return date >= november2024;
+  const november2025 = new Date('2025-11-01');
+  return date >= november2025;
 };
 
 /**
@@ -48,7 +48,7 @@ export const calculateSlotPay = (
   dateString: string,
   qualifications?: EmployeeQualifications
 ): number => {
-  // Only calculate pay for dates from November 2024 onwards
+  // Only calculate pay for dates from November 2025 onwards
   if (!isFromNovember2024(dateString)) {
     return 0;
   }
