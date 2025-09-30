@@ -100,32 +100,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Try to get basic employee ID for PageAccessGuard compatibility
         try {
-          // Try to get basic employee ID quickly; if it times out, proceed without it
-          try {
-            const lookupPromise = supabase
-              .from('employees')
-              .select('id')
-              .eq('email', session.user.email!)
-              .maybeSingle();
-            const lookupTimeout = new Promise<{ data: any }>((resolve) =>
-              setTimeout(() => resolve({ data: null }), 3000)
-            );
-            const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
+          // Increased timeout to 10 seconds to ensure employee ID is found
+          const lookupPromise = supabase
+            .from('employees')
+            .select('id, name, type')
+            .eq('email', session.user.email!)
+            .maybeSingle();
+          const lookupTimeout = new Promise<{ data: any }>((resolve) =>
+            setTimeout(() => resolve({ data: null }), 10000)
+          );
+          const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
+          
+          if (employeeData) {
+            console.log('✅ Employee ID found for fallback:', employeeData.id);
             setUser({
               id: session.user.id,
               email: session.user.email!,
-              name: session.user.email!.split('@')[0],
-              employeeId: employeeData?.id || undefined
+              name: employeeData.name || session.user.email!.split('@')[0],
+              employeeId: employeeData.id
             });
-          } catch {
+            setUserDetails({
+              id: employeeData.id,
+              name: employeeData.name,
+              type: employeeData.type,
+              email: session.user.email
+            });
+          } else {
+            console.warn('⚠️ Employee ID lookup timed out');
             setUser({
               id: session.user.id,
               email: session.user.email!,
               name: session.user.email!.split('@')[0]
             });
           }
-        } catch {
+        } catch (error) {
           // If even basic lookup fails, proceed without employeeId
+          console.error('❌ Employee ID lookup failed:', error);
           setUser({
             id: session.user.id,
             email: session.user.email!,
