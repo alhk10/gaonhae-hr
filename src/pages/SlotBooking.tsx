@@ -100,6 +100,15 @@ const SlotBooking = () => {
       setBranches(filteredBranches);
       setWeeklySlotConfig(weeklyConfig);
       
+      // Set first available branch as default if current selection has no slots
+      if (filteredBranches.length > 0) {
+        const currentBranchHasSlots = filteredBranches.some(b => b.id === selectedBranch);
+        if (!currentBranchHasSlots) {
+          setSelectedBranch(filteredBranches[0].id);
+          console.log('SlotBooking: Auto-selected first available branch:', filteredBranches[0].id);
+        }
+      }
+      
       console.log('SlotBooking: Loaded branches with colors:', filteredBranches);
       console.log('SlotBooking: Loaded weekly slot config:', weeklyConfig);
     } catch (error) {
