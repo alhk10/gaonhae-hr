@@ -254,6 +254,17 @@ const EmployeeDetails = () => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="display_name">Display Name</Label>
+                  <Input
+                    id="display_name"
+                    name="display_name"
+                    value={employeeData.display_name || ''}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    placeholder={employeeData.name || ''}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"

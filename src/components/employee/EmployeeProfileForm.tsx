@@ -15,6 +15,7 @@ const EmployeeProfileForm = () => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    display_name: '',
     email: '',
     phone: '',
     address: '',
@@ -39,6 +40,7 @@ const EmployeeProfileForm = () => {
           setEmployee(employeeData);
           setFormData({
             name: employeeData.name || '',
+            display_name: employeeData.display_name || employeeData.name || '',
             email: employeeData.email || '',
             phone: employeeData.phone || '',
             address: employeeData.address || '',
@@ -78,6 +80,7 @@ const EmployeeProfileForm = () => {
       
       // Only allow superadmins to change the name
       const updatedEmployeeData: any = {
+        display_name: formData.display_name,
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
@@ -165,6 +168,18 @@ const EmployeeProfileForm = () => {
                   Only administrators can modify the full name
                 </p>
               )}
+            </div>
+            <div>
+              <Label htmlFor="display_name">Display Name</Label>
+              <Input
+                id="display_name"
+                value={formData.display_name}
+                onChange={(e) => handleInputChange('display_name', e.target.value)}
+                placeholder="Enter display name"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This name will be used when displaying your profile
+              </p>
             </div>
             <div>
               <Label htmlFor="email">Email Address</Label>

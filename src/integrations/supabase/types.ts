@@ -741,6 +741,7 @@ export type Database = {
           daily_weekend_rate: number | null
           date_of_birth: string
           department: string | null
+          display_name: string | null
           email: string | null
           hourly_rate: number | null
           id: string
@@ -767,6 +768,7 @@ export type Database = {
           daily_weekend_rate?: number | null
           date_of_birth: string
           department?: string | null
+          display_name?: string | null
           email?: string | null
           hourly_rate?: number | null
           id: string
@@ -793,6 +795,7 @@ export type Database = {
           daily_weekend_rate?: number | null
           date_of_birth?: string
           department?: string | null
+          display_name?: string | null
           email?: string | null
           hourly_rate?: number | null
           id?: string
