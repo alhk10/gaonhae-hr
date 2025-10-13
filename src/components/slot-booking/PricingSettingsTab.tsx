@@ -93,6 +93,20 @@ const PricingSettingsTab: React.FC<PricingSettingsTabProps> = ({ onConfigChange 
                 className="font-mono"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="years_of_service_bonus">Years of Service Bonus ($ per year)</Label>
+              <Input
+                id="years_of_service_bonus"
+                type="number"
+                step="0.01"
+                value={config.years_of_service_bonus_per_year}
+                onChange={(e) => handleChange('years_of_service_bonus_per_year', e.target.value)}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Additional payment per day for each year worked (default: $3)
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

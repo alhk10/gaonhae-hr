@@ -5,6 +5,7 @@ import { getActivePricingConfig } from '@/services/slotPricingService';
 let pricingConfigCache: {
   weekdayBaseRate: number;
   weekendBaseRate: number;
+  yearsOfServiceBonusPerYear: number;
   danBonuses: { first: number; second: number; thirdAndAbove: number };
   qualificationBonuses: {
     stfCoachInduction: number;
@@ -39,6 +40,7 @@ const getPricingConfig = async () => {
       pricingConfigCache = {
         weekdayBaseRate: config.weekday_base_rate,
         weekendBaseRate: config.weekend_base_rate,
+        yearsOfServiceBonusPerYear: config.years_of_service_bonus_per_year,
         danBonuses: {
           first: config.dan_first_bonus,
           second: config.dan_second_bonus,
@@ -61,6 +63,7 @@ const getPricingConfig = async () => {
       pricingConfigCache = {
         weekdayBaseRate: 70,
         weekendBaseRate: 85,
+        yearsOfServiceBonusPerYear: 3,
         danBonuses: { first: 5, second: 10, thirdAndAbove: 15 },
         qualificationBonuses: {
           stfCoachInduction: 1,
@@ -81,6 +84,7 @@ const getPricingConfig = async () => {
     pricingConfigCache = {
       weekdayBaseRate: 70,
       weekendBaseRate: 85,
+      yearsOfServiceBonusPerYear: 3,
       danBonuses: { first: 5, second: 10, thirdAndAbove: 15 },
       qualificationBonuses: {
         stfCoachInduction: 1,
@@ -125,11 +129,33 @@ export const isFromNovember2024 = (dateString: string): boolean => {
 };
 
 /**
+ * Calculate years of service from join date to booking date
+ */
+const calculateYearsOfService = (joinDate: string | undefined, bookingDate: string): number => {
+  if (!joinDate) return 0;
+  
+  const join = new Date(joinDate);
+  const booking = new Date(bookingDate);
+  
+  const yearsDiff = booking.getFullYear() - join.getFullYear();
+  const monthDiff = booking.getMonth() - join.getMonth();
+  const dayDiff = booking.getDate() - join.getDate();
+  
+  // Calculate full years of service
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    return Math.max(0, yearsDiff - 1);
+  }
+  
+  return Math.max(0, yearsDiff);
+};
+
+/**
  * Calculate the total pay for a slot booking based on date and employee qualifications
  */
 export const calculateSlotPay = async (
   dateString: string,
-  qualifications?: EmployeeQualifications
+  qualifications?: EmployeeQualifications,
+  joinDate?: string
 ): Promise<number> => {
   // Only calculate pay for dates from November 2025 onwards
   if (!isFromNovember2024(dateString)) {
@@ -142,7 +168,12 @@ export const calculateSlotPay = async (
   // Start with base rate
   let totalPay = isWeekend(dateString) ? config.weekendBaseRate : config.weekdayBaseRate;
 
-  // If no qualifications, return base rate
+  // Add years of service bonus
+  const yearsOfService = calculateYearsOfService(joinDate, dateString);
+  const serviceBonus = yearsOfService * config.yearsOfServiceBonusPerYear;
+  totalPay += serviceBonus;
+
+  // If no qualifications, return base rate + service bonus
   if (!qualifications) {
     return totalPay;
   }
@@ -192,7 +223,8 @@ export const calculateSlotPay = async (
  */
 export const getPayBreakdown = async (
   dateString: string,
-  qualifications?: EmployeeQualifications
+  qualifications?: EmployeeQualifications,
+  joinDate?: string
 ): Promise<{ item: string; amount: number }[]> => {
   if (!isFromNovember2024(dateString)) {
     return [];
@@ -209,6 +241,16 @@ export const getPayBreakdown = async (
     item: isWeekend(dateString) ? 'Weekend Base' : 'Weekday Base',
     amount: baseRate,
   });
+
+  // Add years of service bonus
+  const yearsOfService = calculateYearsOfService(joinDate, dateString);
+  if (yearsOfService > 0) {
+    const serviceBonus = yearsOfService * config.yearsOfServiceBonusPerYear;
+    breakdown.push({
+      item: `Service Bonus (${yearsOfService} ${yearsOfService === 1 ? 'year' : 'years'})`,
+      amount: serviceBonus
+    });
+  }
 
   if (!qualifications) {
     return breakdown;

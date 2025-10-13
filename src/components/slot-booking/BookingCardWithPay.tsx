@@ -8,6 +8,7 @@ import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import { SlotBooking, Branch } from '@/services/slotBookingService';
 import { EmployeeQualifications } from '@/types/employee';
 import { calculateSlotPay, getPayBreakdown } from '@/utils/slotPayCalculation';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BookingCardWithPayProps {
   booking: SlotBooking;
@@ -48,8 +49,18 @@ export const BookingCardWithPay: React.FC<BookingCardWithPayProps> = ({
     setIsLoadingPay(true);
     try {
       const qualifications = await getEmployeeQualifications(booking.employeeId);
-      const pay = await calculateSlotPay(booking.date, qualifications || undefined);
-      const breakdown = await getPayBreakdown(booking.date, qualifications || undefined);
+      
+      // Fetch employee's join date
+      const { data: employeeData } = await supabase
+        .from('employees')
+        .select('join_date')
+        .eq('id', booking.employeeId)
+        .single();
+      
+      const joinDate = employeeData?.join_date;
+      
+      const pay = await calculateSlotPay(booking.date, qualifications || undefined, joinDate);
+      const breakdown = await getPayBreakdown(booking.date, qualifications || undefined, joinDate);
       
       setCalculatedPay(pay);
       setPayBreakdown(breakdown);

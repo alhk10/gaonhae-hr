@@ -1948,6 +1948,7 @@ export type Database = {
           updated_by: string | null
           weekday_base_rate: number
           weekend_base_rate: number
+          years_of_service_bonus_per_year: number
         }
         Insert: {
           created_at?: string
@@ -1970,6 +1971,7 @@ export type Database = {
           updated_by?: string | null
           weekday_base_rate?: number
           weekend_base_rate?: number
+          years_of_service_bonus_per_year?: number
         }
         Update: {
           created_at?: string
@@ -1992,6 +1994,7 @@ export type Database = {
           updated_by?: string | null
           weekday_base_rate?: number
           weekend_base_rate?: number
+          years_of_service_bonus_per_year?: number
         }
         Relationships: []
       }

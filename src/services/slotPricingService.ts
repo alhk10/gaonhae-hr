@@ -4,6 +4,7 @@ export interface SlotPricingConfig {
   id: string;
   weekday_base_rate: number;
   weekend_base_rate: number;
+  years_of_service_bonus_per_year: number;
   dan_first_bonus: number;
   dan_second_bonus: number;
   dan_third_above_bonus: number;
