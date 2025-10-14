@@ -24,15 +24,45 @@ const AdminSlotBookingSummary: React.FC<AdminSlotBookingSummaryProps> = ({
       return monthMatch && branchMatch;
     });
 
+    // Count actual occurrences of each day in the current month
+    const getDayCountsInMonth = () => {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dayCounts = [0, 0, 0, 0, 0, 0, 0]; // [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayOfWeek = date.getDay();
+        dayCounts[dayOfWeek]++;
+      }
+      
+      return dayCounts;
+    };
+
+    const dayCounts = getDayCountsInMonth();
+
     const totalSlots = selectedBranch === 'all' 
-      ? weeklySlotConfig.reduce((sum, config) => 
-          sum + config.monday + config.tuesday + config.wednesday + 
-          config.thursday + config.friday + config.saturday + config.sunday, 0) * 4 // Approximate monthly
+      ? weeklySlotConfig.reduce((sum, config) => {
+          return sum + 
+            (config.sunday * dayCounts[0]) +
+            (config.monday * dayCounts[1]) +
+            (config.tuesday * dayCounts[2]) +
+            (config.wednesday * dayCounts[3]) +
+            (config.thursday * dayCounts[4]) +
+            (config.friday * dayCounts[5]) +
+            (config.saturday * dayCounts[6]);
+        }, 0)
       : (() => {
           const config = weeklySlotConfig.find(c => c.branchId === selectedBranch);
           return config 
-            ? (config.monday + config.tuesday + config.wednesday + 
-               config.thursday + config.friday + config.saturday + config.sunday) * 4
+            ? (config.sunday * dayCounts[0]) +
+              (config.monday * dayCounts[1]) +
+              (config.tuesday * dayCounts[2]) +
+              (config.wednesday * dayCounts[3]) +
+              (config.thursday * dayCounts[4]) +
+              (config.friday * dayCounts[5]) +
+              (config.saturday * dayCounts[6])
             : 0;
         })();
 
