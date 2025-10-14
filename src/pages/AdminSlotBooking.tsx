@@ -184,6 +184,9 @@ const AdminSlotBooking = () => {
       setAllBookings(bookingsData);
       setCurrentWeeklySlots(weeklyConfigData);
       
+      console.log('AdminSlotBooking: Weekly slot config loaded:', weeklyConfigData);
+      console.log('AdminSlotBooking: Branches:', branches.map(b => b.id));
+      
       // Refresh attendance data
       await loadAttendanceData(bookingsData);
       
@@ -335,10 +338,13 @@ const AdminSlotBooking = () => {
     const monthEnd = endOfMonth(currentMonth);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
     
+    console.log('AdminSlotBooking: Calculating slot summary for', daysInMonth.length, 'days');
+    console.log('AdminSlotBooking: Current weekly slots:', currentWeeklySlots);
+    console.log('AdminSlotBooking: Selected branch:', selectedBranch);
+    
     let totalSlots = 0;
-    let bookedSlots = 0;
-    let pendingSlots = 0;
     let approvedSlots = 0;
+    let pendingSlots = 0;
 
     daysInMonth.forEach(day => {
       const dayBookings = getBookingsForDate(day);
@@ -346,18 +352,26 @@ const AdminSlotBooking = () => {
       
       if (selectedBranch === 'all') {
         branches.forEach(branch => {
-          totalSlots += Number(currentWeeklySlots[branch.id]?.[dayName] || 0);
+          const slotCount = Number(currentWeeklySlots[branch.id]?.[dayName] || 0);
+          totalSlots += slotCount;
         });
       } else {
-        totalSlots += Number(currentWeeklySlots[selectedBranch]?.[dayName] || 0);
+        const slotCount = Number(currentWeeklySlots[selectedBranch]?.[dayName] || 0);
+        totalSlots += slotCount;
       }
       
-      bookedSlots += dayBookings.length;
-      pendingSlots += dayBookings.filter(b => b.status === 'pending').length;
-      approvedSlots += dayBookings.filter(b => b.status === 'approved').length;
+      // Only count non-cancelled bookings
+      const activeBookings = dayBookings.filter(b => b.status !== 'cancelled');
+      approvedSlots += activeBookings.filter(b => b.status === 'approved').length;
+      pendingSlots += activeBookings.filter(b => b.status === 'pending').length;
     });
 
-    return { totalSlots, bookedSlots, pendingSlots, approvedSlots, availableSlots: totalSlots - bookedSlots };
+    const bookedSlots = approvedSlots + pendingSlots;
+    const availableSlots = Math.max(0, totalSlots - bookedSlots);
+
+    console.log('AdminSlotBooking: Slot summary calculated:', { totalSlots, approvedSlots, pendingSlots, bookedSlots, availableSlots });
+
+    return { totalSlots, bookedSlots: approvedSlots, pendingSlots, approvedSlots, availableSlots };
   };
 
   const handleApproval = async (bookingId: string, status: 'approved' | 'rejected', approvedBy?: string) => {
