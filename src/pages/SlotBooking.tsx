@@ -50,6 +50,7 @@ const SlotBooking = () => {
   const [isBranchDataLoading, setIsBranchDataLoading] = useState(false);
   const [weeklySlotConfig, setWeeklySlotConfig] = useState<{ [branchId: string]: WeeklySlotConfig }>({});
   const [employeeQualifications, setEmployeeQualifications] = useState<EmployeeQualifications | null>(null);
+  const [employeeJoinDate, setEmployeeJoinDate] = useState<string | null>(null);
   const [calculatedPay, setCalculatedPay] = useState<{ date: string; amount: number; breakdown: { item: string; amount: number }[] }[]>([]);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
@@ -68,7 +69,7 @@ const SlotBooking = () => {
 
   useEffect(() => {
     calculatePayForSelectedDates();
-  }, [selectedDates, employeeQualifications]);
+  }, [selectedDates, employeeQualifications, employeeJoinDate]);
 
   useEffect(() => {
     if (selectedBranch && branches.length > 0) {
@@ -159,6 +160,8 @@ const SlotBooking = () => {
     try {
       const employee = await getEmployeeById(user.employeeId);
       setEmployeeQualifications(employee?.qualifications || null);
+      setEmployeeJoinDate(employee?.joinDate || null);
+      console.log('SlotBooking: Loaded employee join date:', employee?.joinDate);
     } catch (error) {
       console.error('SlotBooking: Error loading employee qualifications:', error);
     }
@@ -173,8 +176,8 @@ const SlotBooking = () => {
     const payData = await Promise.all(
       selectedDates.map(async (date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
-        const amount = await calculateSlotPay(dateStr, employeeQualifications || undefined);
-        const breakdown = await getPayBreakdown(dateStr, employeeQualifications || undefined);
+        const amount = await calculateSlotPay(dateStr, employeeQualifications || undefined, employeeJoinDate || undefined);
+        const breakdown = await getPayBreakdown(dateStr, employeeQualifications || undefined, employeeJoinDate || undefined);
         
         return {
           date: dateStr,
