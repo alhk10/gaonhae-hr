@@ -463,11 +463,22 @@ const AdminSlotBooking = () => {
 
   const handleSettingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('AdminSlotBooking: handleSettingsSave triggered');
+    console.log('AdminSlotBooking: Branches count:', branches.length);
+    
+    if (branches.length === 0) {
+      console.error('AdminSlotBooking: No branches available to save');
+      toast.error('No branches available. Please refresh the page.');
+      return;
+    }
+    
     setIsSavingSettings(true);
     
     try {
       const formData = new FormData(e.target as HTMLFormElement);
       console.log('AdminSlotBooking: Saving settings to Supabase...');
+      console.log('AdminSlotBooking: FormData entries:', Array.from(formData.entries()));
       
       const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
@@ -490,11 +501,12 @@ const AdminSlotBooking = () => {
           }
         });
         
-        console.log(`Updating weekly slots for branch ${branch.id}:`, weeklyConfig);
+        console.log(`AdminSlotBooking: Updating weekly slots for branch ${branch.id}:`, weeklyConfig);
         return updateWeeklySlotConfig(branch.id, weeklyConfig);
       });
 
       const results = await Promise.all(updatePromises);
+      console.log('AdminSlotBooking: Update results:', results);
       const allSuccessful = results.every(result => result === true);
       
       if (allSuccessful) {
@@ -506,7 +518,7 @@ const AdminSlotBooking = () => {
         console.log('AdminSlotBooking: All settings saved successfully to Supabase');
       } else {
         toast.error("Some settings failed to save. Please try again.");
-        console.error('AdminSlotBooking: Some settings failed to save');
+        console.error('AdminSlotBooking: Some settings failed to save', results);
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
@@ -671,7 +683,16 @@ const AdminSlotBooking = () => {
                 
                 <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className={isMobile ? 'flex-1' : ''}>
+                    <Button 
+                      variant="outline" 
+                      className={isMobile ? 'flex-1' : ''}
+                      disabled={branches.length === 0}
+                      onClick={() => {
+                        console.log('AdminSlotBooking: Opening settings dialog');
+                        console.log('AdminSlotBooking: Current branches:', branches.length);
+                        console.log('AdminSlotBooking: Current weekly slots:', currentWeeklySlots);
+                      }}
+                    >
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </Button>
