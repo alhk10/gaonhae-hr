@@ -461,27 +461,34 @@ const AdminSlotBooking = () => {
     }
   };
 
-  const handleSettingsSave = async (e: React.FormEvent) => {
+  const handleSettingsSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     console.log('AdminSlotBooking: handleSettingsSave triggered');
     console.log('AdminSlotBooking: Branches count:', branches.length);
-    
+
     if (branches.length === 0) {
       console.error('AdminSlotBooking: No branches available to save');
       toast.error('No branches available. Please refresh the page.');
       return;
     }
-    
+
     setIsSavingSettings(true);
-    
+
     try {
-      const formData = new FormData(e.target as HTMLFormElement);
+      const formEl = e.currentTarget; // Always use currentTarget (the form), not target
+      const formData = new FormData(formEl);
+      const entries = Array.from(formData.entries());
       console.log('AdminSlotBooking: Saving settings to Supabase...');
-      console.log('AdminSlotBooking: FormData entries:', Array.from(formData.entries()));
-      
+      console.log('AdminSlotBooking: Form element:', formEl.tagName, 'fields:', formEl.elements?.length);
+      console.log('AdminSlotBooking: FormData entries:', entries);
+
+      if (entries.length === 0) {
+        console.warn('AdminSlotBooking: FormData is empty. Check that inputs have name attributes and are inside the form.');
+      }
+
       const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      
+
       const updatePromises = branches.map(async (branch) => {
         const weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'> = {
           monday: 0,
@@ -492,37 +499,36 @@ const AdminSlotBooking = () => {
           saturday: 0,
           sunday: 0
         };
-        
+
         daysOfWeek.forEach(day => {
           const fieldName = `${branch.id}-${day}`;
-          const value = formData.get(fieldName) as string;
-          if (value && !isNaN(parseInt(value))) {
-            weeklyConfig[day] = parseInt(value);
-          }
+          const value = formData.get(fieldName) as string | null;
+          const parsed = value !== null && value !== '' ? parseInt(value, 10) : 0;
+          weeklyConfig[day] = Number.isFinite(parsed) ? parsed : 0;
         });
-        
-        console.log(`AdminSlotBooking: Updating weekly slots for branch ${branch.id}:`, weeklyConfig);
+
+        console.log(`AdminSlotBooking: Upserting weekly slots for branch ${branch.id}:`, weeklyConfig);
         return updateWeeklySlotConfig(branch.id, weeklyConfig);
       });
 
       const results = await Promise.all(updatePromises);
       console.log('AdminSlotBooking: Update results:', results);
       const allSuccessful = results.every(result => result === true);
-      
+
       if (allSuccessful) {
         const updatedWeeklyConfig = await getWeeklySlotConfig();
         setCurrentWeeklySlots(updatedWeeklyConfig);
-        
+
         setIsSettingsDialogOpen(false);
-        toast.success("Settings saved successfully to Supabase");
+        toast.success('Settings saved successfully to Supabase');
         console.log('AdminSlotBooking: All settings saved successfully to Supabase');
       } else {
-        toast.error("Some settings failed to save. Please try again.");
+        toast.error('Some settings failed to save. Please try again.');
         console.error('AdminSlotBooking: Some settings failed to save', results);
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
-      toast.error("Error saving settings");
+      toast.error('Error saving settings');
     } finally {
       setIsSavingSettings(false);
     }
