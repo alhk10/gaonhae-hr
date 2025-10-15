@@ -7,7 +7,6 @@ import { Toaster } from "@/components/ui/sonner";
 import AuthGuard from './components/auth/AuthGuard';
 import PageAccessGuard from './components/auth/PageAccessGuard';
 import SalesAccessGuard from './components/sales/SalesAccessGuard';
-import HealthCheck from './components/HealthCheck';
 import ErrorBoundary from './components/ErrorBoundary';
 import Index from './pages/Index';
 import Employees from './pages/Employees';
@@ -57,7 +56,6 @@ function App() {
                   <PayrollProvider>
                     <ErrorBoundary>
                       <div className="min-h-screen bg-background">
-                        <HealthCheck />
                         <Routes>
                           {/* Public route - Login page */}
                           <Route path="/" element={<Index />} />
