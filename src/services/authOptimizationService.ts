@@ -66,6 +66,21 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
         join_date: null,
         resign_date: null,
         isSuperadmin: false
+      },
+      'jasonlulijie@gmail.com': {
+        id: 'EMP1751007228999',
+        name: 'Jason Lu Lijie',
+        email: 'jasonlulijie@gmail.com',
+        type: 'Casual',
+        position: 'Casual Instructor',
+        department: 'Main Office',
+        phone: null,
+        address: null,
+        nric: 'T0391138H',
+        base_salary: 1875,
+        join_date: '2021-11-17',
+        resign_date: null,
+        isSuperadmin: false
       }
     };
     
@@ -178,6 +193,15 @@ export const getUserAdminAccess = async (employeeId: string) => {
         reports: false
       },
       'EMP1752551410290': { // Siti Aisyah
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      'EMP1751007228999': { // Jason Lu
         employees: false,
         payroll: false,
         leaveManagement: false,
