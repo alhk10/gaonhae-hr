@@ -564,43 +564,39 @@ export const updateWeeklySlotConfig = async (
   weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'>
 ): Promise<boolean> => {
   try {
-    console.log('Updating weekly slot config:', { branchId, weeklyConfig });
+    console.log('slotBookingService: Upserting weekly slot config for branch:', branchId, weeklyConfig);
 
-    const { data: existingData, error: existingError } = await supabase
+    // Use upsert to handle both insert and update in one operation
+    const { data, error } = await supabase
       .from('weekly_slot_config')
+      .upsert(
+        { 
+          branch_id: branchId, 
+          ...weeklyConfig 
+        },
+        { 
+          onConflict: 'branch_id',
+          ignoreDuplicates: false 
+        }
+      )
       .select('*')
-      .eq('branch_id', branchId);
+      .single();
 
-    if (existingError) {
-      console.error('Error checking existing weekly slot config:', existingError);
+    if (error) {
+      console.error('slotBookingService: Error upserting weekly slot config:', {
+        branchId,
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       return false;
     }
 
-    if (existingData && existingData.length > 0) {
-      const { error } = await supabase
-        .from('weekly_slot_config')
-        .update(weeklyConfig)
-        .eq('branch_id', branchId);
-
-      if (error) {
-        console.error('Error updating weekly slot config:', error);
-        return false;
-      }
-    } else {
-      const { error } = await supabase
-        .from('weekly_slot_config')
-        .insert([{ branch_id: branchId, ...weeklyConfig }]);
-
-      if (error) {
-        console.error('Error inserting weekly slot config:', error);
-        return false;
-      }
-    }
-
-    console.log('Weekly slot config updated successfully');
+    console.log('slotBookingService: Weekly slot config upserted successfully:', data);
     return true;
   } catch (error) {
-    console.error('Error in updateWeeklySlotConfig:', error);
+    console.error('slotBookingService: Exception in updateWeeklySlotConfig:', error);
     return false;
   }
 };

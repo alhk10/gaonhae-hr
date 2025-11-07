@@ -516,15 +516,20 @@ const AdminSlotBooking = () => {
       const allSuccessful = results.every(result => result === true);
 
       if (allSuccessful) {
+        console.log('AdminSlotBooking: All upserts successful, reloading config...');
         const updatedWeeklyConfig = await getWeeklySlotConfig();
+        console.log('AdminSlotBooking: Reloaded weekly config:', updatedWeeklyConfig);
         setCurrentWeeklySlots(updatedWeeklyConfig);
-
-        setIsSettingsDialogOpen(false);
+        
         toast.success('Settings saved successfully to Supabase');
-        console.log('AdminSlotBooking: All settings saved successfully to Supabase');
+        console.log('AdminSlotBooking: All settings saved and state updated');
+        setIsSettingsDialogOpen(false);
       } else {
-        toast.error('Some settings failed to save. Please try again.');
-        console.error('AdminSlotBooking: Some settings failed to save', results);
+        const failedBranches = results
+          .map((success, idx) => (!success ? branches[idx].name : null))
+          .filter(Boolean);
+        toast.error(`Failed to save settings for: ${failedBranches.join(', ')}. Please check console and try again.`);
+        console.error('AdminSlotBooking: Some settings failed to save', { results, failedBranches });
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
@@ -723,34 +728,38 @@ const AdminSlotBooking = () => {
                             </div>
                             
                             <div className="space-y-6">
-                              {branches.map((branch) => (
-                                <div key={branch.id} className="border rounded-lg p-4">
-                                  <div className="flex items-center space-x-2 mb-3">
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
-                                    ></div>
-                                    <h4 className="font-medium">{branch.name}</h4>
+                              {branches.map((branch) => {
+                                const branchSlots = currentWeeklySlots[branch.id] || {};
+                                return (
+                                  <div key={branch.id} className="border rounded-lg p-4">
+                                    <div className="flex items-center space-x-2 mb-3">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
+                                      ></div>
+                                      <h4 className="font-medium">{branch.name}</h4>
+                                    </div>
+                                    <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
+                                      {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
+                                        <div key={day} className="space-y-1">
+                                          <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                                            {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
+                                          </Label>
+                                          <Input
+                                            key={`${branch.id}-${day}-${branchSlots[day] || 0}`}
+                                            name={`${branch.id}-${day}`}
+                                            type="number"
+                                            min="0"
+                                            max="50"
+                                            defaultValue={branchSlots[day] || 0}
+                                            className="text-center"
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
-                                  <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-7'}`}>
-                                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
-                                      <div key={day} className="space-y-1">
-                                        <Label className={`font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                          {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
-                                        </Label>
-                                        <Input
-                                          name={`${branch.id}-${day}`}
-                                          type="number"
-                                          min="0"
-                                          max="50"
-                                          defaultValue={currentWeeklySlots[branch.id]?.[day] || 0}
-                                          className="text-center"
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </TabsContent>
