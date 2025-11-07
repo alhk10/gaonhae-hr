@@ -127,15 +127,32 @@ const AdminSlotBooking = () => {
           timeoutPromise
         ]);
 
-        console.log('AdminSlotBooking: Loaded data successfully');
+        console.log('AdminSlotBooking: Initial load complete - branches:', branchesData?.length, 'bookings:', bookingsData?.length, 'config keys:', Object.keys(weeklyConfigData || {}).length, 'employees:', employeesData?.length);
 
-        setBranches(branchesData);
-        setAllBookings(bookingsData);
-        setCurrentWeeklySlots(weeklyConfigData);
-        setCasualEmployees(employeesData);
+        if (branchesData && branchesData.length > 0) {
+          setBranches(branchesData);
+        } else {
+          console.error('AdminSlotBooking: No branches data received');
+        }
+        
+        if (bookingsData) {
+          setAllBookings(bookingsData);
+        }
+        
+        if (weeklyConfigData && Object.keys(weeklyConfigData).length > 0) {
+          setCurrentWeeklySlots(weeklyConfigData);
+        } else {
+          console.warn('AdminSlotBooking: No weekly config data received');
+        }
+        
+        if (employeesData) {
+          setCasualEmployees(employeesData);
+        }
 
         // Load attendance data for the current month
-        await loadAttendanceData(bookingsData);
+        if (bookingsData && bookingsData.length > 0) {
+          await loadAttendanceData(bookingsData);
+        }
       } catch (error) {
         console.error('AdminSlotBooking: Error loading initial data:', error);
         toast.error('Failed to load slot booking data. Please refresh the page.');
@@ -177,22 +194,40 @@ const AdminSlotBooking = () => {
 
   const refreshData = async () => {
     try {
+      console.log('AdminSlotBooking: Starting data refresh...');
       const [bookingsData, weeklyConfigData] = await Promise.all([
         getAllSlotBookings(),
         getWeeklySlotConfig()
       ]);
-      setAllBookings(bookingsData);
-      setCurrentWeeklySlots(weeklyConfigData);
       
-      console.log('AdminSlotBooking: Weekly slot config loaded:', weeklyConfigData);
-      console.log('AdminSlotBooking: Branches:', branches.map(b => b.id));
+      console.log('AdminSlotBooking: Refresh received - bookings:', bookingsData?.length, 'config keys:', Object.keys(weeklyConfigData || {}).length);
       
-      // Refresh attendance data
-      await loadAttendanceData(bookingsData);
+      // Only update state if we got valid data
+      if (bookingsData) {
+        setAllBookings(bookingsData);
+        console.log('AdminSlotBooking: Updated bookings state');
+      } else {
+        console.warn('AdminSlotBooking: Skipping bookings update - no data received');
+      }
       
-      console.log('AdminSlotBooking: Data refreshed successfully');
+      if (weeklyConfigData && Object.keys(weeklyConfigData).length > 0) {
+        setCurrentWeeklySlots(weeklyConfigData);
+        console.log('AdminSlotBooking: Updated weekly slot config:', weeklyConfigData);
+      } else {
+        console.warn('AdminSlotBooking: Skipping weekly config update - empty or null data received');
+      }
+      
+      console.log('AdminSlotBooking: Current branches:', branches.map(b => b.id));
+      
+      // Refresh attendance data only if we have valid bookings
+      if (bookingsData && bookingsData.length > 0) {
+        await loadAttendanceData(bookingsData);
+      }
+      
+      console.log('AdminSlotBooking: Data refresh completed successfully');
     } catch (error) {
       console.error('AdminSlotBooking: Error refreshing data:', error);
+      toast.error('Failed to refresh data. Retaining previous data.');
     }
   };
 
