@@ -65,6 +65,8 @@ const AdminSlotBooking = () => {
   const [loading, setLoading] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [autoRefreshActive, setAutoRefreshActive] = useState(true);
+  // Local editing buffer for weekly slots so inputs are controlled and reflect saved values immediately
+  const [editingWeeklySlots, setEditingWeeklySlots] = useState<{ [branchId: string]: Partial<WeeklySlotConfig> }>({});
 
   // New state for swap functionality in approval dialog
   const [swapEmployeeId, setSwapEmployeeId] = useState('');
@@ -163,6 +165,13 @@ const AdminSlotBooking = () => {
 
     loadInitialData();
   }, []);
+
+  // Keep the editing buffer in sync when opening settings
+  useEffect(() => {
+    if (isSettingsDialogOpen) {
+      setEditingWeeklySlots(currentWeeklySlots);
+    }
+  }, [isSettingsDialogOpen, currentWeeklySlots]);
 
   const loadAttendanceData = async (bookings: SlotBooking[]) => {
     try {
@@ -511,35 +520,31 @@ const AdminSlotBooking = () => {
     setIsSavingSettings(true);
 
     try {
-      const formEl = e.currentTarget; // Always use currentTarget (the form), not target
-      const formData = new FormData(formEl);
-      const entries = Array.from(formData.entries());
-      console.log('AdminSlotBooking: Saving settings to Supabase...');
-      console.log('AdminSlotBooking: Form element:', formEl.tagName, 'fields:', formEl.elements?.length);
-      console.log('AdminSlotBooking: FormData entries:', entries);
-
-      if (entries.length === 0) {
-        console.warn('AdminSlotBooking: FormData is empty. Check that inputs have name attributes and are inside the form.');
+      // Build updates from controlled editing buffer
+      if (!editingWeeklySlots || Object.keys(editingWeeklySlots).length === 0) {
+        console.warn('AdminSlotBooking: No edited weekly slots found; using currentWeeklySlots');
+        setEditingWeeklySlots(currentWeeklySlots);
       }
 
-      const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const daysOfWeek: Array<keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>> = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
       const updatePromises = branches.map(async (branch) => {
+        const edited = editingWeeklySlots[branch.id] || {};
         const weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'> = {
-          monday: 0,
-          tuesday: 0,
-          wednesday: 0,
-          thursday: 0,
-          friday: 0,
-          saturday: 0,
-          sunday: 0
+          monday: Number(edited.monday ?? 0),
+          tuesday: Number(edited.tuesday ?? 0),
+          wednesday: Number(edited.wednesday ?? 0),
+          thursday: Number(edited.thursday ?? 0),
+          friday: Number(edited.friday ?? 0),
+          saturday: Number(edited.saturday ?? 0),
+          sunday: Number(edited.sunday ?? 0),
         };
 
-        daysOfWeek.forEach(day => {
-          const fieldName = `${branch.id}-${day}`;
-          const value = formData.get(fieldName) as string | null;
-          const parsed = value !== null && value !== '' ? parseInt(value, 10) : 0;
-          weeklyConfig[day] = Number.isFinite(parsed) ? parsed : 0;
+        // Clamp negatives
+        daysOfWeek.forEach((d) => {
+          // Ensure non-negative integers per day
+          const current = Number((weeklyConfig as any)[d] ?? 0);
+          (weeklyConfig as any)[d] = Math.max(0, current);
         });
 
         console.log(`AdminSlotBooking: Upserting weekly slots for branch ${branch.id}:`, weeklyConfig);
@@ -547,24 +552,37 @@ const AdminSlotBooking = () => {
       });
 
       const results = await Promise.all(updatePromises);
-      console.log('AdminSlotBooking: Update results:', results);
-      const allSuccessful = results.every(result => result === true);
+      console.log('AdminSlotBooking: Weekly slot update results:', results);
+      const weeklySaveOk = results.every(Boolean);
 
-      if (allSuccessful) {
-        console.log('AdminSlotBooking: All upserts successful, reloading config...');
+      // Save pricing config if changed
+      let pricingSaveOk = true;
+      if (pricingConfig && Object.keys(pricingConfig).length > 0) {
+        console.log('AdminSlotBooking: Updating pricing config with:', pricingConfig);
+        pricingSaveOk = await updatePricingConfig(pricingConfig as Partial<SlotPricingConfig>);
+        if (pricingSaveOk) {
+          clearPricingCache();
+          console.log('AdminSlotBooking: Pricing cache cleared after update');
+        }
+      }
+
+      if (weeklySaveOk) {
+        console.log('AdminSlotBooking: All weekly slot upserts successful, reloading config...');
         const updatedWeeklyConfig = await getWeeklySlotConfig();
         console.log('AdminSlotBooking: Reloaded weekly config:', updatedWeeklyConfig);
         setCurrentWeeklySlots(updatedWeeklyConfig);
-        
-        toast.success('Settings saved successfully to Supabase');
-        console.log('AdminSlotBooking: All settings saved and state updated');
+        setEditingWeeklySlots(updatedWeeklyConfig);
+      }
+
+      if (weeklySaveOk && pricingSaveOk) {
+        toast.success('Settings saved to Supabase');
         setIsSettingsDialogOpen(false);
-      } else {
-        const failedBranches = results
-          .map((success, idx) => (!success ? branches[idx].name : null))
-          .filter(Boolean);
-        toast.error(`Failed to save settings for: ${failedBranches.join(', ')}. Please check console and try again.`);
-        console.error('AdminSlotBooking: Some settings failed to save', { results, failedBranches });
+      } else if (!weeklySaveOk && !pricingSaveOk) {
+        toast.error('Failed to save both weekly slots and pricing. Check console.');
+      } else if (!weeklySaveOk) {
+        toast.error('Weekly slots failed to save for some branches.');
+      } else if (!pricingSaveOk) {
+        toast.error('Pricing failed to save.');
       }
     } catch (error) {
       console.error('AdminSlotBooking: Error saving settings:', error);
@@ -781,12 +799,30 @@ const AdminSlotBooking = () => {
                                             {isMobile ? day.slice(0, 2) : day.slice(0, 3)}
                                           </Label>
                                           <Input
-                                            key={`${branch.id}-${day}-${branchSlots[day] || 0}`}
                                             name={`${branch.id}-${day}`}
                                             type="number"
                                             min="0"
                                             max="50"
-                                            defaultValue={branchSlots[day] || 0}
+                                            value={editingWeeklySlots[branch.id]?.[day] ?? 0}
+                                            onChange={(e) => {
+                                              const raw = e.target.value;
+                                              const parsed = raw === '' ? 0 : parseInt(raw, 10);
+                                              const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+                                              setEditingWeeklySlots(prev => ({
+                                                ...prev,
+                                                [branch.id]: {
+                                                  monday: 0,
+                                                  tuesday: 0,
+                                                  wednesday: 0,
+                                                  thursday: 0,
+                                                  friday: 0,
+                                                  saturday: 0,
+                                                  sunday: 0,
+                                                  ...(prev[branch.id] || {}),
+                                                  [day]: safe,
+                                                }
+                                              }));
+                                            }}
                                             className="text-center"
                                           />
                                         </div>
