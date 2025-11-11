@@ -331,13 +331,31 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Use proper payroll calculation with claims
+    // Fetch slot booking pay if available
+    let slotBookingPay = 0;
+    if (payrollState.currentPeriod) {
+      try {
+        const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+        const slotPayData = await getSlotBookingPayForPeriod(
+          employee.employeeId,
+          payrollState.currentPeriod,
+          employeeProfile
+        );
+        slotBookingPay = slotPayData.totalPay;
+        console.log('[PayrollContext] Slot booking pay for employee:', slotPayData);
+      } catch (error) {
+        console.error('[PayrollContext] Error fetching slot booking pay:', error);
+      }
+    }
+
+    // Use proper payroll calculation with claims and slot booking pay
     const approvedClaims = employee.claims || 0;
     const calculation = calculateCasualPayroll(
       employeeProfile,
       employee.hoursWorked || 0,
       employee.daysWorked || 0,
-      approvedClaims // approved claims amount
+      approvedClaims,
+      slotBookingPay
     );
     
     
@@ -369,30 +387,80 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [payrollState.availableEmployees]);
 
-  const updateCasualEmployee = useCallback((id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay' | 'employeeCPF' | 'employerCPF' | 'grossPay'>>) => {
-    setPayrollState(prevState => ({
-      ...prevState,
-      casualEmployees: prevState.casualEmployees.map(employee => {
-        if (employee.id === id) {
-          const updatedEmployee = { ...employee, ...updates };
-          
-          // Find the employee profile for complete data
-          const employeeProfile = prevState.availableEmployees.find(emp => emp.id === updatedEmployee.employeeId);
-          
-          if (!employeeProfile) {
-            console.error('Employee profile not found for update:', updatedEmployee.employeeId);
-            return employee;
+  const updateCasualEmployee = useCallback(async (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay' | 'employeeCPF' | 'employerCPF' | 'grossPay'>>) => {
+    setPayrollState(prevState => {
+      const employee = prevState.casualEmployees.find(emp => emp.id === id);
+      if (!employee) return prevState;
+
+      const updatedEmployee = { ...employee, ...updates };
+      
+      // Find the employee profile for complete data
+      const employeeProfile = prevState.availableEmployees.find(emp => emp.id === updatedEmployee.employeeId);
+      
+      if (!employeeProfile) {
+        console.error('Employee profile not found for update:', updatedEmployee.employeeId);
+        return prevState;
+      }
+
+      // Fetch slot booking pay in the background - don't block UI update
+      (async () => {
+        let slotBookingPay = 0;
+        if (prevState.currentPeriod) {
+          try {
+            const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+            const slotPayData = await getSlotBookingPayForPeriod(
+              updatedEmployee.employeeId,
+              prevState.currentPeriod,
+              employeeProfile
+            );
+            slotBookingPay = slotPayData.totalPay;
+            
+            // Re-calculate with slot booking pay and update state
+            const calculation = calculateCasualPayroll(
+              employeeProfile,
+              updatedEmployee.hoursWorked || 0,
+              updatedEmployee.daysWorked || 0,
+              0,
+              slotBookingPay
+            );
+
+            setPayrollState(prev => ({
+              ...prev,
+              casualEmployees: prev.casualEmployees.map(emp => 
+                emp.id === id ? {
+                  ...updatedEmployee,
+                  totalPay: calculation.netSalary,
+                  employeeCPF: calculation.employeeCPF,
+                  employerCPF: calculation.employerCPF,
+                  grossPay: calculation.grossSalary,
+                  baseSalary: calculation.baseSalary,
+                  cpfEmployee: calculation.employeeCPF,
+                  cpfEmployer: calculation.employerCPF,
+                  netPay: calculation.netSalary,
+                  cpf: calculation.totalCPF,
+                  total: calculation.netSalary
+                } as CasualEmployee : emp
+              ),
+              lastUpdated: new Date(),
+            }));
+          } catch (error) {
+            console.error('[PayrollContext] Error fetching slot booking pay on update:', error);
           }
+        }
+      })();
 
-          // Use proper payroll calculation
-          const calculation = calculateCasualPayroll(
-            employeeProfile,
-            updatedEmployee.hoursWorked || 0,
-            updatedEmployee.daysWorked || 0,
-            0 // approved claims - can be added later
-          );
+      // Initial calculation without slot booking pay (will be updated above)
+      const calculation = calculateCasualPayroll(
+        employeeProfile,
+        updatedEmployee.hoursWorked || 0,
+        updatedEmployee.daysWorked || 0,
+        0
+      );
 
-          return {
+      return {
+        ...prevState,
+        casualEmployees: prevState.casualEmployees.map(employee =>
+          employee.id === id ? {
             ...updatedEmployee,
             totalPay: calculation.netSalary,
             employeeCPF: calculation.employeeCPF,
@@ -404,12 +472,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             netPay: calculation.netSalary,
             cpf: calculation.totalCPF,
             total: calculation.netSalary
-          };
-        }
-        return employee;
-      }),
-      lastUpdated: new Date(),
-    }));
+          } as CasualEmployee : employee
+        ),
+        lastUpdated: new Date(),
+      };
+    });
   }, []);
 
   const removeCasualEmployee = useCallback((id: string) => {

@@ -126,7 +126,8 @@ export const calculateCasualPayroll = (
   employee: EmployeeProfile,
   hoursWorked: number = 0,
   daysWorked: number = 0,
-  approvedClaims: number = 0
+  approvedClaims: number = 0,
+  slotBookingPay?: number
 ): CasualPayrollCalculationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -142,30 +143,36 @@ export const calculateCasualPayroll = (
   let hourlyRate = employee.hourlyRate || 0;
   let dailyRate = employee.dailyRate || employee.dailyWeekdayRate || 0;
 
-  // Calculate base pay based on payment type and actual attendance
-  if (paymentType === 'Hourly') {
-    // For hourly employees, base salary should be calculated from actual attendance hours
-    // This will be handled by the PayrollContext when fetching attendance data
-    baseSalary = hourlyRate * hoursWorked;
-    daysWorked = Math.ceil(hoursWorked / 8); // Estimate days from hours
-    
-    if (hoursWorked <= 0) {
-      warnings.push('No hours worked recorded for hourly employee');
-    }
-  } else if (paymentType === 'Daily') {
-    // For daily employees, base salary should be calculated from actual attendance days
-    baseSalary = dailyRate * daysWorked;
-    hoursWorked = daysWorked * 8; // Estimate hours from days
-    
-    if (daysWorked <= 0) {
-      warnings.push('No days worked recorded for daily employee');
-    }
+  // If slot booking pay is provided (from dynamic pricing), use it as base salary
+  if (slotBookingPay !== undefined && slotBookingPay > 0) {
+    baseSalary = slotBookingPay;
+    console.log(`[Payroll] Using slot booking dynamic pricing: ${baseSalary}`);
   } else {
-    // Monthly employees use fixed base salary regardless of attendance
-    baseSalary = employee.baseSalary || 0;
-    // For monthly employees, use standard working days/hours if not provided
-    if (daysWorked === 0) daysWorked = 22;
-    if (hoursWorked === 0) hoursWorked = daysWorked * 8;
+    // Calculate base pay based on payment type and actual attendance (legacy method)
+    if (paymentType === 'Hourly') {
+      // For hourly employees, base salary should be calculated from actual attendance hours
+      // This will be handled by the PayrollContext when fetching attendance data
+      baseSalary = hourlyRate * hoursWorked;
+      daysWorked = Math.ceil(hoursWorked / 8); // Estimate days from hours
+      
+      if (hoursWorked <= 0) {
+        warnings.push('No hours worked recorded for hourly employee');
+      }
+    } else if (paymentType === 'Daily') {
+      // For daily employees, base salary should be calculated from actual attendance days
+      baseSalary = dailyRate * daysWorked;
+      hoursWorked = daysWorked * 8; // Estimate hours from days
+      
+      if (daysWorked <= 0) {
+        warnings.push('No days worked recorded for daily employee');
+      }
+    } else {
+      // Monthly employees use fixed base salary regardless of attendance
+      baseSalary = employee.baseSalary || 0;
+      // For monthly employees, use standard working days/hours if not provided
+      if (daysWorked === 0) daysWorked = 22;
+      if (hoursWorked === 0) hoursWorked = daysWorked * 8;
+    }
   }
 
   const totalAllowances = employee.allowances?.reduce((sum, a) => sum + (a.amount || 0), 0) || 0;

@@ -72,13 +72,25 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
       const attendanceData = await getEmployeeAttendanceForPeriod(employeeId, period);
       console.log('Attendance data for casual employee:', attendanceData);
       
+      // Fetch slot booking pay using dynamic pricing
+      let slotBookingPay = 0;
+      try {
+        const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+        const slotPayData = await getSlotBookingPayForPeriod(employeeId, period, employee);
+        slotBookingPay = slotPayData.totalPay;
+        console.log('Slot booking pay data:', slotPayData);
+      } catch (error) {
+        console.error('Error fetching slot booking pay, falling back to attendance-based calculation:', error);
+      }
+      
       // Use calculateCasualPayroll for proper calculation
       const { calculateCasualPayroll } = await import('@/utils/payrollCalculations');
       const casualCalc = calculateCasualPayroll(
         employee,
         attendanceData.totalHours,
         attendanceData.totalDays,
-        approvedClaimsTotal
+        approvedClaimsTotal,
+        slotBookingPay
       );
 
       const payrollData: PayrollData = {
