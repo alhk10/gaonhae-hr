@@ -2766,26 +2766,11 @@ export type Database = {
         Args: { join_date: string; reference_date?: string }
         Returns: number
       }
-      check_employee_admin_access: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      force_book_eldon_slots: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      force_book_ryan_slots: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_current_employee_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      check_employee_admin_access: { Args: never; Returns: boolean }
+      force_book_eldon_slots: { Args: never; Returns: Json }
+      force_book_ryan_slots: { Args: never; Returns: Json }
+      get_current_employee_id: { Args: never; Returns: string }
+      get_current_user_role: { Args: never; Returns: string }
       get_eligible_employees_with_entitlements: {
         Args: { reference_year?: number }
         Returns: {
@@ -2804,18 +2789,9 @@ export type Database = {
           years_of_service: number
         }[]
       }
-      has_admin_access: {
-        Args: { permission_type: string }
-        Returns: boolean
-      }
-      has_sales_module_access: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_superadmin: {
-        Args: { user_email: string }
-        Returns: boolean
-      }
+      has_admin_access: { Args: { permission_type: string }; Returns: boolean }
+      has_sales_module_access: { Args: never; Returns: boolean }
+      is_superadmin: { Args: { user_email: string }; Returns: boolean }
       log_booking_attempt: {
         Args: {
           p_attempt_result: string
