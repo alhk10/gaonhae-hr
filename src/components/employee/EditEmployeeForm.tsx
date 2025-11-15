@@ -66,7 +66,7 @@ const POSITION_OPTIONS = [
 ];
 
 const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, onCancel }) => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [formData, setFormData] = useState({
     name: employee.name,
     nric: employee.nric,
@@ -347,7 +347,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
             </div>
 
             {/* Superadmin can edit join date */}
-            {user?.role === 'superadmin' && (
+            {userrole === 'superadmin' && (
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                 <Label htmlFor="joinDate" className="text-blue-800 font-medium">Join Date</Label>
                 <Input

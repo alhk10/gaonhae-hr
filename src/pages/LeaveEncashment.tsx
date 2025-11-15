@@ -6,7 +6,7 @@ import LeaveEncashmentManager from '@/components/leave/LeaveEncashmentManager';
 import EmployeeEncashmentHistory from '@/components/leave/EmployeeEncashmentHistory';
 
 const LeaveEncashment = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
 
   return (
     <ResponsiveLayout>
@@ -14,14 +14,14 @@ const LeaveEncashment = () => {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Leave Encashment</h1>
           <p className="text-gray-600 mt-2">
-            {user?.role === 'superadmin' 
+            {userrole === 'superadmin' 
               ? 'Manage leave encashment for all employees'
               : 'View your leave encashment history'
             }
           </p>
         </div>
 
-        {user?.role === 'superadmin' ? (
+        {userrole === 'superadmin' ? (
           <LeaveEncashmentManager />
         ) : (
           <EmployeeEncashmentHistory employeeId={user?.id || ''} />

@@ -27,7 +27,7 @@ interface EmployeeOption {
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ const PaymentSummary = () => {
   const [viewPayroll, setViewPayroll] = useState<PayrollRecord | null>(null);
   const [editPayroll, setEditPayroll] = useState<PayrollRecord | null>(null);
 
-  const isSuperAdmin = user?.role === 'superadmin';
+  const isSuperAdmin = userrole === 'superadmin';
 
   useEffect(() => {
     const loadData = async () => {
