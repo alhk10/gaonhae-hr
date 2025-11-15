@@ -241,7 +241,8 @@ const Employees = () => {
     setNewEmployeePageAccess(permissions);
   };
 
-  const isSuperAdmin = user?.role === 'superadmin';
+  const { userrole } = useAuth();
+  const isSuperAdmin = userrole === 'superadmin';
 
   if (isLoading) {
     return (
