@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById, updateEmployee, deleteEmployee } from '@/services/employeeService';
+import { createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
 import { EmployeeProfile } from '@/types/employee';
 import { Calendar } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -173,6 +174,25 @@ const EmployeeDetails = () => {
 
   const { userrole } = useAuth();
   const isSuperAdmin = userrole === 'superadmin';
+
+  const handleCreateAuthAccount = async () => {
+    if (!employee?.email || !employee?.name) {
+      toast.error("Employee must have an email and name to create auth account");
+      return;
+    }
+
+    try {
+      const success = await createSingleSupabaseAuthUser(employee.email, employee.name);
+      if (success) {
+        toast.success(`Auth account created for ${employee.email}. Password reset email sent.`);
+      } else {
+        toast.error("Failed to create auth account");
+      }
+    } catch (error) {
+      console.error('Error creating auth account:', error);
+      toast.error("Failed to create auth account");
+    }
+  };
 
   if (isLoading) {
     return (
