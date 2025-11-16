@@ -24,24 +24,34 @@ export const getSlotBookingPayForPeriod = async (
 ): Promise<SlotBookingPayData> => {
   console.log('[SlotBookingPayroll] Fetching slot bookings for employee:', employeeId, 'period:', period);
 
-  // Parse period (format: "Month Year" e.g., "November 2025")
-  const [monthName, yearStr] = period.split(' ');
+  // Parse period (supports "Month Year" e.g., "November 2025" and "YYYY-MM")
+  let year: number | undefined;
+  let monthIndex: number | undefined;
   const monthMap: { [key: string]: number } = {
     January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
     July: 6, August: 7, September: 8, October: 9, November: 10, December: 11
   };
+
+  if (period.includes('-')) {
+    // Format: YYYY-MM
+    const [y, m] = period.split('-');
+    year = parseInt(y);
+    monthIndex = parseInt(m) - 1;
+  } else if (period.includes(' ')) {
+    // Format: Month Year
+    const [monthName, yearStr] = period.split(' ');
+    monthIndex = monthMap[monthName as keyof typeof monthMap];
+    year = parseInt(yearStr);
+  }
   
-  const monthIndex = monthMap[monthName];
-  const year = parseInt(yearStr);
-  
-  if (monthIndex === undefined || isNaN(year)) {
+  if (monthIndex === undefined || isNaN(year as number)) {
     console.error('[SlotBookingPayroll] Invalid period format:', period);
     return { totalSlots: 0, totalPay: 0, breakdown: [] };
   }
 
   // Calculate start and end dates for the period
-  const startDate = new Date(year, monthIndex, 1);
-  const endDate = new Date(year, monthIndex + 1, 0);
+  const startDate = new Date(year as number, monthIndex, 1);
+  const endDate = new Date((year as number), (monthIndex as number) + 1, 0);
   const startDateStr = startDate.toISOString().split('T')[0];
   const endDateStr = endDate.toISOString().split('T')[0];
 
@@ -53,7 +63,7 @@ export const getSlotBookingPayForPeriod = async (
       .from('slot_bookings_new')
       .select('id, employee_id, date, branch_name, status')
       .eq('employee_id', employeeId)
-      .eq('status', 'approved')
+      .ilike('status', 'approved')
       .gte('date', startDateStr)
       .lte('date', endDateStr)
       .order('date', { ascending: true });
@@ -77,7 +87,7 @@ export const getSlotBookingPayForPeriod = async (
       .select('employee_id, date, status, check_in')
       .eq('employee_id', employeeId)
       .in('date', bookingDates)
-      .in('status', ['Present', 'Late']);
+      .in('status', ['Present', 'Late', 'present', 'late']);
 
     if (attendanceError) {
       console.error('[SlotBookingPayroll] Error fetching attendance:', attendanceError);

@@ -73,7 +73,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         .in('employee_id', employeeIds)
         .gte('date', attendanceFilter.startDate)
         .lte('date', attendanceFilter.endDate)
-        .in('status', ['Present', 'Late']);
+        .in('status', ['Present', 'Late', 'present', 'late']);
     }
 
     if (allowancesResult.error) throw allowancesResult.error;
