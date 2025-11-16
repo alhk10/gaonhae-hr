@@ -390,7 +390,9 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       cpfEmployer: calculation.employerCPF,
       netPay: calculation.netSalary,
       cpf: calculation.totalCPF,
-      total: calculation.netSalary
+      total: calculation.netSalary,
+      slotBookingPay,
+      slotBookingMetadata
     } as CasualEmployee;
 
 
@@ -432,36 +434,42 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 employeeProfile
               );
               slotBookingPay = slotPayData.totalPay;
-            }
+              const slotBookingMetadata = {
+                totalSlots: slotPayData.totalSlots,
+                hasBookings: slotPayData.totalSlots > 0
+              };
             
-            // Re-calculate with slot booking pay and update state
-            const calculation = calculateCasualPayroll(
-              employeeProfile,
-              updatedEmployee.hoursWorked || 0,
-              updatedEmployee.daysWorked || 0,
-              0,
-              slotBookingPay
-            );
+              // Re-calculate with slot booking pay and update state
+              const calculation = calculateCasualPayroll(
+                employeeProfile,
+                updatedEmployee.hoursWorked || 0,
+                updatedEmployee.daysWorked || 0,
+                0,
+                slotBookingPay
+              );
 
-            setPayrollState(prev => ({
-              ...prev,
-              casualEmployees: prev.casualEmployees.map(emp => 
-                emp.id === id ? {
-                  ...updatedEmployee,
-                  totalPay: calculation.netSalary,
-                  employeeCPF: calculation.employeeCPF,
-                  employerCPF: calculation.employerCPF,
-                  grossPay: calculation.grossSalary,
-                  baseSalary: calculation.baseSalary,
-                  cpfEmployee: calculation.employeeCPF,
-                  cpfEmployer: calculation.employerCPF,
-                  netPay: calculation.netSalary,
-                  cpf: calculation.totalCPF,
-                  total: calculation.netSalary
-                } as CasualEmployee : emp
-              ),
-              lastUpdated: new Date(),
-            }));
+              setPayrollState(prev => ({
+                ...prev,
+                casualEmployees: prev.casualEmployees.map(emp => 
+                  emp.id === id ? {
+                    ...updatedEmployee,
+                    totalPay: calculation.netSalary,
+                    employeeCPF: calculation.employeeCPF,
+                    employerCPF: calculation.employerCPF,
+                    grossPay: calculation.grossSalary,
+                    baseSalary: calculation.baseSalary,
+                    cpfEmployee: calculation.employeeCPF,
+                    cpfEmployer: calculation.employerCPF,
+                    netPay: calculation.netSalary,
+                    cpf: calculation.totalCPF,
+                    total: calculation.netSalary,
+                    slotBookingPay,
+                    slotBookingMetadata
+                  } as CasualEmployee : emp
+                ),
+                lastUpdated: new Date(),
+              }));
+            }
           } catch (error) {
             console.error('[PayrollContext] Error fetching slot booking pay on update:', error);
           }
