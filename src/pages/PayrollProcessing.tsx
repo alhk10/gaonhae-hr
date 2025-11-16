@@ -18,6 +18,7 @@ import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
 import EditSalaryDialog from '@/components/payroll/EditSalaryDialog';
 import EditAllowancesDialog from '@/components/payroll/EditAllowancesDialog';
 import EditDeductionsDialog from '@/components/payroll/EditDeductionsDialog';
+import { CasualEmployeePayBadge } from '@/components/payroll/CasualEmployeePayBadge';
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
@@ -739,9 +740,14 @@ const PayrollProcessing = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="border-purple-200 text-purple-700 text-xs">
-                                {employee.paymentType}
-                              </Badge>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className="border-purple-200 text-purple-700 text-xs">
+                                  {employee.paymentType}
+                                </Badge>
+                                <CasualEmployeePayBadge 
+                                  warnings={casualPayrollCalc.warnings}
+                                />
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center space-x-1">

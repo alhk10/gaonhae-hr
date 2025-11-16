@@ -331,18 +331,32 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Fetch slot booking pay if available
+    // Fetch slot booking pay only if period is November 2025 or later
     let slotBookingPay = 0;
+    let slotBookingMetadata = { totalSlots: 0, hasBookings: false };
+    
     if (payrollState.currentPeriod) {
       try {
-        const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
-        const slotPayData = await getSlotBookingPayForPeriod(
-          employee.employeeId,
-          payrollState.currentPeriod,
-          employeeProfile
-        );
-        slotBookingPay = slotPayData.totalPay;
-        console.log('[PayrollContext] Slot booking pay for employee:', slotPayData);
+        const { isSlotBookingPayrollPeriod } = await import('@/utils/payrollCalculations');
+        const shouldUseSlotBooking = isSlotBookingPayrollPeriod(payrollState.currentPeriod);
+        
+        if (shouldUseSlotBooking) {
+          console.log('[PayrollContext] Period >= November 2025, fetching slot booking pay');
+          const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+          const slotPayData = await getSlotBookingPayForPeriod(
+            employee.employeeId,
+            payrollState.currentPeriod,
+            employeeProfile
+          );
+          slotBookingPay = slotPayData.totalPay;
+          slotBookingMetadata = {
+            totalSlots: slotPayData.totalSlots,
+            hasBookings: slotPayData.totalSlots > 0
+          };
+          console.log('[PayrollContext] Slot booking pay for employee:', slotPayData);
+        } else {
+          console.log('[PayrollContext] Period < November 2025, using legacy calculation');
+        }
       } catch (error) {
         console.error('[PayrollContext] Error fetching slot booking pay:', error);
       }
@@ -407,13 +421,18 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         let slotBookingPay = 0;
         if (prevState.currentPeriod) {
           try {
-            const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
-            const slotPayData = await getSlotBookingPayForPeriod(
-              updatedEmployee.employeeId,
-              prevState.currentPeriod,
-              employeeProfile
-            );
-            slotBookingPay = slotPayData.totalPay;
+            const { isSlotBookingPayrollPeriod } = await import('@/utils/payrollCalculations');
+            const shouldUseSlotBooking = isSlotBookingPayrollPeriod(prevState.currentPeriod);
+            
+            if (shouldUseSlotBooking) {
+              const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+              const slotPayData = await getSlotBookingPayForPeriod(
+                updatedEmployee.employeeId,
+                prevState.currentPeriod,
+                employeeProfile
+              );
+              slotBookingPay = slotPayData.totalPay;
+            }
             
             // Re-calculate with slot booking pay and update state
             const calculation = calculateCasualPayroll(
