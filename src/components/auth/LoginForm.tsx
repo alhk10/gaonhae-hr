@@ -26,11 +26,10 @@ const LoginForm = () => {
     try {
       const result = await login(email, password);
       if (!result.success) {
-        // Check if email verification is needed
-        if (result.needsVerification) {
-          setVerificationEmail(email);
-          setShowEmailDialog(true);
-        } else {
+        // Always prompt to verify/resend for new employees on failed login
+        setVerificationEmail(email);
+        setShowEmailDialog(true);
+        if (!result.needsVerification) {
           setError('Invalid credentials. Please check your email and password.');
         }
       }
