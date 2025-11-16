@@ -125,13 +125,17 @@ const PayrollProcessing = () => {
           const employeeIds = employees.map(emp => emp.id);
           const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
           
+          if (!optimizedPayrollData) {
+            throw new Error('Failed to fetch payroll data - received null/undefined');
+          }
+          
           setPayrollData(optimizedPayrollData);
-          setEmployeeAllowances(optimizedPayrollData.allowances);
-          setEmployeeDeductions(optimizedPayrollData.deductions);
+          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
+          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
           
           // Convert claims data to expected format
           const claimsData: {[key: string]: Claim[]} = {};
-          Object.entries(optimizedPayrollData.claims).forEach(([empId, claims]) => {
+          Object.entries(optimizedPayrollData?.claims || {}).forEach(([empId, claims]) => {
             claimsData[empId] = claims.map(claim => ({
               id: claim.id,
               employeeId: claim.employee_id,
@@ -204,9 +208,9 @@ const PayrollProcessing = () => {
           }
         }
       } catch (error) {
-        console.error('Error loading employee data:', error);
-        toast.error('Failed to load employee data. Please try refreshing the page.');
-        // Don't keep the loading state if there's an error
+        console.error('❌ [PayrollProcessing] Error loading employee data:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to load employee data: ${errorMessage}. Please check console for details.`);
       } finally {
         setLoading(false);
       }

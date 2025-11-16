@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
-import { calculateCasualPayroll, calculateFullTimePayroll } from '@/utils/payrollCalculations';
+import { calculateCasualPayroll, calculateFullTimePayroll, isSlotBookingPayrollPeriod } from '@/utils/payrollCalculations';
+import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
 
 // Helper function to format period for API
 const formatPeriodForAPI = (period: string): string => {
@@ -65,6 +66,12 @@ export interface CasualEmployee {
   netPay?: number;
   cpf?: number;
   total?: number;
+  // Slot booking metadata
+  slotBookingPay?: number;
+  slotBookingMetadata?: {
+    totalSlots: number;
+    hasBookings: boolean;
+  };
 }
 
 export interface PayrollState {
@@ -336,18 +343,16 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let slotBookingPay = 0;
     let slotBookingMetadata = { totalSlots: 0, hasBookings: false };
     
-    console.log('[PayrollContext] Current period:', effectivePeriod, 'for employee:', employee.employeeId);
+    console.log('[PayrollContext] Checking period:', effectivePeriod, 'for employee:', employee.name);
     
     if (effectivePeriod) {
-      try {
-        const { isSlotBookingPayrollPeriod } = await import('@/utils/payrollCalculations');
-        const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
-        
-        console.log('[PayrollContext] Should use slot booking?', shouldUseSlotBooking, 'for period:', effectivePeriod);
-        
-        if (shouldUseSlotBooking) {
-          console.log('[PayrollContext] Period >= November 2025, fetching slot booking pay for:', employee.employeeId);
-          const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+      const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
+      
+      console.log('[PayrollContext] Should use slot booking?', shouldUseSlotBooking, 'for period:', effectivePeriod);
+      
+      if (shouldUseSlotBooking) {
+        try {
+          console.log('[PayrollContext] ✓ Period >= November 2025, fetching slot booking pay for:', employee.name);
           const slotPayData = await getSlotBookingPayForPeriod(
             employee.employeeId,
             effectivePeriod,
@@ -358,15 +363,23 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             totalSlots: slotPayData.totalSlots,
             hasBookings: slotPayData.totalSlots > 0
           };
-          console.log('[PayrollContext] Slot booking pay fetched:', slotPayData);
-        } else {
-          console.log('[PayrollContext] Period < November 2025, using legacy calculation');
+          console.log('[PayrollContext] ✓ Slot booking pay fetched:', {
+            employee: employee.name,
+            totalSlots: slotPayData.totalSlots,
+            totalPay: slotBookingPay
+          });
+          
+          if (slotBookingPay === 0) {
+            console.warn('[PayrollContext] ⚠️ Slot booking pay is $0 for', employee.name, '- Check bookings/attendance');
+          }
+        } catch (error) {
+          console.error('[PayrollContext] ❌ Error fetching slot booking pay for', employee.name, ':', error);
         }
-      } catch (error) {
-        console.error('[PayrollContext] Error fetching slot booking pay:', error);
+      } else {
+        console.log('[PayrollContext] Period < November 2025, using legacy calculation for:', employee.name);
       }
     } else {
-      console.warn('[PayrollContext] No current period set! Cannot determine slot booking eligibility');
+      console.warn('[PayrollContext] ⚠️ No current period set! Cannot determine slot booking eligibility for:', employee.name);
     }
 
     // Use proper payroll calculation with claims and slot booking pay
@@ -402,6 +415,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       slotBookingMetadata
     } as CasualEmployee;
 
+    console.log('[PayrollContext] ✓ Created casual employee:', {
+      name: employee.name,
+      baseSalary: calculation.baseSalary,
+      slotBookingPay,
+      slotBookingMetadata,
+      warnings: calculation.warnings,
+      netSalary: calculation.netSalary
+    });
 
     setPayrollState(prevState => ({
       ...prevState,
