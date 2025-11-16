@@ -85,7 +85,7 @@ export interface PayrollContextType {
   addFullTimeEmployee: (employee: Omit<FullTimeEmployee, 'id' | 'netPay'>) => void;
   updateFullTimeEmployee: (id: string, updates: Partial<Omit<FullTimeEmployee, 'id' | 'netPay'>>) => void;
   removeFullTimeEmployee: (id: string) => void;
-  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF' | 'allowances' | 'deductions' | 'cpfEmployee' | 'cpfEmployer' | 'netPay' | 'cpf' | 'total'>) => Promise<void>;
+  addCasualEmployee: (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF' | 'allowances' | 'deductions' | 'cpfEmployee' | 'cpfEmployer' | 'netPay' | 'cpf' | 'total'>, periodOverride?: string) => Promise<void>;
   updateCasualEmployee: (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay'>>) => void;
   removeCasualEmployee: (id: string) => void;
   calculatePayrollTotal: () => number;
@@ -93,7 +93,7 @@ export interface PayrollContextType {
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<void>;
   setPayrollStatus: (status: PayrollState['status']) => void;
-  addEmployeesToPayroll: (employeeIds: string[], claimsData?: any) => Promise<void>;
+  addEmployeesToPayroll: (employeeIds: string[], claimsData?: any, period?: string) => Promise<void>;
   removeEmployeeFromPayroll: (employeeId: string) => void;
   refreshAvailableEmployees: () => Promise<void>;
   autoAddCasualEmployeesWithAttendance: () => Promise<{ addedCount: number; employees: any[] }>;
@@ -240,7 +240,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }) => {
+  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string) => {
     const id = uuidv4();
     
     // Find the employee profile from available employees for complete data
@@ -332,20 +332,25 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // Fetch slot booking pay only if period is November 2025 or later
+    const effectivePeriod = periodOverride || payrollState.currentPeriod;
     let slotBookingPay = 0;
     let slotBookingMetadata = { totalSlots: 0, hasBookings: false };
     
-    if (payrollState.currentPeriod) {
+    console.log('[PayrollContext] Current period:', effectivePeriod, 'for employee:', employee.employeeId);
+    
+    if (effectivePeriod) {
       try {
         const { isSlotBookingPayrollPeriod } = await import('@/utils/payrollCalculations');
-        const shouldUseSlotBooking = isSlotBookingPayrollPeriod(payrollState.currentPeriod);
+        const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
+        
+        console.log('[PayrollContext] Should use slot booking?', shouldUseSlotBooking, 'for period:', effectivePeriod);
         
         if (shouldUseSlotBooking) {
-          console.log('[PayrollContext] Period >= November 2025, fetching slot booking pay');
+          console.log('[PayrollContext] Period >= November 2025, fetching slot booking pay for:', employee.employeeId);
           const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
           const slotPayData = await getSlotBookingPayForPeriod(
             employee.employeeId,
-            payrollState.currentPeriod,
+            effectivePeriod,
             employeeProfile
           );
           slotBookingPay = slotPayData.totalPay;
@@ -353,13 +358,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             totalSlots: slotPayData.totalSlots,
             hasBookings: slotPayData.totalSlots > 0
           };
-          console.log('[PayrollContext] Slot booking pay for employee:', slotPayData);
+          console.log('[PayrollContext] Slot booking pay fetched:', slotPayData);
         } else {
           console.log('[PayrollContext] Period < November 2025, using legacy calculation');
         }
       } catch (error) {
         console.error('[PayrollContext] Error fetching slot booking pay:', error);
       }
+    } else {
+      console.warn('[PayrollContext] No current period set! Cannot determine slot booking eligibility');
     }
 
     // Use proper payroll calculation with claims and slot booking pay
@@ -711,8 +718,9 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any) => {
-    console.log('DEBUG: addEmployeesToPayroll called with', employeeIds.length, 'employee IDs');
+  const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any, period?: string) => {
+    const effectivePeriod = period || payrollState.currentPeriod;
+    console.log('DEBUG: addEmployeesToPayroll called with', employeeIds.length, 'employee IDs, period:', effectivePeriod);
     console.log('DEBUG: Employee IDs to add:', employeeIds);
     console.log('DEBUG: Available employees in payroll state:', payrollState.availableEmployees.map(emp => ({ id: emp.id, name: emp.name })));
     console.log('DEBUG: Looking for Wang Pot Chien (EMP1752646101747) and Siti Aisyah (EMP1752551410290)');
@@ -743,7 +751,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!claimsData) {
       try {
         const { getEmployeePayrollDataOptimized } = await import('@/services/payrollOptimizationService');
-        payrollOptimizedData = await getEmployeePayrollDataOptimized(employeeIds, payrollState.currentPeriod);
+        payrollOptimizedData = await getEmployeePayrollDataOptimized(employeeIds, effectivePeriod);
         console.log('Fetched optimized payroll data in addEmployeesToPayroll:', payrollOptimizedData);
       } catch (error) {
         console.error('Error fetching optimized payroll data:', error);
@@ -810,7 +818,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           dailyRate: employee.dailyRate,
           baseSalary: employee.baseSalary,
           claims: totalClaims
-        });
+        }, effectivePeriod);
       }
     }
   }, [payrollState.availableEmployees, payrollState.fullTimeEmployees, payrollState.casualEmployees, payrollState.currentPeriod, addFullTimeEmployee, addCasualEmployee]);
@@ -1051,7 +1059,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           paymentType: paymentType,
           dailyRate: employee.dailyRate,
           baseSalary: employee.baseSalary
-        });
+        }, payrollState.currentPeriod);
       }
 
       console.log(`✅ Successfully added ${eligibleEmployees.length} casual employees to payroll`);
