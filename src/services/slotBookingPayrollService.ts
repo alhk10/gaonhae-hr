@@ -82,6 +82,8 @@ export const getSlotBookingPayForPeriod = async (
 
     // Fetch attendance records for these dates
     const bookingDates = bookings.map(b => b.date);
+    console.log('[SlotBookingPayroll] Checking attendance for dates:', bookingDates);
+    
     const { data: attendanceRecords, error: attendanceError } = await supabase
       .from('attendance')
       .select('employee_id, date, status, check_in')
@@ -99,6 +101,7 @@ export const getSlotBookingPayForPeriod = async (
     );
 
     console.log('[SlotBookingPayroll] Attendance records found:', attendanceRecords?.length || 0);
+    console.log('[SlotBookingPayroll] Attendance dates:', Array.from(attendanceMap.keys()));
 
     // Calculate pay for each booking using dynamic pricing
     const breakdown: SlotBookingPayData['breakdown'] = [];
