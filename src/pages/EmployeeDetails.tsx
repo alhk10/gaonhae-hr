@@ -84,15 +84,17 @@ const EmployeeDetails = () => {
 
     try {
       setAuthAccountStatus('checking');
-      const { data, error } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase.functions.invoke('auth-admin', {
+        body: { action: 'check_user', email }
+      });
       
-      if (error) {
-        console.error('Error checking auth account:', error);
+      if (error || (data as any)?.error) {
+        console.error('Error checking auth account:', error || (data as any)?.error);
         setAuthAccountStatus('error');
         return;
       }
 
-      const userExists = data?.users?.some((u: any) => u.email?.toLowerCase() === email.toLowerCase()) || false;
+      const userExists = Boolean((data as any)?.exists);
       setAuthAccountStatus(userExists ? 'exists' : 'missing');
     } catch (error) {
       console.error('Error checking auth account:', error);
@@ -202,34 +204,18 @@ const EmployeeDetails = () => {
         try {
           console.log(`Syncing auth account email from ${oldEmail} to ${newEmail}`);
           
-          // Get the user by old email
-          const { data: userData, error: listError } = await supabase.auth.admin.listUsers();
-          
-          if (listError) {
-            console.error('Error listing users:', listError);
-            toast.error('Employee updated but failed to sync auth account email');
-            return;
-          }
+          // Update auth account email via Edge Function
+          const { data: upd, error: funcErr } = await supabase.functions.invoke('auth-admin', {
+            body: { action: 'update_email', oldEmail, newEmail }
+          });
 
-          const authUser = userData.users.find((u: any) => u.email?.toLowerCase() === oldEmail.toLowerCase());
-          
-          if (authUser) {
-            // Update the auth user's email
-            const { error: updateError } = await supabase.auth.admin.updateUserById(
-              authUser.id,
-              { email: newEmail }
-            );
-
-            if (updateError) {
-              console.error('Error updating auth email:', updateError);
-              toast.error('Employee updated but failed to sync auth account email. Please update manually.');
-            } else {
-              toast.success('Employee and auth account email updated successfully');
-              // Recheck auth status
-              checkAuthAccountStatus(newEmail);
-            }
+          if (funcErr || (upd as any)?.error) {
+            console.error('Error updating auth email:', funcErr || (upd as any)?.error);
+            toast.error('Employee updated but failed to sync auth account email. Please update manually.');
           } else {
-            console.warn('Auth account not found for old email');
+            toast.success('Employee and auth account email updated successfully');
+            // Recheck auth status
+            checkAuthAccountStatus(newEmail);
           }
         } catch (syncError) {
           console.error('Error syncing auth email:', syncError);
