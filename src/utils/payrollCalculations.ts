@@ -2,6 +2,44 @@
 import { calculateCPF, calculateAge } from './cpfCalculations';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
 
+// Cutoff date for slot booking-based payroll (November 1, 2025)
+export const SLOT_BOOKING_PAYROLL_START_DATE = new Date(2025, 10, 1);
+
+/**
+ * Checks if a payroll period falls on or after November 2025
+ * @param period - Format: "November 2025" or "2025-11"
+ */
+export const isSlotBookingPayrollPeriod = (period: string): boolean => {
+  const monthMap: { [key: string]: number } = {
+    January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
+    July: 6, August: 7, September: 8, October: 9, November: 10, December: 11
+  };
+
+  // Handle "Month Year" format (e.g., "November 2025")
+  if (period.includes(' ')) {
+    const [monthName, yearStr] = period.split(' ');
+    const monthIndex = monthMap[monthName];
+    const year = parseInt(yearStr);
+    
+    if (monthIndex !== undefined && !isNaN(year)) {
+      const periodDate = new Date(year, monthIndex, 1);
+      return periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
+    }
+  }
+  
+  // Handle "YYYY-MM" format
+  const [yearStr, monthStr] = period.split('-');
+  const year = parseInt(yearStr);
+  const month = parseInt(monthStr) - 1; // 0-indexed
+  
+  if (!isNaN(year) && !isNaN(month)) {
+    const periodDate = new Date(year, month, 1);
+    return periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
+  }
+  
+  return false;
+};
+
 export interface PayrollCalculationResult {
   baseSalary: number;
   totalAllowances: number;
@@ -146,9 +184,11 @@ export const calculateCasualPayroll = (
   // If slot booking pay is provided (from dynamic pricing), use it as base salary
   if (slotBookingPay !== undefined && slotBookingPay > 0) {
     baseSalary = slotBookingPay;
-    console.log(`[Payroll] Using slot booking dynamic pricing: ${baseSalary}`);
+    console.log(`[CasualPayroll] ✓ Using slot booking dynamic pricing (November 2025+): S$${baseSalary}`);
+    warnings.push('Using slot booking dynamic pricing (November 2025+)');
   } else {
     // Calculate base pay based on payment type and actual attendance (legacy method)
+    console.log(`[CasualPayroll] Using legacy attendance-based calculation (pre-November 2025)`);
     if (paymentType === 'Hourly') {
       // For hourly employees, base salary should be calculated from actual attendance hours
       // This will be handled by the PayrollContext when fetching attendance data
