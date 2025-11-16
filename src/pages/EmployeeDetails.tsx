@@ -39,6 +39,7 @@ const EmployeeDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
   const [authAccountStatus, setAuthAccountStatus] = useState<'checking' | 'exists' | 'missing' | 'error'>('checking');
+  const [isEmailConfirmed, setIsEmailConfirmed] = useState<boolean>(false);
   const [adminAccess, setAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -96,6 +97,7 @@ const EmployeeDetails = () => {
 
       const userExists = Boolean((data as any)?.exists);
       setAuthAccountStatus(userExists ? 'exists' : 'missing');
+      setIsEmailConfirmed((data as any)?.confirmed || false);
     } catch (error) {
       console.error('Error checking auth account:', error);
       setAuthAccountStatus('error');
@@ -304,19 +306,28 @@ const EmployeeDetails = () => {
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold text-gray-900">{employeeData.name}</h2>
                 {isSuperAdmin && (
-                  <Badge 
-                    variant={
-                      authAccountStatus === 'exists' ? 'default' : 
-                      authAccountStatus === 'missing' ? 'destructive' : 
-                      authAccountStatus === 'checking' ? 'secondary' : 
-                      'outline'
-                    }
-                  >
-                    {authAccountStatus === 'exists' ? '✓ Auth Account' : 
-                     authAccountStatus === 'missing' ? '✗ No Auth Account' : 
-                     authAccountStatus === 'checking' ? 'Checking...' : 
-                     'Auth Check Error'}
-                  </Badge>
+                  <>
+                    <Badge 
+                      variant={
+                        authAccountStatus === 'exists' ? 'default' : 
+                        authAccountStatus === 'missing' ? 'destructive' : 
+                        authAccountStatus === 'checking' ? 'secondary' : 
+                        'outline'
+                      }
+                    >
+                      {authAccountStatus === 'exists' ? '✓ Auth Account' : 
+                       authAccountStatus === 'missing' ? '✗ No Auth Account' : 
+                       authAccountStatus === 'checking' ? 'Checking...' : 
+                       'Auth Check Error'}
+                    </Badge>
+                    {authAccountStatus === 'exists' && (
+                      <Badge 
+                        variant={isEmailConfirmed ? 'default' : 'secondary'}
+                      >
+                        {isEmailConfirmed ? '✓ Email Verified' : '⚠ Email Unverified'}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </div>
               <p className="text-gray-600">Employee Details</p>
