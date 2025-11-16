@@ -719,17 +719,18 @@ const PayrollProcessing = () => {
                         // Calculate proper CPF and net pay for casual employees
                         const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
                         
-                        // Calculate attendance-based pay for casual employees using proper attendance data
+                        // Use slot booking pay if available (November 2025+), otherwise use attendance-based calculation
+                        const slotBookingPay = employee.slotBookingPay;
                         const attendanceData = payrollData.attendance?.[employee.id];
                         const hoursWorked = attendanceData?.totalHours || 0;
                         const daysWorked = attendanceData?.totalDays || 0;
                         
-                        console.log(`Wang Pot Chien Debug - Employee: ${employee.name}, ID: ${employee.id}, Hours: ${hoursWorked}, Days: ${daysWorked}, Attendance Data:`, attendanceData);
+                        console.log(`Payroll Debug - Employee: ${employee.name}, ID: ${employee.id}, Slot Pay: ${slotBookingPay}, Hours: ${hoursWorked}, Days: ${daysWorked}`);
                         
-                        const casualPayrollCalc = calculateCasualPayroll(employee, hoursWorked, daysWorked, approvedClaims);
+                        const casualPayrollCalc = calculateCasualPayroll(employee, hoursWorked, daysWorked, approvedClaims, slotBookingPay);
                         const netPay = casualPayrollCalc.netSalary;
                         
-                        console.log(`Wang Pot Chien Calculation - Gross: ${casualPayrollCalc.grossSalary}, CPF Employee: ${casualPayrollCalc.employeeCPF}, Net: ${netPay}`);
+                        console.log(`Payroll Calculation - Gross: ${casualPayrollCalc.grossSalary}, CPF Employee: ${casualPayrollCalc.employeeCPF}, Net: ${netPay}`);
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
@@ -746,6 +747,7 @@ const PayrollProcessing = () => {
                                 </Badge>
                                 <CasualEmployeePayBadge 
                                   warnings={casualPayrollCalc.warnings}
+                                  slotCount={employee.slotBookingMetadata?.totalSlots}
                                 />
                               </div>
                             </TableCell>

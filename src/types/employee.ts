@@ -96,6 +96,11 @@ export interface CasualEmployeePayroll extends PayrollEmployee {
   totalPay: number;
   employeeCPF: number;
   employerCPF: number;
+  slotBookingPay?: number;
+  slotBookingMetadata?: {
+    totalSlots: number;
+    hasBookings: boolean;
+  };
 }
 
 export interface EmployeeQualifications {
