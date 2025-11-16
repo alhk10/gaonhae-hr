@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { getEmployeeById, updateEmployee, deleteEmployee } from '@/services/employeeService';
 import { createSingleSupabaseAuthUser } from '@/services/bulkUserCreationService';
@@ -25,16 +26,19 @@ import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
 import EmployeePayrollHistory from '@/components/employee/EmployeePayrollHistory';
 import { AdminAccessPermissions, EmployeePageAccessPermissions, EmployeeQualifications } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const EmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
+  const isSuperAdmin = userrole === 'superadmin';
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [isEditing, setIsEditing] = useState(false);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
+  const [authAccountStatus, setAuthAccountStatus] = useState<'checking' | 'exists' | 'missing' | 'error'>('checking');
   const [adminAccess, setAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
     payroll: false,
@@ -71,6 +75,31 @@ const EmployeeDetails = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Check auth account status
+  const checkAuthAccountStatus = async (email: string) => {
+    if (!email) {
+      setAuthAccountStatus('missing');
+      return;
+    }
+
+    try {
+      setAuthAccountStatus('checking');
+      const { data, error } = await supabase.auth.admin.listUsers();
+      
+      if (error) {
+        console.error('Error checking auth account:', error);
+        setAuthAccountStatus('error');
+        return;
+      }
+
+      const userExists = data?.users?.some((u: any) => u.email?.toLowerCase() === email.toLowerCase()) || false;
+      setAuthAccountStatus(userExists ? 'exists' : 'missing');
+    } catch (error) {
+      console.error('Error checking auth account:', error);
+      setAuthAccountStatus('error');
+    }
+  };
+
   useEffect(() => {
     if (employee) {
       setEmployeeData(employee);
@@ -92,8 +121,13 @@ const EmployeeDetails = () => {
         slotBookingEmployee: true
       });
       setQualifications(employee.qualifications || {});
+      
+      // Check auth account status if user is superadmin
+      if (isSuperAdmin && employee.email) {
+        checkAuthAccountStatus(employee.email);
+      }
     }
-  }, [employee]);
+  }, [employee, isSuperAdmin]);
 
   const updateEmployeeMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: EmployeeProfile }) => updateEmployee(id, data),
@@ -172,9 +206,6 @@ const EmployeeDetails = () => {
     queryClient.invalidateQueries({ queryKey: ['employee', id] });
   };
 
-  const { userrole } = useAuth();
-  const isSuperAdmin = userrole === 'superadmin';
-
   const handleCreateAuthAccount = async () => {
     if (!employee?.email || !employee?.name) {
       toast.error("Employee must have an email and name to create auth account");
@@ -185,6 +216,8 @@ const EmployeeDetails = () => {
       const success = await createSingleSupabaseAuthUser(employee.email, employee.name);
       if (success) {
         toast.success(`Auth account created for ${employee.email}. Password reset email sent.`);
+        // Recheck auth status after creation
+        checkAuthAccountStatus(employee.email);
       } else {
         toast.error("Failed to create auth account. The user may already exist or there's a rate limit issue. Please wait a few minutes and try again.");
       }
@@ -195,6 +228,7 @@ const EmployeeDetails = () => {
         toast.error("Too many attempts. Please wait a few minutes before trying again.");
       } else if (errorMessage.includes('already') || errorMessage.includes('exist')) {
         toast.info("Auth account already exists for this email.");
+        checkAuthAccountStatus(employee.email);
       } else {
         toast.error("Failed to create auth account. Please try again later.");
       }
@@ -234,7 +268,24 @@ const EmployeeDetails = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{employeeData.name}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-gray-900">{employeeData.name}</h2>
+                {isSuperAdmin && (
+                  <Badge 
+                    variant={
+                      authAccountStatus === 'exists' ? 'default' : 
+                      authAccountStatus === 'missing' ? 'destructive' : 
+                      authAccountStatus === 'checking' ? 'secondary' : 
+                      'outline'
+                    }
+                  >
+                    {authAccountStatus === 'exists' ? '✓ Auth Account' : 
+                     authAccountStatus === 'missing' ? '✗ No Auth Account' : 
+                     authAccountStatus === 'checking' ? 'Checking...' : 
+                     'Auth Check Error'}
+                  </Badge>
+                )}
+              </div>
               <p className="text-gray-600">Employee Details</p>
             </div>
             <div>
