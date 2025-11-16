@@ -160,9 +160,9 @@ const PayrollProcessing = () => {
           // Wait a moment for the context to update
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // Add all employees to payroll
+          // Add all employees to payroll WITH the period passed directly
           const allEmployeeIds = employees.map(emp => emp.id);
-          await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData);
+          await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData, selectedPeriod);
           
           // Wait for payroll state to update before applying workaround
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -193,7 +193,7 @@ const PayrollProcessing = () => {
                     hoursWorked: attendanceData.totalHours,
                     daysWorked: attendanceData.totalDays,
                     claims: 0
-                  });
+                  }, selectedPeriod);
                 }
               }
               
