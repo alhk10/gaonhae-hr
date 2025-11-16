@@ -249,9 +249,14 @@ const EmployeeDetails = () => {
                     Back to Employees
                   </Button>
                   {isSuperAdmin && (
-                    <Button variant="destructive" onClick={handleDeleteEmployee} disabled={deleteEmployeeMutation.isPending}>
-                      {deleteEmployeeMutation.isPending ? 'Deleting...' : 'Remove Employee'}
-                    </Button>
+                    <>
+                      <Button variant="secondary" onClick={handleCreateAuthAccount}>
+                        Create Auth Account
+                      </Button>
+                      <Button variant="destructive" onClick={handleDeleteEmployee} disabled={deleteEmployeeMutation.isPending}>
+                        {deleteEmployeeMutation.isPending ? 'Deleting...' : 'Remove Employee'}
+                      </Button>
+                    </>
                   )}
                   <Button onClick={() => setIsEditing(true)}>
                     Edit Employee
