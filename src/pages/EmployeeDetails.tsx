@@ -184,13 +184,60 @@ const EmployeeDetails = () => {
     if (!employeeData) return;
 
     try {
+      // Check if email has changed
+      const emailChanged = employee?.email !== employeeData.email;
+      const oldEmail = employee?.email;
+      const newEmail = employeeData.email;
+
+      // Update employee data
       await updateEmployeeMutation.mutateAsync({
         id: employeeData.id,
         data: { ...employeeData, qualifications }
       });
       await updateEmployeeAdminAccess(employeeData.id, adminAccess);
       await updateEmployeePageAccess(employeeData.id, pageAccess);
-      console.log('Employee updated successfully with access permissions');
+      
+      // If email changed and auth account exists, update auth account email
+      if (emailChanged && oldEmail && newEmail && authAccountStatus === 'exists') {
+        try {
+          console.log(`Syncing auth account email from ${oldEmail} to ${newEmail}`);
+          
+          // Get the user by old email
+          const { data: userData, error: listError } = await supabase.auth.admin.listUsers();
+          
+          if (listError) {
+            console.error('Error listing users:', listError);
+            toast.error('Employee updated but failed to sync auth account email');
+            return;
+          }
+
+          const authUser = userData.users.find((u: any) => u.email?.toLowerCase() === oldEmail.toLowerCase());
+          
+          if (authUser) {
+            // Update the auth user's email
+            const { error: updateError } = await supabase.auth.admin.updateUserById(
+              authUser.id,
+              { email: newEmail }
+            );
+
+            if (updateError) {
+              console.error('Error updating auth email:', updateError);
+              toast.error('Employee updated but failed to sync auth account email. Please update manually.');
+            } else {
+              toast.success('Employee and auth account email updated successfully');
+              // Recheck auth status
+              checkAuthAccountStatus(newEmail);
+            }
+          } else {
+            console.warn('Auth account not found for old email');
+          }
+        } catch (syncError) {
+          console.error('Error syncing auth email:', syncError);
+          toast.error('Employee updated but auth account email sync failed');
+        }
+      } else {
+        console.log('Employee updated successfully with access permissions');
+      }
     } catch (error) {
       console.error('Failed to update employee:', error);
     }
