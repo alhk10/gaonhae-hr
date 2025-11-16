@@ -186,11 +186,18 @@ const EmployeeDetails = () => {
       if (success) {
         toast.success(`Auth account created for ${employee.email}. Password reset email sent.`);
       } else {
-        toast.error("Failed to create auth account");
+        toast.error("Failed to create auth account. The user may already exist or there's a rate limit issue. Please wait a few minutes and try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating auth account:', error);
-      toast.error("Failed to create auth account");
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('rate') || errorMessage.includes('429')) {
+        toast.error("Too many attempts. Please wait a few minutes before trying again.");
+      } else if (errorMessage.includes('already') || errorMessage.includes('exist')) {
+        toast.info("Auth account already exists for this email.");
+      } else {
+        toast.error("Failed to create auth account. Please try again later.");
+      }
     }
   };
 
