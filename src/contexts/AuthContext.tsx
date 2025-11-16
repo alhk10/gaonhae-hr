@@ -14,7 +14,7 @@ const AuthContext = createContext<AuthContextType>({
   pageAccess: null,
   isLoading: true,
   requiresPasswordChange: false,
-  login: async () => false,
+  login: async () => ({ success: false }),
   logout: async () => {},
   updatePassword: async () => false,
 });
@@ -347,7 +347,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; needsVerification?: boolean }> => {
     setIsLoading(true);
     
     try {
@@ -358,13 +358,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('AuthContext: Login error:', error);
+        
+        // Check if error is due to email not being confirmed
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          toast({
+            title: "Email Not Verified",
+            description: "Please check your email and click the verification link.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return { success: false, needsVerification: true };
+        }
+        
         toast({
           title: "Login Failed",
           description: error.message,
           variant: "destructive",
         });
         setIsLoading(false);
-        return false;
+        return { success: false };
       }
 
       if (data.session) {
@@ -373,11 +385,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           title: "Login Successful",
           description: "Welcome back!",
         });
-        return true;
+        return { success: true };
       }
       
       setIsLoading(false);
-      return false;
+      return { success: false };
     } catch (error) {
       console.error('AuthContext: Unexpected login error:', error);
       toast({
@@ -386,7 +398,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive",
       });
       setIsLoading(false);
-      return false;
+      return { success: false };
     }
   };
 

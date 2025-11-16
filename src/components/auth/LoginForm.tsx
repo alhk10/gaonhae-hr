@@ -24,10 +24,10 @@ const LoginForm = () => {
     setResetMessage('');
     
     try {
-      const loginSuccess = await login(email, password);
-      if (!loginSuccess) {
-        // Check if this might be a case where email verification is needed
-        if (email && !error.includes('Invalid login credentials')) {
+      const result = await login(email, password);
+      if (!result.success) {
+        // Check if email verification is needed
+        if (result.needsVerification) {
           setVerificationEmail(email);
           setShowEmailDialog(true);
         } else {
