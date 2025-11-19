@@ -53,6 +53,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [overrideSlotLimit, setOverrideSlotLimit] = useState(false);
+  const [editableDate, setEditableDate] = useState<Date>(selectedDate);
 
   // Check if user can override slot limits
   const canOverrideSlots = userrole === 'superadmin' || 
@@ -61,14 +62,15 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadInitialData();
+      setEditableDate(selectedDate);
     }
-  }, [isOpen]);
+  }, [isOpen, selectedDate]);
 
   useEffect(() => {
     if (selectedBranch && isOpen) {
       updateAvailableSlots();
     }
-  }, [selectedBranch, selectedDate, isOpen]);
+  }, [selectedBranch, editableDate, isOpen]);
 
   const loadInitialData = async () => {
     try {
@@ -102,7 +104,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
 
   const updateAvailableSlots = async () => {
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const dateStr = format(editableDate, 'yyyy-MM-dd');
       const available = await getAvailableSlotsForDate(dateStr, selectedBranch);
       setAvailableSlots(available);
       console.log('BulkSlotBookingDialog: Updated available slots:', available);
@@ -152,7 +154,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       setLoading(true);
       console.log('BulkSlotBookingDialog: Creating bulk admin bookings for', selectedEmployees.length, 'employees');
 
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const dateStr = format(editableDate, 'yyyy-MM-dd');
       const branch = branches.find(b => b.id === selectedBranch);
 
       // Use addAdminSlotBooking for auto-approved bookings with error handling
@@ -195,8 +197,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       // Show results
       if (successCount > 0) {
         const successMessage = overrideSlotLimit && selectedEmployees.length > availableSlots
-          ? `Successfully created ${successCount} auto-approved slot bookings for ${format(selectedDate, 'PPP')} (slot limit overridden)`
-          : `Successfully created ${successCount} auto-approved slot bookings for ${format(selectedDate, 'PPP')}`;
+          ? `Successfully created ${successCount} auto-approved slot bookings for ${format(editableDate, 'PPP')} (slot limit overridden)`
+          : `Successfully created ${successCount} auto-approved slot bookings for ${format(editableDate, 'PPP')}`;
 
         toast.success(successMessage);
         
@@ -227,8 +229,15 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
     }
   };
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = new Date(e.target.value);
+    if (!isNaN(newDate.getTime())) {
+      setEditableDate(newDate);
+    }
+  };
+
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+  const dayName = editableDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
   const totalSlotsForDay = weeklyConfig[selectedBranch]?.[dayName] || 0;
 
   const isOverbooking = selectedEmployees.length > availableSlots;
@@ -250,9 +259,11 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
               <Label htmlFor="date">Date</Label>
               <Input
                 id="date"
-                value={format(selectedDate, 'dd/MM/yyyy')}
-                disabled
-                className="bg-gray-50"
+                type={overrideSlotLimit && canOverrideSlots ? "date" : "text"}
+                value={overrideSlotLimit && canOverrideSlots ? format(editableDate, 'yyyy-MM-dd') : format(editableDate, 'dd/MM/yyyy')}
+                onChange={handleDateChange}
+                disabled={!overrideSlotLimit || !canOverrideSlots}
+                className={!overrideSlotLimit || !canOverrideSlots ? "bg-gray-50" : ""}
               />
             </div>
             <div>
