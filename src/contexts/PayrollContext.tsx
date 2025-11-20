@@ -250,6 +250,16 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string) => {
     const id = uuidv4();
     
+    // CRITICAL: Log entry immediately to verify function is called
+    console.log('[addCasualEmployee] 🚀 FUNCTION CALLED for employee:', employee.name);
+    console.log('[addCasualEmployee] periodOverride:', periodOverride);
+    console.log('[addCasualEmployee] payrollState.currentPeriod:', payrollState.currentPeriod);
+    
+    // Visual confirmation for debugging
+    if (employee.name === 'Aw Yi Zhe Eldon' || employee.name === 'Jason Lu Lijie') {
+      console.log(`[addCasualEmployee] ⭐ KEY EMPLOYEE: ${employee.name} - Period: ${periodOverride || payrollState.currentPeriod}`);
+    }
+    
     // Find the employee profile from available employees for complete data
     let employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
     
@@ -349,6 +359,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     console.log('[PayrollContext] PayrollState.currentPeriod:', payrollState.currentPeriod);
     console.log('[PayrollContext] Effective Period:', effectivePeriod);
     
+    if (!effectivePeriod) {
+      console.error('[PayrollContext] ❌❌❌ NO PERIOD PROVIDED! Cannot calculate slot booking pay for:', employee.name);
+      console.error('[PayrollContext] This employee will use legacy calculation');
+      console.error('[PayrollContext] periodOverride:', periodOverride);
+      console.error('[PayrollContext] payrollState.currentPeriod:', payrollState.currentPeriod);
+    }
+    
     if (effectivePeriod) {
       const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
       
@@ -387,10 +404,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log('[PayrollContext] ❌ Period < November 2025, using legacy calculation for:', employee.name);
         console.log('[PayrollContext] This employee will use hourly/daily/monthly rates');
       }
-    } else {
-      console.error('[PayrollContext] ❌❌❌ NO PERIOD SET! Cannot determine slot booking eligibility for:', employee.name);
-      console.error('[PayrollContext] periodOverride:', periodOverride);
-      console.error('[PayrollContext] payrollState.currentPeriod:', payrollState.currentPeriod);
     }
 
     // Use proper payroll calculation with claims and slot booking pay
@@ -440,7 +453,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       casualEmployees: [...prevState.casualEmployees, newEmployee],
       lastUpdated: new Date(),
     }));
-  }, [payrollState.availableEmployees]);
+  }, [payrollState.availableEmployees, payrollState.currentPeriod]);
 
   const updateCasualEmployee = useCallback(async (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay' | 'employeeCPF' | 'employerCPF' | 'grossPay'>>) => {
     setPayrollState(prevState => {
