@@ -96,9 +96,10 @@ export async function calculateCasualEmployeePayroll(
   
   // Check if we should use dynamic pricing (November 2025+)
   const useDynamicPricing = isNovember2025OrLater(period);
+  result.calculationMethod = useDynamicPricing ? 'dynamic_pricing' : 'legacy_rates';
   
   if (useDynamicPricing) {
-    console.log('[CasualPayrollCalc] ✓ Period >= November 2025: FETCHING SLOT BOOKINGS');
+    console.log('[CasualPayrollCalc] ✅ Period >= November 2025: USING DYNAMIC PRICING');
     
     try {
       // Parse period to get date range
@@ -199,7 +200,6 @@ export async function calculateCasualEmployeePayroll(
           
           result.slotBookingPay = totalSlotPay;
           result.slotCount = totalSlots;
-          result.calculationMethod = 'dynamic_pricing';
           
           console.log('[CasualPayrollCalc] ============ DYNAMIC PRICING SUMMARY ============');
           console.log(`[CasualPayrollCalc] Total Slots with Attendance: ${totalSlots}`);
