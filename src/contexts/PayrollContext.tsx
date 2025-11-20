@@ -343,16 +343,23 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let slotBookingPay = 0;
     let slotBookingMetadata = { totalSlots: 0, hasBookings: false };
     
-    console.log('[PayrollContext] Checking period:', effectivePeriod, 'for employee:', employee.name);
+    console.log('[PayrollContext] ===== CASUAL EMPLOYEE PAYROLL CALCULATION =====');
+    console.log('[PayrollContext] Employee:', employee.name, '(', employee.employeeId, ')');
+    console.log('[PayrollContext] Period Override:', periodOverride);
+    console.log('[PayrollContext] PayrollState.currentPeriod:', payrollState.currentPeriod);
+    console.log('[PayrollContext] Effective Period:', effectivePeriod);
     
     if (effectivePeriod) {
       const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
       
-      console.log('[PayrollContext] Should use slot booking?', shouldUseSlotBooking, 'for period:', effectivePeriod);
+      console.log('[PayrollContext] isSlotBookingPayrollPeriod check:');
+      console.log('  - Input period:', effectivePeriod);
+      console.log('  - Result:', shouldUseSlotBooking);
+      console.log('  - Expected: true for November 2025 or later');
       
       if (shouldUseSlotBooking) {
         try {
-          console.log('[PayrollContext] ✓ Period >= November 2025, fetching slot booking pay for:', employee.name);
+          console.log('[PayrollContext] ✓ Period >= November 2025, fetching slot booking pay...');
           const slotPayData = await getSlotBookingPayForPeriod(
             employee.employeeId,
             effectivePeriod,
@@ -366,7 +373,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           console.log('[PayrollContext] ✓ Slot booking pay fetched:', {
             employee: employee.name,
             totalSlots: slotPayData.totalSlots,
-            totalPay: slotBookingPay
+            totalPay: slotBookingPay,
+            breakdown: slotPayData.breakdown
           });
           
           if (slotBookingPay === 0) {
@@ -376,10 +384,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           console.error('[PayrollContext] ❌ Error fetching slot booking pay for', employee.name, ':', error);
         }
       } else {
-        console.log('[PayrollContext] Period < November 2025, using legacy calculation for:', employee.name);
+        console.log('[PayrollContext] ❌ Period < November 2025, using legacy calculation for:', employee.name);
+        console.log('[PayrollContext] This employee will use hourly/daily/monthly rates');
       }
     } else {
-      console.warn('[PayrollContext] ⚠️ No current period set! Cannot determine slot booking eligibility for:', employee.name);
+      console.error('[PayrollContext] ❌❌❌ NO PERIOD SET! Cannot determine slot booking eligibility for:', employee.name);
+      console.error('[PayrollContext] periodOverride:', periodOverride);
+      console.error('[PayrollContext] payrollState.currentPeriod:', payrollState.currentPeriod);
     }
 
     // Use proper payroll calculation with claims and slot booking pay
