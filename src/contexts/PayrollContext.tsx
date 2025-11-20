@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
 import { calculateCasualPayroll, calculateFullTimePayroll, isSlotBookingPayrollPeriod } from '@/utils/payrollCalculations';
 import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
+import { calculateCasualEmployeePayroll } from '@/services/casualPayrollCalculationService';
 
 // Helper function to format period for API
 const formatPeriodForAPI = (period: string): string => {
@@ -71,7 +72,14 @@ export interface CasualEmployee {
   slotBookingMetadata?: {
     totalSlots: number;
     hasBookings: boolean;
+    breakdown?: Array<{
+      date: string;
+      branchName: string;
+      pay: number;
+    }>;
+    calculationMethod?: 'dynamic_pricing' | 'legacy_rates';
   };
+  warnings?: string[];
 }
 
 export interface PayrollState {
@@ -249,12 +257,18 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string) => {
     const id = uuidv4();
+    const effectivePeriod = periodOverride || payrollState.currentPeriod;
     
-    // CRITICAL: Use the new simplified calculation service
-    console.log('🎯🎯🎯 [addCasualEmployee] USING NEW SIMPLIFIED SERVICE');
-    console.log('Employee:', employee.name);
-    console.log('Period Override:', periodOverride);
-    console.log('PayrollState Period:', payrollState.currentPeriod);
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🚀 [addCasualEmployee] START CALCULATION');
+    console.log('Employee:', employee.name, '(', employee.employeeId, ')');
+    console.log('Period:', effectivePeriod);
+    console.log('═══════════════════════════════════════════════════');
+    
+    if (!effectivePeriod) {
+      console.error('❌ [addCasualEmployee] NO PERIOD PROVIDED');
+      return;
+    }
     
     // Find the employee profile from available employees for complete data
     let employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
@@ -264,56 +278,53 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       try {
         const { data: empData, error } = await supabase
           .from('employees')
-          .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date')
+          .select('*, allowances(*), deductions(*)')
           .eq('id', employee.employeeId)
           .single();
 
         if (error) throw error;
 
         if (empData) {
-          // Fetch allowances and deductions for this specific employee
-          const [allowancesResult, deductionsResult] = await Promise.all([
-            supabase.from('allowances').select('*').eq('employee_id', empData.id),
-            supabase.from('deductions').select('*').eq('employee_id', empData.id)
-          ]);
-
-          const allowances: EmployeeAllowance[] = (allowancesResult.data || []).map(allowance => ({
-            id: allowance.id.toString(),
+          const allowances: EmployeeAllowance[] = (empData.allowances || []).map((allowance: any) => ({
+            id: allowance.id,
+            employeeId: allowance.employee_id,
             name: allowance.name,
             amount: allowance.amount,
-            type: allowance.type as 'Fixed' | 'Percentage' | 'Manual'
+            type: allowance.type || 'Fixed'
           }));
 
-          const deductions: EmployeeDeduction[] = (deductionsResult.data || []).map(deduction => ({
-            id: deduction.id.toString(),
+          const deductions: EmployeeDeduction[] = (empData.deductions || []).map((deduction: any) => ({
+            id: deduction.id,
+            employeeId: deduction.employee_id,
             name: deduction.name,
             amount: deduction.amount,
-            type: deduction.type as 'Fixed' | 'Percentage' | 'Manual'
+            type: deduction.type || 'Fixed'
           }));
 
           employeeProfile = {
             id: empData.id,
             name: empData.name,
-            nric: empData.nric || '',
-            dateOfBirth: empData.date_of_birth || '',
-            residencyStatus: empData.residency_status || '',
             type: empData.type as 'Full-Time' | 'Casual',
-            baseSalary: empData.base_salary || undefined,
-            hourlyRate: empData.hourly_rate || undefined,
-            dailyRate: empData.daily_rate || undefined,
-            dailyWeekdayRate: empData.daily_weekday_rate || undefined,
-            dailyWeekendRate: empData.daily_weekend_rate || undefined,
-            paymentType: (empData.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
-            bankName: empData.bank_name || '',
-            bankAccount: empData.bank_account || '',
-            branch: '',
+            baseSalary: empData.base_salary,
+            hourlyRate: empData.hourly_rate,
+            dailyRate: empData.daily_rate,
+            dailyWeekdayRate: empData.daily_weekday_rate,
+            dailyWeekendRate: empData.daily_weekend_rate,
+            paymentType: empData.payment_type as 'Monthly' | 'Hourly' | 'Daily',
+            nric: empData.nric,
+            dateOfBirth: empData.date_of_birth,
+            residencyStatus: empData.residency_status,
+            bankName: empData.bank_name,
+            bankAccount: empData.bank_account,
             position: empData.position || '',
             phone: empData.phone || '',
             address: empData.address || '',
-            email: empData.email,
+            email: empData.email || '',
             joinDate: empData.join_date,
+            qualifications: (empData.qualifications || {}) as any,
             allowances,
             deductions,
+            branch: '',
             certificates: [],
             adminAccess: {
               employees: false,
@@ -335,73 +346,72 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           };
         }
       } catch (error) {
-        console.error('Error fetching employee profile:', error);
+        console.error('❌ [addCasualEmployee] Error fetching employee profile:', error);
       }
     }
     
     if (!employeeProfile) {
-      console.error('Employee profile not found:', employee.employeeId);
+      console.error('❌ [addCasualEmployee] Employee profile not found:', employee.employeeId);
       return;
     }
 
-    // USE NEW SIMPLIFIED SERVICE
-    const effectivePeriod = periodOverride || payrollState.currentPeriod;
-    
-    if (!effectivePeriod) {
-      console.error('🔴 [addCasualEmployee] NO PERIOD PROVIDED - Cannot calculate payroll');
-      return;
+    try {
+      // Use the simplified calculation service
+      const payrollResult = await calculateCasualEmployeePayroll(
+        employeeProfile,
+        effectivePeriod,
+        employee.hoursWorked || 0,
+        employee.daysWorked || 0,
+        employee.claims || 0
+      );
+
+      console.log('✅ [addCasualEmployee] Calculation complete:', {
+        name: employee.name,
+        calculationMethod: payrollResult.calculationMethod,
+        slotBookingPay: payrollResult.slotBookingPay,
+        slotCount: payrollResult.slotCount,
+        totalPay: payrollResult.totalPay,
+        warnings: payrollResult.warnings,
+        errors: payrollResult.errors
+      });
+
+      const newEmployee: CasualEmployee = {
+        ...employee,
+        id,
+        totalPay: payrollResult.totalPay,
+        employeeCPF: payrollResult.employeeCPF,
+        employerCPF: payrollResult.employerCPF,
+        grossPay: payrollResult.grossPay,
+        baseSalary: payrollResult.baseSalary,
+        paymentType: employeeProfile.paymentType,
+        allowances: employeeProfile.allowances || [],
+        deductions: employeeProfile.deductions || [],
+        cpfEmployee: payrollResult.employeeCPF,
+        cpfEmployer: payrollResult.employerCPF,
+        netPay: payrollResult.totalPay,
+        cpf: payrollResult.employeeCPF + payrollResult.employerCPF,
+        total: payrollResult.totalPay,
+        slotBookingPay: payrollResult.slotBookingPay,
+        slotBookingMetadata: {
+          totalSlots: payrollResult.slotCount,
+          hasBookings: payrollResult.slotCount > 0,
+          breakdown: payrollResult.breakdown,
+          calculationMethod: payrollResult.calculationMethod
+        },
+        warnings: payrollResult.warnings
+      } as CasualEmployee;
+
+      setPayrollState(prevState => ({
+        ...prevState,
+        casualEmployees: [...prevState.casualEmployees, newEmployee],
+        lastUpdated: new Date(),
+      }));
+      
+      console.log('✅ [addCasualEmployee] Added to payroll state');
+    } catch (error) {
+      console.error('❌ [addCasualEmployee] Calculation error:', error);
+      throw error;
     }
-    
-    console.log('✅ [addCasualEmployee] Using period:', effectivePeriod);
-    
-    // Import and use the new simplified service
-    const { calculateCasualEmployeePayroll } = await import('@/services/casualPayrollCalculationService');
-    
-    const payrollResult = await calculateCasualEmployeePayroll(
-      employeeProfile,
-      effectivePeriod,
-      employee.hoursWorked || 0,
-      employee.daysWorked || 0,
-      employee.claims || 0
-    );
-
-    const newEmployee: CasualEmployee = {
-      ...employee,
-      id,
-      totalPay: payrollResult.totalPay,
-      employeeCPF: payrollResult.employeeCPF,
-      employerCPF: payrollResult.employerCPF,
-      grossPay: payrollResult.grossPay,
-      baseSalary: payrollResult.baseSalary,
-      paymentType: employeeProfile.paymentType,
-      allowances: employeeProfile.allowances || [],
-      deductions: employeeProfile.deductions || [],
-      cpfEmployee: payrollResult.employeeCPF,
-      cpfEmployer: payrollResult.employerCPF,
-      netPay: payrollResult.totalPay,
-      cpf: payrollResult.employeeCPF + payrollResult.employerCPF,
-      total: payrollResult.totalPay,
-      slotBookingPay: payrollResult.slotBookingPay,
-      slotBookingMetadata: {
-        totalSlots: payrollResult.slotCount,
-        hasBookings: payrollResult.slotCount > 0,
-        breakdown: payrollResult.breakdown
-      }
-    } as CasualEmployee;
-
-    console.log('✅ [addCasualEmployee] Created employee with:', {
-      name: employee.name,
-      method: payrollResult.calculationMethod,
-      slotBookingPay: payrollResult.slotBookingPay,
-      slotCount: payrollResult.slotCount,
-      totalPay: payrollResult.totalPay
-    });
-
-    setPayrollState(prevState => ({
-      ...prevState,
-      casualEmployees: [...prevState.casualEmployees, newEmployee],
-      lastUpdated: new Date(),
-    }));
   }, [payrollState.availableEmployees, payrollState.currentPeriod]);
 
   const updateCasualEmployee = useCallback(async (id: string, updates: Partial<Omit<CasualEmployee, 'id' | 'totalPay' | 'employeeCPF' | 'employerCPF' | 'grossPay'>>) => {

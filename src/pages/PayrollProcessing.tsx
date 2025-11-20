@@ -758,6 +758,7 @@ const PayrollProcessing = () => {
                                   warnings={casualPayrollCalc.warnings}
                                   slotCount={(employee as any).slotBookingMetadata?.totalSlots}
                                   slotBookingPay={(employee as any).slotBookingPay}
+                                  calculationMethod={(employee as any).slotBookingMetadata?.calculationMethod}
                                 />
                               </div>
                             </TableCell>
