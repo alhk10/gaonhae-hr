@@ -866,16 +866,18 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
 
       const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
-      const recordId = `PERIOD_${formattedPeriod}`;
+      const periodRecordId = `PERIOD_${formattedPeriod}`;
+      const [monthName, yearStr] = payrollState.currentPeriod.split(' ');
+      const yearNum = parseInt(yearStr);
 
-      // Use upsert to handle existing records
-      const { data, error } = await supabase
+      // Save consolidated period record
+      const { error: periodError } = await supabase
         .from('payroll_records')
         .upsert({
-          id: recordId,
+          id: periodRecordId,
           employee_id: null,
           month: payrollData.month,
-          year: parseInt(payrollData.year),
+          year: yearNum,
           payroll_data: payrollData as any,
           is_locked: false,
           updated_at: new Date().toISOString(),
@@ -883,12 +885,105 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           onConflict: 'id'
         });
 
-      if (error) {
-        console.error('Error saving payroll data to Supabase:', error);
-        throw error;
+      if (periodError) {
+        console.error('Error saving period payroll data:', periodError);
+        throw periodError;
       }
 
-      console.log('Payroll data saved to Supabase:', data);
+      // Save individual employee records for both full-time and casual
+      const individualRecords = [];
+      
+      // Full-time employees
+      for (const emp of payrollState.fullTimeEmployees) {
+        const empRecordId = `${emp.employeeId}_${yearNum}_${monthName.replace(' ', '_')}_${yearNum}`;
+        const allowances = Array.isArray(emp.allowances) ? emp.allowances : [];
+        const deductions = Array.isArray(emp.deductions) ? emp.deductions : [];
+        
+        individualRecords.push({
+          id: empRecordId,
+          employee_id: emp.employeeId,
+          month: monthName,
+          year: yearNum,
+          payroll_data: {
+            employeeId: emp.employeeId,
+            name: emp.name,
+            type: 'Full-Time',
+            baseSalary: emp.baseSalary,
+            allowances,
+            deductions,
+            totalAllowances: allowances.reduce((sum, a) => sum + (a.amount || 0), 0),
+            totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
+            grossSalary: emp.grossPay,
+            employeeCPF: emp.cpfEmployee,
+            employerCPF: emp.cpfEmployer,
+            totalCPF: (emp.cpfEmployee || 0) + (emp.cpfEmployer || 0),
+            approvedClaims: emp.claims || 0,
+            netSalary: emp.netPay
+          },
+          is_locked: false,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      // Casual employees - include slot booking metadata
+      for (const emp of payrollState.casualEmployees) {
+        const empRecordId = `${emp.employeeId}_${yearNum}_${monthName.replace(' ', '_')}_${yearNum}`;
+        const allowances = Array.isArray(emp.allowances) ? emp.allowances : [];
+        const deductions = Array.isArray(emp.deductions) ? emp.deductions : [];
+        const casualEmp = emp as any; // Type assertion for metadata fields
+        
+        individualRecords.push({
+          id: empRecordId,
+          employee_id: emp.employeeId,
+          month: monthName,
+          year: yearNum,
+          payroll_data: {
+            employeeId: emp.employeeId,
+            name: emp.name,
+            type: 'Casual',
+            paymentType: emp.paymentType,
+            baseSalary: emp.baseSalary,
+            hourlyRate: emp.hourlyRate,
+            dailyRate: emp.dailyRate,
+            hoursWorked: emp.hoursWorked,
+            daysWorked: emp.daysWorked,
+            allowances,
+            deductions,
+            totalAllowances: allowances.reduce((sum, a) => sum + (a.amount || 0), 0),
+            totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
+            grossSalary: emp.grossPay,
+            employeeCPF: emp.employeeCPF,
+            employerCPF: emp.employerCPF,
+            totalCPF: (emp.employeeCPF || 0) + (emp.employerCPF || 0),
+            approvedClaims: emp.claims || 0,
+            netSalary: emp.totalPay,
+            // Store slot booking data for dynamic pricing tracking
+            slotBookingPay: casualEmp.slotBookingPay || 0,
+            slotBookingMetadata: casualEmp.slotBookingMetadata || null,
+            calculationMethod: casualEmp.slotBookingPay > 0 ? 'dynamic_pricing' : 'legacy_rates'
+          },
+          is_locked: false,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      // Batch upsert all individual employee records
+      if (individualRecords.length > 0) {
+        const { error: individualError } = await supabase
+          .from('payroll_records')
+          .upsert(individualRecords, {
+            onConflict: 'id'
+          });
+
+        if (individualError) {
+          console.error('Error saving individual payroll records:', individualError);
+          throw individualError;
+        }
+
+        console.log(`✓ Saved ${individualRecords.length} individual employee payroll records`);
+      }
+
+      console.log('✓ Payroll data saved to Supabase (period + individual records)');
     } catch (error) {
       console.error('Failed to save payroll data:', error);
       throw error;

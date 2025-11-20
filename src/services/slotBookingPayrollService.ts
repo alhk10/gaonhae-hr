@@ -73,12 +73,16 @@ export const getSlotBookingPayForPeriod = async (
       throw bookingsError;
     }
 
+    console.log(`[SlotBookingPayroll] Query: employee_id=${employeeId}, dates: ${startDateStr} to ${endDateStr}`);
+
     if (!bookings || bookings.length === 0) {
-      console.log('[SlotBookingPayroll] No approved bookings found for this period');
+      console.warn(`[SlotBookingPayroll] ⚠️ No approved bookings found for ${employee.name} (${employeeId}) in ${period}`);
+      console.log('[SlotBookingPayroll] This employee will use legacy rates calculation');
       return { totalSlots: 0, totalPay: 0, breakdown: [] };
     }
 
-    console.log('[SlotBookingPayroll] Found', bookings.length, 'approved bookings');
+    console.log(`[SlotBookingPayroll] ✓ Found ${bookings.length} approved booking(s) for ${employee.name}`);
+    console.log('[SlotBookingPayroll] Booking dates:', bookings.map(b => b.date).join(', '));
 
     // Fetch attendance records for these dates
     const bookingDates = bookings.map(b => b.date);
