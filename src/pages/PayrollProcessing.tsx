@@ -97,6 +97,9 @@ const PayrollProcessing = () => {
   // Load all employee data with allowances and deductions - OPTIMIZED
   useEffect(() => {
     const loadAllEmployeeData = async () => {
+      console.log('[PayrollProcessing] 🔄 LOADING PAYROLL DATA - START');
+      console.log('[PayrollProcessing] Selected Period:', selectedPeriod);
+      
       try {
         setLoading(true);
         
@@ -155,16 +158,18 @@ const PayrollProcessing = () => {
           
           // Force fresh payroll calculation
           
-          // Clear the payroll context completely
+          // CRITICAL: Set period FIRST before adding any employees
+          console.log('[PayrollProcessing] 🔧 Setting current period to:', selectedPeriod);
           setCurrentPeriod(selectedPeriod);
           
           // Force refresh available employees
           await refreshAvailableEmployees();
           
-          // Wait a moment for the context to update
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Wait for the context state to fully update
+          await new Promise(resolve => setTimeout(resolve, 200));
           
           // Add all employees to payroll WITH the period passed directly
+          console.log('[PayrollProcessing] 📝 Adding employees to payroll with period:', selectedPeriod);
           const allEmployeeIds = employees.map(emp => emp.id);
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData, selectedPeriod);
           
