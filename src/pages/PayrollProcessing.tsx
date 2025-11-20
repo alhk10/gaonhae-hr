@@ -751,7 +751,8 @@ const PayrollProcessing = () => {
                                 </Badge>
                                 <CasualEmployeePayBadge 
                                   warnings={casualPayrollCalc.warnings}
-                                  slotCount={employee.slotBookingMetadata?.totalSlots}
+                                  slotCount={(employee as any).slotBookingMetadata?.totalSlots}
+                                  slotBookingPay={(employee as any).slotBookingPay}
                                 />
                               </div>
                             </TableCell>
