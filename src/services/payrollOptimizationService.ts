@@ -33,7 +33,9 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
 
       if (year && month && month >= 1 && month <= 12) {
         attendanceFilter.startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-        attendanceFilter.endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
+        // Calculate the actual last day of the month to avoid invalid dates
+        const lastDay = new Date(year, month, 0).getDate();
+        attendanceFilter.endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         console.log('DEBUG: Attendance filter set:', attendanceFilter);
       }
     }
