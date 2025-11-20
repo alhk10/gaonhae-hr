@@ -250,15 +250,11 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string) => {
     const id = uuidv4();
     
-    // CRITICAL: Log entry immediately to verify function is called
-    console.log('[addCasualEmployee] 🚀 FUNCTION CALLED for employee:', employee.name);
-    console.log('[addCasualEmployee] periodOverride:', periodOverride);
-    console.log('[addCasualEmployee] payrollState.currentPeriod:', payrollState.currentPeriod);
-    
-    // Visual confirmation for debugging
-    if (employee.name === 'Aw Yi Zhe Eldon' || employee.name === 'Jason Lu Lijie') {
-      console.log(`[addCasualEmployee] ⭐ KEY EMPLOYEE: ${employee.name} - Period: ${periodOverride || payrollState.currentPeriod}`);
-    }
+    // CRITICAL: Use the new simplified calculation service
+    console.log('🎯🎯🎯 [addCasualEmployee] USING NEW SIMPLIFIED SERVICE');
+    console.log('Employee:', employee.name);
+    console.log('Period Override:', periodOverride);
+    console.log('PayrollState Period:', payrollState.currentPeriod);
     
     // Find the employee profile from available employees for complete data
     let employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
@@ -348,104 +344,57 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Fetch slot booking pay only if period is November 2025 or later
+    // USE NEW SIMPLIFIED SERVICE
     const effectivePeriod = periodOverride || payrollState.currentPeriod;
-    let slotBookingPay = 0;
-    let slotBookingMetadata = { totalSlots: 0, hasBookings: false };
-    
-    console.log('[PayrollContext] ===== CASUAL EMPLOYEE PAYROLL CALCULATION =====');
-    console.log('[PayrollContext] Employee:', employee.name, '(', employee.employeeId, ')');
-    console.log('[PayrollContext] Period Override:', periodOverride);
-    console.log('[PayrollContext] PayrollState.currentPeriod:', payrollState.currentPeriod);
-    console.log('[PayrollContext] Effective Period:', effectivePeriod);
     
     if (!effectivePeriod) {
-      console.error('[PayrollContext] ❌❌❌ NO PERIOD PROVIDED! Cannot calculate slot booking pay for:', employee.name);
-      console.error('[PayrollContext] This employee will use legacy calculation');
-      console.error('[PayrollContext] periodOverride:', periodOverride);
-      console.error('[PayrollContext] payrollState.currentPeriod:', payrollState.currentPeriod);
+      console.error('🔴 [addCasualEmployee] NO PERIOD PROVIDED - Cannot calculate payroll');
+      return;
     }
     
-    if (effectivePeriod) {
-      const shouldUseSlotBooking = isSlotBookingPayrollPeriod(effectivePeriod);
-      
-      console.log('[PayrollContext] isSlotBookingPayrollPeriod check:');
-      console.log('  - Input period:', effectivePeriod);
-      console.log('  - Result:', shouldUseSlotBooking);
-      console.log('  - Expected: true for November 2025 or later');
-      
-      if (shouldUseSlotBooking) {
-        try {
-          console.log('[PayrollContext] ✓ Period >= November 2025, fetching slot booking pay...');
-          const slotPayData = await getSlotBookingPayForPeriod(
-            employee.employeeId,
-            effectivePeriod,
-            employeeProfile
-          );
-          slotBookingPay = slotPayData.totalPay;
-          slotBookingMetadata = {
-            totalSlots: slotPayData.totalSlots,
-            hasBookings: slotPayData.totalSlots > 0
-          };
-          console.log('[PayrollContext] ✓ Slot booking pay fetched:', {
-            employee: employee.name,
-            totalSlots: slotPayData.totalSlots,
-            totalPay: slotBookingPay,
-            breakdown: slotPayData.breakdown
-          });
-          
-          if (slotBookingPay === 0) {
-            console.warn('[PayrollContext] ⚠️ Slot booking pay is $0 for', employee.name, '- Check bookings/attendance');
-          }
-        } catch (error) {
-          console.error('[PayrollContext] ❌ Error fetching slot booking pay for', employee.name, ':', error);
-        }
-      } else {
-        console.log('[PayrollContext] ❌ Period < November 2025, using legacy calculation for:', employee.name);
-        console.log('[PayrollContext] This employee will use hourly/daily/monthly rates');
-      }
-    }
-
-    // Use proper payroll calculation with claims and slot booking pay
-    const approvedClaims = employee.claims || 0;
-    const calculation = calculateCasualPayroll(
+    console.log('✅ [addCasualEmployee] Using period:', effectivePeriod);
+    
+    // Import and use the new simplified service
+    const { calculateCasualEmployeePayroll } = await import('@/services/casualPayrollCalculationService');
+    
+    const payrollResult = await calculateCasualEmployeePayroll(
       employeeProfile,
+      effectivePeriod,
       employee.hoursWorked || 0,
       employee.daysWorked || 0,
-      approvedClaims,
-      slotBookingPay
+      employee.claims || 0
     );
-    
-    
 
     const newEmployee: CasualEmployee = {
       ...employee,
       id,
-      totalPay: calculation.netSalary,
-      employeeCPF: calculation.employeeCPF,
-      employerCPF: calculation.employerCPF,
-      grossPay: calculation.grossSalary,
-      // Map additional properties for PayrollEmployee compatibility
-      baseSalary: calculation.baseSalary,
+      totalPay: payrollResult.totalPay,
+      employeeCPF: payrollResult.employeeCPF,
+      employerCPF: payrollResult.employerCPF,
+      grossPay: payrollResult.grossPay,
+      baseSalary: payrollResult.baseSalary,
       paymentType: employeeProfile.paymentType,
       allowances: employeeProfile.allowances || [],
       deductions: employeeProfile.deductions || [],
-      cpfEmployee: calculation.employeeCPF,
-      cpfEmployer: calculation.employerCPF,
-      netPay: calculation.netSalary,
-      cpf: calculation.totalCPF,
-      total: calculation.netSalary,
-      slotBookingPay,
-      slotBookingMetadata
+      cpfEmployee: payrollResult.employeeCPF,
+      cpfEmployer: payrollResult.employerCPF,
+      netPay: payrollResult.totalPay,
+      cpf: payrollResult.employeeCPF + payrollResult.employerCPF,
+      total: payrollResult.totalPay,
+      slotBookingPay: payrollResult.slotBookingPay,
+      slotBookingMetadata: {
+        totalSlots: payrollResult.slotCount,
+        hasBookings: payrollResult.slotCount > 0,
+        breakdown: payrollResult.breakdown
+      }
     } as CasualEmployee;
 
-    console.log('[PayrollContext] ✓ Created casual employee:', {
+    console.log('✅ [addCasualEmployee] Created employee with:', {
       name: employee.name,
-      baseSalary: calculation.baseSalary,
-      slotBookingPay,
-      slotBookingMetadata,
-      warnings: calculation.warnings,
-      netSalary: calculation.netSalary
+      method: payrollResult.calculationMethod,
+      slotBookingPay: payrollResult.slotBookingPay,
+      slotCount: payrollResult.slotCount,
+      totalPay: payrollResult.totalPay
     });
 
     setPayrollState(prevState => ({
