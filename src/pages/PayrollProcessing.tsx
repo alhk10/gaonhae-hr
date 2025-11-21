@@ -103,7 +103,7 @@ const PayrollProcessing = () => {
       try {
         setLoading(true);
         
-        // Load period status and lock info
+        // CRITICAL: For November 2025 onwards, FORCE CLEAR any cached payroll data
         const formatPeriodForAPI = (period: string): string => {
           const [monthName, year] = period.split(' ');
           const monthNames = [
@@ -115,6 +115,25 @@ const PayrollProcessing = () => {
         };
         
         const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+        const [year, month] = formattedPeriod.split('-').map(Number);
+        const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
+        
+        if (isNovember2025OrLater) {
+          console.log('\n╔══════════════════════════════════════════════════════════╗');
+          console.log('║  ⚡ NOVEMBER 2025+ DETECTED - FORCING RECALCULATION    ║');
+          console.log('╠══════════════════════════════════════════════════════════╣');
+          console.log('║  Period:', selectedPeriod.padEnd(44), '║');
+          console.log('║  Action: Clear cached data & recalculate with slots    ║');
+          console.log('╚══════════════════════════════════════════════════════════╝\n');
+          
+          // Clear any existing November 2025 payroll state
+          setCurrentPeriod(selectedPeriod);
+          
+          // Force wait for state to clear
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Load period status and lock info
         const status = await getPayrollStatus(formattedPeriod);
         setPeriodStatus(status);
         setIsPeriodLocked(status?.status === 'finalized' || false);
@@ -709,6 +728,55 @@ const PayrollProcessing = () => {
               <span>Casual Employees - {selectedPeriod}</span>
             </CardTitle>
             <CardDescription className="text-purple-700">Review and edit rates, work periods, allowances, and claims for casual staff</CardDescription>
+            
+            {/* November 2025+ Warning Banner */}
+            {(() => {
+              const [monthName, year] = selectedPeriod.split(' ');
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+              const monthIndex = monthNames.indexOf(monthName);
+              const yearNum = parseInt(year);
+              const isNovember2025OrLater = (yearNum > 2025) || (yearNum === 2025 && monthIndex >= 10);
+              
+              if (isNovember2025OrLater) {
+                return (
+                  <div className="mt-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-lg font-bold">⚡</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-amber-900 text-sm mb-1">
+                          Dynamic Pricing Active for {selectedPeriod}
+                        </h4>
+                        <p className="text-xs text-amber-800 mb-3">
+                          Casual employee pay is calculated using slot bookings + attendance + dynamic pricing (base rates, qualifications, years of service bonuses). If you see "Legacy Rates", click the button below to force recalculation.
+                        </p>
+                        <Button
+                          onClick={async () => {
+                            toast.info('Clearing cached data and forcing recalculation...');
+                            setCurrentPeriod('');
+                            await new Promise(r => setTimeout(r, 100));
+                            setCurrentPeriod(selectedPeriod);
+                            await refreshAvailableEmployees();
+                            await new Promise(r => setTimeout(r, 200));
+                            const employees = await getEmployeesForPayroll();
+                            const employeeIds = employees.map(emp => emp.id);
+                            const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
+                            await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod);
+                            toast.success('Recalculation complete! Check console for detailed logs.');
+                          }}
+                          size="sm"
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          🔄 Force Recalculate with Dynamic Pricing
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </CardHeader>
           <CardContent className="p-0">
             {casualEmployees.length > 0 ? (
