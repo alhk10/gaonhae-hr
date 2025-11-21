@@ -259,15 +259,19 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const id = uuidv4();
     const effectivePeriod = periodOverride || payrollState.currentPeriod;
     
-    console.log('═══════════════════════════════════════════════════');
-    console.log('🚀 [addCasualEmployee] START CALCULATION');
-    console.log('Employee:', employee.name, '(', employee.employeeId, ')');
-    console.log('Period:', effectivePeriod);
-    console.log('═══════════════════════════════════════════════════');
+    console.log('\n╔════════════════════════════════════════════════════════════════╗');
+    console.log('║  🚀 CASUAL EMPLOYEE PAYROLL - CALCULATION START               ║');
+    console.log('╠════════════════════════════════════════════════════════════════╣');
+    console.log('║  Employee:', employee.name.padEnd(46), '║');
+    console.log('║  ID:', employee.employeeId.padEnd(53), '║');
+    console.log('║  Period:', effectivePeriod.padEnd(49), '║');
+    console.log('║  Hours:', String(employee.hoursWorked || 0).padEnd(51), '║');
+    console.log('║  Days:', String(employee.daysWorked || 0).padEnd(52), '║');
+    console.log('╚════════════════════════════════════════════════════════════════╝\n');
     
     if (!effectivePeriod) {
-      console.error('❌ [addCasualEmployee] NO PERIOD PROVIDED');
-      return;
+      console.error('❌ [addCasualEmployee] NO PERIOD PROVIDED - ABORTING');
+      throw new Error('No period provided for payroll calculation');
     }
     
     // Find the employee profile from available employees for complete data
@@ -275,6 +279,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // If not found in available employees, fetch directly from database
     if (!employeeProfile) {
+      console.log('  📡 Employee not in cache, fetching from database...');
       try {
         const { data: empData, error } = await supabase
           .from('employees')
@@ -282,7 +287,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .eq('id', employee.employeeId)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('  ❌ Database error:', error);
+          throw error;
+        }
 
         if (empData) {
           const allowances: EmployeeAllowance[] = (empData.allowances || []).map((allowance: any) => ({
@@ -344,19 +352,25 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
               slotBookingEmployee: true
             }
           };
+          console.log('  ✅ Employee fetched successfully');
         }
       } catch (error) {
-        console.error('❌ [addCasualEmployee] Error fetching employee profile:', error);
+        console.error('  ❌ Fatal error fetching employee profile:', error);
+        throw new Error(`Failed to fetch employee profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     
     if (!employeeProfile) {
-      console.error('❌ [addCasualEmployee] Employee profile not found:', employee.employeeId);
-      return;
+      const errMsg = `Employee profile not found for ID: ${employee.employeeId}`;
+      console.error('  ❌', errMsg);
+      throw new Error(errMsg);
     }
 
+    console.log('  ✓ Employee profile loaded');
+    console.log('  ✓ Calling calculateCasualEmployeePayroll service...\n');
+
     try {
-      // Use the simplified calculation service
+      // CRITICAL: Use the new calculation service for ALL periods
       const payrollResult = await calculateCasualEmployeePayroll(
         employeeProfile,
         effectivePeriod,
@@ -365,15 +379,25 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         employee.claims || 0
       );
 
-      console.log('✅ [addCasualEmployee] Calculation complete:', {
-        name: employee.name,
-        calculationMethod: payrollResult.calculationMethod,
-        slotBookingPay: payrollResult.slotBookingPay,
-        slotCount: payrollResult.slotCount,
-        totalPay: payrollResult.totalPay,
-        warnings: payrollResult.warnings,
-        errors: payrollResult.errors
-      });
+      console.log('\n╔════════════════════════════════════════════════════════════════╗');
+      console.log('║  ✅ CALCULATION COMPLETE                                      ║');
+      console.log('╠════════════════════════════════════════════════════════════════╣');
+      console.log('║  Method:', payrollResult.calculationMethod.padEnd(48), '║');
+      console.log('║  Base Salary:', `$${payrollResult.baseSalary.toFixed(2)}`.padEnd(45), '║');
+      console.log('║  Slot Pay:', `$${payrollResult.slotBookingPay.toFixed(2)}`.padEnd(48), '║');
+      console.log('║  Slot Count:', String(payrollResult.slotCount).padEnd(47), '║');
+      console.log('║  Gross Pay:', `$${payrollResult.grossPay.toFixed(2)}`.padEnd(47), '║');
+      console.log('║  Employee CPF:', `$${payrollResult.employeeCPF.toFixed(2)}`.padEnd(44), '║');
+      console.log('║  Net Pay:', `$${payrollResult.totalPay.toFixed(2)}`.padEnd(49), '║');
+      if (payrollResult.warnings && payrollResult.warnings.length > 0) {
+        console.log('║  ⚠️  Warnings:', payrollResult.warnings.length.toString().padEnd(44), '║');
+        payrollResult.warnings.forEach(w => console.log('║    -', w.padEnd(55), '║'));
+      }
+      if (payrollResult.errors && payrollResult.errors.length > 0) {
+        console.log('║  ❌ Errors:', payrollResult.errors.length.toString().padEnd(46), '║');
+        payrollResult.errors.forEach(e => console.log('║    -', e.padEnd(55), '║'));
+      }
+      console.log('╚════════════════════════════════════════════════════════════════╝\n');
 
       const newEmployee: CasualEmployee = {
         ...employee,
@@ -401,15 +425,27 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         warnings: payrollResult.warnings
       } as CasualEmployee;
 
+      console.log('  ✅ Employee object created with metadata:');
+      console.log('     - calculationMethod:', newEmployee.slotBookingMetadata?.calculationMethod);
+      console.log('     - totalSlots:', newEmployee.slotBookingMetadata?.totalSlots);
+      console.log('     - slotBookingPay:', newEmployee.slotBookingPay);
+      console.log('');
+
       setPayrollState(prevState => ({
         ...prevState,
         casualEmployees: [...prevState.casualEmployees, newEmployee],
         lastUpdated: new Date(),
       }));
-      
-      console.log('✅ [addCasualEmployee] Added to payroll state');
+
+      console.log('  ✅ Employee added to payroll state\n');
     } catch (error) {
-      console.error('❌ [addCasualEmployee] Calculation error:', error);
+      console.error('\n❌ ═══════════════════════════════════════════════════════════');
+      console.error('❌  FATAL ERROR IN CALCULATION');
+      console.error('❌ ═══════════════════════════════════════════════════════════');
+      console.error('Error details:', error);
+      console.error('Employee:', employee.name, employee.employeeId);
+      console.error('Period:', effectivePeriod);
+      console.error('❌ ═══════════════════════════════════════════════════════════\n');
       throw error;
     }
   }, [payrollState.availableEmployees, payrollState.currentPeriod]);
