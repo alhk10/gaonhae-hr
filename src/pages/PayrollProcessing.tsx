@@ -159,6 +159,12 @@ const PayrollProcessing = () => {
           // Force fresh payroll calculation
           
           // CRITICAL: Set period FIRST before adding any employees
+          console.log('\n╔══════════════════════════════════════════════════════╗');
+          console.log('║  [PayrollProcessing] 📝 SETTING UP PAYROLL          ║');
+          console.log('╠══════════════════════════════════════════════════════╣');
+          console.log('║  Period:', selectedPeriod.padEnd(40), '║');
+          console.log('║  Total Employees:', employees.length.toString().padEnd(32), '║');
+          console.log('╚══════════════════════════════════════════════════════╝\n');
           console.log('[PayrollProcessing] 🔧 Setting current period to:', selectedPeriod);
           setCurrentPeriod(selectedPeriod);
           
@@ -169,9 +175,12 @@ const PayrollProcessing = () => {
           await new Promise(resolve => setTimeout(resolve, 200));
           
           // Add all employees to payroll WITH the period passed directly
-          console.log('[PayrollProcessing] 📝 Adding employees to payroll with period:', selectedPeriod);
           const allEmployeeIds = employees.map(emp => emp.id);
+          console.log('\n[PayrollProcessing] 📝 Adding all employees to payroll...');
+          console.log('[PayrollProcessing] Period being passed:', selectedPeriod);
+          console.log('[PayrollProcessing] Number of employees:', allEmployeeIds.length);
           await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData, selectedPeriod);
+          console.log('[PayrollProcessing] ✅ All employees added to payroll\n');
           
           // Wait for payroll state to update before applying workaround
           await new Promise(resolve => setTimeout(resolve, 500));

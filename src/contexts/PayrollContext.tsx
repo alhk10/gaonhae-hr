@@ -155,10 +155,13 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (payrollState.currentPeriod) {
       const loadPayrollData = async () => {
+        console.log(`\n🔄 [PayrollContext useEffect] Period changed to: ${payrollState.currentPeriod}`);
+        console.log(`🔄 [PayrollContext useEffect] Calling loadPayrollFromSupabase...`);
         try {
           await loadPayrollFromSupabase();
+          console.log(`✅ [PayrollContext useEffect] loadPayrollFromSupabase completed for ${payrollState.currentPeriod}`);
         } catch (error) {
-          console.error('Error auto-loading payroll data:', error);
+          console.error('❌ [PayrollContext useEffect] Error auto-loading payroll data:', error);
         }
       };
 
@@ -1216,7 +1219,23 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const currentPeriod = payrollState.currentPeriod;
       const formattedPeriod = formatPeriodForAPI(currentPeriod);
       
-      // First try to get the consolidated period record
+      // CRITICAL: For November 2025 onwards, SKIP loading cached data and force recalculation
+      // This ensures dynamic pricing is applied correctly
+      const [year, month] = formattedPeriod.split('-').map(Number);
+      const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
+      
+      if (isNovember2025OrLater) {
+        console.log(`🔄 [loadPayrollFromSupabase] Skipping cached data for ${currentPeriod} - will force recalculation with dynamic pricing`);
+        setPayrollState(prevState => ({ 
+          ...prevState, 
+          isLoading: false,
+          fullTimeEmployees: [],
+          casualEmployees: []
+        }));
+        return; // Exit early - PayrollProcessing will trigger recalculation
+      }
+      
+      // First try to get the consolidated period record (only for periods before November 2025)
       const { data: periodData, error: periodError } = await supabase
         .from('payroll_records')
         .select('*')
