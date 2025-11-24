@@ -20,7 +20,7 @@ export const CasualEmployeePayBadge = ({ warnings = [], slotCount, slotBookingPa
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger>
-            <Badge variant="default" className="bg-green-100 text-green-700 border-green-300 text-xs flex items-center gap-1 font-semibold">
+            <Badge variant="success" className="text-xs flex items-center gap-1 font-semibold border-green-300">
               <CalendarCheck2 className="w-3 h-3" />
               Dynamic Pricing
             </Badge>
