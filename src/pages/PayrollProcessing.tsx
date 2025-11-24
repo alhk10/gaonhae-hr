@@ -832,21 +832,18 @@ const PayrollProcessing = () => {
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
-                        // Calculate proper CPF and net pay for casual employees
-                        const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
+                        // Use already-calculated values from context (don't recalculate!)
+                        // The calculation was already done correctly by calculateCasualEmployeePayroll
+                        const netPay = employee.netPay || employee.totalPay || 0;
+                        const grossPay = employee.grossPay || 0;
+                        const employeeCPF = employee.cpfEmployee || employee.employeeCPF || 0;
                         
-                        // Use slot booking pay if available (November 2025+), otherwise use attendance-based calculation
-                        const slotBookingPay = employee.slotBookingPay;
-                        const attendanceData = payrollData.attendance?.[employee.id];
-                        const hoursWorked = attendanceData?.totalHours || 0;
-                        const daysWorked = attendanceData?.totalDays || 0;
-                        
-                        console.log(`Payroll Debug - Employee: ${employee.name}, ID: ${employee.id}, Slot Pay: ${slotBookingPay}, Hours: ${hoursWorked}, Days: ${daysWorked}`);
-                        
-                        const casualPayrollCalc = calculateCasualPayroll(employee, hoursWorked, daysWorked, approvedClaims, slotBookingPay);
-                        const netPay = casualPayrollCalc.netSalary;
-                        
-                        console.log(`Payroll Calculation - Gross: ${casualPayrollCalc.grossSalary}, CPF Employee: ${casualPayrollCalc.employeeCPF}, Net: ${netPay}`);
+                        console.log(`Payroll Display - Employee: ${employee.name}`);
+                        console.log(`  - Calculation Method: ${employee.slotBookingMetadata?.calculationMethod || 'unknown'}`);
+                        console.log(`  - Slot Booking Pay: $${employee.slotBookingPay || 0}`);
+                        console.log(`  - Total Slots: ${employee.slotBookingMetadata?.totalSlots || 0}`);
+                        console.log(`  - Gross Pay: $${grossPay}`);
+                        console.log(`  - Net Pay: $${netPay}`);
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
@@ -862,10 +859,10 @@ const PayrollProcessing = () => {
                                   {employee.paymentType}
                                 </Badge>
                                 <CasualEmployeePayBadge 
-                                  warnings={casualPayrollCalc.warnings}
-                                  slotCount={(employee as any).slotBookingMetadata?.totalSlots}
-                                  slotBookingPay={(employee as any).slotBookingPay}
-                                  calculationMethod={(employee as any).slotBookingMetadata?.calculationMethod}
+                                  warnings={employee.warnings || []}
+                                  slotCount={employee.slotBookingMetadata?.totalSlots}
+                                  slotBookingPay={employee.slotBookingPay}
+                                  calculationMethod={employee.slotBookingMetadata?.calculationMethod}
                                 />
                               </div>
                             </TableCell>
@@ -961,8 +958,15 @@ const PayrollProcessing = () => {
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="font-bold text-green-600">
-                                S${netPay.toLocaleString()}
+                              <div className="flex flex-col items-end">
+                                <div className="font-bold text-green-600">
+                                  S${netPay.toLocaleString()}
+                                </div>
+                                {employee.slotBookingMetadata?.calculationMethod === 'dynamic_pricing' && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {employee.slotBookingMetadata.totalSlots} slot{employee.slotBookingMetadata.totalSlots !== 1 ? 's' : ''}
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
