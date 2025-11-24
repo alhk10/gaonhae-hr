@@ -37,7 +37,8 @@ const PayrollProcessing = () => {
     removeCasualEmployee,
     addEmployeesToPayroll,
     setCurrentPeriod,
-    refreshAvailableEmployees
+    refreshAvailableEmployees,
+    removeEmployeeFromPayroll
   } = usePayroll();
 
 
@@ -753,17 +754,46 @@ const PayrollProcessing = () => {
                         </p>
                         <Button
                           onClick={async () => {
-                            toast.info('Clearing cached data and forcing recalculation...');
-                            setCurrentPeriod('');
-                            await new Promise(r => setTimeout(r, 100));
-                            setCurrentPeriod(selectedPeriod);
-                            await refreshAvailableEmployees();
-                            await new Promise(r => setTimeout(r, 200));
-                            const employees = await getEmployeesForPayroll();
-                            const employeeIds = employees.map(emp => emp.id);
-                            const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
-                            await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod);
-                            toast.success('Recalculation complete! Check console for detailed logs.');
+                            try {
+                              toast.info('Clearing cached data and forcing recalculation...');
+                              
+                              // CRITICAL: Remove ALL casual employees first
+                              const currentCasualEmployees = [...payrollState.casualEmployees];
+                              for (const emp of currentCasualEmployees) {
+                                removeCasualEmployee(emp.id);
+                              }
+                              
+                              // Also clear full-time to be safe
+                              const currentFullTimeEmployees = [...payrollState.fullTimeEmployees];
+                              for (const emp of currentFullTimeEmployees) {
+                                removeEmployeeFromPayroll(emp.employeeId);
+                              }
+                              
+                              // Wait for state to clear
+                              await new Promise(r => setTimeout(r, 200));
+                              
+                              // Clear and reset period
+                              setCurrentPeriod('');
+                              await new Promise(r => setTimeout(r, 100));
+                              setCurrentPeriod(selectedPeriod);
+                              
+                              // Refresh employees
+                              await refreshAvailableEmployees();
+                              await new Promise(r => setTimeout(r, 300));
+                              
+                              // Fetch fresh data and re-add ALL employees
+                              const employees = await getEmployeesForPayroll();
+                              const employeeIds = employees.map(emp => emp.id);
+                              const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
+                              
+                              console.log('\n🔄 [Force Recalculate] Re-adding', employeeIds.length, 'employees with period:', selectedPeriod);
+                              await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod);
+                              
+                              toast.success('✅ Recalculation complete! All employees processed with dynamic pricing.');
+                            } catch (error) {
+                              console.error('❌ Force recalculate error:', error);
+                              toast.error('Failed to recalculate. Check console for details.');
+                            }
                           }}
                           size="sm"
                           className="bg-amber-600 hover:bg-amber-700 text-white"
