@@ -108,7 +108,7 @@ export interface PayrollContextType {
   savePayrollToSupabase: () => Promise<void>;
   loadPayrollFromSupabase: () => Promise<void>;
   setPayrollStatus: (status: PayrollState['status']) => void;
-  addEmployeesToPayroll: (employeeIds: string[], claimsData?: any, period?: string) => Promise<void>;
+  addEmployeesToPayroll: (employeeIds: string[], claimsData?: any, period?: string, employeeProfiles?: EmployeeProfile[]) => Promise<void>;
   removeEmployeeFromPayroll: (employeeId: string) => void;
   refreshAvailableEmployees: () => Promise<void>;
   autoAddCasualEmployeesWithAttendance: () => Promise<{ addedCount: number; employees: any[] }>;
@@ -781,7 +781,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any, period?: string) => {
+  const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any, period?: string, employeeProfiles?: EmployeeProfile[]) => {
     const effectivePeriod = period || payrollState.currentPeriod;
     
     console.log('\n╔════════════════════════════════════════════════════════════╗');
@@ -789,18 +789,26 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     console.log('╠════════════════════════════════════════════════════════════╣');
     console.log('║  Period:', effectivePeriod.padEnd(48), '║');
     console.log('║  Employee IDs:', employeeIds.length.toString().padEnd(42), '║');
+    console.log('║  Profiles passed:', (employeeProfiles?.length || 0).toString().padEnd(41), '║');
     console.log('║  Available in Context:', payrollState.availableEmployees.length.toString().padEnd(32), '║');
     console.log('╚════════════════════════════════════════════════════════════╝\n');
     
-    const employeesToAdd = payrollState.availableEmployees.filter(emp => 
-      employeeIds.includes(emp.id)
-    );
+    // Use passed employee profiles OR fall back to context (with direct fetch as last resort)
+    let employeesToAdd = employeeProfiles?.filter(emp => employeeIds.includes(emp.id)) || [];
+    
+    if (employeesToAdd.length === 0) {
+      console.log('  ⚠ No profiles passed, checking context...');
+      employeesToAdd = payrollState.availableEmployees.filter(emp => 
+        employeeIds.includes(emp.id)
+      );
+    }
     
     console.log(`  ✓ Filtered ${employeesToAdd.length} employees to add`);
     console.log(`  ✓ Casual employees: ${employeesToAdd.filter(e => e.type === 'Casual').length}`);
     console.log(`  ✓ Full-Time employees: ${employeesToAdd.filter(e => e.type === 'Full-Time').length}\n`);
     if (employeesToAdd.length === 0) {
       console.error('❌ NO EMPLOYEES TO ADD!');
+      console.error('   Profiles passed:', employeeProfiles?.length || 0);
       console.error('   Available employees:', payrollState.availableEmployees.length);
       console.error('   Requested IDs:', employeeIds.length);
       return;

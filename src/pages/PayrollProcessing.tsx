@@ -194,12 +194,57 @@ const PayrollProcessing = () => {
           // Wait for the context state to fully update
           await new Promise(resolve => setTimeout(resolve, 200));
           
-          // Add all employees to payroll WITH the period passed directly
+          // Convert employees to EmployeeProfile format and add to payroll
           const allEmployeeIds = employees.map(emp => emp.id);
+          const employeeProfiles = employees.map((emp: any) => ({
+            id: emp.id,
+            name: emp.name,
+            nric: emp.nric || '',
+            dateOfBirth: emp.date_of_birth || '',
+            residencyStatus: emp.residency_status || '',
+            type: emp.type as 'Full-Time' | 'Casual',
+            baseSalary: emp.base_salary || undefined,
+            hourlyRate: emp.hourly_rate || undefined,
+            dailyRate: emp.daily_rate || undefined,
+            dailyWeekdayRate: emp.daily_weekday_rate || undefined,
+            dailyWeekendRate: emp.daily_weekend_rate || undefined,
+            paymentType: (emp.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
+            bankName: emp.bank_name || '',
+            bankAccount: emp.bank_account || '',
+            branch: '',
+            position: emp.position || '',
+            phone: emp.phone || '',
+            address: emp.address || '',
+            email: emp.email,
+            joinDate: emp.join_date,
+            qualifications: emp.qualifications || {},
+            allowances: [],
+            deductions: [],
+            certificates: [],
+            adminAccess: {
+              employees: false,
+              payroll: false,
+              leaveManagement: false,
+              claims: false,
+              attendance: false,
+              slotBooking: false,
+              reports: false
+            },
+            pageAccess: {
+              profile: true,
+              applyLeave: true,
+              submitClaim: true,
+              payslips: true,
+              myAttendance: true,
+              slotBookingEmployee: true
+            }
+          }));
+          
           console.log('\n[PayrollProcessing] 📝 Adding all employees to payroll...');
           console.log('[PayrollProcessing] Period being passed:', selectedPeriod);
           console.log('[PayrollProcessing] Number of employees:', allEmployeeIds.length);
-          await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData, selectedPeriod);
+          console.log('[PayrollProcessing] Employee profiles prepared:', employeeProfiles.length);
+          await addEmployeesToPayroll(allEmployeeIds, optimizedPayrollData, selectedPeriod, employeeProfiles);
           console.log('[PayrollProcessing] ✅ All employees added to payroll\n');
           
           // Wait for payroll state to update before applying workaround
@@ -210,7 +255,9 @@ const PayrollProcessing = () => {
             const currentEmployeesInPayroll = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees];
             
             if (shouldApplyWorkaround(currentEmployeesInPayroll)) {
-              const attendanceWorkaround = await getAttendanceDataForMissingEmployees(selectedPeriod);
+              // Convert "November 2025" to "2025-11" format for the workaround
+              const formattedPeriodForWorkaround = formatPeriodForAPI(selectedPeriod);
+              const attendanceWorkaround = await getAttendanceDataForMissingEmployees(formattedPeriodForWorkaround);
               
               // Add missing employees
               for (const missingEmp of MISSING_EMPLOYEES_WORKAROUND) {
