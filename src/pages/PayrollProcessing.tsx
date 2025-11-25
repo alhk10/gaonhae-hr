@@ -740,66 +740,18 @@ const PayrollProcessing = () => {
               
               if (isNovember2025OrLater) {
                 return (
-                  <div className="mt-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                      <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
                         <span className="text-white text-lg font-bold">⚡</span>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-amber-900 text-sm mb-1">
+                        <h4 className="font-bold text-blue-900 text-sm mb-1">
                           Dynamic Pricing Active for {selectedPeriod}
                         </h4>
-                        <p className="text-xs text-amber-800 mb-3">
-                          Casual employee pay is calculated using slot bookings + attendance + dynamic pricing (base rates, qualifications, years of service bonuses). If you see "Legacy Rates", click the button below to force recalculation.
+                        <p className="text-xs text-blue-800">
+                          Casual employee pay is calculated using slot bookings + attendance + dynamic pricing (base rates, Dan levels, coaching/referee certifications, years of service bonuses).
                         </p>
-                        <Button
-                          onClick={async () => {
-                            try {
-                              toast.info('Clearing cached data and forcing recalculation...');
-                              
-                              // CRITICAL: Remove ALL casual employees first
-                              const currentCasualEmployees = [...payrollState.casualEmployees];
-                              for (const emp of currentCasualEmployees) {
-                                removeCasualEmployee(emp.id);
-                              }
-                              
-                              // Also clear full-time to be safe
-                              const currentFullTimeEmployees = [...payrollState.fullTimeEmployees];
-                              for (const emp of currentFullTimeEmployees) {
-                                removeEmployeeFromPayroll(emp.employeeId);
-                              }
-                              
-                              // Wait for state to clear
-                              await new Promise(r => setTimeout(r, 200));
-                              
-                              // Clear and reset period
-                              setCurrentPeriod('');
-                              await new Promise(r => setTimeout(r, 100));
-                              setCurrentPeriod(selectedPeriod);
-                              
-                              // Refresh employees
-                              await refreshAvailableEmployees();
-                              await new Promise(r => setTimeout(r, 300));
-                              
-                              // Fetch fresh data and re-add ALL employees
-                              const employees = await getEmployeesForPayroll();
-                              const employeeIds = employees.map(emp => emp.id);
-                              const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
-                              
-                              console.log('\n🔄 [Force Recalculate] Re-adding', employeeIds.length, 'employees with period:', selectedPeriod);
-                              await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod);
-                              
-                              toast.success('✅ Recalculation complete! All employees processed with dynamic pricing.');
-                            } catch (error) {
-                              console.error('❌ Force recalculate error:', error);
-                              toast.error('Failed to recalculate. Check console for details.');
-                            }
-                          }}
-                          size="sm"
-                          className="bg-amber-600 hover:bg-amber-700 text-white"
-                        >
-                          🔄 Force Recalculate with Dynamic Pricing
-                        </Button>
                       </div>
                     </div>
                   </div>
