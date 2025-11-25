@@ -783,29 +783,26 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addEmployeesToPayroll = useCallback(async (employeeIds: string[], claimsData?: any, period?: string) => {
     const effectivePeriod = period || payrollState.currentPeriod;
-    console.log('DEBUG: addEmployeesToPayroll called with', employeeIds.length, 'employee IDs, period:', effectivePeriod);
-    console.log('DEBUG: Employee IDs to add:', employeeIds);
-    console.log('DEBUG: Available employees in payroll state:', payrollState.availableEmployees.map(emp => ({ id: emp.id, name: emp.name })));
-    console.log('DEBUG: Looking for Wang Pot Chien (EMP1752646101747) and Siti Aisyah (EMP1752551410290)');
+    
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║  🚀 ADD EMPLOYEES TO PAYROLL - START                      ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log('║  Period:', effectivePeriod.padEnd(48), '║');
+    console.log('║  Employee IDs:', employeeIds.length.toString().padEnd(42), '║');
+    console.log('║  Available in Context:', payrollState.availableEmployees.length.toString().padEnd(32), '║');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
     
     const employeesToAdd = payrollState.availableEmployees.filter(emp => 
       employeeIds.includes(emp.id)
     );
     
-    console.log('DEBUG: Filtered employees to add:', employeesToAdd.map(emp => ({ id: emp.id, name: emp.name, type: emp.type })));
-    
-    // Check specifically for our missing employees
-    const wangInAvailable = payrollState.availableEmployees.find(emp => emp.id === 'EMP1752646101747');
-    const sitiInAvailable = payrollState.availableEmployees.find(emp => emp.id === 'EMP1752551410290');
-    const wangInFiltered = employeesToAdd.find(emp => emp.id === 'EMP1752646101747');
-    const sitiInFiltered = employeesToAdd.find(emp => emp.id === 'EMP1752551410290');
-    console.log('DEBUG: Wang Pot Chien in available employees:', wangInAvailable);
-    console.log('DEBUG: Siti Aisyah in available employees:', sitiInAvailable);
-    console.log('DEBUG: Wang Pot Chien in filtered list:', wangInFiltered);
-    console.log('DEBUG: Siti Aisyah in filtered list:', sitiInFiltered);
-
+    console.log(`  ✓ Filtered ${employeesToAdd.length} employees to add`);
+    console.log(`  ✓ Casual employees: ${employeesToAdd.filter(e => e.type === 'Casual').length}`);
+    console.log(`  ✓ Full-Time employees: ${employeesToAdd.filter(e => e.type === 'Full-Time').length}\n`);
     if (employeesToAdd.length === 0) {
-      console.log('DEBUG: No employees to add - either availableEmployees is empty or none match the provided IDs');
+      console.error('❌ NO EMPLOYEES TO ADD!');
+      console.error('   Available employees:', payrollState.availableEmployees.length);
+      console.error('   Requested IDs:', employeeIds.length);
       return;
     }
 
@@ -822,19 +819,14 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     for (const employee of employeesToAdd) {
-      console.log(`DEBUG: Processing employee ${employee.name} (${employee.id}) - Type: ${employee.type}`);
-      
-      // Special logging for missing employees
-      if (employee.name.toLowerCase().includes('wang') || employee.name.toLowerCase().includes('siti')) {
-        console.log(`DEBUG: FOUND MISSING EMPLOYEE - ${employee.name} with ID ${employee.id}, Type: ${employee.type}, Residency: ${employee.residencyStatus}`);
-      }
+      console.log(`\n  → Processing: ${employee.name} (${employee.type})`);
       
       // Check for duplicates before adding
       const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
       const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
       
       if (existsInFullTime || existsInCasual) {
-        console.log(`DEBUG: Employee ${employee.name} already exists in payroll, skipping...`);
+        console.log(`    ⊗ Already in payroll, skipping...`);
         continue;
       }
 
@@ -842,15 +834,15 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const employeeClaims = payrollOptimizedData?.claims?.[employee.id] || claimsData?.claims?.[employee.id] || [];
       const totalClaims = employeeClaims.reduce((sum: number, claim: any) => sum + (claim.amount || 0), 0);
       
-      console.log(`DEBUG: Adding ${employee.name} with ${employeeClaims.length} claims totaling ${totalClaims}`);
+      console.log(`    ✓ Claims: ${totalClaims} (${employeeClaims.length} items)`);
 
       if (employee.type === 'Full-Time') {
-        console.log(`DEBUG: Adding ${employee.name} as Full-Time employee`);
+        console.log(`    ✓ Adding as Full-Time...`);
         addFullTimeEmployee({
           employeeId: employee.id,
           name: employee.name,
           baseSalary: employee.baseSalary || 0,
-          allowances: 0, // This will be overridden by the calculation
+          allowances: 0,
           cpfContribution: 20,
           claims: totalClaims
         });
@@ -860,30 +852,29 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const hoursWorked = attendanceData?.totalHours || 0;
         const daysWorked = attendanceData?.totalDays || 0;
         
-        console.log(`DEBUG: Adding ${employee.name} as Casual employee with ${hoursWorked} hours, ${daysWorked} days`);
+        console.log(`    ✓ Adding as Casual with ${hoursWorked}h / ${daysWorked}d...`);
+        console.log(`    ✓ Calling addCasualEmployee with period: ${effectivePeriod}`);
         
-        // Special check for Wang Pot Chien and Siti Aisyah
-        if (employee.name.toLowerCase().includes('wang') || employee.name.toLowerCase().includes('siti')) {
-          console.log(`DEBUG: *** PROCESSING MISSING EMPLOYEE: ${employee.name} ***`);
-          console.log(`Hours Worked: ${hoursWorked}, Days Worked: ${daysWorked}`);
-          console.log(`Payment Type: ${employee.paymentType}, Hourly Rate: ${employee.hourlyRate}, Base Salary: ${employee.baseSalary}`);
-          console.log(`Attendance Data:`, attendanceData);
-          console.log(`Employee ID: ${employee.id}`);
+        try {
+          await addCasualEmployee({
+            employeeId: employee.id,
+            name: employee.name,
+            hourlyRate: employee.hourlyRate || 0,
+            hoursWorked: hoursWorked,
+            daysWorked: daysWorked,
+            paymentType: employee.paymentType,
+            dailyRate: employee.dailyRate,
+            baseSalary: employee.baseSalary,
+            claims: totalClaims
+          }, effectivePeriod);
+          console.log(`    ✅ ${employee.name} added successfully`);
+        } catch (error) {
+          console.error(`    ❌ Failed to add ${employee.name}:`, error);
         }
-        
-        await addCasualEmployee({
-          employeeId: employee.id,
-          name: employee.name,
-          hourlyRate: employee.hourlyRate || 0,
-          hoursWorked: hoursWorked,
-          daysWorked: daysWorked,
-          paymentType: employee.paymentType,
-          dailyRate: employee.dailyRate,
-          baseSalary: employee.baseSalary,
-          claims: totalClaims
-        }, effectivePeriod);
       }
     }
+    
+    console.log('\n✅ ADD EMPLOYEES TO PAYROLL - COMPLETE\n');
   }, [payrollState.availableEmployees, payrollState.fullTimeEmployees, payrollState.casualEmployees, payrollState.currentPeriod, addFullTimeEmployee, addCasualEmployee]);
 
   const removeEmployeeFromPayroll = useCallback((employeeId: string) => {
