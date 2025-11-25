@@ -543,19 +543,42 @@ const PayrollProcessing = () => {
   }
 
   const renderProcessingStep = () => {
-    // CRITICAL FIX: Merge employee data with calculated payroll data
+    // CRITICAL FIX: Merge employee data with calculated payroll data safely
     const fullTimeEmployeeData = allEmployees
       .filter(emp => emp.type === 'Full-Time')
       .map(emp => {
         const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
-        return payrollData ? { ...emp, ...payrollData } : emp;
+        // Only merge specific calculated fields, don't overwrite arrays
+        if (payrollData) {
+          return {
+            ...emp,
+            netPay: payrollData.netPay,
+            grossPay: payrollData.grossPay,
+            cpfEmployee: payrollData.cpfEmployee,
+            cpfEmployer: payrollData.cpfEmployer,
+          };
+        }
+        return emp;
       });
     
     const casualEmployeeData = allEmployees
       .filter(emp => emp.type === 'Casual')
       .map(emp => {
         const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
-        return payrollData ? { ...emp, ...payrollData } : emp;
+        // Only merge specific calculated fields, preserve employee structure
+        if (payrollData) {
+          return {
+            ...emp,
+            netPay: payrollData.netPay,
+            grossPay: payrollData.grossPay,
+            cpfEmployee: payrollData.cpfEmployee,
+            cpfEmployer: payrollData.cpfEmployer,
+            slotBookingPay: payrollData.slotBookingPay,
+            slotBookingMetadata: payrollData.slotBookingMetadata,
+            warnings: payrollData.warnings,
+          };
+        }
+        return emp;
       });
     
     const fullTimeEmployees = fullTimeEmployeeData;
