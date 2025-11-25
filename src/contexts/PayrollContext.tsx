@@ -154,6 +154,26 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Auto-load payroll data when period changes
   useEffect(() => {
     if (payrollState.currentPeriod) {
+      // Check if this is November 2025 or later - skip auto-load for dynamic pricing periods
+      const formatPeriodForCheck = (period: string): string => {
+        if (period.includes('-')) return period;
+        const [monthName, year] = period.split(' ');
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthIndex = monthNames.indexOf(monthName);
+        if (monthIndex === -1) return period;
+        return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+      };
+      
+      const formattedPeriod = formatPeriodForCheck(payrollState.currentPeriod);
+      const [year, month] = formattedPeriod.split('-').map(Number);
+      const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
+      
+      if (isNovember2025OrLater) {
+        console.log(`\n🔄 [PayrollContext useEffect] November 2025+ detected (${payrollState.currentPeriod}) - SKIPPING auto-load`);
+        console.log(`   PayrollProcessing will handle manual recalculation with dynamic pricing\n`);
+        return; // Skip auto-load for November 2025+ - PayrollProcessing handles this manually
+      }
+      
       const loadPayrollData = async () => {
         console.log(`\n🔄 [PayrollContext useEffect] Period changed to: ${payrollState.currentPeriod}`);
         console.log(`🔄 [PayrollContext useEffect] Calling loadPayrollFromSupabase...`);
