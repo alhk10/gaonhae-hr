@@ -543,12 +543,26 @@ const PayrollProcessing = () => {
   }
 
   const renderProcessingStep = () => {
-    const fullTimeEmployees = allEmployees.filter(emp => emp.type === 'Full-Time');
-    const casualEmployees = allEmployees.filter(emp => emp.type === 'Casual');
+    // CRITICAL FIX: Merge employee data with calculated payroll data
+    const fullTimeEmployeeData = allEmployees
+      .filter(emp => emp.type === 'Full-Time')
+      .map(emp => {
+        const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
+        return payrollData ? { ...emp, ...payrollData } : emp;
+      });
     
-    console.log('DEBUG PayrollProcessing: All employees:', allEmployees);
-    console.log('DEBUG PayrollProcessing: Full-time employees:', fullTimeEmployees);
-    console.log('DEBUG PayrollProcessing: Casual employees:', casualEmployees);
+    const casualEmployeeData = allEmployees
+      .filter(emp => emp.type === 'Casual')
+      .map(emp => {
+        const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
+        return payrollData ? { ...emp, ...payrollData } : emp;
+      });
+    
+    const fullTimeEmployees = fullTimeEmployeeData;
+    const casualEmployees = casualEmployeeData;
+    
+    console.log('DEBUG PayrollProcessing: Full-time employees with payroll:', fullTimeEmployees.length);
+    console.log('DEBUG PayrollProcessing: Casual employees with payroll:', casualEmployees.length);
     console.log('DEBUG PayrollProcessing: Payroll data:', payrollData);
     
     return (

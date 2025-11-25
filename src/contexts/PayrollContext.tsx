@@ -58,6 +58,7 @@ export interface CasualEmployee {
   paymentType?: string;
   dailyRate?: number;
   dailyWeekdayRate?: number;
+  dailyWeekendRate?: number;
   baseSalary?: number;
   // Additional properties for PayrollEmployee compatibility
   allowances?: any[];
