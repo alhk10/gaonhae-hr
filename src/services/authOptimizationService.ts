@@ -84,12 +84,35 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
       }
     };
     
-    // Check if we have an emergency fallback for this user
+    // Check if we have an emergency fallback - return it immediately if database is slow
     if (emergencyFallbacks[email]) {
       console.log('[AuthOptimization] 🆘 Using emergency fallback for:', email);
+      // Try database but with very short timeout (2s)
+      const quickCheck = supabase
+        .from('employees')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+        
+      const quickTimeout = new Promise<{ data: null, error: null }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: null }), 2000)
+      );
+      
+      const quickResult = await Promise.race([quickCheck, quickTimeout]);
+      
+      // If we got real data quickly, use it
+      if (quickResult.data && !quickResult.error) {
+        console.log('[AuthOptimization] ✓ Got employee data quickly');
+        const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
+        return { ...quickResult.data, isSuperadmin };
+      }
+      
+      // Otherwise return emergency fallback immediately
+      console.log('[AuthOptimization] ⚡ Returning emergency fallback immediately');
+      return emergencyFallbacks[email];
     }
     
-    // Extended timeout for database queries (10 seconds instead of 3)
+    // Standard timeout for database queries (3 seconds)
     const employeeDataPromise = supabase
       .from('employees')
       .select('*')
@@ -98,20 +121,15 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        console.log('[AuthOptimization] ⚠️ Database timeout, using emergency fallback for:', email);
-        reject(new Error('Employee query timeout after 10 seconds'));
-      }, 10000)
+        console.log('[AuthOptimization] ⚠️ Database timeout after 3 seconds');
+        reject(new Error('Employee query timeout after 3 seconds'));
+      }, 3000)
     );
 
     let result;
     try {
       result = await Promise.race([employeeDataPromise, timeoutPromise]);
     } catch (timeoutError) {
-      // If timeout and we have emergency fallback, use it
-      if (emergencyFallbacks[email]) {
-        console.log('[AuthOptimization] 🆘 Database timeout - using emergency fallback for:', email);
-        return emergencyFallbacks[email];
-      }
       throw timeoutError;
     }
 
@@ -212,7 +230,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
       }
     };
     
-    // Extended timeout for admin access queries (10 seconds instead of 3)
+    // Standard timeout for admin access queries (3 seconds)
     const adminAccessPromise = supabase
       .from('admin_access')
       .select('*')
@@ -221,9 +239,9 @@ export const getUserAdminAccess = async (employeeId: string) => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        console.log('[AuthOptimization] ⚠️ Admin access timeout, using fallback for:', employeeId);
-        reject(new Error('Admin access query timeout after 10 seconds'));
-      }, 10000)
+        console.log('[AuthOptimization] ⚠️ Admin access timeout after 3 seconds');
+        reject(new Error('Admin access query timeout after 3 seconds'));
+      }, 3000)
     );
 
     let result;
@@ -286,7 +304,7 @@ export const getUserPageAccess = async (employeeId: string) => {
   try {
     console.log('[AuthOptimization] Fetching page access for employee:', employeeId);
     
-    // Page access query with extended timeout
+    // Page access query with standard timeout
     const pageAccessPromise = supabase
       .from('employee_page_access')
       .select('*')
@@ -294,7 +312,7 @@ export const getUserPageAccess = async (employeeId: string) => {
       .maybeSingle();
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Page access query timeout after 5 seconds')), 5000)
+      setTimeout(() => reject(new Error('Page access query timeout after 3 seconds')), 3000)
     );
 
     const { data, error } = await Promise.race([pageAccessPromise, timeoutPromise]);

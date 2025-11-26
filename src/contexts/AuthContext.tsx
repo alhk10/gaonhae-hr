@@ -52,18 +52,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: session.user.email!.split('@')[0],
       });
       
-      // Step 2: Get employee data with timeout (8s)
-      const userDataTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('User data timeout')), 8000)
-      );
-      
+      // Step 2: Get employee data (service has its own timeout handling)
       let userData;
       try {
-        userData = await Promise.race([
-          getUserData(session.user.email!),
-          userDataTimeout
-        ]);
+        userData = await getUserData(session.user.email!);
       } catch (error) {
+        console.warn('⚠️ getUserData failed:', error);
         // Graceful degradation: proceed with basic user info
         userData = null;
       }
@@ -95,14 +89,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Try to get basic employee ID for PageAccessGuard compatibility
         try {
-          // Increased timeout to 10 seconds to ensure employee ID is found
+          // Quick lookup with 2 second timeout
           const lookupPromise = supabase
             .from('employees')
             .select('id, name, type')
             .eq('email', session.user.email!)
             .maybeSingle();
           const lookupTimeout = new Promise<{ data: any }>((resolve) =>
-            setTimeout(() => resolve({ data: null }), 10000)
+            setTimeout(() => resolve({ data: null }), 2000)
           );
           const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
           
