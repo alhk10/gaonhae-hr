@@ -19,6 +19,8 @@ import EditSalaryDialog from '@/components/payroll/EditSalaryDialog';
 import EditAllowancesDialog from '@/components/payroll/EditAllowancesDialog';
 import EditDeductionsDialog from '@/components/payroll/EditDeductionsDialog';
 import { CasualEmployeePayBadge } from '@/components/payroll/CasualEmployeePayBadge';
+import { SlotBreakdownDialog } from '@/components/payroll/SlotBreakdownDialog';
+import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
@@ -94,6 +96,15 @@ const PayrollProcessing = () => {
     employeeName: '',
     deductions: []
   });
+
+  // Slot breakdown dialog state
+  const [slotBreakdownOpen, setSlotBreakdownOpen] = useState(false);
+  const [slotBreakdownData, setSlotBreakdownData] = useState<{
+    employeeName: string;
+    breakdown: Array<{ date: string; branchName: string; pay: number; hasAttendance: boolean }>;
+    totalPay: number;
+    totalSlots: number;
+  } | null>(null);
 
   // Load all employee data with allowances and deductions - OPTIMIZED
   useEffect(() => {
@@ -1011,9 +1022,30 @@ const PayrollProcessing = () => {
                                   S${netPay.toLocaleString()}
                                 </div>
                                 {employee.slotBookingMetadata?.calculationMethod === 'dynamic_pricing' && (
-                                  <span className="text-xs text-muted-foreground">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const slotData = await getSlotBookingPayForPeriod(
+                                          employee.id,
+                                          selectedPeriod,
+                                          employee
+                                        );
+                                        setSlotBreakdownData({
+                                          employeeName: employee.name,
+                                          breakdown: slotData.breakdown,
+                                          totalPay: slotData.totalPay,
+                                          totalSlots: slotData.totalSlots,
+                                        });
+                                        setSlotBreakdownOpen(true);
+                                      } catch (error) {
+                                        console.error('Error fetching slot breakdown:', error);
+                                        toast.error('Failed to load slot breakdown');
+                                      }
+                                    }}
+                                    className="text-xs text-muted-foreground hover:text-primary hover:underline cursor-pointer transition-colors"
+                                  >
                                     {employee.slotBookingMetadata.totalSlots} slot{employee.slotBookingMetadata.totalSlots !== 1 ? 's' : ''}
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                             </TableCell>
@@ -1381,6 +1413,21 @@ const PayrollProcessing = () => {
               deductions={editDeductionsDialog.deductions}
               onSave={handleDeductionsSave}
             />
+
+            {/* Slot Breakdown Dialog */}
+            {slotBreakdownData && (
+              <SlotBreakdownDialog
+                isOpen={slotBreakdownOpen}
+                onClose={() => {
+                  setSlotBreakdownOpen(false);
+                  setSlotBreakdownData(null);
+                }}
+                employeeName={slotBreakdownData.employeeName}
+                breakdown={slotBreakdownData.breakdown}
+                totalPay={slotBreakdownData.totalPay}
+                totalSlots={slotBreakdownData.totalSlots}
+              />
+            )}
           </div>
         </main>
       </div>
