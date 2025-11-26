@@ -30,11 +30,20 @@ const getPricingConfig = async () => {
   
   // Return cached config if still valid
   if (pricingConfigCache && now - pricingConfigCache.lastFetched < CACHE_DURATION) {
+    console.log('[SlotPayCalc] Using cached pricing config:', {
+      weekday: pricingConfigCache.weekdayBaseRate,
+      weekend: pricingConfigCache.weekendBaseRate,
+      cacheAge: ((now - pricingConfigCache.lastFetched) / 1000).toFixed(0) + 's'
+    });
     return pricingConfigCache;
   }
 
+  console.log('[SlotPayCalc] Fetching fresh pricing config from database...');
+  
   try {
     const config = await getActivePricingConfig();
+    
+    console.log('[SlotPayCalc] Raw config from database:', config);
     
     if (config) {
       pricingConfigCache = {
@@ -58,7 +67,12 @@ const getPricingConfig = async () => {
         },
         lastFetched: now,
       };
+      console.log('[SlotPayCalc] ✓ Cached config:', {
+        weekday: pricingConfigCache.weekdayBaseRate,
+        weekend: pricingConfigCache.weekendBaseRate
+      });
     } else {
+      console.warn('[SlotPayCalc] ⚠️ No config found, using fallback defaults');
       // Fallback to default values if no config found
       pricingConfigCache = {
         weekdayBaseRate: 70,
@@ -79,7 +93,7 @@ const getPricingConfig = async () => {
       };
     }
   } catch (error) {
-    console.error('Error fetching pricing config, using defaults:', error);
+    console.error('[SlotPayCalc] ❌ Error fetching pricing config, using defaults:', error);
     // Use default values on error
     pricingConfigCache = {
       weekdayBaseRate: 70,
@@ -165,6 +179,13 @@ export const calculateSlotPay = async (
   // Get pricing configuration
   const config = await getPricingConfig();
 
+  console.log(`[SlotPayCalc] Calculating pay for ${dateString}:`, {
+    isWeekend: isWeekend(dateString),
+    baseRate: isWeekend(dateString) ? config.weekendBaseRate : config.weekdayBaseRate,
+    qualifications: qualifications || 'none',
+    joinDate: joinDate || 'none'
+  });
+
   // Start with base rate
   let totalPay = isWeekend(dateString) ? config.weekendBaseRate : config.weekdayBaseRate;
 
@@ -173,47 +194,79 @@ export const calculateSlotPay = async (
   const serviceBonus = yearsOfService * config.yearsOfServiceBonusPerYear;
   totalPay += serviceBonus;
 
+  console.log(`[SlotPayCalc]   Base: $${isWeekend(dateString) ? config.weekendBaseRate : config.weekdayBaseRate}, Service bonus: $${serviceBonus} (${yearsOfService} years)`);
+
   // If no qualifications, return base rate + service bonus
   if (!qualifications) {
+    console.log(`[SlotPayCalc]   TOTAL: $${totalPay} (no qualifications)`);
     return totalPay;
   }
+
+  let qualBonus = 0;
 
   // Add Dan level bonus (only highest Dan level applies)
   if (qualifications.danFourthAbove) {
     totalPay += config.danBonuses.thirdAndAbove;
+    qualBonus += config.danBonuses.thirdAndAbove;
+    console.log(`[SlotPayCalc]   Dan 4th+: +$${config.danBonuses.thirdAndAbove}`);
   } else if (qualifications.danThird) {
     totalPay += config.danBonuses.thirdAndAbove;
+    qualBonus += config.danBonuses.thirdAndAbove;
+    console.log(`[SlotPayCalc]   Dan 3rd: +$${config.danBonuses.thirdAndAbove}`);
   } else if (qualifications.danSecond) {
     totalPay += config.danBonuses.second;
+    qualBonus += config.danBonuses.second;
+    console.log(`[SlotPayCalc]   Dan 2nd: +$${config.danBonuses.second}`);
   } else if (qualifications.danFirst) {
     totalPay += config.danBonuses.first;
+    qualBonus += config.danBonuses.first;
+    console.log(`[SlotPayCalc]   Dan 1st: +$${config.danBonuses.first}`);
   }
 
   // Add qualification bonuses (all applicable bonuses stack)
   if (qualifications.stfCoachInduction) {
     totalPay += config.qualificationBonuses.stfCoachInduction;
+    qualBonus += config.qualificationBonuses.stfCoachInduction;
+    console.log(`[SlotPayCalc]   Coach Induction: +$${config.qualificationBonuses.stfCoachInduction}`);
   }
   if (qualifications.stfPoomsaeCoachLevel1) {
     totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    console.log(`[SlotPayCalc]   Poomsae Coach L1: +$${config.qualificationBonuses.stfPoomsaeCoachLevel1}`);
   }
   if (qualifications.stfPoomsaeCoachLevel2) {
     totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    console.log(`[SlotPayCalc]   Poomsae Coach L2: +$${config.qualificationBonuses.stfPoomsaeCoachLevel2}`);
   }
   if (qualifications.stfPoomsaeCoachLevel3) {
     totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel3;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel3;
+    console.log(`[SlotPayCalc]   Poomsae Coach L3: +$${config.qualificationBonuses.stfPoomsaeCoachLevel3}`);
   }
   if (qualifications.sgCoachLevel1) {
     totalPay += config.qualificationBonuses.sgCoachLevel1;
+    qualBonus += config.qualificationBonuses.sgCoachLevel1;
+    console.log(`[SlotPayCalc]   SG Coach L1: +$${config.qualificationBonuses.sgCoachLevel1}`);
   }
   if (qualifications.sgCoachLevel2) {
     totalPay += config.qualificationBonuses.sgCoachLevel2;
+    qualBonus += config.qualificationBonuses.sgCoachLevel2;
+    console.log(`[SlotPayCalc]   SG Coach L2: +$${config.qualificationBonuses.sgCoachLevel2}`);
   }
   if (qualifications.stfPoomsaeReferee) {
     totalPay += config.qualificationBonuses.stfPoomsaeReferee;
+    qualBonus += config.qualificationBonuses.stfPoomsaeReferee;
+    console.log(`[SlotPayCalc]   STF Poomsae Referee: +$${config.qualificationBonuses.stfPoomsaeReferee}`);
   }
   if (qualifications.stfKyorugiReferee) {
     totalPay += config.qualificationBonuses.stfKyorugiReferee;
+    qualBonus += config.qualificationBonuses.stfKyorugiReferee;
+    console.log(`[SlotPayCalc]   STF Kyorugi Referee: +$${config.qualificationBonuses.stfKyorugiReferee}`);
   }
+
+  console.log(`[SlotPayCalc]   Qual bonus total: +$${qualBonus}`);
+  console.log(`[SlotPayCalc]   ✅ TOTAL PAY: $${totalPay}`);
 
   return totalPay;
 };
