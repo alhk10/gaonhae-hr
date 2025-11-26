@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface Claim {
   id: number;
@@ -15,7 +15,7 @@ export interface Claim {
 
 export const getClaims = async (): Promise<Claim[]> => {
   try {
-    console.log('Fetching all claims...');
+    logger.debug('Fetching all claims');
     
     const { data: claimsData, error } = await supabase
       .from('claims')
@@ -26,11 +26,9 @@ export const getClaims = async (): Promise<Claim[]> => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching claims:', error);
+      logger.error('Error fetching claims:', error);
       throw error;
     }
-
-    console.log('Raw claims data from database:', claimsData);
 
     const transformedData: Claim[] = (claimsData || []).map((item: any) => ({
       id: item.id,
@@ -44,17 +42,17 @@ export const getClaims = async (): Promise<Claim[]> => {
       receipt_url: item.receipt_url
     }));
 
-    console.log('Transformed claims data:', transformedData);
+    logger.debug(`Fetched ${transformedData.length} claims`);
     return transformedData;
   } catch (error) {
-    console.error('Error in getClaims:', error);
+    logger.error('Error in getClaims:', error);
     throw error;
   }
 };
 
 export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> => {
   try {
-    console.log('Fetching claims for employee:', employeeId);
+    logger.debug('Fetching claims for employee', { employeeId });
     
     const { data: claimsData, error } = await supabase
       .from('claims')
@@ -66,7 +64,7 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching employee claims:', error);
+      logger.error('Error fetching employee claims:', error);
       throw error;
     }
 

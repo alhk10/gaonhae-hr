@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface LeaveRequest {
   id: number;
@@ -18,7 +19,7 @@ export interface LeaveRequest {
 
 export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
   try {
-    console.log('Fetching all leave requests...');
+    logger.debug('Fetching all leave requests');
     
     const { data: leaveData, error } = await supabase
       .from('leave_requests')
@@ -29,11 +30,9 @@ export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching leave requests:', error);
+      logger.error('Error fetching leave requests:', error);
       throw error;
     }
-
-    console.log('Raw leave data from database:', leaveData);
 
     const transformedData: LeaveRequest[] = (leaveData || []).map((item: any) => ({
       id: item.id,
@@ -51,17 +50,17 @@ export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
       medicalCertificate: item.medical_certificate
     }));
 
-    console.log('Transformed leave data:', transformedData);
+    logger.debug(`Fetched ${transformedData.length} leave requests`);
     return transformedData;
   } catch (error) {
-    console.error('Error in getAllLeaveRequests:', error);
+    logger.error('Error in getAllLeaveRequests:', error);
     throw error;
   }
 };
 
 export const addLeaveRequest = async (leave: Omit<LeaveRequest, 'id'>): Promise<void> => {
   try {
-    console.log('Adding new leave request:', leave);
+    logger.debug('Adding new leave request', { employeeId: leave.employeeId, type: leave.type });
 
     const insertData = {
       employee_id: leave.employeeId,
@@ -76,8 +75,6 @@ export const addLeaveRequest = async (leave: Omit<LeaveRequest, 'id'>): Promise<
       reviewed_date: leave.approvedOn ? new Date(leave.approvedOn).toISOString() : null,
       medical_certificate: leave.medicalCertificate
     };
-
-    console.log('Inserting leave data:', insertData);
 
     const { error } = await supabase
       .from('leave_requests')

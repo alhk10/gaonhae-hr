@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } from './attendanceSettingsService';
 import { getAllSlotBookings } from './slotBookingService';
 import { getEmployeeById } from './employeeService';
+import { logger } from '@/utils/logger';
 
 export interface AttendanceRecord {
   id: number;
@@ -25,7 +26,7 @@ export interface ClockInOutRecord {
 }
 
 export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
-  console.log('Fetching attendance records from Supabase...');
+  logger.debug('Fetching attendance records');
   
   const { data: records, error } = await supabase
     .from('attendance')
@@ -36,7 +37,7 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
     .order('date', { ascending: false });
 
   if (error) {
-    console.error('Error fetching attendance records:', error);
+    logger.error('Error fetching attendance records:', error);
     throw error;
   }
 
@@ -56,7 +57,7 @@ export const getAttendanceRecords = async (): Promise<AttendanceRecord[]> => {
 };
 
 export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<AttendanceRecord[]> => {
-  console.log('Fetching attendance records for employee:', employeeId);
+  logger.debug('Fetching attendance records for employee', { employeeId });
   
   const { data: records, error } = await supabase
     .from('attendance')
@@ -68,7 +69,7 @@ export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<
     .order('date', { ascending: false });
 
   if (error) {
-    console.error('Error fetching employee attendance records:', error);
+    logger.error('Error fetching employee attendance records:', error);
     throw error;
   }
 
