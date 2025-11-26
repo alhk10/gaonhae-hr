@@ -1,42 +1,25 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
+import { logger } from '@/utils/logger';
 
 export const getEmployeePayrollDataOptimized = async (employeeIds: string[], period?: string) => {
-  console.log('Fetching optimized payroll data for employees:', employeeIds, 'period:', period);
+  logger.debug('Fetching optimized payroll data', { employeeIds: employeeIds.length, period });
   
   if (employeeIds.length === 0) return {};
 
   try {
-    console.log('DEBUG: getEmployeePayrollDataOptimized called with period:', period);
-    
     // Parse period for attendance queries
     let attendanceFilter: { startDate?: string; endDate?: string } = {};
     if (period) {
-      let year: number, month: number;
+      const { year, month } = parsePeriod(period);
       
-      if (period.includes('-')) {
-        // Format: "2025-07"
-        const [yearStr, monthStr] = period.split('-');
-        year = parseInt(yearStr);
-        month = parseInt(monthStr);
-      } else {
-        // Format: "July 2025"
-        const [monthName, yearStr] = period.split(' ');
-        year = parseInt(yearStr);
-        const monthNames = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        month = monthNames.indexOf(monthName) + 1;
-      }
-
-      console.log('DEBUG: Parsed period - Year:', year, 'Month:', month, 'Original period:', period);
+      logger.debug('Parsed period', { year, month, originalPeriod: period });
 
       if (year && month && month >= 1 && month <= 12) {
-        attendanceFilter.startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-        // Calculate the actual last day of the month to avoid invalid dates
-        const lastDay = new Date(year, month, 0).getDate();
-        attendanceFilter.endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-        console.log('DEBUG: Attendance filter set:', attendanceFilter);
+        const { start, end } = getDateRangeForPeriod(period);
+        attendanceFilter.startDate = start;
+        attendanceFilter.endDate = end;
+        logger.debug('Attendance filter set', attendanceFilter);
       }
     }
 
@@ -105,7 +88,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
     // Process attendance data if available
     const attendanceByEmployee: Record<string, { totalHours: number; totalDays: number }> = {};
     if (attendanceResult?.data) {
-      console.log('DEBUG: Raw attendance data:', attendanceResult.data);
+      logger.debug('Processing attendance data', { recordCount: attendanceResult.data.length });
       attendanceResult.data.forEach((record: any) => {
         if (!attendanceByEmployee[record.employee_id]) {
           attendanceByEmployee[record.employee_id] = { totalHours: 0, totalDays: 0 };
@@ -113,12 +96,9 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         attendanceByEmployee[record.employee_id].totalHours += Number(record.hours_worked) || 0;
         attendanceByEmployee[record.employee_id].totalDays += 1;
       });
-      console.log('DEBUG: Processed attendance by employee:', attendanceByEmployee);
-    } else {
-      console.log('DEBUG: No attendance data found for the period');
     }
 
-    console.log('Fetched optimized payroll data successfully');
+    logger.debug('Payroll data fetch complete');
     
     return {
       allowances: allowancesByEmployee,
@@ -127,7 +107,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
       attendance: attendanceByEmployee
     };
   } catch (error) {
-    console.error('Error fetching optimized payroll data:', error);
+    logger.error('Error fetching optimized payroll data:', error);
     throw error;
   }
 };

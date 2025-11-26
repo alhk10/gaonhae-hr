@@ -6,24 +6,8 @@ import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/ty
 import { calculateCasualPayroll, calculateFullTimePayroll, isSlotBookingPayrollPeriod } from '@/utils/payrollCalculations';
 import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
 import { calculateCasualEmployeePayroll } from '@/services/casualPayrollCalculationService';
-
-// Helper function to format period for API
-const formatPeriodForAPI = (period: string): string => {
-  if (period.includes('-')) {
-    return period; // Already in YYYY-MM format
-  }
-  
-  // Convert "July 2025" to "2025-07"
-  const [monthName, year] = period.split(' ');
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const monthIndex = monthNames.indexOf(monthName);
-  if (monthIndex === -1) return period;
-  
-  return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
-};
+import { formatPeriodForAPI, getCurrentPeriod } from '@/utils/periodUtils';
+import { logger } from '@/utils/logger';
 
 export interface FullTimeEmployee {
   id: string;
