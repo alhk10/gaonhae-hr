@@ -1,9 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
+import { logger } from '@/utils/logger';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching employees (optimized for performance)...');
+  logger.debug('Fetching employees list');
   
   try {
     // Optimized query - fetch essential fields plus admin access for list view
@@ -17,16 +18,16 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       .limit(100);
 
     if (error) {
-      console.error('EmployeeService: Error fetching employees:', error);
+      logger.error('Error fetching employees:', error);
       throw error;
     }
 
     if (!employees || employees.length === 0) {
-      console.log('EmployeeService: No employees found in database');
+      logger.warn('No employees found in database');
       return [];
     }
 
-    console.log('EmployeeService: Optimized employees fetched:', employees.length);
+    logger.debug(`Fetched ${employees.length} employees`);
 
     // Fetch page access data separately for the employee IDs
     const employeeIds = employees.map(emp => emp.id);
@@ -36,7 +37,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       .in('employee_id', employeeIds);
 
     if (pageAccessError) {
-      console.error('EmployeeService: Error fetching page access:', pageAccessError);
+      logger.error('Error fetching page access:', pageAccessError);
     }
 
     // Return minimal data for list view - load details on demand

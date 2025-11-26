@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { getUserData, getUserAdminAccess, getUserPageAccess, checkSuperadminStatus } from '@/services/authOptimizationService';
 import { AuthContextType } from '@/types/auth';
+import { EMERGENCY_FALLBACKS } from '@/config/constants';
+import { logger } from '@/utils/logger';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -30,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   const handleUserSession = async (session: Session | null) => {
-    console.log('🔍 Processing user session for:', session?.user?.email);
+    logger.debug('Processing user session', { email: session?.user?.email });
     
     if (!session?.user) {
       setUser(null);
@@ -43,32 +45,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      console.log('🚀 Starting progressive session setup...');
+      logger.info('Starting session setup');
       
-      // Step 1: Set basic user info immediately to allow faster loading
+      // Step 1: Set basic user info immediately
       setUser({
         id: session.user.id,
         email: session.user.email!,
         name: session.user.email!.split('@')[0],
       });
       
-      // Step 2: Get employee data (service has its own timeout handling)
+      // Step 2: Get employee data
       let userData;
       try {
         userData = await getUserData(session.user.email!);
       } catch (error) {
-        console.warn('⚠️ getUserData failed:', error);
-        // Graceful degradation: proceed with basic user info
+        logger.warn('getUserData failed:', error);
         userData = null;
       }
       
       if (!userData) {
-        // Check if user is a superadmin via database
+        // Check if user is a superadmin
         const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        console.log('Superadmin check result:', { email: session.user.email, isSuperadmin });
+        logger.debug('Superadmin check', { email: session.user.email, isSuperadmin });
         
         if (isSuperadmin) {
-          console.log('User identified as superadmin:', session.user.email);
+          logger.info('User is superadmin', { email: session.user.email });
           
           setUser({
             id: session.user.id,
@@ -101,7 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
           
           if (employeeData) {
-            console.log('✅ Employee ID found for fallback:', employeeData.id);
+            logger.debug('Employee ID found for fallback', { id: employeeData.id });
             setUser({
               id: session.user.id,
               email: session.user.email!,
@@ -115,7 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               email: session.user.email
             });
           } else {
-            console.warn('⚠️ Employee ID lookup timed out');
+            logger.warn('Employee ID lookup timed out');
             setUser({
               id: session.user.id,
               email: session.user.email!,
@@ -123,8 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             });
           }
         } catch (error) {
-          // If even basic lookup fails, proceed without employeeId
-          console.error('❌ Employee ID lookup failed:', error);
+          logger.error('Employee ID lookup failed:', error);
           setUser({
             id: session.user.id,
             email: session.user.email!,
@@ -134,15 +134,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         setUserrole('employee');
         setUserDetails(null);
-        setAdminAccess({});
-        setPageAccess({
-          profile: true,
-          applyLeave: true,
-          submitClaim: true,
-          payslips: true,
-          myAttendance: true,
-          slotBookingEmployee: true
-        });
+        setAdminAccess(EMERGENCY_FALLBACKS.DEFAULT_ADMIN_ACCESS);
+        setPageAccess(EMERGENCY_FALLBACKS.DEFAULT_PAGE_ACCESS);
         setIsLoading(false);
         return;
       }
@@ -153,7 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (userData.isSuperadmin) {
         role = 'superadmin';
-        console.log('👑 User identified as superadmin');
+        logger.info('User identified as superadmin');
         setUser({
           id: session.user.id,
           email: session.user.email!,

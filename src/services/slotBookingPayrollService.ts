@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { calculateSlotPay } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
+import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
+import { logger } from '@/utils/logger';
 
 interface SlotBookingPayData {
   totalSlots: number;
@@ -22,41 +24,12 @@ export const getSlotBookingPayForPeriod = async (
   period: string,
   employee: EmployeeProfile
 ): Promise<SlotBookingPayData> => {
-  console.log('[SlotBookingPayroll] Fetching slot bookings for employee:', employeeId, 'period:', period);
+  logger.debug('Fetching slot bookings', { employeeId, period });
 
-  // Parse period (supports "Month Year" e.g., "November 2025" and "YYYY-MM")
-  let year: number | undefined;
-  let monthIndex: number | undefined;
-  const monthMap: { [key: string]: number } = {
-    January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
-    July: 6, August: 7, September: 8, October: 9, November: 10, December: 11
-  };
-
-  if (period.includes('-')) {
-    // Format: YYYY-MM
-    const [y, m] = period.split('-');
-    year = parseInt(y);
-    monthIndex = parseInt(m) - 1;
-  } else if (period.includes(' ')) {
-    // Format: Month Year
-    const [monthName, yearStr] = period.split(' ');
-    monthIndex = monthMap[monthName as keyof typeof monthMap];
-    year = parseInt(yearStr);
-  }
+  // Parse period and get date range
+  const { start: startDateStr, end: endDateStr } = getDateRangeForPeriod(period);
   
-  if (monthIndex === undefined || isNaN(year as number)) {
-    console.error('[SlotBookingPayroll] Invalid period format:', period);
-    return { totalSlots: 0, totalPay: 0, breakdown: [] };
-  }
-
-  // Calculate start and end dates for the period (avoiding timezone issues)
-  const startDay = 1;
-  const lastDay = new Date((year as number), (monthIndex as number) + 1, 0).getDate();
-  
-  const startDateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
-  const endDateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
-  console.log('[SlotBookingPayroll] Period range:', startDateStr, 'to', endDateStr);
+  logger.debug('Period range', { startDateStr, endDateStr });
 
   try {
     // Fetch approved slot bookings for this employee in this period
@@ -70,24 +43,19 @@ export const getSlotBookingPayForPeriod = async (
       .order('date', { ascending: true });
 
     if (bookingsError) {
-      console.error('[SlotBookingPayroll] Error fetching bookings:', bookingsError);
+      logger.error('Error fetching bookings:', bookingsError);
       throw bookingsError;
     }
 
-    console.log(`[SlotBookingPayroll] Query: employee_id=${employeeId}, dates: ${startDateStr} to ${endDateStr}`);
-
     if (!bookings || bookings.length === 0) {
-      console.warn(`[SlotBookingPayroll] ⚠️ No approved bookings found for ${employee.name} (${employeeId}) in ${period}`);
-      console.log('[SlotBookingPayroll] This employee will use legacy rates calculation');
+      logger.warn(`No approved bookings found for ${employee.name} in ${period}`);
       return { totalSlots: 0, totalPay: 0, breakdown: [] };
     }
 
-    console.log(`[SlotBookingPayroll] ✓ Found ${bookings.length} approved booking(s) for ${employee.name}`);
-    console.log('[SlotBookingPayroll] Booking dates:', bookings.map(b => b.date).join(', '));
+    logger.debug(`Found ${bookings.length} approved booking(s) for ${employee.name}`);
 
     // Fetch attendance records for these dates
     const bookingDates = bookings.map(b => b.date);
-    console.log('[SlotBookingPayroll] Checking attendance for dates:', bookingDates);
     
     const { data: attendanceRecords, error: attendanceError } = await supabase
       .from('attendance')

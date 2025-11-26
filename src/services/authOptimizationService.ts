@@ -1,9 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
-// Get current user employee data with extended timeout and emergency fallbacks
 export const getCurrentUserEmployee = async (email: string): Promise<any> => {
   try {
-    console.log('[AuthOptimization] Fetching employee data for:', email);
+    logger.debug('Fetching employee data', { email });
     
     // Emergency fallbacks for known problematic employees during Supabase connectivity issues
     const emergencyFallbacks: Record<string, any> = {
@@ -86,7 +86,7 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
     
     // Check if we have an emergency fallback - return it immediately if database is slow
     if (emergencyFallbacks[email]) {
-      console.log('[AuthOptimization] 🆘 Using emergency fallback for:', email);
+      logger.warn('Using emergency fallback', { email });
       // Try database but with very short timeout (2s)
       const quickCheck = supabase
         .from('employees')
@@ -102,17 +102,17 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
       
       // If we got real data quickly, use it
       if (quickResult.data && !quickResult.error) {
-        console.log('[AuthOptimization] ✓ Got employee data quickly');
+        logger.debug('Got employee data quickly');
         const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
         return { ...quickResult.data, isSuperadmin };
       }
       
       // Otherwise return emergency fallback immediately
-      console.log('[AuthOptimization] ⚡ Returning emergency fallback immediately');
+      logger.info('Returning emergency fallback immediately');
       return emergencyFallbacks[email];
     }
     
-    // Standard timeout for database queries (3 seconds)
+    // Standard database query with timeout
     const employeeDataPromise = supabase
       .from('employees')
       .select('*')
@@ -121,7 +121,7 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        console.log('[AuthOptimization] ⚠️ Database timeout after 3 seconds');
+        logger.warn('Database timeout after 3 seconds');
         reject(new Error('Employee query timeout after 3 seconds'));
       }, 3000)
     );
