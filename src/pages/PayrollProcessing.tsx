@@ -1025,10 +1025,17 @@ const PayrollProcessing = () => {
                                   <button
                                     onClick={async () => {
                                       try {
+                                        // Fetch full employee profile with qualifications
+                                        const fullEmployeeProfile = await getEmployeeById(employee.id);
+                                        if (!fullEmployeeProfile) {
+                                          toast.error('Could not load employee profile');
+                                          return;
+                                        }
+                                        
                                         const slotData = await getSlotBookingPayForPeriod(
                                           employee.id,
                                           selectedPeriod,
-                                          employee
+                                          fullEmployeeProfile
                                         );
                                         setSlotBreakdownData({
                                           employeeName: employee.name,
