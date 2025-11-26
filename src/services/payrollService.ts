@@ -1,8 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployeeById } from './employeeService';
 import { getEmployeeClaims } from './claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
+import { logger } from '@/utils/logger';
 
 export interface PayrollData {
   baseSalary: number;
@@ -30,7 +30,7 @@ export interface PayrollRecord {
 }
 
 export const getEmployeePayrollData = async (employeeId: string, period?: string): Promise<PayrollData> => {
-  console.log('Fetching payroll data for employee:', employeeId, 'period:', period);
+  logger.debug('Fetching payroll data', { employeeId, period });
   
   try {
     // Get employee details from Supabase
@@ -46,7 +46,7 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
       .eq('employee_id', employeeId);
 
     if (allowancesError) {
-      console.error('Error fetching allowances:', allowancesError);
+      logger.error('Error fetching allowances:', allowancesError);
       throw allowancesError;
     }
 
@@ -57,7 +57,7 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
       .eq('employee_id', employeeId);
 
     if (deductionsError) {
-      console.error('Error fetching deductions:', deductionsError);
+      logger.error('Error fetching deductions:', deductionsError);
       throw deductionsError;
     }
 
@@ -70,7 +70,7 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
     // Check if employee is casual and needs attendance-based calculation
     if (employee.type === 'Casual' && period) {
       const attendanceData = await getEmployeeAttendanceForPeriod(employeeId, period);
-      console.log('Attendance data for casual employee:', attendanceData);
+      logger.debug('Attendance data for casual employee', attendanceData);
       
       // Fetch slot booking pay using dynamic pricing
       let slotBookingPay = 0;
