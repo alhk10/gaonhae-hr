@@ -69,31 +69,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (!userData) {
+        // Check if user is a superadmin via database
+        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
+        console.log('Superadmin check result:', { email: session.user.email, isSuperadmin });
         
-        // For superadmin alhk10@gmail.com, set superadmin permissions directly as fallback
-        if (session.user.email === 'alhk10@gmail.com') {
-          console.log('🔧 [Superadmin Fallback] Setting superadmin permissions for alhk10@gmail.com');
+        if (isSuperadmin) {
+          console.log('User identified as superadmin:', session.user.email);
           
           setUser({
             id: session.user.id,
             email: session.user.email!,
-            name: 'Lee Heng Keong Alvin',
-            employeeId: 'EMP1751003565851'
+            name: session.user.email!,
+            role: 'superadmin',
           });
-          
-          setUserrole('superadmin'); // Set as superadmin
-          setUserDetails({
-            id: 'EMP1751003565851',
-            name: 'Lee Heng Keong Alvin',
-            email: 'alhk10@gmail.com',
-            type: 'Full-Time',
-            position: 'System Administrator',
-            isSuperadmin: true
-          });
-          
-          setAdminAccess(null); // Superadmin has full access
+          setUserrole('superadmin');
+          setUserDetails(null);
+          setAdminAccess(null);
           setPageAccess(null);
           setIsLoading(false);
+          setRequiresPasswordChange(false);
+          
           return;
         }
         
@@ -272,31 +267,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Fallback: Set basic user info even if database queries fail
       console.log('❌ Session setup error - implementing emergency fallback');
       
-      // For superadmin alhk10@gmail.com emergency fallback
-      if (session.user.email === 'alhk10@gmail.com') {
-        console.log('🆘 [Superadmin Emergency Fallback] Database issues - using superadmin permissions');
+      // Check if user is a superadmin via database
+      try {
+        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
         
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: 'Lee Heng Keong Alvin',
-          employeeId: 'EMP1751003565851'
-        });
-        
-        setUserrole('superadmin');
-        setUserDetails({
-          id: 'EMP1751003565851',
-          name: 'Lee Heng Keong Alvin',
-          email: 'alhk10@gmail.com',
-          type: 'Full-Time',
-          position: 'System Administrator',
-          isSuperadmin: true
-        });
-        
-        setAdminAccess(null); // Superadmin has full access
-        setPageAccess(null);
-        setIsLoading(false);
-        return;
+        if (isSuperadmin) {
+          console.log('🆘 [Superadmin Emergency Fallback] Database issues - using superadmin permissions');
+          
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.email!,
+          });
+          
+          setUserrole('superadmin');
+          setUserDetails(null);
+          setAdminAccess(null);
+          setPageAccess(null);
+          setIsLoading(false);
+          return;
+        }
+      } catch (superadminCheckError) {
+        console.error('❌ Superadmin check also failed:', superadminCheckError);
       }
       
       

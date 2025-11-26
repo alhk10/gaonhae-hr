@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import EmailVerificationDialog from './EmailVerificationDialog';
+
+const loginSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: "Invalid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  password: z.string()
+    .min(1, { message: "Password is required" })
+    .max(128, { message: "Password must be less than 128 characters" }),
+});
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -23,11 +34,20 @@ const LoginForm = () => {
     setError('');
     setResetMessage('');
     
+    // Validate input using Zod schema
+    const validationResult = loginSchema.safeParse({ email, password });
+    
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      setError(firstError.message);
+      return;
+    }
+    
     try {
-      const result = await login(email, password);
+      const result = await login(validationResult.data.email, validationResult.data.password);
       if (!result.success) {
         // Always prompt to verify/resend for new employees on failed login
-        setVerificationEmail(email);
+        setVerificationEmail(validationResult.data.email);
         setShowEmailDialog(true);
         if (!result.needsVerification) {
           setError('Invalid credentials. Please check your email and password.');
@@ -44,19 +64,26 @@ const LoginForm = () => {
       return;
     }
 
+    // Validate email before sending reset
+    const emailValidation = z.string().trim().email().safeParse(email);
+    if (!emailValidation.success) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setIsResettingPassword(true);
     setError('');
     setResetMessage('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailValidation.data, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {
         setError(error.message);
       } else {
-        setResetMessage(`Password reset email sent to ${email}. Please check your inbox and follow the instructions.`);
+        setResetMessage(`Password reset email sent to ${emailValidation.data}. Please check your inbox and follow the instructions.`);
       }
     } catch (err) {
       setError('Failed to send password reset email. Please try again.');
