@@ -194,6 +194,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           fileSize: cert.file_size,
           fileType: cert.file_type
         })),
+        qualifications: (emp.qualifications as any) || {},
         adminAccess: emp.admin_access ? {
           employees: emp.admin_access.employees || false,
           payroll: emp.admin_access.payroll || false,
@@ -312,6 +313,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         fileSize: cert.file_size,
         fileType: cert.file_type
       })) || [],
+      qualifications: (emp.qualifications as any) || {},
       adminAccess: emp.admin_access?.length > 0 ? {
         employees: emp.admin_access[0]?.employees || false,
         payroll: emp.admin_access[0]?.payroll || false,
