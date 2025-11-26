@@ -49,11 +49,12 @@ export const getSlotBookingPayForPeriod = async (
     return { totalSlots: 0, totalPay: 0, breakdown: [] };
   }
 
-  // Calculate start and end dates for the period
-  const startDate = new Date(year as number, monthIndex, 1);
-  const endDate = new Date((year as number), (monthIndex as number) + 1, 0);
-  const startDateStr = startDate.toISOString().split('T')[0];
-  const endDateStr = endDate.toISOString().split('T')[0];
+  // Calculate start and end dates for the period (avoiding timezone issues)
+  const startDay = 1;
+  const lastDay = new Date((year as number), (monthIndex as number) + 1, 0).getDate();
+  
+  const startDateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+  const endDateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
   console.log('[SlotBookingPayroll] Period range:', startDateStr, 'to', endDateStr);
 
