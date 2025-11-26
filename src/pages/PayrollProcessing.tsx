@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -126,6 +126,18 @@ const PayrollProcessing = () => {
           console.log('║  Period:', selectedPeriod.padEnd(44), '║');
           console.log('║  Action: Clear cached data & recalculate with slots    ║');
           console.log('╚══════════════════════════════════════════════════════════╝\n');
+          
+          // Delete cached November 2025 payroll record to force recalculation
+          const { error: deleteError } = await authService
+            .from('payroll_records')
+            .delete()
+            .eq('id', `PERIOD_${formattedPeriod}`);
+          
+          if (deleteError) {
+            console.warn('Could not delete cached payroll:', deleteError);
+          } else {
+            console.log('✓ Deleted cached payroll record');
+          }
           
           // Clear any existing November 2025 payroll state
           setCurrentPeriod(selectedPeriod);
@@ -1278,6 +1290,52 @@ const PayrollProcessing = () => {
                   )}
                 </div>
                 <div className="flex items-center space-x-3">
+                  <Button
+                    onClick={async () => {
+                      if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
+                        setLoading(true);
+                        try {
+                          const formatPeriodForAPI = (period: string): string => {
+                            const [monthName, year] = period.split(' ');
+                            const monthNames = [
+                              'January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'
+                            ];
+                            const monthIndex = monthNames.indexOf(monthName) + 1;
+                            return `${year}-${monthIndex.toString().padStart(2, '0')}`;
+                          };
+                          
+                          const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+                          
+                          // Delete cached payroll record
+                          const { error: deleteError } = await authService
+                            .from('payroll_records')
+                            .delete()
+                            .eq('id', `PERIOD_${formattedPeriod}`);
+                          
+                          if (deleteError) {
+                            console.error('Error deleting cached payroll:', deleteError);
+                            toast.error('Failed to delete cached payroll');
+                          } else {
+                            toast.success('Cached payroll deleted. Refreshing page...');
+                            // Force reload after a short delay
+                            setTimeout(() => window.location.reload(), 500);
+                          }
+                        } catch (error) {
+                          console.error('Error:', error);
+                          toast.error('Failed to recalculate payroll');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }}
+                    variant="outline"
+                    className="gap-2"
+                    disabled={loading}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Force Recalculate
+                  </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
                   </Badge>
