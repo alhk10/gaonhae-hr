@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { logger } from '@/utils/logger';
 
 export type SlotBooking = {
   id: string;
@@ -68,13 +69,13 @@ export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
       .order('date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching slot bookings:', error);
+      logger.error('Error fetching slot bookings', error);
       return [];
     }
 
     return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
-    console.error('Error in getAllSlotBookings:', error);
+    logger.error('Error in getAllSlotBookings', error);
     return [];
   }
 };
@@ -88,13 +89,13 @@ export const getBranches = async (): Promise<Branch[]> => {
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching branches:', error);
+      logger.error('Error fetching branches', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getBranches:', error);
+    logger.error('Error in getBranches', error);
     return [];
   }
 };
@@ -109,7 +110,7 @@ export const addSlotBooking = async (booking: {
   status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
 }): Promise<string> => {
   try {
-    console.log('Adding slot booking:', booking);
+    logger.info('Adding slot booking', { booking });
 
     // Log booking attempt for diagnostics
     try {
@@ -122,14 +123,14 @@ export const addSlotBooking = async (booking: {
         p_error_details: null
       });
     } catch (logError) {
-      console.warn('Failed to log booking attempt:', logError);
+      logger.warn('Failed to log booking attempt', logError);
     }
 
     // Check for existing booking first
     const existingBooking = await checkForExistingBooking(booking.employeeId, booking.date);
     if (existingBooking) {
       const errorMsg = `Employee ${booking.employeeName} already has a booking for ${booking.date}`;
-      console.error(errorMsg);
+      logger.error(errorMsg);
       
       // Log the failure
       try {
@@ -142,7 +143,7 @@ export const addSlotBooking = async (booking: {
           system_details: { existing_booking: true }
         });
       } catch (logError) {
-        console.warn('Failed to log booking failure:', logError);
+        logger.warn('Failed to log booking failure', logError);
       }
       
       throw new Error(errorMsg);
@@ -152,7 +153,7 @@ export const addSlotBooking = async (booking: {
     const availableSlots = await getAvailableSlotsForDate(booking.date, booking.branchId);
     if (availableSlots <= 0) {
       const errorMsg = `No available slots for ${booking.branchName} on ${booking.date}`;
-      console.error(errorMsg);
+      logger.error(errorMsg);
       
       // Log the failure
       try {
@@ -165,7 +166,7 @@ export const addSlotBooking = async (booking: {
           system_details: { available_slots: availableSlots }
         });
       } catch (logError) {
-        console.warn('Failed to log booking failure:', logError);
+        logger.warn('Failed to log booking failure', logError);
       }
       
       throw new Error(errorMsg);
@@ -189,7 +190,7 @@ export const addSlotBooking = async (booking: {
       .single();
 
     if (error) {
-      console.error('Error adding slot booking:', error);
+      logger.error('Error adding slot booking', error);
       
       // Log the failure
       try {
@@ -202,16 +203,16 @@ export const addSlotBooking = async (booking: {
           system_details: { error: error.message, code: error.code }
         });
       } catch (logError) {
-        console.warn('Failed to log booking failure:', logError);
+        logger.warn('Failed to log booking failure', logError);
       }
       
       throw new Error(`Failed to add slot booking: ${error.message}`);
     }
 
-    console.log('Slot booking added successfully:', data.id);
+    logger.info('Slot booking added successfully', { id: data.id });
     return data.id;
   } catch (error) {
-    console.error('Error in addSlotBooking:', error);
+    logger.error('Error in addSlotBooking', error);
     throw error;
   }
 };
@@ -226,7 +227,7 @@ export const addAdminSlotBooking = async (booking: {
   notes?: string;
 }): Promise<string> => {
   try {
-    console.log('Adding admin slot booking:', booking);
+    logger.info('Adding admin slot booking', { booking });
 
     // For admin bookings, bypass normal validation but still check for non-cancelled bookings
     const { data: existingBookings, error: existingError } = await supabase
@@ -237,10 +238,10 @@ export const addAdminSlotBooking = async (booking: {
       .neq('status', 'cancelled');
 
     if (existingError) {
-      console.error('Error checking existing bookings for admin override:', existingError);
+      logger.error('Error checking existing bookings for admin override', existingError);
     } else if (existingBookings && existingBookings.length > 0) {
       const errorMsg = `Employee ${booking.employeeName} already has an active booking for ${booking.date}`;
-      console.error(errorMsg);
+      logger.error(errorMsg);
       throw new Error(errorMsg);
     }
 
@@ -265,14 +266,14 @@ export const addAdminSlotBooking = async (booking: {
       .single();
 
     if (error) {
-      console.error('Error adding admin slot booking:', error);
+      logger.error('Error adding admin slot booking', error);
       throw new Error(`Failed to add admin slot booking: ${error.message}`);
     }
 
-    console.log('Admin slot booking added successfully:', data.id);
+    logger.info('Admin slot booking added successfully', { id: data.id });
     return data.id;
   } catch (error) {
-    console.error('Error in addAdminSlotBooking:', error);
+    logger.error('Error in addAdminSlotBooking', error);
     throw error;
   }
 };
@@ -283,7 +284,7 @@ export const forceBookJasonSlots = async (): Promise<{ success: boolean; booking
   const dates = ['2025-08-03', '2025-08-10', '2025-08-16'];
   
   try {
-    console.log('Force booking Jason Lu slots for dates:', dates);
+    logger.info('Force booking Jason Lu slots', { dates });
     
     for (const date of dates) {
       try {
@@ -296,19 +297,19 @@ export const forceBookJasonSlots = async (): Promise<{ success: boolean; booking
           notes: 'Emergency fix - Admin force booking for Jason Lu'
         });
         result.bookings.push(bookingId);
-        console.log(`Successfully force booked Jason Lu for ${date}: ${bookingId}`);
+        logger.info(`Successfully force booked Jason Lu for ${date}`, { bookingId });
       } catch (error) {
         const errorMsg = `Failed to book ${date}: ${error.message}`;
         result.errors.push(errorMsg);
-        console.error(errorMsg);
+        logger.error(errorMsg);
         result.success = false;
       }
     }
     
-    console.log('Force booking result:', result);
+    logger.info('Force booking result', { result });
     return result;
   } catch (error) {
-    console.error('Error in forceBookJasonSlots:', error);
+    logger.error('Error in forceBookJasonSlots', error);
     result.success = false;
     result.errors.push(error.message);
     return result;
@@ -325,7 +326,7 @@ export const createEmergencyBooking = async (
   notes?: string
 ): Promise<{ success: boolean; bookingId?: string; error?: string }> => {
   try {
-    console.log(`Creating emergency booking for ${employeeName} at ${branchName} on ${date}`);
+    logger.info(`Creating emergency booking for ${employeeName} at ${branchName} on ${date}`);
     
     // First, check if employee already has a booking for this date
     const { data: existingBookings, error: checkError } = await supabase
@@ -336,7 +337,7 @@ export const createEmergencyBooking = async (
       .neq('status', 'cancelled');
 
     if (checkError) {
-      console.error('Error checking existing bookings:', checkError);
+      logger.error('Error checking existing bookings', checkError);
       return { success: false, error: 'Failed to check existing bookings' };
     }
 
@@ -358,11 +359,11 @@ export const createEmergencyBooking = async (
       notes: notes || `Emergency booking created by admin for ${employeeName}`
     });
 
-    console.log(`Emergency booking created successfully: ${bookingId}`);
+    logger.info(`Emergency booking created successfully`, { bookingId });
     return { success: true, bookingId };
     
   } catch (error) {
-    console.error('Error creating emergency booking:', error);
+    logger.error('Error creating emergency booking', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -380,13 +381,13 @@ export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotB
       .order('date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching employee slot bookings:', error);
+      logger.error('Error fetching employee slot bookings', error);
       return [];
     }
 
     return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
-    console.error('Error in getEmployeeSlotBookings:', error);
+    logger.error('Error in getEmployeeSlotBookings', error);
     return [];
   }
 };
@@ -401,13 +402,13 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
       .order('date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching branch slot bookings:', error);
+      logger.error('Error fetching branch slot bookings', error);
       return [];
     }
 
     return (data || []).map(transformSlotBookingFromDB);
   } catch (error) {
-    console.error('Error in getBranchSlotBookings:', error);
+    logger.error('Error in getBranchSlotBookings', error);
     return [];
   }
 };
@@ -415,9 +416,9 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
 // Function to update branch colors
 export const updateBranchColors = async (): Promise<void> => {
   try {
-    console.log('Branch colors updated');
+    logger.debug('Branch colors updated');
   } catch (error) {
-    console.error('Error updating branch colors:', error);
+    logger.error('Error updating branch colors', error);
   }
 };
 
@@ -436,7 +437,7 @@ export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists
 
     return { exists: true, employeeName: data.name };
   } catch (error) {
-    console.error('Error verifying employee:', error);
+    logger.error('Error verifying employee', error);
     return { exists: false };
   }
 };
@@ -444,7 +445,7 @@ export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists
 // Function to get available slots for a date with enhanced validation
 export const getAvailableSlotsForDate = async (date: string, branchId: string): Promise<number> => {
   try {
-    console.log(`Getting available slots for ${branchId} on ${date}`);
+    logger.debug(`Getting available slots for ${branchId} on ${date}`);
     
     const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
     
@@ -455,13 +456,13 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
       .single();
 
     if (configError || !configData) {
-      console.error('Error fetching weekly config for', branchId, ':', configError);
+      logger.error(`Error fetching weekly config for ${branchId}`, configError);
       return 0;
     }
 
     // Handle null values as 0 slots
     const totalSlots = configData[dayName] ?? 0;
-    console.log(`Total ${dayName} slots for ${branchId}:`, totalSlots);
+    logger.debug(`Total ${dayName} slots for ${branchId}`, { totalSlots });
 
     // Only count non-cancelled bookings
     const { data: bookingsData, error: bookingsError } = await supabase
@@ -472,14 +473,14 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
       .neq('status', 'cancelled');
 
     if (bookingsError) {
-      console.error('Error fetching bookings for', branchId, 'on', date, ':', bookingsError);
+      logger.error(`Error fetching bookings for ${branchId} on ${date}`, bookingsError);
       return 0;
     }
 
     const bookedSlots = bookingsData?.length || 0;
     const availableSlots = Math.max(0, totalSlots - bookedSlots);
     
-    console.log(`Slots calculation for ${branchId} on ${date}:`, {
+    logger.debug(`Slots calculation for ${branchId} on ${date}`, {
       totalSlots,
       bookedSlots,
       availableSlots,
@@ -488,7 +489,7 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
     
     return availableSlots;
   } catch (error) {
-    console.error('Error in getAvailableSlotsForDate:', error);
+    logger.error('Error in getAvailableSlotsForDate', error);
     return 0;
   }
 };
@@ -500,7 +501,7 @@ export const updateSlotBookingStatus = async (
   approvedBy?: string
 ): Promise<boolean> => {
   try {
-    console.log('Updating slot booking status:', { bookingId, status, approvedBy });
+    logger.info('Updating slot booking status', { bookingId, status, approvedBy });
 
     const { error } = await supabase
       .from('slot_bookings_new')
@@ -512,14 +513,14 @@ export const updateSlotBookingStatus = async (
       .eq('id', bookingId);
 
     if (error) {
-      console.error('Error updating slot booking status:', error);
+      logger.error('Error updating slot booking status', error);
       return false;
     }
 
-    console.log('Slot booking status updated successfully');
+    logger.info('Slot booking status updated successfully');
     return true;
   } catch (error) {
-    console.error('Error in updateSlotBookingStatus:', error);
+    logger.error('Error in updateSlotBookingStatus', error);
     return false;
   }
 };
@@ -532,7 +533,7 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
       .select('*');
 
     if (error) {
-      console.error('Error fetching weekly slot config:', error);
+      logger.error('Error fetching weekly slot config', error);
       return {};
     }
 
@@ -553,7 +554,7 @@ export const getWeeklySlotConfig = async (): Promise<{ [branchId: string]: Weekl
 
     return config;
   } catch (error) {
-    console.error('Error in getWeeklySlotConfig:', error);
+    logger.error('Error in getWeeklySlotConfig', error);
     return {};
   }
 };
@@ -564,7 +565,7 @@ export const updateWeeklySlotConfig = async (
   weeklyConfig: Omit<WeeklySlotConfig, 'id' | 'branchId'>
 ): Promise<boolean> => {
   try {
-    console.log('slotBookingService: Upserting weekly slot config for branch:', branchId, weeklyConfig);
+    logger.info('Upserting weekly slot config for branch', { branchId, weeklyConfig });
 
     // Use upsert to handle both insert and update in one operation
     const { data, error } = await supabase
@@ -583,7 +584,7 @@ export const updateWeeklySlotConfig = async (
       .single();
 
     if (error) {
-      console.error('slotBookingService: Error upserting weekly slot config:', {
+      logger.error('Error upserting weekly slot config', {
         branchId,
         error: error.message,
         code: error.code,
@@ -593,10 +594,10 @@ export const updateWeeklySlotConfig = async (
       return false;
     }
 
-    console.log('slotBookingService: Weekly slot config upserted successfully:', data);
+    logger.info('Weekly slot config upserted successfully', { data });
     return true;
   } catch (error) {
-    console.error('slotBookingService: Exception in updateWeeklySlotConfig:', error);
+    logger.error('Exception in updateWeeklySlotConfig', error);
     return false;
   }
 };
@@ -604,7 +605,7 @@ export const updateWeeklySlotConfig = async (
 // Function to cancel a slot booking
 export const cancelSlotBooking = async (bookingId: string, cancelledBy: string): Promise<boolean> => {
   try {
-    console.log('Cancelling slot booking:', { bookingId, cancelledBy });
+    logger.info('Cancelling slot booking', { bookingId, cancelledBy });
 
     const { error } = await supabase
       .from('slot_bookings_new')
@@ -616,14 +617,14 @@ export const cancelSlotBooking = async (bookingId: string, cancelledBy: string):
       .eq('id', bookingId);
 
     if (error) {
-      console.error('Error cancelling slot booking:', error);
+      logger.error('Error cancelling slot booking', error);
       return false;
     }
 
-    console.log('Slot booking cancelled successfully');
+    logger.info('Slot booking cancelled successfully');
     return true;
   } catch (error) {
-    console.error('Error in cancelSlotBooking:', error);
+    logger.error('Error in cancelSlotBooking', error);
     return false;
   }
 };
@@ -636,7 +637,7 @@ export const updateSlotBookingEmployee = async (
   notes?: string
 ): Promise<boolean> => {
   try {
-    console.log('Updating slot booking employee:', {
+    logger.info('Updating slot booking employee', {
       bookingId,
       newEmployeeId,
       newEmployeeName,
@@ -654,14 +655,14 @@ export const updateSlotBookingEmployee = async (
       .eq('id', bookingId);
 
     if (error) {
-      console.error('Error updating slot booking employee:', error);
+      logger.error('Error updating slot booking employee', error);
       return false;
     }
 
-    console.log('Slot booking employee updated successfully');
+    logger.info('Slot booking employee updated successfully');
     return true;
   } catch (error) {
-    console.error('Error in updateSlotBookingEmployee:', error);
+    logger.error('Error in updateSlotBookingEmployee', error);
     return false;
   }
 };
@@ -672,7 +673,7 @@ export const getEmployeeAttendanceStatus = async (
   dates: string[]
 ): Promise<EmployeeAttendanceStatus[]> => {
   try {
-    console.log('Fetching employee attendance status:', { employeeIds, dates });
+    logger.debug('Fetching employee attendance status', { employeeIds, dates });
 
     const { data, error } = await supabase
       .from('attendance')
@@ -681,7 +682,7 @@ export const getEmployeeAttendanceStatus = async (
       .in('date', dates);
 
     if (error) {
-      console.error('Error fetching employee attendance status:', error);
+      logger.error('Error fetching employee attendance status', error);
       return [];
     }
 
@@ -691,10 +692,10 @@ export const getEmployeeAttendanceStatus = async (
       hasClockedIn: !!record.check_in
     }));
 
-    console.log('Employee attendance status fetched successfully');
+    logger.debug('Employee attendance status fetched successfully');
     return attendanceStatus;
   } catch (error) {
-    console.error('Error in getEmployeeAttendanceStatus:', error);
+    logger.error('Error in getEmployeeAttendanceStatus', error);
     return [];
   }
 };
@@ -702,7 +703,7 @@ export const getEmployeeAttendanceStatus = async (
 // Function to check for existing booking for a given employee and date
 export const checkForExistingBooking = async (employeeId: string, date: string): Promise<boolean> => {
   try {
-    console.log('Checking for existing booking:', { employeeId, date });
+    logger.debug('Checking for existing booking', { employeeId, date });
 
     const { data, error } = await supabase
       .from('slot_bookings_new')
@@ -712,15 +713,15 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
       .neq('status', 'cancelled'); // Exclude cancelled bookings
 
     if (error) {
-      console.error('Error checking for existing booking:', error);
+      logger.error('Error checking for existing booking', error);
       return false;
     }
 
     const hasExistingBooking = data && data.length > 0;
-    console.log('Existing booking check result:', hasExistingBooking);
+    logger.debug('Existing booking check result', { hasExistingBooking });
     return hasExistingBooking;
   } catch (error) {
-    console.error('Error in checkForExistingBooking:', error);
+    logger.error('Error in checkForExistingBooking', error);
     return false;
   }
 };
@@ -733,7 +734,7 @@ export const updateSlotBookingBranch = async (
   notes?: string
 ): Promise<boolean> => {
   try {
-    console.log('slotBookingService: Updating slot booking branch:', {
+    logger.info('Updating slot booking branch', {
       bookingId,
       newBranchId,
       newBranchName,
@@ -751,14 +752,14 @@ export const updateSlotBookingBranch = async (
       .eq('id', bookingId);
 
     if (error) {
-      console.error('slotBookingService: Error updating slot booking branch:', error);
+      logger.error('Error updating slot booking branch', error);
       return false;
     }
 
-    console.log('slotBookingService: Successfully updated slot booking branch');
+    logger.info('Successfully updated slot booking branch');
     return true;
   } catch (error) {
-    console.error('slotBookingService: Error in updateSlotBookingBranch:', error);
+    logger.error('Error in updateSlotBookingBranch', error);
     return false;
   }
 };

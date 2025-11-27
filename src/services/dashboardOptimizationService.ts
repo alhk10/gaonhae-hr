@@ -1,5 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
+import { DEFAULT_QUERY_TIMEOUT } from '@/config/constants';
 
 // Types for dashboard data
 export interface DashboardStats {
@@ -24,11 +25,10 @@ export interface ManagerDashboardData {
 
 // Optimized service for dashboard data loading with proper timeout handling
 export const getDashboardStats = async () => {
-  console.log('DashboardOptimization: Starting getDashboardStats...');
+  logger.debug('Starting getDashboardStats');
   
   try {
-    // Set reasonable timeout for dashboard operations (60 seconds)
-    const timeoutDuration = 60000;
+    const timeoutDuration = DEFAULT_QUERY_TIMEOUT;
     
     const promises = [
       // Get total active employees from Supabase
@@ -59,17 +59,17 @@ export const getDashboardStats = async () => {
     const [employeesResult, pendingClaimsResult, activeClaimsResult] = results;
 
     if (employeesResult.error) {
-      console.error('DashboardOptimization: Error fetching employees:', employeesResult.error);
+      logger.error('Error fetching employees', employeesResult.error);
       throw employeesResult.error;
     }
 
     if (pendingClaimsResult.error) {
-      console.error('DashboardOptimization: Error fetching pending claims:', pendingClaimsResult.error);
+      logger.error('Error fetching pending claims', pendingClaimsResult.error);
       throw pendingClaimsResult.error;
     }
 
     if (activeClaimsResult.error) {
-      console.error('DashboardOptimization: Error fetching active claims:', activeClaimsResult.error);
+      logger.error('Error fetching active claims', activeClaimsResult.error);
       throw activeClaimsResult.error;
     }
 
@@ -79,21 +79,21 @@ export const getDashboardStats = async () => {
       activeClaims: activeClaimsResult.data?.length || 0
     };
 
-    console.log('DashboardOptimization: Stats fetched successfully:', stats);
+    logger.info('Stats fetched successfully', { stats });
     return stats;
     
   } catch (error) {
-    console.error('DashboardOptimization: Error fetching dashboard stats:', error);
+    logger.error('Error fetching dashboard stats', error);
     throw error;
   }
 };
 
 // Get recent activity from Supabase
 export const getRecentActivity = async (limit: number = 3) => {
-  console.log('DashboardOptimization: Starting getRecentActivity with limit:', limit);
+  logger.debug('Starting getRecentActivity', { limit });
   
   try {
-    const timeoutDuration = 60000; // 60 seconds
+    const timeoutDuration = DEFAULT_QUERY_TIMEOUT;
     
     const activityQuery = supabase
       .from('claims')
@@ -115,12 +115,12 @@ export const getRecentActivity = async (limit: number = 3) => {
     const { data: claims, error } = await Promise.race([activityQuery, timeoutPromise]) as any;
 
     if (error) {
-      console.error('DashboardOptimization: Error fetching recent activity:', error);
+      logger.error('Error fetching recent activity', error);
       throw error;
     }
 
     if (!claims || claims.length === 0) {
-      console.log('DashboardOptimization: No recent activity found');
+      logger.debug('No recent activity found');
       return [];
     }
 
@@ -128,7 +128,7 @@ export const getRecentActivity = async (limit: number = 3) => {
     const employeeIds = claims.map((claim: any) => claim.employee_id).filter(Boolean);
     
     if (employeeIds.length === 0) {
-      console.log('DashboardOptimization: No employee IDs found in claims');
+      logger.debug('No employee IDs found in claims');
       return [];
     }
 
@@ -144,7 +144,7 @@ export const getRecentActivity = async (limit: number = 3) => {
     const { data: employees, error: employeesError } = await Promise.race([employeesQuery, employeesTimeoutPromise]) as any;
 
     if (employeesError) {
-      console.error('DashboardOptimization: Error fetching employees for activity:', employeesError);
+      logger.error('Error fetching employees for activity', employeesError);
       // Continue without employee names
     }
 
@@ -163,18 +163,18 @@ export const getRecentActivity = async (limit: number = 3) => {
       status: claim.status
     }));
 
-    console.log('DashboardOptimization: Recent activity fetched successfully:', activity.length, 'items');
+    logger.info('Recent activity fetched successfully', { count: activity.length });
     return activity;
     
   } catch (error) {
-    console.error('DashboardOptimization: Error fetching recent activity:', error);
+    logger.error('Error fetching recent activity', error);
     return []; // Return empty array on error to prevent UI crashes
   }
 };
 
 // Manager dashboard specific function
 export const getManagerDashboardData = async (): Promise<ManagerDashboardData> => {
-  console.log('DashboardOptimization: Starting getManagerDashboardData...');
+  logger.debug('Starting getManagerDashboardData');
   
   try {
     // Get stats with approved claims count for managers
@@ -192,14 +192,14 @@ export const getManagerDashboardData = async (): Promise<ManagerDashboardData> =
       approvedClaims: approvedClaimsResult.data?.length || 0
     };
 
-    console.log('DashboardOptimization: Manager dashboard data fetched successfully');
+    logger.info('Manager dashboard data fetched successfully');
     return {
       stats: enhancedStats,
       recentClaims
     };
     
   } catch (error) {
-    console.error('DashboardOptimization: Error fetching manager dashboard data:', error);
+    logger.error('Error fetching manager dashboard data', error);
     throw error;
   }
 };
