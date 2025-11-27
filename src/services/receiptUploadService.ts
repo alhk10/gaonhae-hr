@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
+import { FILE_UPLOAD_CONSTANTS } from '@/config/constants';
 
 export interface UploadResult {
   success: boolean;
@@ -16,18 +18,18 @@ interface UploadProgress {
 // Test connection to Supabase
 const testSupabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log('ReceiptUploadService: Testing Supabase connection...');
+    logger.debug('Testing Supabase connection');
     const { data, error } = await supabase.from('employees').select('count').limit(1);
     
     if (error) {
-      console.error('ReceiptUploadService: Connection test failed:', error);
+      logger.error('Connection test failed', error);
       return false;
     }
     
-    console.log('ReceiptUploadService: Connection test successful');
+    logger.debug('Connection test successful');
     return true;
   } catch (error) {
-    console.error('ReceiptUploadService: Connection test error:', error);
+    logger.error('Connection test error', error);
     return false;
   }
 };
@@ -35,25 +37,25 @@ const testSupabaseConnection = async (): Promise<boolean> => {
 // Test storage bucket access
 const testStorageBucket = async (): Promise<boolean> => {
   try {
-    console.log('ReceiptUploadService: Testing storage bucket access...');
+    logger.debug('Testing storage bucket access');
     const { data, error } = await supabase.storage.from('claim-receipts').list('', { limit: 1 });
     
     if (error) {
-      console.error('ReceiptUploadService: Storage bucket test failed:', error);
+      logger.error('Storage bucket test failed', error);
       return false;
     }
     
-    console.log('ReceiptUploadService: Storage bucket test successful');
+    logger.debug('Storage bucket test successful');
     return true;
   } catch (error) {
-    console.error('ReceiptUploadService: Storage bucket test error:', error);
+    logger.error('Storage bucket test error', error);
     return false;
   }
 };
 
 // Validate file before upload
 const validateFileForUpload = (file: File, employeeId: string): string | null => {
-  console.log('ReceiptUploadService: Validating file for upload:', {
+  logger.debug('Validating file for upload', {
     fileName: file.name,
     fileSize: file.size,
     fileType: file.type,
@@ -61,7 +63,7 @@ const validateFileForUpload = (file: File, employeeId: string): string | null =>
   });
 
   // Check file size
-  const maxSize = 5 * 1024 * 1024; // 5MB
+  const maxSize = FILE_UPLOAD_CONSTANTS.MAX_FILE_SIZE;
   if (file.size > maxSize) {
     return 'File size must be less than 5MB';
   }
@@ -71,7 +73,7 @@ const validateFileForUpload = (file: File, employeeId: string): string | null =>
   }
 
   // Check file type
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+  const allowedTypes = FILE_UPLOAD_CONSTANTS.ALLOWED_DOCUMENT_TYPES as readonly string[];
   if (!allowedTypes.includes(file.type)) {
     return 'Only JPG, PNG, and PDF files are allowed';
   }
@@ -97,7 +99,7 @@ const generateSecureFilename = (file: File, employeeId: string): string => {
   const sanitizedEmployeeId = employeeId.replace(/[^a-zA-Z0-9]/g, '_');
   
   const filename = `${sanitizedEmployeeId}_${timestamp}_${randomString}.${fileExtension}`;
-  console.log('ReceiptUploadService: Generated secure filename:', filename);
+  logger.debug('Generated secure filename', { filename });
   
   return filename;
 };
@@ -111,7 +113,7 @@ const uploadWithRetry = async (
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`ReceiptUploadService: Upload attempt ${attempt}/${maxRetries} for path:`, filePath);
+    logger.debug(`Upload attempt ${attempt}/${maxRetries}`, { filePath });
     
     try {
       const { data, error } = await supabase.storage
@@ -122,12 +124,12 @@ const uploadWithRetry = async (
         });
 
       if (!error) {
-        console.log('ReceiptUploadService: Upload successful on attempt', attempt);
+        logger.info('Upload successful', { attempt });
         return { data, error: null };
       }
 
       lastError = error;
-      console.log(`ReceiptUploadService: Upload attempt ${attempt} failed:`, error);
+      logger.warn(`Upload attempt ${attempt} failed`, error);
 
       // If it's a duplicate file error, try with a new filename
       if (error.message?.includes('already exists') && attempt < maxRetries) {
@@ -137,19 +139,19 @@ const uploadWithRetry = async (
         const extension = parts.pop();
         const baseWithoutExt = parts.join('.');
         filePath = `${baseWithoutExt}_${timestamp}_${randomString}.${extension}`;
-        console.log('ReceiptUploadService: Retrying with new filename:', filePath);
+        logger.debug('Retrying with new filename', { filePath });
         continue;
       }
 
       // Wait before retry (exponential backoff)
       if (attempt < maxRetries) {
         const waitTime = Math.pow(2, attempt) * 1000;
-        console.log(`ReceiptUploadService: Waiting ${waitTime}ms before retry...`);
+        logger.debug(`Waiting ${waitTime}ms before retry`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
 
     } catch (networkError) {
-      console.error(`ReceiptUploadService: Network error on attempt ${attempt}:`, networkError);
+      logger.error(`Network error on attempt ${attempt}`, networkError);
       lastError = networkError;
       
       if (attempt < maxRetries) {
@@ -163,25 +165,23 @@ const uploadWithRetry = async (
 };
 
 export const uploadReceipt = async (file: File, employeeId: string): Promise<UploadResult> => {
-  console.log('ReceiptUploadService: Starting receipt upload process');
-  console.log('ReceiptUploadService: Upload parameters:', {
+  logger.info('Starting receipt upload process', {
     fileName: file.name,
     fileSize: file.size,
     fileType: file.type,
-    employeeId: employeeId,
-    timestamp: new Date().toISOString()
+    employeeId: employeeId
   });
 
   try {
     // Step 1: Validate input parameters
     const validationError = validateFileForUpload(file, employeeId);
     if (validationError) {
-      console.error('ReceiptUploadService: Validation failed:', validationError);
+      logger.error('Validation failed', { error: validationError });
       return { success: false, error: validationError };
     }
 
     // Step 2: Test connections
-    console.log('ReceiptUploadService: Testing connections...');
+    logger.debug('Testing connections');
     const connectionOk = await testSupabaseConnection();
     if (!connectionOk) {
       return { success: false, error: 'Cannot connect to database. Please check your internet connection.' };
@@ -196,19 +196,18 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
     const fileName = generateSecureFilename(file, employeeId);
     const filePath = `receipts/${fileName}`;
     
-    console.log('ReceiptUploadService: Upload details:', {
+    logger.info('Upload details', {
       originalName: file.name,
       secureFileName: fileName,
-      fullPath: filePath,
-      bucketName: 'claim-receipts'
+      fullPath: filePath
     });
 
     // Step 4: Upload file with retry logic
-    console.log('ReceiptUploadService: Starting file upload...');
+    logger.debug('Starting file upload');
     const { data, error } = await uploadWithRetry(file, filePath);
 
     if (error) {
-      console.error('ReceiptUploadService: Upload failed after retries:', error);
+      logger.error('Upload failed after retries', error);
       let errorMessage = 'Upload failed. Please try again.';
       
       if (error.message?.includes('Policy')) {
@@ -222,35 +221,35 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
       return { success: false, error: `${errorMessage} (${error.message})` };
     }
 
-    console.log('ReceiptUploadService: File uploaded successfully:', data);
+    logger.info('File uploaded successfully', { data });
 
     // Step 5: Generate public URL
-    console.log('ReceiptUploadService: Generating public URL...');
+    logger.debug('Generating public URL');
     const { data: { publicUrl } } = supabase.storage
       .from('claim-receipts')
       .getPublicUrl(filePath);
 
     if (!publicUrl) {
-      console.error('ReceiptUploadService: Failed to generate public URL');
+      logger.error('Failed to generate public URL');
       return { success: false, error: 'Upload completed but failed to generate file URL. Please try again.' };
     }
 
-    console.log('ReceiptUploadService: Public URL generated successfully:', publicUrl);
+    logger.info('Public URL generated successfully', { publicUrl });
 
     // Step 6: Verify the uploaded file can be accessed
-    console.log('ReceiptUploadService: Verifying file accessibility...');
+    logger.debug('Verifying file accessibility');
     try {
       const response = await fetch(publicUrl, { method: 'HEAD' });
       if (!response.ok) {
-        console.warn('ReceiptUploadService: File verification failed, but upload succeeded');
+        logger.warn('File verification failed, but upload succeeded');
       } else {
-        console.log('ReceiptUploadService: File verified successfully');
+        logger.debug('File verified successfully');
       }
     } catch (verifyError) {
-      console.warn('ReceiptUploadService: File verification error (non-critical):', verifyError);
+      logger.warn('File verification error (non-critical)', verifyError);
     }
 
-    console.log('ReceiptUploadService: Upload process completed successfully');
+    logger.info('Upload process completed successfully');
     return { 
       success: true, 
       url: publicUrl,
@@ -258,7 +257,7 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
     };
 
   } catch (error) {
-    console.error('ReceiptUploadService: Unexpected error during upload:', error);
+    logger.error('Unexpected error during upload', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return { success: false, error: `Upload failed: ${errorMessage}` };
   }
@@ -266,7 +265,7 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
 
 export const deleteReceipt = async (filePath: string): Promise<boolean> => {
   try {
-    console.log('ReceiptUploadService: Deleting receipt at path:', filePath);
+    logger.info('Deleting receipt', { filePath });
     
     // Extract just the path part if a full URL is provided
     let actualPath = filePath;
@@ -274,28 +273,28 @@ export const deleteReceipt = async (filePath: string): Promise<boolean> => {
       actualPath = filePath.split('/storage/v1/object/public/claim-receipts/')[1];
     }
     
-    console.log('ReceiptUploadService: Actual deletion path:', actualPath);
+    logger.debug('Actual deletion path', { actualPath });
 
     const { error } = await supabase.storage
       .from('claim-receipts')
       .remove([actualPath]);
 
     if (error) {
-      console.error('ReceiptUploadService: Delete error:', error);
+      logger.error('Delete error', error);
       return false;
     }
 
-    console.log('ReceiptUploadService: File deleted successfully');
+    logger.info('File deleted successfully');
     return true;
   } catch (error) {
-    console.error('ReceiptUploadService: Delete operation error:', error);
+    logger.error('Delete operation error', error);
     return false;
   }
 };
 
 // Utility function to test upload functionality
 export const testUploadFunctionality = async (): Promise<{ success: boolean; message: string }> => {
-  console.log('ReceiptUploadService: Running upload functionality test...');
+  logger.info('Running upload functionality test');
   
   try {
     // Test 1: Supabase connection
@@ -329,7 +328,7 @@ export const testUploadFunctionality = async (): Promise<{ success: boolean; mes
     }
 
   } catch (error) {
-    console.error('ReceiptUploadService: Test error:', error);
+    logger.error('Test error', error);
     return { success: false, message: `Test error: ${error}` };
   }
 };

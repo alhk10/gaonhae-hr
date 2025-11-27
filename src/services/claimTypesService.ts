@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface ClaimType {
   id: string;
@@ -12,7 +12,7 @@ export interface ClaimType {
 
 export const getClaimTypes = async (): Promise<ClaimType[]> => {
   try {
-    console.log('Fetching claim types from database...');
+    logger.debug('Fetching claim types from database');
     
     const { data, error } = await supabase
       .from('claim_types')
@@ -21,14 +21,14 @@ export const getClaimTypes = async (): Promise<ClaimType[]> => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching claim types:', error);
+      logger.error('Error fetching claim types', error);
       throw error;
     }
 
-    console.log('Loaded claim types:', data);
+    logger.debug('Loaded claim types', { count: data?.length });
     return data || [];
   } catch (error) {
-    console.error('Error in getClaimTypes:', error);
+    logger.error('Error in getClaimTypes', error);
     throw error;
   }
 };
@@ -42,13 +42,13 @@ export const createClaimType = async (claimType: Omit<ClaimType, 'id'>): Promise
       .single();
 
     if (error) {
-      console.error('Error creating claim type:', error);
+      logger.error('Error creating claim type', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in createClaimType:', error);
+    logger.error('Error in createClaimType', error);
     throw error;
   }
 };
@@ -63,20 +63,20 @@ export const updateClaimType = async (id: string, updates: Partial<ClaimType>): 
       .single();
 
     if (error) {
-      console.error('Error updating claim type:', error);
+      logger.error('Error updating claim type', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in updateClaimType:', error);
+    logger.error('Error in updateClaimType', error);
     throw error;
   }
 };
 
 export const getAllClaimTypes = async (): Promise<ClaimType[]> => {
   try {
-    console.log('Fetching all claim types from database...');
+    logger.debug('Fetching all claim types from database');
     
     const { data, error } = await supabase
       .from('claim_types')
@@ -84,14 +84,14 @@ export const getAllClaimTypes = async (): Promise<ClaimType[]> => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching all claim types:', error);
+      logger.error('Error fetching all claim types', error);
       throw error;
     }
 
-    console.log('Loaded all claim types:', data);
+    logger.debug('Loaded all claim types', { count: data?.length });
     return data || [];
   } catch (error) {
-    console.error('Error in getAllClaimTypes:', error);
+    logger.error('Error in getAllClaimTypes', error);
     throw error;
   }
 };
@@ -104,11 +104,11 @@ export const deleteClaimType = async (id: string): Promise<void> => {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting claim type:', error);
+      logger.error('Error deleting claim type', error);
       throw error;
     }
   } catch (error) {
-    console.error('Error in deleteClaimType:', error);
+    logger.error('Error in deleteClaimType', error);
     throw error;
   }
 };
@@ -123,7 +123,7 @@ export const toggleClaimTypeStatus = async (id: string): Promise<ClaimType> => {
       .single();
 
     if (fetchError) {
-      console.error('Error fetching current claim type status:', fetchError);
+      logger.error('Error fetching current claim type status', fetchError);
       throw fetchError;
     }
 
@@ -136,13 +136,13 @@ export const toggleClaimTypeStatus = async (id: string): Promise<ClaimType> => {
       .single();
 
     if (error) {
-      console.error('Error toggling claim type status:', error);
+      logger.error('Error toggling claim type status', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in toggleClaimTypeStatus:', error);
+    logger.error('Error in toggleClaimTypeStatus', error);
     throw error;
   }
 };
