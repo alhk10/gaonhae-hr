@@ -81,13 +81,13 @@ export const addLeaveRequest = async (leave: Omit<LeaveRequest, 'id'>): Promise<
       .insert([insertData]);
 
     if (error) {
-      console.error('Error inserting leave request:', error);
+      logger.error('Error inserting leave request:', error);
       throw error;
     }
 
-    console.log('Leave request added successfully');
+    logger.info('Leave request added successfully');
   } catch (error) {
-    console.error('Error in addLeaveRequest:', error);
+    logger.error('Error in addLeaveRequest:', error);
     throw error;
   }
 };
@@ -98,7 +98,7 @@ export const updateLeaveStatus = async (
   reviewedBy?: string
 ): Promise<void> => {
   try {
-    console.log(`Updating leave ${id} status to ${status}`);
+    logger.debug('Updating leave status', { id, status, reviewedBy });
 
     const updateData: any = {
       status,
@@ -115,13 +115,13 @@ export const updateLeaveStatus = async (
       .eq('id', id);
 
     if (error) {
-      console.error('Error updating leave status:', error);
+      logger.error('Error updating leave status:', error);
       throw error;
     }
 
-    console.log('Leave status updated successfully');
+    logger.info('Leave status updated successfully');
   } catch (error) {
-    console.error('Error in updateLeaveStatus:', error);
+    logger.error('Error in updateLeaveStatus:', error);
     throw error;
   }
 };

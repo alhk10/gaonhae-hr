@@ -82,14 +82,14 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
 
     return transformedData;
   } catch (error) {
-    console.error('Error in getEmployeeClaims:', error);
+    logger.error('Error in getEmployeeClaims:', error);
     throw error;
   }
 };
 
 export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url?: string }, requireReceipt: boolean = true): Promise<void> => {
   try {
-    console.log('Creating new claim:', claim);
+    logger.debug('Creating new claim', { claim });
 
     // Validate required fields
     if (requireReceipt && !claim.receipt_url) {
@@ -106,20 +106,20 @@ export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url?: str
       submitted_date: new Date().toISOString()
     };
 
-    console.log('Inserting claim data:', insertData);
+    logger.debug('Inserting claim data', { insertData });
 
     const { error } = await supabase
       .from('claims')
       .insert([insertData]);
 
     if (error) {
-      console.error('Error inserting claim:', error);
+      logger.error('Error inserting claim:', error);
       throw error;
     }
 
-    console.log('Claim created successfully');
+    logger.info('Claim created successfully');
   } catch (error) {
-    console.error('Error in createClaim:', error);
+    logger.error('Error in createClaim:', error);
     throw error;
   }
 };
@@ -129,7 +129,7 @@ export const updateClaimStatus = async (
   status: 'Approved' | 'Rejected'
 ): Promise<void> => {
   try {
-    console.log(`Updating claim ${id} status to ${status}`);
+    logger.debug('Updating claim status', { id, status });
 
     const { error } = await supabase
       .from('claims')
@@ -140,13 +140,13 @@ export const updateClaimStatus = async (
       .eq('id', id);
 
     if (error) {
-      console.error('Error updating claim status:', error);
+      logger.error('Error updating claim status:', error);
       throw error;
     }
 
-    console.log('Claim status updated successfully');
+    logger.info('Claim status updated successfully');
   } catch (error) {
-    console.error('Error in updateClaimStatus:', error);
+    logger.error('Error in updateClaimStatus:', error);
     throw error;
   }
 };

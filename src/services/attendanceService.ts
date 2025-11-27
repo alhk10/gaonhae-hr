@@ -89,7 +89,7 @@ export const getEmployeeAttendanceRecords = async (employeeId: string): Promise<
 };
 
 export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 'employee'>): Promise<void> => {
-  console.log('Adding attendance record:', record);
+  logger.debug('Adding attendance record', { record });
   
   const { error } = await supabase
     .from('attendance')
@@ -106,13 +106,13 @@ export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 
     });
 
   if (error) {
-    console.error('Error adding attendance record:', error);
+    logger.error('Error adding attendance record:', error);
     throw error;
   }
 };
 
 export const updateAttendanceRecord = async (id: number, updates: Partial<AttendanceRecord>): Promise<void> => {
-  console.log('Updating attendance record:', id, updates);
+  logger.debug('Updating attendance record', { id, updates });
   
   const { error } = await supabase
     .from('attendance')
@@ -130,13 +130,13 @@ export const updateAttendanceRecord = async (id: number, updates: Partial<Attend
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating attendance record:', error);
+    logger.error('Error updating attendance record:', error);
     throw error;
   }
 };
 
 export const deleteAttendanceRecord = async (recordId: number): Promise<void> => {
-  console.log('Deleting attendance record:', recordId);
+  logger.debug('Deleting attendance record', { recordId });
   
   const { error } = await supabase
     .from('attendance')
@@ -144,7 +144,7 @@ export const deleteAttendanceRecord = async (recordId: number): Promise<void> =>
     .eq('id', recordId);
 
   if (error) {
-    console.error('Error deleting attendance record:', error);
+    logger.error('Error deleting attendance record:', error);
     throw error;
   }
 };
@@ -170,7 +170,7 @@ export const getClockInOutStatus = async (employeeId: string): Promise<ClockInOu
       location: data.location || undefined
     };
   } catch (error) {
-    console.error('Error fetching clock status:', error);
+    logger.error('Error fetching clock status:', error);
     return undefined;
   }
 };
@@ -242,7 +242,7 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
           }
         }
       } catch (error) {
-        console.log('No specific settings found for location:', location);
+        logger.debug('No specific settings found for location, using fallback', { location });
         // Fall back to default logic
         const checkInTime = new Date(`2000-01-01T${currentTime}`);
         const nineAM = new Date(`2000-01-01T09:00`);
@@ -324,11 +324,11 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
       .upsert(clockStatusData);
 
     if (clockError) {
-      console.error('Error updating clock status:', clockError);
+      logger.error('Error updating clock status:', clockError);
     }
 
   } catch (error) {
-    console.error('Error updating clock in/out:', error);
+    logger.error('Error updating clock in/out:', error);
     throw error;
   }
 };
@@ -338,7 +338,7 @@ export const updateAttendanceStatus = async (
   date: string, 
   status: 'Present' | 'Absent' | 'Half Day' | 'Late'
 ): Promise<void> => {
-  console.log('Updating attendance status:', employeeId, date, status);
+  logger.debug('Updating attendance status', { employeeId, date, status });
   
   const { error } = await supabase
     .from('attendance')
@@ -350,7 +350,7 @@ export const updateAttendanceStatus = async (
     });
 
   if (error) {
-    console.error('Error updating attendance status:', error);
+    logger.error('Error updating attendance status:', error);
     throw error;
   }
 };
