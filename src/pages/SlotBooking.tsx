@@ -54,6 +54,7 @@ const SlotBooking = () => {
   const [employeeJoinDate, setEmployeeJoinDate] = useState<string | null>(null);
   const [calculatedPay, setCalculatedPay] = useState<{ date: string; amount: number; breakdown: { item: string; amount: number }[] }[]>([]);
   const [bookingPayData, setBookingPayData] = useState<Map<string, { amount: number; breakdown: { item: string; amount: number }[] }>>(new Map());
+  const [totalEstimatedEarnings, setTotalEstimatedEarnings] = useState<number>(0);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -86,7 +87,7 @@ const SlotBooking = () => {
 
   useEffect(() => {
     calculateApprovedBookings();
-  }, [employeeBookings]);
+  }, [employeeBookings, employeeQualifications, employeeJoinDate]);
 
   useEffect(() => {
     calculateBookingHistoryPay();
@@ -275,7 +276,7 @@ const SlotBooking = () => {
     }
   };
 
-  const calculateApprovedBookings = () => {
+  const calculateApprovedBookings = async () => {
     const currentMonth = new Date();
     const approvedThisMonth = employeeBookings.filter(booking => {
       const bookingDate = new Date(booking.date);
@@ -286,6 +287,24 @@ const SlotBooking = () => {
     
     setApprovedBookingsCount(approvedThisMonth.length);
     console.log('SlotBooking: Approved bookings this month:', approvedThisMonth.length);
+    
+    // Calculate total earnings for Nov 2025+ approved bookings
+    let totalEarnings = 0;
+    for (const booking of approvedThisMonth) {
+      if (isFromNovember2024(booking.date)) {
+        try {
+          const amount = await calculateSlotPay(
+            booking.date,
+            employeeQualifications || undefined,
+            employeeJoinDate || undefined
+          );
+          totalEarnings += amount;
+        } catch (error) {
+          console.error('Error calculating pay for booking:', booking.id, error);
+        }
+      }
+    }
+    setTotalEstimatedEarnings(totalEarnings);
   };
 
   const filterBookingsByMonth = () => {
@@ -581,19 +600,32 @@ const SlotBooking = () => {
           
         </div>
 
-        {/* Stats Card */}
-        <Card>
-          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Approved Bookings</p>
-                <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{approvedBookingsCount}</p>
-                <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
-              </div>
-              <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-            </div>
-          </CardContent>
-        </Card>
+            {/* Stats Card */}
+            <Card>
+              <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>My Approved Bookings</p>
+                    <p className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>{approvedBookingsCount}</p>
+                    <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>This month</p>
+                    
+                    {/* Total Estimated Earnings - only show for Nov 2025+ */}
+                    {totalEstimatedEarnings > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className={`font-medium text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Estimated Earnings</p>
+                        <p className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-xl'}`}>
+                          S${totalEstimatedEarnings.toFixed(2)}
+                        </p>
+                        <p className={`text-amber-600 italic ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                          *subjected to attendance
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <CheckCircle className={`text-green-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                </div>
+              </CardContent>
+            </Card>
 
         {/* Show restriction message for full-time employees */}
         {user?.role === 'employee' && userDetails && userDetails.type !== 'Casual' && (
