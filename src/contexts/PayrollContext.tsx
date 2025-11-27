@@ -3,81 +3,13 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmployeeProfile, EmployeeAllowance, EmployeeDeduction } from '@/types/employee';
+import type { FullTimeEmployee, CasualEmployee, PayrollState } from '@/types/payroll';
 import { calculateCasualPayroll, calculateFullTimePayroll, isSlotBookingPayrollPeriod } from '@/utils/payrollCalculations';
 import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
 import { calculateCasualEmployeePayroll } from '@/services/casualPayrollCalculationService';
 import { formatPeriodForAPI, getCurrentPeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
-
-export interface FullTimeEmployee {
-  id: string;
-  name: string;
-  employeeId: string;
-  baseSalary: number;
-  allowances: number;
-  cpfContribution: number;
-  netPay: number;
-  grossPay: number;
-  cpfEmployee: number;
-  cpfEmployer: number;
-  paymentType?: 'Monthly' | 'Hourly' | 'Daily';
-  claims?: number;
-  // Add support for allowances and deductions arrays
-  allowancesArray?: EmployeeAllowance[];
-  deductions?: EmployeeDeduction[];
-}
-
-export interface CasualEmployee {
-  id: string;
-  name: string;
-  employeeId: string;
-  hourlyRate: number;
-  hoursWorked: number;
-  totalPay: number;
-  employeeCPF: number;
-  claims?: number;
-  employerCPF: number;
-  grossPay: number;
-  daysWorked?: number;
-  paymentType?: string;
-  dailyRate?: number;
-  dailyWeekdayRate?: number;
-  dailyWeekendRate?: number;
-  baseSalary?: number;
-  // Additional properties for PayrollEmployee compatibility
-  allowances?: any[];
-  deductions?: any[];
-  cpfEmployee?: number;
-  cpfEmployer?: number;
-  netPay?: number;
-  cpf?: number;
-  total?: number;
-  // Slot booking metadata
-  slotBookingPay?: number;
-  slotBookingMetadata?: {
-    totalSlots: number;
-    hasBookings: boolean;
-    breakdown?: Array<{
-      date: string;
-      branchName: string;
-      pay: number;
-    }>;
-    calculationMethod?: 'dynamic_pricing' | 'legacy_rates';
-  };
-  warnings?: string[];
-}
-
-export interface PayrollState {
-  fullTimeEmployees: FullTimeEmployee[];
-  casualEmployees: CasualEmployee[];
-  currentPeriod: string;
-  status: 'draft' | 'processing' | 'approved' | 'paid' | 'completed';
-  lastUpdated: Date;
-  isLoading: boolean;
-  availableEmployees: EmployeeProfile[];
-  totalAmount: number;
-  encashmentData: any[];
-}
+import { usePayrollPersistence } from '@/hooks/usePayrollPersistence';
 
 export interface PayrollContextType {
   payrollState: PayrollState;
@@ -123,18 +55,24 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     encashmentData: [],
   });
 
+  // Use persistence hook for Supabase operations
+  const { savePayrollToSupabase, loadPayrollFromSupabase } = usePayrollPersistence(
+    payrollState,
+    setPayrollState
+  );
+
   // Initialize payroll data when component mounts
   useEffect(() => {
     const initializePayroll = async () => {
       try {
         await loadPayrollFromSupabase();
       } catch (error) {
-        console.error('Error initializing PayrollContext:', error);
+        logger.error('Error initializing PayrollContext', error);
       }
     };
 
     initializePayroll();
-  }, []);
+  }, [loadPayrollFromSupabase]);
 
   // Auto-load payroll data when period changes
   useEffect(() => {
@@ -154,19 +92,17 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
       
       if (isNovember2025OrLater) {
-        console.log(`\n🔄 [PayrollContext useEffect] November 2025+ detected (${payrollState.currentPeriod}) - SKIPPING auto-load`);
-        console.log(`   PayrollProcessing will handle manual recalculation with dynamic pricing\n`);
+        logger.debug('November 2025+ detected - skipping auto-load', { period: payrollState.currentPeriod });
         return; // Skip auto-load for November 2025+ - PayrollProcessing handles this manually
       }
       
       const loadPayrollData = async () => {
-        console.log(`\n🔄 [PayrollContext useEffect] Period changed to: ${payrollState.currentPeriod}`);
-        console.log(`🔄 [PayrollContext useEffect] Calling loadPayrollFromSupabase...`);
+        logger.info('Period changed, loading payroll', { period: payrollState.currentPeriod });
         try {
           await loadPayrollFromSupabase();
-          console.log(`✅ [PayrollContext useEffect] loadPayrollFromSupabase completed for ${payrollState.currentPeriod}`);
+          logger.info('Payroll loaded successfully', { period: payrollState.currentPeriod });
         } catch (error) {
-          console.error('❌ [PayrollContext useEffect] Error auto-loading payroll data:', error);
+          logger.error('Error auto-loading payroll data', error);
         }
       };
 
@@ -175,7 +111,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       return () => clearTimeout(timeoutId);
     }
-  }, [payrollState.currentPeriod]);
+  }, [payrollState.currentPeriod, loadPayrollFromSupabase]);
 
 
   const addFullTimeEmployee = useCallback((employee: Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>) => {
@@ -880,144 +816,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  const savePayrollToSupabase = async () => {
-    setPayrollState(prevState => ({ ...prevState, isLoading: true }));
-    try {
-      const payrollData = {
-        month: payrollState.currentPeriod.split(' ')[0],
-        year: payrollState.currentPeriod.split(' ')[1],
-        fullTimeEmployees: payrollState.fullTimeEmployees,
-        casualEmployees: payrollState.casualEmployees,
-        status: payrollState.status,
-      };
-
-      const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
-      const periodRecordId = `PERIOD_${formattedPeriod}`;
-      const [monthName, yearStr] = payrollState.currentPeriod.split(' ');
-      const yearNum = parseInt(yearStr);
-
-      // Save consolidated period record
-      const { error: periodError } = await supabase
-        .from('payroll_records')
-        .upsert({
-          id: periodRecordId,
-          employee_id: null,
-          month: payrollData.month,
-          year: yearNum,
-          payroll_data: payrollData as any,
-          is_locked: false,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
-        });
-
-      if (periodError) {
-        console.error('Error saving period payroll data:', periodError);
-        throw periodError;
-      }
-
-      // Save individual employee records for both full-time and casual
-      const individualRecords = [];
-      
-      // Full-time employees
-      for (const emp of payrollState.fullTimeEmployees) {
-        const empRecordId = `${emp.employeeId}_${yearNum}_${monthName.replace(' ', '_')}_${yearNum}`;
-        const allowances = Array.isArray(emp.allowances) ? emp.allowances : [];
-        const deductions = Array.isArray(emp.deductions) ? emp.deductions : [];
-        
-        individualRecords.push({
-          id: empRecordId,
-          employee_id: emp.employeeId,
-          month: monthName,
-          year: yearNum,
-          payroll_data: {
-            employeeId: emp.employeeId,
-            name: emp.name,
-            type: 'Full-Time',
-            baseSalary: emp.baseSalary,
-            allowances,
-            deductions,
-            totalAllowances: allowances.reduce((sum, a) => sum + (a.amount || 0), 0),
-            totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
-            grossSalary: emp.grossPay,
-            employeeCPF: emp.cpfEmployee,
-            employerCPF: emp.cpfEmployer,
-            totalCPF: (emp.cpfEmployee || 0) + (emp.cpfEmployer || 0),
-            approvedClaims: emp.claims || 0,
-            netSalary: emp.netPay
-          },
-          is_locked: false,
-          updated_at: new Date().toISOString()
-        });
-      }
-
-      // Casual employees - include slot booking metadata
-      for (const emp of payrollState.casualEmployees) {
-        const empRecordId = `${emp.employeeId}_${yearNum}_${monthName.replace(' ', '_')}_${yearNum}`;
-        const allowances = Array.isArray(emp.allowances) ? emp.allowances : [];
-        const deductions = Array.isArray(emp.deductions) ? emp.deductions : [];
-        const casualEmp = emp as any; // Type assertion for metadata fields
-        
-        individualRecords.push({
-          id: empRecordId,
-          employee_id: emp.employeeId,
-          month: monthName,
-          year: yearNum,
-          payroll_data: {
-            employeeId: emp.employeeId,
-            name: emp.name,
-            type: 'Casual',
-            paymentType: emp.paymentType,
-            baseSalary: emp.baseSalary,
-            hourlyRate: emp.hourlyRate,
-            dailyRate: emp.dailyRate,
-            hoursWorked: emp.hoursWorked,
-            daysWorked: emp.daysWorked,
-            allowances,
-            deductions,
-            totalAllowances: allowances.reduce((sum, a) => sum + (a.amount || 0), 0),
-            totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
-            grossSalary: emp.grossPay,
-            employeeCPF: emp.employeeCPF,
-            employerCPF: emp.employerCPF,
-            totalCPF: (emp.employeeCPF || 0) + (emp.employerCPF || 0),
-            approvedClaims: emp.claims || 0,
-            netSalary: emp.totalPay,
-            // Store slot booking data for dynamic pricing tracking
-            slotBookingPay: casualEmp.slotBookingPay || 0,
-            slotBookingMetadata: casualEmp.slotBookingMetadata || null,
-            calculationMethod: casualEmp.slotBookingPay > 0 ? 'dynamic_pricing' : 'legacy_rates'
-          },
-          is_locked: false,
-          updated_at: new Date().toISOString()
-        });
-      }
-
-      // Batch upsert all individual employee records
-      if (individualRecords.length > 0) {
-        const { error: individualError } = await supabase
-          .from('payroll_records')
-          .upsert(individualRecords, {
-            onConflict: 'id'
-          });
-
-        if (individualError) {
-          console.error('Error saving individual payroll records:', individualError);
-          throw individualError;
-        }
-
-        console.log(`✓ Saved ${individualRecords.length} individual employee payroll records`);
-      }
-
-      console.log('✓ Payroll data saved to Supabase (period + individual records)');
-    } catch (error) {
-      console.error('Failed to save payroll data:', error);
-      throw error;
-    } finally {
-      setPayrollState(prevState => ({ ...prevState, isLoading: false }));
-    }
-  };
-
   const getEligibleCasualEmployeesForPayroll = useCallback(async () => {
     const [monthName, year] = payrollState.currentPeriod.split(' ');
     const monthNumber = new Date(`${monthName} 1, ${year}`).getMonth() + 1;
@@ -1216,207 +1014,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setPayrollState(prevState => ({ ...prevState, isLoading: false }));
     }
   }, [getEligibleCasualEmployeesForPayroll, addCasualEmployee]);
-
-  const loadPayrollFromSupabase = async () => {
-    setPayrollState(prevState => ({ ...prevState, isLoading: true }));
-    try {
-      const currentPeriod = payrollState.currentPeriod;
-      const formattedPeriod = formatPeriodForAPI(currentPeriod);
-      
-      // CRITICAL: For November 2025 onwards, SKIP loading cached data and force recalculation
-      // This ensures dynamic pricing is applied correctly
-      const [year, month] = formattedPeriod.split('-').map(Number);
-      const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
-      
-      if (isNovember2025OrLater) {
-        console.log(`🔄 [loadPayrollFromSupabase] Skipping cached data for ${currentPeriod} - will force recalculation with dynamic pricing`);
-        setPayrollState(prevState => ({ 
-          ...prevState, 
-          isLoading: false,
-          fullTimeEmployees: [],
-          casualEmployees: []
-        }));
-        return; // Exit early - PayrollProcessing will trigger recalculation
-      }
-      
-      // First try to get the consolidated period record (only for periods before November 2025)
-      const { data: periodData, error: periodError } = await supabase
-        .from('payroll_records')
-        .select('*')
-        .eq('id', `PERIOD_${formattedPeriod}`)
-        .maybeSingle();
-
-      if (periodData && periodData.payroll_data) {
-        const payrollData = periodData.payroll_data as any;
-        
-        // Transform data to match UI expectations
-        const transformedFullTimeEmployees = (payrollData.fullTimeEmployees || []).map((emp: any) => {
-          // Ensure allowances have proper id property and format
-          const allowances = Array.isArray(emp.allowances) ? emp.allowances.map((allowance: any, index: number) => ({
-            id: allowance.id || `allowance_${emp.id}_${index}`,
-            name: allowance.name || 'Unknown Allowance',
-            amount: Number(allowance.amount) || 0,
-            type: allowance.type || 'Fixed'
-          })) : [];
-          
-          // Ensure deductions have proper id property and format
-          const deductions = Array.isArray(emp.deductions) ? emp.deductions.map((deduction: any, index: number) => ({
-            id: deduction.id || `deduction_${emp.id}_${index}`,
-            name: deduction.name || 'Unknown Deduction',
-            amount: Number(deduction.amount) || 0,
-            type: deduction.type || 'Fixed'
-          })) : [];
-          
-          
-          return {
-            ...emp,
-            netPay: Number(emp.netSalary || emp.netPay || 0), // Consistent numeric mapping
-            grossPay: Number(emp.grossSalary || emp.grossPay || 0), // Consistent numeric mapping
-            cpfEmployee: Number(emp.employeeCPF || emp.cpfEmployee || 0), // Prioritize employeeCPF from DB
-            cpfEmployer: Number(emp.employerCPF || emp.cpfEmployer || 0), // Prioritize employerCPF from DB
-            allowances, // Use properly formatted allowances with IDs
-            deductions, // Use properly formatted deductions with IDs
-            paymentType: emp.paymentType || 'Monthly',
-          };
-        });
-        
-        const transformedCasualEmployees = (payrollData.casualEmployees || []).map((emp: any) => {
-          // Ensure allowances have proper id property and format
-          const allowances = Array.isArray(emp.allowances) ? emp.allowances.map((allowance: any, index: number) => ({
-            id: allowance.id || `allowance_${emp.id}_${index}`,
-            name: allowance.name || 'Unknown Allowance',
-            amount: Number(allowance.amount) || 0,
-            type: allowance.type || 'Fixed'
-          })) : [];
-          
-          // Ensure deductions have proper id property and format
-          const deductions = Array.isArray(emp.deductions) ? emp.deductions.map((deduction: any, index: number) => ({
-            id: deduction.id || `deduction_${emp.id}_${index}`,
-            name: deduction.name || 'Unknown Deduction',
-            amount: Number(deduction.amount) || 0,
-            type: deduction.type || 'Fixed'
-          })) : [];
-          
-          return {
-            ...emp,
-            totalPay: Number(emp.netSalary || emp.totalPay || 0), // Consistent numeric mapping for casual employees
-            grossPay: Number(emp.grossSalary || emp.grossPay || 0), // Consistent numeric mapping
-            employeeCPF: Number(emp.employeeCPF || emp.cpfEmployee || 0), // Prioritize employeeCPF from DB
-            employerCPF: Number(emp.employerCPF || emp.cpfEmployer || 0), // Prioritize employerCPF from DB
-            allowances, // Use properly formatted allowances with IDs
-            deductions, // Use properly formatted deductions with IDs
-            paymentType: emp.paymentType || (emp.baseSalary ? 'Monthly' : 'Hourly'),
-          };
-        });
-        
-        console.log('💰 PayrollContext: Transformed payroll data loaded:', {
-          fullTimeCount: transformedFullTimeEmployees.length,
-          casualCount: transformedCasualEmployees.length,
-          sampleFullTime: transformedFullTimeEmployees[0] ? { 
-            name: transformedFullTimeEmployees[0].name, 
-            netPay: transformedFullTimeEmployees[0].netPay 
-          } : null,
-          sampleCasual: transformedCasualEmployees[0] ? { 
-            name: transformedCasualEmployees[0].name, 
-            totalPay: transformedCasualEmployees[0].totalPay 
-          } : null
-        });
-        
-        setPayrollState(prevState => ({
-          ...prevState,
-          fullTimeEmployees: transformedFullTimeEmployees,
-          casualEmployees: transformedCasualEmployees,
-          status: payrollData.status,
-          lastUpdated: new Date(),
-        }));
-        return;
-      }
-
-      // If no consolidated record found, try to load individual records
-      console.log('No consolidated record found, checking for individual records...');
-      const periodForQuery = currentPeriod.includes('-') ? 
-        currentPeriod.replace('-', ' ') : 
-        `${currentPeriod.split(' ')[0]} ${currentPeriod.split(' ')[1]}`;
-      
-      const { data: individualRecords, error: individualError } = await supabase
-        .from('payroll_records')
-        .select(`
-          *,
-          employees:employee_id (
-            id,
-            name,
-            type
-          )
-        `)
-        .eq('month', periodForQuery)
-        .eq('status', 'draft');
-
-      if (individualError) {
-        console.error('Error fetching individual payroll records:', individualError);
-        throw individualError;
-      }
-
-      if (individualRecords && individualRecords.length > 0) {
-        console.log(`Found ${individualRecords.length} individual records, consolidating...`);
-        
-        const fullTimeEmployees: any[] = [];
-        const casualEmployees: any[] = [];
-
-        individualRecords.forEach((record: any) => {
-          const employee = record.employees;
-          if (employee && record.payroll_data) {
-            const employeeData = {
-              ...record.payroll_data,
-              employeeId: record.employee_id,
-              name: employee.name,
-              type: employee.type,
-              // Consistent property mappings for CPF and net pay with proper numeric conversion
-              cpfEmployee: Number(record.payroll_data.employeeCPF || record.payroll_data.cpfEmployee || 0),
-              cpfEmployer: Number(record.payroll_data.employerCPF || record.payroll_data.cpfEmployer || 0),
-              netPay: Number(record.payroll_data.netSalary || record.payroll_data.netPay || 0),
-              grossPay: Number(record.payroll_data.grossSalary || record.payroll_data.grossPay || 0),
-              // For casual employees, also map to legacy properties
-              employeeCPF: Number(record.payroll_data.employeeCPF || record.payroll_data.cpfEmployee || 0),
-              employerCPF: Number(record.payroll_data.employerCPF || record.payroll_data.cpfEmployer || 0),
-              totalPay: Number(record.payroll_data.netSalary || record.payroll_data.totalPay || 0),
-              // Ensure allowances array is properly formatted with id and type validation
-              allowances: Array.isArray(record.payroll_data.allowances) ? record.payroll_data.allowances.map((allowance: any, index: number) => ({
-                id: allowance.id || `allowance-${record.employee_id}-${index}`,
-                name: allowance.name || 'Unknown Allowance',
-                amount: Number(allowance.amount) || 0,
-                type: allowance.type || 'Fixed'
-              })) : [],
-              // Ensure deductions array is properly formatted with id and type validation
-              deductions: Array.isArray(record.payroll_data.deductions) ? record.payroll_data.deductions.map((deduction: any, index: number) => ({
-                id: deduction.id || `deduction-${record.employee_id}-${index}`,
-                name: deduction.name || 'Unknown Deduction',
-                amount: Number(deduction.amount) || 0,
-                type: deduction.type || 'Fixed'
-              })) : []
-            };
-
-            if (employee.type === 'Full-Time') {
-              fullTimeEmployees.push(employeeData);
-            } else {
-              casualEmployees.push(employeeData);
-            }
-          }
-        });
-
-        setPayrollState(prevState => ({
-          ...prevState,
-          fullTimeEmployees,
-          casualEmployees,
-          status: 'draft',
-          lastUpdated: new Date(),
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to load payroll data:', error);
-    } finally {
-      setPayrollState(prevState => ({ ...prevState, isLoading: false }));
-    }
-  };
 
   // Load available employees on mount
   useEffect(() => {
