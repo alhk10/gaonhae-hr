@@ -5,98 +5,30 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
   try {
     logger.debug('Fetching employee data', { email });
     
-    // Emergency fallbacks for known problematic employees during Supabase connectivity issues
+    // Emergency fallbacks for all employees during Supabase connectivity issues
     const emergencyFallbacks: Record<string, any> = {
-      'alhk10@gmail.com': {
-        id: 'EMP1751003565851',
-        name: 'Lee Heng Keong Alvin',
-        email: 'alhk10@gmail.com',
-        type: 'Full-Time',
-        position: 'System Administrator',
-        department: null,
-        phone: null,
-        address: null,
-        nric: null,
-        base_salary: null,
-        join_date: null,
-        resign_date: null,
-        isSuperadmin: true
-      },
-      'ryangohjj21@gmail.com': {
-        id: 'EMP1751006984631',
-        name: 'Goh Jun Jie Ryan',
-        email: 'ryangohjj21@gmail.com',
-        type: 'Casual',
-        position: 'Instructor',
-        department: null,
-        phone: null,
-        address: null,
-        nric: null,
-        base_salary: null,
-        join_date: null,
-        resign_date: null,
-        isSuperadmin: false
-      },
-      'huang3471@gmail.com': {
-        id: 'EMP1752646101747',
-        name: 'Wang Pot Chien',
-        email: 'huang3471@gmail.com',
-        type: 'Casual',
-        position: 'Instructor',
-        department: null,
-        phone: null,
-        address: null,
-        nric: null,
-        base_salary: null,
-        join_date: null,
-        resign_date: null,
-        isSuperadmin: false
-      },
-      'sitiaisyahbintimohdnazzer@gmail.com': {
-        id: 'EMP1752551410290',
-        name: 'Siti Aisyah Binti Mohammed Nazzer',
-        email: 'sitiaisyahbintimohdnazzer@gmail.com',
-        type: 'Casual',
-        position: 'Instructor',
-        department: null,
-        phone: null,
-        address: null,
-        nric: null,
-        base_salary: null,
-        join_date: null,
-        resign_date: null,
-        isSuperadmin: false
-      },
-      'jasonlulijie@gmail.com': {
-        id: 'EMP1751007228999',
-        name: 'Jason Lu Lijie',
-        email: 'jasonlulijie@gmail.com',
-        type: 'Casual',
-        position: 'Casual Instructor',
-        department: 'Main Office',
-        phone: null,
-        address: null,
-        nric: 'T0391138H',
-        base_salary: 1875,
-        join_date: '2021-11-17',
-        resign_date: null,
-        isSuperadmin: false
-      },
-      'clarissa.kohjx@gmail.com': {
-        id: 'EMP1751030381806',
-        name: 'Clarissa Koh Jia Xuan',
-        email: 'clarissa.kohjx@gmail.com',
-        type: 'Casual',
-        position: 'Casual Instructor',
-        department: 'Main Office',
-        phone: null,
-        address: null,
-        nric: 'T0832430H',
-        base_salary: null,
-        join_date: '2025-06-27',
-        resign_date: null,
-        isSuperadmin: false
-      }
+      '20102009jc@gmail.com': { id: 'EMP1764254219246', name: 'Chew Wee Hong Jeremy', email: '20102009jc@gmail.com', type: 'Casual', position: '', department: 'Main Office', phone: '', address: '', nric: 'T0930817I', base_salary: null, join_date: '2025-11-27', resign_date: null, isSuperadmin: false },
+      'albertcorpuz873@gmail.com': { id: 'EMP1750865290864', name: 'Corpuz Albert Jr Tiggangay', email: 'albertcorpuz873@gmail.com', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', phone: '85254816', address: '', nric: 'G3284978X', base_salary: 3700, join_date: '2022-05-01', resign_date: null, isSuperadmin: false },
+      'alhk10@gmail.com': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', email: 'alhk10@gmail.com', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', phone: '97533488', address: '', nric: 'S8800272E', base_salary: 7200, join_date: '2017-06-01', resign_date: null, isSuperadmin: true },
+      'carissamasters@gaonhaetaekwondo.com': { id: 'EMP1751030249722', name: 'Carissa Lee Masters', email: 'carissamasters@gaonhaetaekwondo.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0702889F', base_salary: null, join_date: '2023-12-01', resign_date: null, isSuperadmin: false },
+      'chajw0717@gmail.com': { id: 'EMP1750866475666', name: 'Cha Jinwoo', email: 'chajw0717@gmail.com', type: 'Full-Time', position: 'Instructor', department: 'Main Office', phone: '88494803', address: '', nric: 'M3205770L', base_salary: 3200, join_date: null, resign_date: null, isSuperadmin: false },
+      'clarissa.kohjx@gmail.com': { id: 'EMP1751030381806', name: 'Clarissa Koh Jia Xuan', email: 'clarissa.kohjx@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0832430H', base_salary: null, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
+      'eldon.ayz0106@gmail.com': { id: 'EMP1751006728858', name: 'Aw Yi Zhe Eldon', email: 'eldon.ayz0106@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0614538D', base_salary: 650, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
+      'eugene050400@gmail.com': { id: 'EMP1751006227595', name: 'Eugene Goh', email: 'eugene050400@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0010619J', base_salary: 400, join_date: '2025-02-01', resign_date: null, isSuperadmin: false },
+      'hasung534@gmail.com': { id: 'EMP1750863118850', name: 'Kim Hasung', email: 'hasung534@gmail.com', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', phone: '91233324', address: '', nric: 'S9085930G', base_salary: 3650, join_date: '2017-11-01', resign_date: null, isSuperadmin: false },
+      'hspno77@gmail.com': { id: 'EMP1750864876850', name: 'Kang Hyunjun', email: 'hspno77@gmail.com', type: 'Full-Time', position: 'General Manager', department: 'Main Office', phone: '84025283', address: '', nric: 'G2808573M', base_salary: 6800, join_date: '2018-09-01', resign_date: null, isSuperadmin: false },
+      'huang3471@gmail.com': { id: 'EMP1752646101747', name: 'Wang Pot Chien', email: 'huang3471@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0277825J', base_salary: null, join_date: '2025-06-13', resign_date: null, isSuperadmin: false },
+      'jasonlulijie@gmail.com': { id: 'EMP1751007228999', name: 'Jason Lu Lijie', email: 'jasonlulijie@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0391138H', base_salary: 1875, join_date: '2021-11-17', resign_date: null, isSuperadmin: false },
+      'joviousn@gmail.com': { id: 'EMP1751006368759', name: 'Ng Kai Rui Jovious', email: 'joviousn@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Kembangan', phone: '', address: '', nric: 'T0421534B', base_salary: 200, join_date: null, resign_date: null, isSuperadmin: false },
+      'jsnch617@hanyang.ac.kr': { id: 'EMP1750866300088', name: 'Jason Chiang Jia Jun', email: 'jsnch617@hanyang.ac.kr', type: 'Full-Time', position: 'Instructor', department: 'Main Office', phone: '96536946', address: '', nric: 'S9521643I', base_salary: 900, join_date: '2021-01-05', resign_date: null, isSuperadmin: false },
+      'leeyanxuan34@gmail.com': { id: 'EMP1751004127565', name: 'Lee Yan Xuan', email: 'leeyanxuan34@gmail.com', type: 'Casual', position: 'Casual Admin', department: 'Main Office', phone: '', address: '', nric: 'T0475278Z', base_salary: 850, join_date: null, resign_date: null, isSuperadmin: false },
+      'lioujolene@gmail.com': { id: 'EMP1751006564567', name: 'Liou Siting Jolene', email: 'lioujolene@gmail.com', type: 'Casual', position: 'Casual Employee', department: 'Main Office', phone: '', address: '', nric: 'T0608701E', base_salary: 237.5, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
+      'nigelkoh1211@gmail.com': { id: 'EMP1751029837839', name: 'Nigel Koh K Jun', email: 'nigelkoh1211@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0734124A', base_salary: null, join_date: null, resign_date: null, isSuperadmin: false },
+      'rkdgusaks@gmail.com': { id: 'EMP1751003052389', name: 'Kang Hyeonman', email: 'rkdgusaks@gmail.com', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', phone: '84311884', address: '', nric: 'G3155967M', base_salary: 12320, join_date: '2017-06-01', resign_date: null, isSuperadmin: false },
+      'ryangohjj21@gmail.com': { id: 'EMP1751006984631', name: 'Goh Jun Jie Ryan', email: 'ryangohjj21@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0616700J', base_salary: 1000, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
+      'sitiaisyahbintimohdnazzer@gmail.com': { id: 'EMP1752551410290', name: 'Siti Aisyah Binti Mohammed Nazzer', email: 'sitiaisyahbintimohdnazzer@gmail.com', type: 'Casual', position: '', department: 'Main Office', phone: '', address: '', nric: 'T0631113F', base_salary: 800, join_date: '2025-06-28', resign_date: null, isSuperadmin: false },
+      'sooleee2044@gmail.com': { id: 'EMP1750866645618', name: 'Lee Soohyuk', email: 'sooleee2044@gmail.com', type: 'Full-Time', position: 'Partner', department: 'Main Office', phone: '90392179', address: '', nric: 'G3416422W', base_salary: 10500, join_date: null, resign_date: null, isSuperadmin: false },
+      'superzihan2006@gmail.com': { id: 'EMP1751006650365', name: 'Song Zihan', email: 'superzihan2006@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0622708E', base_salary: 950, join_date: '2025-06-27', resign_date: null, isSuperadmin: false }
     };
     
     // Check if we have an emergency fallback - return it immediately if database is slow
@@ -205,62 +137,30 @@ export const getUserAdminAccess = async (employeeId: string) => {
   try {
     logger.debug('Fetching admin access for employee', { employeeId });
     
-    // Emergency admin access fallbacks for known employees during connectivity issues
+    // Emergency admin access fallbacks for all employees during connectivity issues
     const adminAccessFallbacks: Record<string, any> = {
-      'EMP1751006984631': { // Ryan Goh
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      'EMP1752646101747': { // Wang Pot Chien
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      'EMP1752551410290': { // Siti Aisyah
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      'EMP1751007228999': { // Jason Lu
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      'EMP1751003607551': { // Clarissa Koh
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      },
-      'EMP1751030381806': { // Clarissa Koh (actual ID)
-        employees: false,
-        payroll: false,
-        leaveManagement: false,
-        claims: false,
-        attendance: false,
-        slotBooking: false,
-        reports: false
-      }
+      'EMP1764254219246': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750865290864': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751003565851': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751030249722': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750866475666': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751030381806': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006728858': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006227595': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750863118850': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750864876850': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1752646101747': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751007228999': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006368759': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750866300088': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751004127565': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006564567': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751029837839': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751003052389': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006984631': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1752551410290': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1750866645618': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
+      'EMP1751006650365': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false }
     };
     
     // Standard timeout for admin access queries (3 seconds)
