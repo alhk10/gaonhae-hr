@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logSalesModuleAccess } from './salesModuleService';
+import { logger } from '@/utils/logger';
 
 export interface Student {
   id: string;
@@ -115,7 +116,7 @@ export async function getStudents(
       .range((page - 1) * limit, page * limit - 1);
 
     if (error) {
-      console.error('Error fetching students:', error);
+      logger.error('Error fetching students', error);
       await logSalesModuleAccess('get_students', false, { error: error.message });
       throw error;
     }
@@ -127,7 +128,7 @@ export async function getStudents(
       total: count || 0
     };
   } catch (error) {
-    console.error('Error fetching students:', error);
+    logger.error('Error fetching students', error);
     throw error;
   }
 }
@@ -144,7 +145,7 @@ export async function getStudentById(studentId: string): Promise<Student | null>
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching student:', error);
+      logger.error('Error fetching student', error);
       await logSalesModuleAccess('get_student_by_id', false, { error: error.message, studentId });
       throw error;
     }
@@ -153,7 +154,7 @@ export async function getStudentById(studentId: string): Promise<Student | null>
     
     return data;
   } catch (error) {
-    console.error('Error fetching student:', error);
+    logger.error('Error fetching student', error);
     throw error;
   }
 }
@@ -171,7 +172,7 @@ export async function getStudentEmergencyContacts(studentId: string): Promise<St
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching emergency contacts:', error);
+      logger.error('Error fetching emergency contacts', error);
       await logSalesModuleAccess('get_emergency_contacts', false, { error: error.message, studentId });
       throw error;
     }
@@ -180,7 +181,7 @@ export async function getStudentEmergencyContacts(studentId: string): Promise<St
     
     return data || [];
   } catch (error) {
-    console.error('Error fetching emergency contacts:', error);
+    logger.error('Error fetching emergency contacts', error);
     throw error;
   }
 }
@@ -201,7 +202,7 @@ export async function getStudentAttendance(
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching attendance:', error);
+      logger.error('Error fetching attendance', error);
       await logSalesModuleAccess('get_student_attendance', false, { error: error.message, studentId });
       throw error;
     }
@@ -210,7 +211,7 @@ export async function getStudentAttendance(
     
     return data || [];
   } catch (error) {
-    console.error('Error fetching attendance:', error);
+    logger.error('Error fetching attendance', error);
     throw error;
   }
 }
@@ -227,7 +228,7 @@ export async function getStudentEntitlements(studentId: string): Promise<Student
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching entitlements:', error);
+      logger.error('Error fetching entitlements', error);
       await logSalesModuleAccess('get_student_entitlements', false, { error: error.message, studentId });
       throw error;
     }
@@ -236,7 +237,7 @@ export async function getStudentEntitlements(studentId: string): Promise<Student
     
     return data || [];
   } catch (error) {
-    console.error('Error fetching entitlements:', error);
+    logger.error('Error fetching entitlements', error);
     throw error;
   }
 }
@@ -269,7 +270,7 @@ export async function getStudentInvoices(studentId: string): Promise<any[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching invoices:', error);
+      logger.error('Error fetching invoices', error);
       await logSalesModuleAccess('get_student_invoices', false, { error: error.message, studentId });
       throw error;
     }
@@ -278,7 +279,7 @@ export async function getStudentInvoices(studentId: string): Promise<any[]> {
     
     return data || [];
   } catch (error) {
-    console.error('Error fetching invoices:', error);
+    logger.error('Error fetching invoices', error);
     throw error;
   }
 }
@@ -296,7 +297,7 @@ export async function searchStudents(query: string, limit: number = 10): Promise
       .limit(limit);
 
     if (error) {
-      console.error('Error searching students:', error);
+      logger.error('Error searching students', error);
       await logSalesModuleAccess('search_students', false, { error: error.message, query });
       throw error;
     }
@@ -305,7 +306,7 @@ export async function searchStudents(query: string, limit: number = 10): Promise
     
     return data || [];
   } catch (error) {
-    console.error('Error searching students:', error);
+    logger.error('Error searching students', error);
     throw error;
   }
 }
@@ -354,7 +355,7 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       .single();
 
     if (error) {
-      console.error('Error creating student:', error);
+      logger.error('Error creating student', error);
       await logSalesModuleAccess('create_student', false, { error: error.message });
       throw error;
     }
@@ -376,7 +377,7 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
     
     return data;
   } catch (error) {
-    console.error('Error creating student:', error);
+    logger.error('Error creating student', error);
     throw error;
   }
 }
@@ -394,7 +395,7 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       .single();
 
     if (error) {
-      console.error('Error updating student:', error);
+      logger.error('Error updating student', error);
       await logSalesModuleAccess('update_student', false, { error: error.message, studentId });
       throw error;
     }
@@ -403,7 +404,7 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
     
     return data;
   } catch (error) {
-    console.error('Error updating student:', error);
+    logger.error('Error updating student', error);
     throw error;
   }
 }
@@ -419,14 +420,14 @@ export async function deleteStudent(studentId: string): Promise<void> {
       .eq('id', studentId);
 
     if (error) {
-      console.error('Error deleting student:', error);
+      logger.error('Error deleting student', error);
       await logSalesModuleAccess('delete_student', false, { error: error.message, studentId });
       throw error;
     }
 
     await logSalesModuleAccess('delete_student', true, { studentId });
   } catch (error) {
-    console.error('Error deleting student:', error);
+    logger.error('Error deleting student', error);
     throw error;
   }
 }

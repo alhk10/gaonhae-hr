@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 export interface Invoice {
   id: string;
@@ -112,7 +113,7 @@ export const getInvoices = async (
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching invoices:', error);
+      logger.error('Error fetching invoices', error);
       throw new Error(`Failed to fetch invoices: ${error.message}`);
     }
 
@@ -127,7 +128,7 @@ export const getInvoices = async (
       total: count || 0
     };
   } catch (error) {
-    console.error('Error in getInvoices:', error);
+    logger.error('Error in getInvoices', error);
     throw error;
   }
 };
@@ -164,7 +165,7 @@ export const getInvoiceById = async (invoiceId: string): Promise<Invoice & { ite
       .order('created_at', { ascending: true });
 
     if (itemsError) {
-      console.error('Error fetching invoice items:', itemsError);
+      logger.error('Error fetching invoice items', itemsError);
       throw new Error(`Failed to fetch invoice items: ${itemsError.message}`);
     }
 
@@ -182,7 +183,7 @@ export const getInvoiceById = async (invoiceId: string): Promise<Invoice & { ite
       items: transformedItems
     } as Invoice & { items: InvoiceItem[] };
   } catch (error) {
-    console.error('Error in getInvoiceById:', error);
+    logger.error('Error in getInvoiceById', error);
     throw error;
   }
 };
@@ -277,7 +278,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
     } as Invoice;
   } catch (error) {
-    console.error('Error in createInvoice:', error);
+    logger.error('Error in createInvoice', error);
     throw error;
   }
 };
@@ -312,7 +313,7 @@ export const updateInvoiceStatus = async (
       student_name: data.students ? `${data.students.first_name} ${data.students.last_name}` : 'Unknown Student'
     } as Invoice;
   } catch (error) {
-    console.error('Error in updateInvoiceStatus:', error);
+    logger.error('Error in updateInvoiceStatus', error);
     throw error;
   }
 };
@@ -342,7 +343,7 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
       throw new Error(`Failed to delete invoice: ${invoiceError.message}`);
     }
   } catch (error) {
-    console.error('Error in deleteInvoice:', error);
+    logger.error('Error in deleteInvoice', error);
     throw error;
   }
 };
@@ -363,7 +364,7 @@ const generateInvoiceNumber = async (): Promise<string> => {
     .limit(1);
 
   if (error) {
-    console.error('Error generating invoice number:', error);
+    logger.error('Error generating invoice number', error);
     // Fallback to timestamp-based number
     return `${prefix}${Date.now()}`;
   }
@@ -418,7 +419,7 @@ export const getInvoiceStats = async (): Promise<{
 
     return stats;
   } catch (error) {
-    console.error('Error in getInvoiceStats:', error);
+    logger.error('Error in getInvoiceStats', error);
     throw error;
   }
 };
