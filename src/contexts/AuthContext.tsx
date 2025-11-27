@@ -48,8 +48,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(result.user);
     setUserrole(result.userrole);
     setUserDetails(result.userDetails);
-    setAdminAccess(result.isSuperadmin ? null : (result.userDetails?.adminAccess || {}));
-    setPageAccess(result.isSuperadmin ? null : (result.userDetails?.pageAccess || {}));
+    setAdminAccess(result.adminAccess);
+    setPageAccess(result.pageAccess);
     setIsLoading(false);
   };
 

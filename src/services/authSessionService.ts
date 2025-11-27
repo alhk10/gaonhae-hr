@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserData, checkSuperadminStatus } from './authOptimizationService';
+import { getUserData, checkSuperadminStatus, getUserAdminAccess, getUserPageAccess } from './authOptimizationService';
 import { EMERGENCY_FALLBACKS } from '@/config/constants';
 import { logger } from '@/utils/logger';
 
@@ -18,6 +18,8 @@ export interface SessionResult {
   user: SessionUserData | null;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
   userDetails: any;
+  adminAccess: any;
+  pageAccess: any;
   isSuperadmin: boolean;
 }
 
@@ -47,6 +49,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           },
           userrole: 'superadmin',
           userDetails: null,
+          adminAccess: null,
+          pageAccess: null,
           isSuperadmin: true
         };
       }
@@ -63,6 +67,15 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         },
         userrole: 'employee',
         userDetails: employeeData || null,
+        adminAccess: null,
+        pageAccess: {
+          profile: true,
+          applyLeave: true,
+          submitClaim: true,
+          payslips: true,
+          myAttendance: true,
+          slotBookingEmployee: true
+        },
         isSuperadmin: false
       };
     }
@@ -81,10 +94,29 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         },
         userrole: 'superadmin',
         userDetails: userData,
+        adminAccess: null,
+        pageAccess: null,
         isSuperadmin: true
       };
     }
 
+    // Fetch admin and page access for regular employees
+    const employeeId = userData.id;
+    const [adminAccess, pageAccess] = await Promise.all([
+      getUserAdminAccess(employeeId).catch(() => null),
+      getUserPageAccess(employeeId).catch(() => ({
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
+      }))
+    ]);
+
+    // Determine role based on admin access
+    const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
+    
     // Regular employee
     return {
       user: {
@@ -95,8 +127,10 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         department: userData.department,
         position: userData.position
       },
-      userrole: 'employee',
+      userrole: hasAdminPermissions ? 'admin' : 'employee',
       userDetails: userData,
+      adminAccess,
+      pageAccess,
       isSuperadmin: false
     };
 
@@ -115,6 +149,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         },
         userrole: 'superadmin',
         userDetails: null,
+        adminAccess: null,
+        pageAccess: null,
         isSuperadmin: true
       };
     }
@@ -130,6 +166,15 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       },
       userrole: 'employee',
       userDetails: null,
+      adminAccess: null,
+      pageAccess: {
+        profile: true,
+        applyLeave: true,
+        submitClaim: true,
+        payslips: true,
+        myAttendance: true,
+        slotBookingEmployee: true
+      },
       isSuperadmin: false
     };
   }
