@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 export interface Product {
   id: string;
@@ -74,7 +75,7 @@ export const getProducts = async (
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching products:', error);
+      logger.error('Error fetching products', error);
       throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
@@ -89,7 +90,7 @@ export const getProducts = async (
       total: count || 0
     };
   } catch (error) {
-    console.error('Error in getProducts:', error);
+    logger.error('Error in getProducts', error);
     throw error;
   }
 };
@@ -119,7 +120,7 @@ export const searchProducts = async (
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Error searching products:', error);
+      logger.error('Error searching products', error);
       throw new Error(`Failed to search products: ${error.message}`);
     }
 
@@ -129,7 +130,7 @@ export const searchProducts = async (
       category_name: product.product_categories?.name
     }));
   } catch (error) {
-    console.error('Error in searchProducts:', error);
+    logger.error('Error in searchProducts', error);
     throw error;
   }
 };
@@ -152,7 +153,7 @@ export const getProductById = async (productId: string): Promise<Product | null>
       if (error.code === 'PGRST116') {
         return null; // Product not found
       }
-      console.error('Error fetching product:', error);
+      logger.error('Error fetching product', error);
       throw new Error(`Failed to fetch product: ${error.message}`);
     }
 
@@ -161,7 +162,7 @@ export const getProductById = async (productId: string): Promise<Product | null>
       category_name: data.product_categories?.name
     };
   } catch (error) {
-    console.error('Error in getProductById:', error);
+    logger.error('Error in getProductById', error);
     throw error;
   }
 };
@@ -200,7 +201,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       .single();
 
     if (error) {
-      console.error('Error creating product:', error);
+      logger.error('Error creating product', error);
       throw new Error(`Failed to create product: ${error.message}`);
     }
 
@@ -209,7 +210,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       category_name: data.product_categories?.name
     };
   } catch (error) {
-    console.error('Error in createProduct:', error);
+    logger.error('Error in createProduct', error);
     throw error;
   }
 };
@@ -236,7 +237,7 @@ export const updateProduct = async (
       .single();
 
     if (error) {
-      console.error('Error updating product:', error);
+      logger.error('Error updating product', error);
       throw new Error(`Failed to update product: ${error.message}`);
     }
 
@@ -245,7 +246,7 @@ export const updateProduct = async (
       category_name: data.product_categories?.name
     };
   } catch (error) {
-    console.error('Error in updateProduct:', error);
+    logger.error('Error in updateProduct', error);
     throw error;
   }
 };
@@ -261,11 +262,11 @@ export const deleteProduct = async (productId: string): Promise<void> => {
       .eq('id', productId);
 
     if (error) {
-      console.error('Error deleting product:', error);
+      logger.error('Error deleting product', error);
       throw new Error(`Failed to delete product: ${error.message}`);
     }
   } catch (error) {
-    console.error('Error in deleteProduct:', error);
+    logger.error('Error in deleteProduct', error);
     throw error;
   }
 };
@@ -282,13 +283,13 @@ export const getProductCategories = async (): Promise<Array<{id: string, name: s
       .order('sort_order', { ascending: true });
 
     if (error) {
-      console.error('Error fetching product categories:', error);
+      logger.error('Error fetching product categories', error);
       throw new Error(`Failed to fetch categories: ${error.message}`);
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getProductCategories:', error);
+    logger.error('Error in getProductCategories', error);
     throw error;
   }
 };

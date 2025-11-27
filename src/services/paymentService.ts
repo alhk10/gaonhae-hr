@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 export interface Payment {
   id: string;
@@ -106,7 +107,7 @@ export const getPayments = async (
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching payments:', error);
+      logger.error('Error fetching payments', error);
       throw new Error(`Failed to fetch payments: ${error.message}`);
     }
 
@@ -125,7 +126,7 @@ export const getPayments = async (
       total: count || 0
     };
   } catch (error) {
-    console.error('Error in getPayments:', error);
+    logger.error('Error in getPayments', error);
     throw error;
   }
 };
@@ -164,7 +165,7 @@ export const getPaymentById = async (paymentId: string): Promise<Payment | null>
       invoice_total: data.invoices?.total_amount
     } as Payment;
   } catch (error) {
-    console.error('Error in getPaymentById:', error);
+    logger.error('Error in getPaymentById', error);
     throw error;
   }
 };
@@ -244,7 +245,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       .eq('id', paymentData.invoice_id);
 
     if (updateError) {
-      console.error('Error updating invoice:', updateError);
+      logger.error('Error updating invoice', updateError);
       // Don't throw here as payment was created successfully
     }
 
@@ -257,7 +258,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       invoice_total: payment.invoices?.total_amount
     } as Payment;
   } catch (error) {
-    console.error('Error in createPayment:', error);
+    logger.error('Error in createPayment', error);
     throw error;
   }
 };
@@ -300,7 +301,7 @@ export const updatePayment = async (
       invoice_total: data.invoices?.total_amount
     } as Payment;
   } catch (error) {
-    console.error('Error in updatePayment:', error);
+    logger.error('Error in updatePayment', error);
     throw error;
   }
 };
@@ -358,7 +359,7 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
         .eq('id', payment.invoice_id);
     }
   } catch (error) {
-    console.error('Error in deletePayment:', error);
+    logger.error('Error in deletePayment', error);
     throw error;
   }
 };
@@ -394,7 +395,7 @@ export const getPaymentsByInvoice = async (invoiceId: string): Promise<Payment[]
       invoice_total: payment.invoices?.total_amount
     })) as Payment[];
   } catch (error) {
-    console.error('Error in getPaymentsByInvoice:', error);
+    logger.error('Error in getPaymentsByInvoice', error);
     throw error;
   }
 };
@@ -458,7 +459,7 @@ export const getPaymentStats = async (): Promise<PaymentStats> => {
 
     return stats;
   } catch (error) {
-    console.error('Error in getPaymentStats:', error);
+    logger.error('Error in getPaymentStats', error);
     throw error;
   }
 };
@@ -480,7 +481,7 @@ const generatePaymentNumber = async (): Promise<string> => {
     .limit(1);
 
   if (error) {
-    console.error('Error generating payment number:', error);
+    logger.error('Error generating payment number', error);
     // Fallback to timestamp-based number
     return `${prefix}${Date.now().toString().slice(-6)}`;
   }
