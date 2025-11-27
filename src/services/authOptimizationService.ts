@@ -81,6 +81,21 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
         join_date: '2021-11-17',
         resign_date: null,
         isSuperadmin: false
+      },
+      'clarissa.kohjx@gmail.com': {
+        id: 'EMP1751030381806',
+        name: 'Clarissa Koh Jia Xuan',
+        email: 'clarissa.kohjx@gmail.com',
+        type: 'Casual',
+        position: 'Casual Instructor',
+        department: 'Main Office',
+        phone: null,
+        address: null,
+        nric: 'T0832430H',
+        base_salary: null,
+        join_date: '2025-06-27',
+        resign_date: null,
+        isSuperadmin: false
       }
     };
     
@@ -220,6 +235,24 @@ export const getUserAdminAccess = async (employeeId: string) => {
         reports: false
       },
       'EMP1751007228999': { // Jason Lu
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      'EMP1751003607551': { // Clarissa Koh
+        employees: false,
+        payroll: false,
+        leaveManagement: false,
+        claims: false,
+        attendance: false,
+        slotBooking: false,
+        reports: false
+      },
+      'EMP1751030381806': { // Clarissa Koh (actual ID)
         employees: false,
         payroll: false,
         leaveManagement: false,
