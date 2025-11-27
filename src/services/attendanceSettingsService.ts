@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface AttendanceSetting {
   id: string;
@@ -32,10 +32,11 @@ export const getAttendanceSettings = async (): Promise<AttendanceSetting[]> => {
     .order('branch_name');
 
   if (error) {
-    console.error('Error fetching attendance settings:', error);
+    logger.error('Error fetching attendance settings', error);
     throw error;
   }
 
+  logger.debug(`Fetched ${data?.length || 0} attendance settings`);
   return data || [];
 };
 
@@ -50,9 +51,10 @@ export const getAttendanceSettingByBranch = async (branchName: string): Promise<
   if (error) {
     if (error.code === 'PGRST116') {
       // No rows returned
+      logger.debug('No attendance setting found for branch', { branchName });
       return null;
     }
-    console.error('Error fetching attendance setting:', error);
+    logger.error('Error fetching attendance setting', error);
     throw error;
   }
 

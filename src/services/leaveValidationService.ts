@@ -1,7 +1,7 @@
-
 import { isEligibleForLeave } from '@/utils/employeeEligibility';
 import { calculateLeaveBalance } from '@/utils/leaveCalculations';
 import { getEmployeeById } from './employeeService';
+import { logger } from '@/utils/logger';
 
 export interface LeaveValidationResult {
   isValid: boolean;
@@ -110,7 +110,7 @@ export const validateLeaveRequest = async (
     }
 
   } catch (error) {
-    console.error('Error validating leave request:', error);
+    logger.error('Error validating leave request', error);
     result.isValid = false;
     result.errors.push('Error validating leave request. Please try again.');
   }

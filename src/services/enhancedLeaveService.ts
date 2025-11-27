@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { isEligibleForLeave } from '@/utils/employeeEligibility';
+import { logger } from '@/utils/logger';
 
 export interface LeaveEntitlementCalculation {
   baseAnnualLeave: number;
@@ -34,9 +34,11 @@ export const getEligibleEmployeesForLeave = async (year?: number): Promise<Eligi
     });
     
     if (error) {
-      console.error('Error fetching eligible employees with entitlements:', error);
+      logger.error('Error fetching eligible employees with entitlements', error);
       throw error;
     }
+    
+    logger.debug(`Fetched ${data?.length || 0} eligible employees`, { year: referenceYear });
 
     return (data || []).map((emp: any) => ({
       id: emp.employee_id,
@@ -57,7 +59,7 @@ export const getEligibleEmployeesForLeave = async (year?: number): Promise<Eligi
       }
     }));
   } catch (error) {
-    console.error('Error in getEligibleEmployeesForLeave:', error);
+    logger.error('Error in getEligibleEmployeesForLeave', error);
     throw error;
   }
 };
@@ -75,7 +77,7 @@ export const calculateEmployeeLeaveEntitlement = async (
     });
 
     if (error) {
-      console.error('Error calculating employee leave entitlement:', error);
+      logger.error('Error calculating employee leave entitlement', error);
       return {
         baseAnnualLeave: 0,
         yearsOfService: 0,
@@ -110,7 +112,7 @@ export const calculateEmployeeLeaveEntitlement = async (
       medicalLeave: 0
     };
   } catch (error) {
-    console.error('Error in calculateEmployeeLeaveEntitlement:', error);
+    logger.error('Error in calculateEmployeeLeaveEntitlement', error);
     return {
       baseAnnualLeave: 0,
       yearsOfService: 0,
@@ -164,7 +166,7 @@ export const applyForLeaveWithValidation = async (leaveData: {
 
     return data;
   } catch (error) {
-    console.error('Error applying for leave:', error);
+    logger.error('Error applying for leave', error);
     throw error;
   }
 };
@@ -212,7 +214,7 @@ export const cleanupIneligibleLeaveData = async (): Promise<{
       deletedMondayBonuses: deletedBonuses?.length || 0
     };
   } catch (error) {
-    console.error('Error cleaning up ineligible leave data:', error);
+    logger.error('Error cleaning up ineligible leave data', error);
     throw error;
   }
 };
@@ -236,13 +238,13 @@ export const calculateYearsOfService = async (employeeId: string): Promise<numbe
     });
 
     if (error) {
-      console.error('Error calculating years of service:', error);
+      logger.error('Error calculating years of service', error);
       return 0;
     }
 
     return data || 0;
   } catch (error) {
-    console.error('Error in calculateYearsOfService:', error);
+    logger.error('Error in calculateYearsOfService', error);
     return 0;
   }
 };

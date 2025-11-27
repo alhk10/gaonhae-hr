@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from './employeeService';
 import { EmployeeProfile } from '@/types/employee';
+import { logger } from '@/utils/logger';
 
 interface BulkUserCreationResult {
   success: number;
@@ -24,7 +25,7 @@ interface AuthUserCreationResult {
 const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmployee[] => {
   const validatedEmployees: ValidatedEmployee[] = [];
   
-  console.log('BulkUserCreation: Validating employees for auth creation...');
+  logger.debug('Validating employees for auth creation');
   
   for (const employee of employees) {
     const email = employee.email;
@@ -35,25 +36,25 @@ const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmp
         email.includes('@') &&
         email.includes('.')) {
       
-      console.log(`BulkUserCreation: Employee ${employee.name} has valid email: ${email}`);
+      logger.debug(`Employee ${employee.name} has valid email`, { email });
       validatedEmployees.push({
         id: employee.id,
         name: employee.name,
         email: email.trim().toLowerCase()
       });
     } else {
-      console.warn(`BulkUserCreation: Employee ${employee.name} has invalid email:`, email);
+      logger.warn(`Employee ${employee.name} has invalid email`, { email });
     }
   }
   
-  console.log(`BulkUserCreation: Found ${validatedEmployees.length} employees with valid emails`);
+  logger.info(`Found ${validatedEmployees.length} employees with valid emails`);
   return validatedEmployees;
 };
 
 // Check if user exists by attempting to sign up (this will fail if user exists)
 const checkIfUserExists = async (email: string): Promise<boolean> => {
   try {
-    console.log(`BulkUserCreation: Checking if user exists: ${email}`);
+    logger.debug('Checking if user exists', { email });
     
     // Try to sign up with a temporary password - this will fail if user already exists
     const { error } = await supabase.auth.signUp({
@@ -69,19 +70,19 @@ const checkIfUserExists = async (email: string): Promise<boolean> => {
       if (error.message.toLowerCase().includes('already') || 
           error.message.toLowerCase().includes('exist') ||
           error.message.toLowerCase().includes('registered')) {
-        console.log(`BulkUserCreation: User ${email} already exists`);
+        logger.debug('User already exists', { email });
         return true;
       }
       // Other errors might indicate the user doesn't exist but signup failed for other reasons
-      console.log(`BulkUserCreation: User ${email} existence check failed:`, error.message);
+      logger.debug('User existence check failed', { email, error: error.message });
       return false;
     }
 
     // If no error, user was created (didn't exist before)
-    console.log(`BulkUserCreation: User ${email} was created during check`);
+    logger.debug('User was created during check', { email });
     return false;
   } catch (error) {
-    console.error(`BulkUserCreation: Error checking user existence for ${email}:`, error);
+    logger.error('Error checking user existence', error, { email });
     return false;
   }
 };
@@ -91,12 +92,12 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCrea
   try {
     const normalizedEmail = employee.email.toLowerCase().trim();
     
-    console.log(`BulkUserCreation: Creating auth user for ${employee.name} (${normalizedEmail})`);
+    logger.debug('Creating auth user', { name: employee.name, email: normalizedEmail });
     
     // Check if user already exists first
     const userExists = await checkIfUserExists(normalizedEmail);
     if (userExists) {
-      console.log(`BulkUserCreation: User ${normalizedEmail} already exists, skipping creation`);
+      logger.info('User already exists, skipping creation', { email: normalizedEmail });
       return { success: true };
     }
 
@@ -117,16 +118,16 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCrea
     });
 
     if (error) {
-      console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, error);
+      logger.error('Failed to create user', error, { email: normalizedEmail });
       return { success: false, error: error.message };
     }
 
     if (!data.user) {
-      console.error(`BulkUserCreation: User creation failed for ${normalizedEmail} - no user returned`);
+      logger.error('User creation failed - no user returned', undefined, { email: normalizedEmail });
       return { success: false, error: 'User creation failed - no user returned' };
     }
 
-    console.log(`BulkUserCreation: Successfully created auth user for ${normalizedEmail}`);
+    logger.info('Successfully created auth user', { email: normalizedEmail });
 
     // Send password reset email so user can set their own password
     try {
@@ -138,18 +139,18 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCrea
       );
 
       if (resetError) {
-        console.warn(`BulkUserCreation: Failed to send reset email to ${normalizedEmail}:`, resetError);
+        logger.warn('Failed to send reset email', { email: normalizedEmail, error: resetError });
       } else {
-        console.log(`BulkUserCreation: Password reset email sent to ${normalizedEmail}`);
+        logger.debug('Password reset email sent', { email: normalizedEmail });
       }
     } catch (resetEmailError) {
-      console.warn(`BulkUserCreation: Error sending reset email to ${normalizedEmail}:`, resetEmailError);
+      logger.warn('Error sending reset email', resetEmailError, { email: normalizedEmail });
     }
 
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`BulkUserCreation: Exception creating user for ${employee.email}:`, error);
+    logger.error('Exception creating user', error, { email: employee.email });
     return { success: false, error: errorMessage };
   }
 };
@@ -181,7 +182,7 @@ const generateSecurePassword = (): string => {
 };
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
-  console.log('BulkUserCreation: Starting comprehensive bulk user creation process...');
+  logger.info('Starting comprehensive bulk user creation process');
   
   const result: BulkUserCreationResult = {
     success: 0,
@@ -192,31 +193,31 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
 
   try {
     // Step 1: Get all employees and validate emails
-    console.log('BulkUserCreation: Step 1 - Fetching all employees...');
+    logger.debug('Step 1 - Fetching all employees');
     const allEmployees = await getEmployees();
-    console.log(`BulkUserCreation: Retrieved ${allEmployees.length} employees from database`);
+    logger.info(`Retrieved ${allEmployees.length} employees from database`);
     
     const validatedEmployees = validateAndExtractEmployees(allEmployees);
     
     if (validatedEmployees.length === 0) {
-      console.log('BulkUserCreation: No employees with valid emails found');
+      logger.warn('No employees with valid emails found');
       return result;
     }
 
-    console.log(`BulkUserCreation: Processing ${validatedEmployees.length} employees with valid emails`);
+    logger.info(`Processing ${validatedEmployees.length} employees with valid emails`);
 
     // Step 2: Create auth users with better error handling
-    console.log('BulkUserCreation: Step 2 - Creating Supabase Auth users...');
+    logger.debug('Step 2 - Creating Supabase Auth users');
     
     // Process in smaller batches to avoid rate limiting
     const batchSize = 2; // Smaller batch size to avoid rate limits
     for (let i = 0; i < validatedEmployees.length; i += batchSize) {
       const batch = validatedEmployees.slice(i, i + batchSize);
       
-      console.log(`BulkUserCreation: Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(validatedEmployees.length/batchSize)}`);
+      logger.debug(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(validatedEmployees.length/batchSize)}`);
       
       const batchPromises = batch.map(async (employee) => {
-        console.log(`BulkUserCreation: Processing ${employee.name} (${employee.email})`);
+        logger.debug(`Processing employee`, { name: employee.name, email: employee.email });
         return await createAuthUser(employee);
       });
       
@@ -227,7 +228,7 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
         const employee = batch[batchIndex];
         
         if (promiseResult.status === 'fulfilled' && promiseResult.value.success) {
-          console.log(`BulkUserCreation: ✓ Successfully processed user ${employee.email}`);
+          logger.info('Successfully processed user', { email: employee.email });
           result.created.push({
             email: employee.email,
             name: employee.name
@@ -235,7 +236,7 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
           result.success++;
         } else {
           const error = promiseResult.status === 'fulfilled' ? promiseResult.value.error : String(promiseResult.reason);
-          console.error(`BulkUserCreation: ✗ Failed to process user ${employee.email}:`, error);
+          logger.error('Failed to process user', undefined, { email: employee.email, error });
           result.errors.push({
             email: employee.email,
             error: error || 'Unknown error'
@@ -250,7 +251,7 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
       }
     }
 
-    console.log('BulkUserCreation: Bulk creation completed successfully:', {
+    logger.info('Bulk creation completed successfully', {
       success: result.success,
       failed: result.failed,
       totalProcessed: result.success + result.failed
@@ -259,7 +260,7 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
     return result;
 
   } catch (error) {
-    console.error('BulkUserCreation: Fatal error during bulk creation:', error);
+    logger.error('Fatal error during bulk creation', error);
     throw error;
   }
 };
@@ -267,18 +268,18 @@ export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationRes
 export const createSingleSupabaseAuthUser = async (email: string, name: string): Promise<boolean> => {
   try {
     const normalizedEmail = email.toLowerCase().trim();
-    console.log(`BulkUserCreation: Creating single user: ${normalizedEmail}`);
+    logger.info('Creating single user', { email: normalizedEmail });
 
     // Validate email format
     if (!normalizedEmail || !normalizedEmail.includes('@') || !normalizedEmail.includes('.')) {
-      console.error(`BulkUserCreation: Invalid email format: ${normalizedEmail}`);
+      logger.error('Invalid email format', undefined, { email: normalizedEmail });
       return false;
     }
 
     // Check if user already exists
     const userExists = await checkIfUserExists(normalizedEmail);
     if (userExists) {
-      console.log(`BulkUserCreation: User already exists: ${normalizedEmail}`);
+      logger.info('User already exists', { email: normalizedEmail });
       return true; // Return true since user exists
     }
 
@@ -292,14 +293,14 @@ export const createSingleSupabaseAuthUser = async (email: string, name: string):
     const createResult = await createAuthUser(validatedEmployee);
 
     if (createResult.success) {
-      console.log(`BulkUserCreation: Successfully created user ${normalizedEmail}`);
+      logger.info('Successfully created user', { email: normalizedEmail });
       return true;
     } else {
-      console.error(`BulkUserCreation: Failed to create user ${normalizedEmail}:`, createResult.error);
+      logger.error('Failed to create user', undefined, { email: normalizedEmail, error: createResult.error });
       return false;
     }
   } catch (error) {
-    console.error(`BulkUserCreation: Error creating single user ${email}:`, error);
+    logger.error('Error creating single user', error, { email });
     return false;
   }
 };
@@ -311,10 +312,10 @@ export const checkEmployeeAuthStatus = async (email: string): Promise<boolean> =
     
     const userExists = await checkIfUserExists(email.toLowerCase().trim());
     
-    console.log(`BulkUserCreation: Employee ${email} auth status:`, userExists ? 'EXISTS' : 'MISSING');
+    logger.debug('Employee auth status checked', { email, status: userExists ? 'EXISTS' : 'MISSING' });
     return userExists;
   } catch (error) {
-    console.error(`BulkUserCreation: Error checking auth status for ${email}:`, error);
+    logger.error('Error checking auth status', error, { email });
     return false;
   }
 };
