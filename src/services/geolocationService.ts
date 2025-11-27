@@ -9,6 +9,7 @@ export interface LocationError {
 }
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 // Calculate distance between two points using Haversine formula
 export const calculateDistance = (
@@ -32,7 +33,7 @@ export const calculateDistance = (
 // Check if employee has location exception
 export const hasLocationException = async (employeeId: string): Promise<boolean> => {
   try {
-    console.log('Checking location exception for employee:', employeeId);
+    logger.debug('Checking location exception for employee', { employeeId });
     
     const { data, error } = await supabase
       .from('location_exceptions')
@@ -43,15 +44,15 @@ export const hasLocationException = async (employeeId: string): Promise<boolean>
       .maybeSingle();
 
     if (error) {
-      console.error('Error checking location exception:', error);
+      logger.error('Error checking location exception', error);
       return false;
     }
 
     const hasException = !!data;
-    console.log('Location exception found:', hasException, data);
+    logger.debug('Location exception check result', { employeeId, hasException });
     return hasException;
   } catch (error) {
-    console.error('Error in hasLocationException:', error);
+    logger.error('Error in hasLocationException', error);
     return false;
   }
 };
@@ -60,7 +61,7 @@ export const hasLocationException = async (employeeId: string): Promise<boolean>
 export const getCurrentLocation = (): Promise<Coordinates> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      console.error('Geolocation not supported');
+      logger.error('Geolocation not supported');
       reject({
         code: 0,
         message: 'Geolocation is not supported by this browser'
@@ -68,7 +69,7 @@ export const getCurrentLocation = (): Promise<Coordinates> => {
       return;
     }
 
-    console.log('Requesting geolocation...');
+    logger.debug('Requesting geolocation');
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -76,11 +77,11 @@ export const getCurrentLocation = (): Promise<Coordinates> => {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude
         };
-        console.log('Geolocation success:', coords);
+        logger.debug('Geolocation success', coords);
         resolve(coords);
       },
       (error) => {
-        console.error('Geolocation error:', error);
+        logger.error('Geolocation error', error);
         let message = 'Unable to retrieve location';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -124,13 +125,13 @@ export const isWithinBranchRange = async (
   employeeId?: string
 ): Promise<{ withinRange: boolean; nearestBranch?: string; distance?: number; hasException?: boolean }> => {
   try {
-    console.log('Checking branch range with max distance:', maxDistance, 'for employee:', employeeId);
+    logger.debug('Checking branch range', { maxDistance, employeeId });
     
     // First check if employee has location exception
     if (employeeId) {
       const hasException = await hasLocationException(employeeId);
       if (hasException) {
-        console.log('Employee has location exception - bypassing GPS check');
+        logger.info('Employee has location exception - bypassing GPS check', { employeeId });
         return {
           withinRange: true,
           nearestBranch: 'Admin Override',
@@ -141,7 +142,7 @@ export const isWithinBranchRange = async (
     }
     
     const currentLocation = await getCurrentLocation();
-    console.log('Current location obtained:', currentLocation);
+    logger.debug('Current location obtained', currentLocation);
     
     let nearestBranch = '';
     let minDistance = Infinity;
@@ -149,7 +150,7 @@ export const isWithinBranchRange = async (
     // Check distance to all branches
     Object.entries(BRANCH_COORDINATES).forEach(([branchName, branchCoords]) => {
       const distance = calculateDistance(currentLocation, branchCoords);
-      console.log(`Distance to ${branchName}:`, distance.toFixed(2), 'meters');
+      logger.debug(`Distance to ${branchName}: ${distance.toFixed(2)} meters`);
       
       if (distance < minDistance) {
         minDistance = distance;
@@ -158,7 +159,7 @@ export const isWithinBranchRange = async (
     });
 
     const withinRange = minDistance <= maxDistance;
-    console.log('Location check result:', {
+    logger.info('Location check result', {
       withinRange,
       nearestBranch,
       distance: Math.round(minDistance),
@@ -172,7 +173,7 @@ export const isWithinBranchRange = async (
       hasException: false
     };
   } catch (error) {
-    console.error('Location check failed:', error);
+    logger.error('Location check failed', error);
     throw error;
   }
 };

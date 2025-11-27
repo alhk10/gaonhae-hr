@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface SystemAllowance {
   id: number;
@@ -17,13 +18,23 @@ export interface SystemDeduction {
 }
 
 export const getSystemAllowances = async (): Promise<SystemAllowance[]> => {
-  const { data, error } = await supabase
-    .from('system_allowances')
-    .select('*')
-    .order('name');
-  
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('system_allowances')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      logger.error('Error fetching system allowances', error);
+      throw error;
+    }
+    
+    logger.debug(`Fetched ${data?.length || 0} system allowances`);
+    return data || [];
+  } catch (error) {
+    logger.error('Exception in getSystemAllowances', error);
+    throw error;
+  }
 };
 
 export const addSystemAllowance = async (allowance: Omit<SystemAllowance, 'id' | 'created_at'>) => {
@@ -59,13 +70,23 @@ export const deleteSystemAllowance = async (id: number) => {
 };
 
 export const getSystemDeductions = async (): Promise<SystemDeduction[]> => {
-  const { data, error } = await supabase
-    .from('system_deductions')
-    .select('*')
-    .order('name');
-  
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('system_deductions')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      logger.error('Error fetching system deductions', error);
+      throw error;
+    }
+    
+    logger.debug(`Fetched ${data?.length || 0} system deductions`);
+    return data || [];
+  } catch (error) {
+    logger.error('Exception in getSystemDeductions', error);
+    throw error;
+  }
 };
 
 export const addSystemDeduction = async (deduction: Omit<SystemDeduction, 'id' | 'created_at'>) => {

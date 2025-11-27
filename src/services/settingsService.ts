@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 // Service for managing system settings data
 export interface Branch {
@@ -12,7 +12,7 @@ export interface Branch {
 // Use Supabase branches table directly
 export const getBranches = async (): Promise<Branch[]> => {
   try {
-    console.log('SettingsService: Fetching branches from Supabase branches table...');
+    logger.debug('Fetching branches from Supabase branches table');
     
     const { data, error } = await supabase
       .from('branches')
@@ -20,7 +20,7 @@ export const getBranches = async (): Promise<Branch[]> => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching branches from Supabase:', error);
+      logger.error('Error fetching branches from Supabase', error);
       throw error;
     }
 
@@ -31,17 +31,17 @@ export const getBranches = async (): Promise<Branch[]> => {
       color: branch.color
     }));
 
-    console.log('SettingsService: Successfully loaded branches:', branches.length);
+    logger.info(`Successfully loaded ${branches.length} branches`);
     return branches;
   } catch (error) {
-    console.error('Error in getBranches:', error);
+    logger.error('Error in getBranches', error);
     throw error;
   }
 };
 
 export const saveBranch = async (branch: Omit<Branch, 'id'>): Promise<string> => {
   try {
-    console.log('SettingsService: Creating new branch in Supabase:', branch);
+    logger.info('Creating new branch in Supabase', { branch });
     
     // Generate a unique ID for the branch
     const branchId = `BR${Date.now()}`;
@@ -56,21 +56,21 @@ export const saveBranch = async (branch: Omit<Branch, 'id'>): Promise<string> =>
       });
 
     if (error) {
-      console.error('Error saving branch to Supabase:', error);
+      logger.error('Error saving branch to Supabase', error);
       throw error;
     }
 
-    console.log('SettingsService: Successfully created branch:', branchId);
+    logger.info('Successfully created branch', { branchId });
     return branchId;
   } catch (error) {
-    console.error('Error in saveBranch:', error);
+    logger.error('Error in saveBranch', error);
     throw error;
   }
 };
 
 export const updateBranch = async (branch: Branch): Promise<void> => {
   try {
-    console.log('SettingsService: Updating branch in Supabase:', branch.id);
+    logger.info('Updating branch in Supabase', { branchId: branch.id });
     
     const { error } = await supabase
       .from('branches')
@@ -82,20 +82,20 @@ export const updateBranch = async (branch: Branch): Promise<void> => {
       .eq('id', branch.id);
 
     if (error) {
-      console.error('Error updating branch in Supabase:', error);
+      logger.error('Error updating branch in Supabase', error);
       throw error;
     }
 
-    console.log('SettingsService: Successfully updated branch:', branch.id);
+    logger.info('Successfully updated branch', { branchId: branch.id });
   } catch (error) {
-    console.error('Error in updateBranch:', error);
+    logger.error('Error in updateBranch', error);
     throw error;
   }
 };
 
 export const deleteBranch = async (branchId: string): Promise<void> => {
   try {
-    console.log('SettingsService: Deleting branch from Supabase:', branchId);
+    logger.info('Deleting branch from Supabase', { branchId });
     
     const { error } = await supabase
       .from('branches')
@@ -103,13 +103,13 @@ export const deleteBranch = async (branchId: string): Promise<void> => {
       .eq('id', branchId);
 
     if (error) {
-      console.error('Error deleting branch from Supabase:', error);
+      logger.error('Error deleting branch from Supabase', error);
       throw error;
     }
 
-    console.log('SettingsService: Successfully deleted branch:', branchId);
+    logger.info('Successfully deleted branch', { branchId });
   } catch (error) {
-    console.error('Error in deleteBranch:', error);
+    logger.error('Error in deleteBranch', error);
     throw error;
   }
 };

@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface LeaveEncashmentConfig {
   id: string;
@@ -73,9 +73,10 @@ export const getOrCreateEncashmentConfig = async (employeeId: string): Promise<L
       .single();
 
     if (error) throw error;
+    logger.debug('Created default encashment config', { employeeId });
     return newConfig;
   } catch (error) {
-    console.error('Error getting/creating encashment config:', error);
+    logger.error('Error getting/creating encashment config', error);
     return null;
   }
 };
@@ -91,9 +92,12 @@ export const updateEncashmentConfig = async (
       .update(config)
       .eq('employee_id', employeeId);
 
+    if (!error) {
+      logger.debug('Updated encashment config', { employeeId });
+    }
     return !error;
   } catch (error) {
-    console.error('Error updating encashment config:', error);
+    logger.error('Error updating encashment config', error);
     return false;
   }
 };
@@ -109,10 +113,16 @@ export const calculateUnusedLeave = async (
       reference_year: year || new Date().getFullYear()
     });
 
-    if (error) throw error;
-    return data && data.length > 0 ? data[0] : null;
+    if (error) {
+      logger.error('Error calculating unused leave', error);
+      throw error;
+    }
+    
+    const result = data && data.length > 0 ? data[0] : null;
+    logger.debug('Calculated unused leave', { employeeId, result });
+    return result;
   } catch (error) {
-    console.error('Error calculating unused leave:', error);
+    logger.error('Exception in calculateUnusedLeave', error);
     return null;
   }
 };
@@ -130,10 +140,15 @@ export const processLeaveEncashment = async (
       p_processed_by: processedBy
     });
 
-    if (error) throw error;
+    if (error) {
+      logger.error('Error processing leave encashment', error);
+      throw error;
+    }
+    
+    logger.info('Leave encashment processed', { employeeId, year, recordId: data });
     return data;
   } catch (error) {
-    console.error('Error processing leave encashment:', error);
+    logger.error('Exception in processLeaveEncashment', error);
     throw error;
   }
 };
@@ -147,10 +162,15 @@ export const getEmployeeEncashmentRecords = async (employeeId: string): Promise<
       .eq('employee_id', employeeId)
       .order('year', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      logger.error('Error getting encashment records', error);
+      throw error;
+    }
+    
+    logger.debug(`Fetched ${data?.length || 0} encashment records for employee`, { employeeId });
     return data || [];
   } catch (error) {
-    console.error('Error getting encashment records:', error);
+    logger.error('Exception in getEmployeeEncashmentRecords', error);
     return [];
   }
 };
@@ -171,10 +191,15 @@ export const getAllEncashmentRecords = async (year?: number): Promise<LeaveEncas
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      logger.error('Error getting all encashment records', error);
+      throw error;
+    }
+    
+    logger.debug(`Fetched ${data?.length || 0} total encashment records`, { year });
     return data || [];
   } catch (error) {
-    console.error('Error getting all encashment records:', error);
+    logger.error('Exception in getAllEncashmentRecords', error);
     return [];
   }
 };
@@ -210,9 +235,10 @@ export const getEmployeesWithUnusedLeave = async (year: number): Promise<Array<{
       }
     }
 
+    logger.info(`Found ${results.length} employees with unused leave`, { year });
     return results;
   } catch (error) {
-    console.error('Error getting employees with unused leave:', error);
+    logger.error('Error getting employees with unused leave', error);
     return [];
   }
 };
@@ -231,10 +257,14 @@ export const bulkProcessEncashment = async (
       await processLeaveEncashment(employeeId, year, processedBy);
       success.push(employeeId);
     } catch (error) {
-      console.error(`Failed to process encashment for ${employeeId}:`, error);
+      logger.error('Failed to process encashment for employee', error, { employeeId });
       failed.push(employeeId);
     }
   }
 
+  logger.info('Bulk encashment processing complete', { 
+    successCount: success.length, 
+    failedCount: failed.length 
+  });
   return { success, failed };
 };

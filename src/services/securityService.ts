@@ -1,6 +1,6 @@
-
 import bcrypt from 'bcryptjs';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 // Password complexity requirements - modified to handle reset context
 export const checkPasswordComplexity = (password: string, isResetContext: boolean = false) => {
@@ -63,7 +63,7 @@ export const verifyPassword = async (password: string, hash: string, salt: strin
 
 // Check if user is superadmin - directly from Supabase
 export const isSuperadmin = async (email: string): Promise<boolean> => {
-  console.log('SecurityService: Checking superadmin status for:', email);
+  logger.debug('Checking superadmin status', { email });
   
   try {
     const { data, error } = await supabase
@@ -74,15 +74,15 @@ export const isSuperadmin = async (email: string): Promise<boolean> => {
       .maybeSingle();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('SecurityService: Error checking superadmin status:', error);
+      logger.error('Error checking superadmin status', error);
       return false;
     }
 
     const result = !!data;
-    console.log('SecurityService: Superadmin status for', email, ':', result);
+    logger.info('Superadmin status checked', { email, result });
     return result;
   } catch (error) {
-    console.error('SecurityService: Exception checking superadmin status:', error);
+    logger.error('Exception checking superadmin status', error);
     return false;
   }
 };
@@ -95,7 +95,7 @@ export const logSecurityEvent = async (params: {
   ip_address?: string;
   user_agent?: string;
 }): Promise<void> => {
-  console.log('SecurityService: Logging security event:', params.action, 'for', params.user_email);
+  logger.info('Logging security event', { action: params.action, email: params.user_email });
   
   try {
     const { error } = await supabase
@@ -109,18 +109,18 @@ export const logSecurityEvent = async (params: {
       });
 
     if (error) {
-      console.error('SecurityService: Error logging security event:', error);
+      logger.error('Error logging security event', error);
     } else {
-      console.log('SecurityService: Security event logged successfully');
+      logger.debug('Security event logged successfully');
     }
   } catch (error) {
-    console.error('SecurityService: Exception logging security event:', error);
+    logger.error('Exception logging security event', error);
   }
 };
 
 // Check password history from Supabase
 export const checkPasswordHistory = async (email: string, newPassword: string): Promise<boolean> => {
-  console.log('SecurityService: Checking password history for:', email);
+  logger.debug('Checking password history', { email });
   
   try {
     const { data, error } = await supabase
@@ -131,12 +131,12 @@ export const checkPasswordHistory = async (email: string, newPassword: string): 
       .limit(5); // Check last 5 passwords
 
     if (error) {
-      console.error('SecurityService: Error checking password history:', error);
+      logger.error('Error checking password history', error);
       return true; // Allow password change if we can't check history
     }
 
     if (!data || data.length === 0) {
-      console.log('SecurityService: No password history found, allowing new password');
+      logger.debug('No password history found, allowing new password');
       return true;
     }
 
@@ -144,22 +144,22 @@ export const checkPasswordHistory = async (email: string, newPassword: string): 
     for (const record of data) {
       const isMatch = await verifyPassword(newPassword, record.password_hash, record.salt);
       if (isMatch) {
-        console.log('SecurityService: Password was recently used');
+        logger.warn('Password was recently used');
         return false;
       }
     }
 
-    console.log('SecurityService: Password is not in recent history');
+    logger.debug('Password is not in recent history');
     return true;
   } catch (error) {
-    console.error('SecurityService: Exception checking password history:', error);
+    logger.error('Exception checking password history', error);
     return true; // Allow password change if we can't check history
   }
 };
 
 // Add password to history in Supabase
 export const addPasswordToHistory = async (email: string, passwordHash: string, salt: string): Promise<void> => {
-  console.log('SecurityService: Adding password to history for:', email);
+  logger.debug('Adding password to history', { email });
   
   try {
     const { error } = await supabase
@@ -171,18 +171,18 @@ export const addPasswordToHistory = async (email: string, passwordHash: string, 
       });
 
     if (error) {
-      console.error('SecurityService: Error adding password to history:', error);
+      logger.error('Error adding password to history', error);
     } else {
-      console.log('SecurityService: Password added to history successfully');
+      logger.debug('Password added to history successfully');
     }
   } catch (error) {
-    console.error('SecurityService: Exception adding password to history:', error);
+    logger.error('Exception adding password to history', error);
   }
 };
 
 // Check failed login attempts from Supabase
 export const checkFailedLoginAttempts = async (email: string): Promise<boolean> => {
-  console.log('SecurityService: Checking failed login attempts for:', email);
+  logger.debug('Checking failed login attempts', { email });
   
   try {
     const fifteenMinutesAgo = new Date();
@@ -195,28 +195,28 @@ export const checkFailedLoginAttempts = async (email: string): Promise<boolean> 
       .gte('attempt_time', fifteenMinutesAgo.toISOString());
 
     if (error) {
-      console.error('SecurityService: Error checking failed login attempts:', error);
+      logger.error('Error checking failed login attempts', error);
       return false;
     }
 
     const attemptCount = data?.length || 0;
-    console.log('SecurityService: Failed login attempts in last 15 minutes:', attemptCount);
+    logger.info('Failed login attempts in last 15 minutes', { email, attemptCount });
     
     if (attemptCount >= 5) {
-      console.log('SecurityService: Account locked due to too many failed attempts');
+      logger.warn('Account locked due to too many failed attempts', { email });
       return true;
     }
 
     return false;
   } catch (error) {
-    console.error('SecurityService: Exception checking failed login attempts:', error);
+    logger.error('Exception checking failed login attempts', error);
     return false;
   }
 };
 
 // Log failed login attempt to Supabase
 export const logFailedLoginAttempt = async (email: string, ipAddress?: string): Promise<void> => {
-  console.log('SecurityService: Logging failed login attempt for:', email);
+  logger.info('Logging failed login attempt', { email });
   
   try {
     const { error } = await supabase
@@ -227,18 +227,18 @@ export const logFailedLoginAttempt = async (email: string, ipAddress?: string): 
       });
 
     if (error) {
-      console.error('SecurityService: Error logging failed login attempt:', error);
+      logger.error('Error logging failed login attempt', error);
     } else {
-      console.log('SecurityService: Failed login attempt logged successfully');
+      logger.debug('Failed login attempt logged successfully');
     }
   } catch (error) {
-    console.error('SecurityService: Exception logging failed login attempt:', error);
+    logger.error('Exception logging failed login attempt', error);
   }
 };
 
 // Clear failed login attempts from Supabase
 export const clearFailedLoginAttempts = async (email: string): Promise<void> => {
-  console.log('SecurityService: Clearing failed login attempts for:', email);
+  logger.debug('Clearing failed login attempts', { email });
   
   try {
     const { error } = await supabase
@@ -247,18 +247,18 @@ export const clearFailedLoginAttempts = async (email: string): Promise<void> => 
       .eq('email', email.toLowerCase().trim());
 
     if (error) {
-      console.error('SecurityService: Error clearing failed login attempts:', error);
+      logger.error('Error clearing failed login attempts', error);
     } else {
-      console.log('SecurityService: Failed login attempts cleared successfully');
+      logger.debug('Failed login attempts cleared successfully');
     }
   } catch (error) {
-    console.error('SecurityService: Exception clearing failed login attempts:', error);
+    logger.error('Exception clearing failed login attempts', error);
   }
 };
 
 // Initialize superadmin user in Supabase
 export const initializeSuperadmin = async (): Promise<void> => {
-  console.log('SecurityService: Initializing superadmin user...');
+  logger.info('Initializing superadmin user');
   
   try {
     // Check if superadmin already exists
@@ -270,7 +270,7 @@ export const initializeSuperadmin = async (): Promise<void> => {
       .maybeSingle();
 
     if (existingSuperadmin) {
-      console.log('SecurityService: Superadmin already exists');
+      logger.debug('Superadmin already exists');
       return;
     }
 
@@ -285,9 +285,9 @@ export const initializeSuperadmin = async (): Promise<void> => {
       });
 
     if (error) {
-      console.error('SecurityService: Error creating superadmin:', error);
+      logger.error('Error creating superadmin', error);
     } else {
-      console.log('SecurityService: Superadmin user created successfully');
+      logger.info('Superadmin user created successfully');
       
       // Log the event
       await logSecurityEvent({
@@ -297,6 +297,6 @@ export const initializeSuperadmin = async (): Promise<void> => {
       });
     }
   } catch (error) {
-    console.error('SecurityService: Exception initializing superadmin:', error);
+    logger.error('Exception initializing superadmin', error);
   }
 };
