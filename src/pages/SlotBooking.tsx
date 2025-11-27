@@ -203,6 +203,12 @@ const SlotBooking = () => {
       return;
     }
 
+    // Don't calculate if qualifications haven't been loaded yet
+    if (!employeeQualifications || !employeeJoinDate) {
+      console.log('SlotBooking: Skipping booking history pay calculation - qualifications not loaded yet');
+      return;
+    }
+
     const payMap = new Map<string, { amount: number; breakdown: { item: string; amount: number }[] }>();
     
     for (const booking of filteredBookings) {
