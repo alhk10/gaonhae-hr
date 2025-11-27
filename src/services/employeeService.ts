@@ -114,7 +114,18 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees with full payroll data');
   
   try {
-...
+    const { data: employees, error } = await supabase
+      .from('employees')
+      .select(`
+        *,
+        allowances (*),
+        deductions (*),
+        admin_access (*),
+        certificates (*)
+      `)
+      .order('name')
+      .limit(200);
+
     if (error) {
       logger.error('Error fetching employees for payroll:', error);
       throw error;
@@ -461,7 +472,9 @@ export const createEmployee = async (employeeData: any) => {
   logger.debug('Employee data received', { name: employeeData.name, email: employeeData.email });
   
   try {
-...
+    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
+    const missingFields = requiredFields.filter(field => !employeeData[field]);
+    
     if (missingFields.length > 0) {
       const error = `Missing required fields: ${missingFields.join(', ')}`;
       logger.error('Validation error:', error);
@@ -528,7 +541,7 @@ export const createEmployee = async (employeeData: any) => {
     if (employeeData.email) {
       logger.debug('Creating Supabase Auth user');
       try {
-...
+        const authPromise = createSingleSupabaseAuthUser(employeeData.email, employeeData.name);
         const authTimeoutPromise = new Promise((resolve) => {
           setTimeout(() => {
             logger.warn('Auth user creation timeout, continuing');
@@ -625,7 +638,13 @@ export const deleteEmployee = async (id: string) => {
   logger.debug('Soft deleting employee (setting resign date)', { id });
   
   const { error } = await supabase
-...
+    .from('employees')
+    .update({ resign_date: new Date().toISOString().split('T')[0] })
+    .eq('id', id);
+
+  if (error) {
+    logger.error('Error soft deleting employee:', error);
+    throw error;
   }
 
   logger.info('Employee soft deleted successfully (resign date set)', { id });
@@ -646,7 +665,7 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
 };
 
 export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess: AdminAccessPermissions) => {
-  console.log('EmployeeService: Updating employee admin access in Supabase:', employeeId, adminAccess);
+  logger.debug('Updating employee admin access', { employeeId });
   
   const { data: existingAccess, error: fetchError } = await supabase
     .from('admin_access')
@@ -655,7 +674,7 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     .maybeSingle();
 
   if (fetchError) {
-    console.error('EmployeeService: Error fetching admin access:', fetchError);
+    logger.error('Error fetching admin access:', fetchError);
     throw fetchError;
   }
 
@@ -677,7 +696,7 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
       .eq('employee_id', employeeId);
 
     if (error) {
-      console.error('EmployeeService: Error updating admin access:', error);
+      logger.error('Error updating admin access:', error);
       throw error;
     }
   } else {
@@ -686,16 +705,16 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
       .insert([accessData]);
 
     if (error) {
-      console.error('EmployeeService: Error creating admin access:', error);
+      logger.error('Error creating admin access:', error);
       throw error;
     }
   }
 
-  console.log('EmployeeService: Admin access updated successfully');
+  logger.info('Admin access updated successfully');
 };
 
 export const updateEmployeePageAccess = async (employeeId: string, pageAccess: EmployeePageAccessPermissions) => {
-  console.log('EmployeeService: Updating employee page access in Supabase:', employeeId, pageAccess);
+  logger.debug('Updating employee page access', { employeeId });
   
   const { data: existingAccess, error: fetchError } = await supabase
     .from('employee_page_access')
@@ -704,7 +723,7 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
     .maybeSingle();
 
   if (fetchError) {
-    console.error('EmployeeService: Error fetching page access:', fetchError);
+    logger.error('Error fetching page access:', fetchError);
     throw fetchError;
   }
 
@@ -725,7 +744,7 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
       .eq('employee_id', employeeId);
 
     if (error) {
-      console.error('EmployeeService: Error updating page access:', error);
+      logger.error('Error updating page access:', error);
       throw error;
     }
   } else {
@@ -734,10 +753,10 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
       .insert([accessData]);
 
     if (error) {
-      console.error('EmployeeService: Error creating page access:', error);
+      logger.error('Error creating page access:', error);
       throw error;
     }
   }
 
-  console.log('EmployeeService: Page access updated successfully');
+  logger.info('Page access updated successfully');
 };

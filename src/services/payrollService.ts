@@ -78,9 +78,9 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
         const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
         const slotPayData = await getSlotBookingPayForPeriod(employeeId, period, employee);
         slotBookingPay = slotPayData.totalPay;
-        console.log('Slot booking pay data:', slotPayData);
+        logger.debug('Slot booking pay data', { slotPayData });
       } catch (error) {
-        console.error('Error fetching slot booking pay, falling back to attendance-based calculation:', error);
+        logger.error('Error fetching slot booking pay, falling back to attendance-based calculation:', error);
       }
       
       // Use calculateCasualPayroll for proper calculation
@@ -102,12 +102,12 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
         employerCPF: casualCalc.employerCPF,
         totalCPF: casualCalc.totalCPF,
         approvedClaims: approvedClaimsTotal,
-        netSalary: casualCalc.netSalary,
+      netSalary: casualCalc.netSalary,
         allowances: allowances.map(a => ({ name: a.name, amount: Number(a.amount) })),
         deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
       };
 
-      console.log('Generated casual payroll data with attendance:', payrollData);
+      logger.debug('Generated casual payroll data with attendance', { payrollData });
       return payrollData;
     }
 
@@ -129,7 +129,7 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
       deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount) }))
     };
 
-    console.log('Generated full-time payroll data:', payrollData);
+    logger.debug('Generated full-time payroll data', { payrollData });
     return payrollData;
   } catch (error) {
     console.error('Error generating payroll data:', error);
@@ -168,7 +168,7 @@ export const getEmployeeAttendanceForPeriod = async (employeeId: string, period:
     const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
     const endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
 
-    console.log(`Fetching attendance for employee ${employeeId} from ${startDate} to ${endDate}`);
+    logger.debug('Fetching attendance for employee', { employeeId, startDate, endDate });
 
     const { data: attendanceRecords, error } = await supabase
       .from('attendance')
@@ -179,11 +179,11 @@ export const getEmployeeAttendanceForPeriod = async (employeeId: string, period:
       .in('status', ['Present', 'Late']); // Only count working days
 
     if (error) {
-      console.error('Error fetching attendance:', error);
+      logger.error('Error fetching attendance:', error);
       throw error;
     }
 
-    console.log('Raw attendance records:', attendanceRecords);
+    logger.debug('Raw attendance records', { attendanceRecords });
 
     const totalHours = attendanceRecords?.reduce((sum, record) => {
       const hours = Number(record.hours_worked) || 0;
@@ -192,7 +192,7 @@ export const getEmployeeAttendanceForPeriod = async (employeeId: string, period:
 
     const totalDays = attendanceRecords?.length || 0;
 
-    console.log(`Calculated attendance: ${totalHours} hours, ${totalDays} days`);
+    logger.debug('Calculated attendance', { totalHours, totalDays });
     
     return { totalHours, totalDays };
   } catch (error) {
@@ -202,7 +202,7 @@ export const getEmployeeAttendanceForPeriod = async (employeeId: string, period:
 };
 
 export const savePayrollRecord = async (employeeId: string, month: string, payrollData: PayrollData): Promise<void> => {
-  console.log('Saving payroll record to Supabase:', { employeeId, month, payrollData });
+  logger.debug('Saving payroll record to Supabase', { employeeId, month });
   
   // Extract year from month if it's in "Month YYYY" format, otherwise use current year
   let year = new Date().getFullYear();
@@ -228,15 +228,15 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
     });
 
   if (error) {
-    console.error('Error saving payroll record to Supabase:', error);
+    logger.error('Error saving payroll record to Supabase:', error);
     throw error;
   }
   
-  console.log('Payroll record saved successfully to Supabase');
+  logger.info('Payroll record saved successfully to Supabase');
 };
 
 export const getEmployeePayrollRecords = async (employeeId: string): Promise<PayrollRecord[]> => {
-  console.log('Fetching payroll records from Supabase for employee:', employeeId);
+  logger.debug('Fetching payroll records for employee', { employeeId });
   
   const { data: records, error } = await supabase
     .from('payroll_records')
@@ -246,7 +246,7 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     .order('month', { ascending: false });
 
   if (error) {
-    console.error('Error fetching payroll records from Supabase:', error);
+    logger.error('Error fetching payroll records from Supabase:', error);
     throw error;
   }
 
@@ -261,12 +261,12 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
     isLocked: record.is_locked || false
   })) || [];
 
-  console.log('Fetched payroll records from Supabase:', formattedRecords);
+  logger.debug('Fetched payroll records from Supabase', { count: formattedRecords.length });
   return formattedRecords;
 };
 
 export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
-  console.log('Fetching all payroll records from Supabase');
+  logger.debug('Fetching all payroll records from Supabase');
   
   const { data: records, error } = await supabase
     .from('payroll_records')
@@ -276,7 +276,7 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
     .limit(50); // Add pagination limit
 
   if (error) {
-    console.error('Error fetching all payroll records from Supabase:', error);
+    logger.error('Error fetching all payroll records from Supabase:', error);
     throw error;
   }
 
@@ -291,16 +291,16 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
     isLocked: record.is_locked || false
   })) || [];
 
-  console.log('Fetched all payroll records from Supabase:', formattedRecords);
+  logger.debug('Fetched all payroll records from Supabase', { count: formattedRecords.length });
   return formattedRecords;
 };
 
 export const deletePayrollRecord = async (recordId: string): Promise<void> => {
-  console.log('🗑️ Starting deletion process for payroll record:', recordId);
+  logger.info('Starting deletion process for payroll record', { recordId });
   
   try {
     // Step 1: Check if record exists and is not locked
-    console.log('📋 Step 1: Verifying record exists and is not locked...');
+    logger.debug('Step 1: Verifying record exists and is not locked');
     const { data: existingRecord, error: fetchError } = await supabase
       .from('payroll_records')
       .select('id, is_locked, employee_id, month, year')
@@ -308,44 +308,44 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
       .maybeSingle();
 
     if (fetchError) {
-      console.error('❌ Error fetching record:', fetchError);
+      logger.error('Error fetching record:', fetchError);
       throw new Error(`Failed to verify record: ${fetchError.message}`);
     }
 
     if (!existingRecord) {
-      console.log('⚠️ Record not found - may have been already deleted');
+      logger.warn('Record not found - may have been already deleted', { recordId });
       return; // Don't throw error, consider it already deleted
     }
 
     if (existingRecord.is_locked) {
-      console.error('🔒 Record is locked, cannot delete');
+      logger.error('Record is locked, cannot delete', { recordId });
       throw new Error('Cannot delete locked payroll record. Please unlock it first.');
     }
 
-    console.log('✅ Record verified and unlocked:', existingRecord);
+    logger.debug('Record verified and unlocked', { existingRecord });
 
     // Step 2: Perform the deletion
-    console.log('🗑️ Step 2: Performing deletion...');
+    logger.debug('Step 2: Performing deletion');
     const { error: deleteError } = await supabase
       .from('payroll_records')
       .delete()
       .eq('id', recordId);
 
     if (deleteError) {
-      console.error('❌ Deletion failed:', deleteError);
+      logger.error('Deletion failed:', deleteError);
       throw new Error(`Failed to delete payroll record: ${deleteError.message}`);
     }
 
-    console.log('✅ Deletion completed successfully for record:', recordId);
+    logger.info('Deletion completed successfully for record', { recordId });
 
   } catch (error) {
-    console.error('💥 Delete operation failed:', error);
+    logger.error('Delete operation failed:', error);
     throw error;
   }
 };
 
 export const updatePayrollLockStatus = async (recordId: string, isLocked: boolean): Promise<void> => {
-  console.log(`Updating payroll lock status for ${recordId} to ${isLocked}`);
+  logger.debug('Updating payroll lock status', { recordId, isLocked });
   
   const { error } = await supabase
     .from('payroll_records')
@@ -357,11 +357,11 @@ export const updatePayrollLockStatus = async (recordId: string, isLocked: boolea
     .eq('id', recordId);
 
   if (error) {
-    console.error('Error updating payroll lock status:', error);
+    logger.error('Error updating payroll lock status:', error);
     throw error;
   }
   
-  console.log('Payroll lock status updated successfully');
+  logger.info('Payroll lock status updated successfully');
 };
 
 export const saveDraftPayroll = async (period: string, payrollData: any): Promise<void> => {
@@ -381,7 +381,7 @@ export const saveDraftPayroll = async (period: string, payrollData: any): Promis
     });
 
   if (error) {
-    console.error('Error saving draft payroll:', error);
+    logger.error('Error saving draft payroll:', error);
     throw new Error(`Failed to save draft payroll: ${error.message}`);
   }
 };
@@ -401,7 +401,7 @@ export const finalizePayroll = async (period: string, userId: string): Promise<v
     .eq('id', recordId);
 
   if (error) {
-    console.error('Error finalizing payroll:', error);
+    logger.error('Error finalizing payroll:', error);
     throw new Error(`Failed to finalize payroll: ${error.message}`);
   }
 };
@@ -416,7 +416,7 @@ export const getPayrollStatus = async (period: string): Promise<{ status: string
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error getting payroll status:', error);
+    logger.error('Error getting payroll status:', error);
     throw new Error(`Failed to get payroll status: ${error.message}`);
   }
 
