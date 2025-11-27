@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface LeaveType {
   id: string;
@@ -12,7 +12,7 @@ export interface LeaveType {
 }
 
 export const getLeaveTypes = async (): Promise<LeaveType[]> => {
-  console.log('Fetching leave types from database...');
+  logger.debug('Fetching leave types from database');
   
   const { data, error } = await supabase
     .from('leave_types')
@@ -21,7 +21,7 @@ export const getLeaveTypes = async (): Promise<LeaveType[]> => {
     .order('name');
 
   if (error) {
-    console.error('Error fetching leave types:', error);
+    logger.error('Error fetching leave types', error);
     throw error;
   }
 
@@ -37,7 +37,7 @@ export const getLeaveTypes = async (): Promise<LeaveType[]> => {
 };
 
 export const createLeaveType = async (leaveType: Omit<LeaveType, 'id' | 'createdAt' | 'updatedAt'>): Promise<LeaveType> => {
-  console.log('Creating leave type:', leaveType);
+  logger.info('Creating leave type', { leaveType });
   
   const { data, error } = await supabase
     .from('leave_types')
@@ -51,7 +51,7 @@ export const createLeaveType = async (leaveType: Omit<LeaveType, 'id' | 'created
     .single();
 
   if (error) {
-    console.error('Error creating leave type:', error);
+    logger.error('Error creating leave type', error);
     throw error;
   }
 
@@ -67,7 +67,7 @@ export const createLeaveType = async (leaveType: Omit<LeaveType, 'id' | 'created
 };
 
 export const updateLeaveType = async (id: string, updates: Partial<Omit<LeaveType, 'id' | 'createdAt' | 'updatedAt'>>): Promise<LeaveType> => {
-  console.log('Updating leave type:', id, updates);
+  logger.info('Updating leave type', { id, updates });
   
   const updateData: any = {};
   if (updates.name !== undefined) updateData.name = updates.name;
@@ -83,7 +83,7 @@ export const updateLeaveType = async (id: string, updates: Partial<Omit<LeaveTyp
     .single();
 
   if (error) {
-    console.error('Error updating leave type:', error);
+    logger.error('Error updating leave type', error);
     throw error;
   }
 
@@ -99,7 +99,7 @@ export const updateLeaveType = async (id: string, updates: Partial<Omit<LeaveTyp
 };
 
 export const deleteLeaveType = async (id: string): Promise<void> => {
-  console.log('Soft deleting leave type:', id);
+  logger.info('Soft deleting leave type', { id });
   
   const { error } = await supabase
     .from('leave_types')
@@ -107,7 +107,7 @@ export const deleteLeaveType = async (id: string): Promise<void> => {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting leave type:', error);
+    logger.error('Error deleting leave type', error);
     throw error;
   }
 };
