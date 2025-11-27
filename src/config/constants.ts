@@ -67,6 +67,9 @@ export const QUERY_CONFIG = {
   },
 } as const;
 
+// API Timeout Constants
+export const DEFAULT_QUERY_TIMEOUT = 60000; // 60 seconds
+
 // Emergency Fallback Data
 export const EMERGENCY_FALLBACKS = {
   DEFAULT_USER: {

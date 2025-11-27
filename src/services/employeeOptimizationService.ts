@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 interface CasualEmployeeForBooking {
   id: string;
@@ -8,7 +8,7 @@ interface CasualEmployeeForBooking {
 }
 
 export const getCasualEmployeesForBooking = async (): Promise<CasualEmployeeForBooking[]> => {
-  console.log('EmployeeOptimization: Fetching casual employees for booking...');
+  logger.debug('Fetching casual employees for booking');
   
   const startTime = Date.now();
   
@@ -21,10 +21,10 @@ export const getCasualEmployeesForBooking = async (): Promise<CasualEmployeeForB
       .order('name', { ascending: true });
 
     const duration = Date.now() - startTime;
-    console.log(`EmployeeOptimization: Query completed in ${duration}ms`);
+    logger.debug(`Query completed in ${duration}ms`);
 
     if (error) {
-      console.error('EmployeeOptimization: Error fetching casual employees:', error);
+      logger.error('Error fetching casual employees', error);
       throw new Error(`Failed to fetch casual employees: ${error.message}`);
     }
 
@@ -34,11 +34,11 @@ export const getCasualEmployeesForBooking = async (): Promise<CasualEmployeeForB
       type: emp.type
     }));
 
-    console.log(`EmployeeOptimization: Successfully loaded ${employees.length} casual employees`);
+    logger.info(`Successfully loaded ${employees.length} casual employees`);
     return employees;
 
   } catch (error) {
-    console.error('EmployeeOptimization: Exception in getCasualEmployeesForBooking:', error);
+    logger.error('Exception in getCasualEmployeesForBooking', error);
     throw error;
   }
 };
@@ -52,7 +52,7 @@ export const getCachedCasualEmployeesForBooking = async (): Promise<CasualEmploy
   
   // Return cached data if it's still valid
   if (employeeCache && (now - employeeCache.timestamp) < CACHE_DURATION) {
-    console.log('EmployeeOptimization: Returning cached employee data');
+    logger.debug('Returning cached employee data');
     return employeeCache.data;
   }
   
@@ -71,5 +71,5 @@ export const getCachedCasualEmployeesForBooking = async (): Promise<CasualEmploy
 // Clear cache manually if needed
 export const clearEmployeeCache = (): void => {
   employeeCache = null;
-  console.log('EmployeeOptimization: Employee cache cleared');
+  logger.debug('Employee cache cleared');
 };

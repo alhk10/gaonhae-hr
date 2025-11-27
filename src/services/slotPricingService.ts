@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface SlotPricingConfig {
   id: string;
@@ -38,13 +39,13 @@ export const getActivePricingConfig = async (): Promise<SlotPricingConfig | null
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching pricing config:', error);
+      logger.error('Error fetching pricing config', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in getActivePricingConfig:', error);
+    logger.error('Error in getActivePricingConfig', error);
     return null;
   }
 };
@@ -60,7 +61,7 @@ export const updatePricingConfig = async (
     const currentConfig = await getActivePricingConfig();
     
     if (!currentConfig) {
-      console.error('No active config found to update');
+      logger.error('No active config found to update');
       return false;
     }
 
@@ -73,13 +74,13 @@ export const updatePricingConfig = async (
       .eq('id', currentConfig.id);
 
     if (error) {
-      console.error('Error updating pricing config:', error);
+      logger.error('Error updating pricing config', error);
       throw error;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in updatePricingConfig:', error);
+    logger.error('Error in updatePricingConfig', error);
     return false;
   }
 };
