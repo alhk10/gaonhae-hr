@@ -728,8 +728,9 @@ const SlotBooking = () => {
               </CardHeader>
               <CardContent>
                 {filteredBookings.length > 0 ? (
-                  <div className="space-y-3">
-                    {filteredBookings.map((booking) => {
+                  <TooltipProvider>
+                    <div className="space-y-3">
+                      {filteredBookings.map((booking) => {
                       const bookingBranch = branches.find(b => b.id === booking.branchId);
                       const branchColor = getBranchColorStyle(bookingBranch?.color || '#6b7280');
                       const payData = bookingPayData.get(booking.id);
@@ -756,31 +757,29 @@ const SlotBooking = () => {
                           <div className="flex items-center gap-2">
                             {/* Pay Badge - only for approved bookings with dynamic pricing */}
                             {booking.status === 'approved' && payData && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-help">
-                                      <DollarSign className="w-3 h-3 mr-1" />
-                                      S${payData.amount.toFixed(2)}
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs">
-                                    <div className="space-y-1">
-                                      <p className="font-semibold text-sm mb-2">Pay Breakdown</p>
-                                      {payData.breakdown.map((item, i) => (
-                                        <div key={i} className="flex justify-between text-xs gap-4">
-                                          <span className="text-muted-foreground">{item.item}</span>
-                                          <span className="font-medium">S${item.amount.toFixed(2)}</span>
-                                        </div>
-                                      ))}
-                                      <div className="border-t pt-1 mt-2 font-semibold flex justify-between text-sm">
-                                        <span>Total</span>
-                                        <span>S${payData.amount.toFixed(2)}</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-help">
+                                    <DollarSign className="w-3 h-3 mr-1" />
+                                    S${payData.amount.toFixed(2)}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-sm mb-2">Pay Breakdown</p>
+                                    {payData.breakdown.map((item, i) => (
+                                      <div key={i} className="flex justify-between text-xs gap-4">
+                                        <span className="text-muted-foreground">{item.item}</span>
+                                        <span className="font-medium">S${item.amount.toFixed(2)}</span>
                                       </div>
+                                    ))}
+                                    <div className="border-t pt-1 mt-2 font-semibold flex justify-between text-sm">
+                                      <span>Total</span>
+                                      <span>S${payData.amount.toFixed(2)}</span>
                                     </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             <Badge 
                               variant={
@@ -801,6 +800,7 @@ const SlotBooking = () => {
                       );
                     })}
                   </div>
+                </TooltipProvider>
                 ) : (
                   <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
                     <p className={isMobile ? 'text-sm' : ''}>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
