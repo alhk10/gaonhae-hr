@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { CheckCircle, AlertCircle, Plus, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ const SlotBooking = () => {
   const [employeeQualifications, setEmployeeQualifications] = useState<EmployeeQualifications | null>(null);
   const [employeeJoinDate, setEmployeeJoinDate] = useState<string | null>(null);
   const [calculatedPay, setCalculatedPay] = useState<{ date: string; amount: number; breakdown: { item: string; amount: number }[] }[]>([]);
+  const [bookingPayData, setBookingPayData] = useState<Map<string, { amount: number; breakdown: { item: string; amount: number }[] }>>(new Map());
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -85,6 +87,10 @@ const SlotBooking = () => {
   useEffect(() => {
     calculateApprovedBookings();
   }, [employeeBookings]);
+
+  useEffect(() => {
+    calculateBookingHistoryPay();
+  }, [filteredBookings, employeeQualifications, employeeJoinDate]);
 
   const loadInitialData = async () => {
     try {
@@ -188,6 +194,38 @@ const SlotBooking = () => {
     );
 
     setCalculatedPay(payData);
+  };
+
+  const calculateBookingHistoryPay = async () => {
+    if (filteredBookings.length === 0) {
+      setBookingPayData(new Map());
+      return;
+    }
+
+    const payMap = new Map<string, { amount: number; breakdown: { item: string; amount: number }[] }>();
+    
+    for (const booking of filteredBookings) {
+      // Only calculate for approved bookings from Nov 2025+
+      if (booking.status === 'approved' && isFromNovember2024(booking.date)) {
+        try {
+          const amount = await calculateSlotPay(
+            booking.date,
+            employeeQualifications || undefined,
+            employeeJoinDate || undefined
+          );
+          const breakdown = await getPayBreakdown(
+            booking.date,
+            employeeQualifications || undefined,
+            employeeJoinDate || undefined
+          );
+          payMap.set(booking.id, { amount, breakdown });
+        } catch (error) {
+          console.error('SlotBooking: Error calculating pay for booking:', booking.id, error);
+        }
+      }
+    }
+    
+    setBookingPayData(payMap);
   };
 
   const loadEmployeeBookings = async () => {
@@ -656,6 +694,8 @@ const SlotBooking = () => {
                     {filteredBookings.map((booking) => {
                       const bookingBranch = branches.find(b => b.id === booking.branchId);
                       const branchColor = getBranchColorStyle(bookingBranch?.color || '#6b7280');
+                      const payData = bookingPayData.get(booking.id);
+                      
                       return (
                         <div 
                           key={booking.id} 
@@ -675,20 +715,50 @@ const SlotBooking = () => {
                               <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
                             </div>
                           </div>
-                          <Badge 
-                            variant={
-                              booking.status === 'approved' ? 'default' :
-                              booking.status === 'pending' ? 'secondary' :
-                              'destructive'
-                            }
-                            className={isMobile ? 'text-xs' : 'text-xs'}
-                            style={booking.status === 'approved' ? { 
-                              backgroundColor: branchColor,
-                              color: 'white'
-                            } : {}}
-                          >
-                            {booking.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {/* Pay Badge - only for approved bookings with dynamic pricing */}
+                            {booking.status === 'approved' && payData && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-help">
+                                      <DollarSign className="w-3 h-3 mr-1" />
+                                      S${payData.amount.toFixed(2)}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-sm mb-2">Pay Breakdown</p>
+                                      {payData.breakdown.map((item, i) => (
+                                        <div key={i} className="flex justify-between text-xs gap-4">
+                                          <span className="text-muted-foreground">{item.item}</span>
+                                          <span className="font-medium">S${item.amount.toFixed(2)}</span>
+                                        </div>
+                                      ))}
+                                      <div className="border-t pt-1 mt-2 font-semibold flex justify-between text-sm">
+                                        <span>Total</span>
+                                        <span>S${payData.amount.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            <Badge 
+                              variant={
+                                booking.status === 'approved' ? 'default' :
+                                booking.status === 'pending' ? 'secondary' :
+                                'destructive'
+                              }
+                              className={isMobile ? 'text-xs' : 'text-xs'}
+                              style={booking.status === 'approved' ? { 
+                                backgroundColor: branchColor,
+                                color: 'white'
+                              } : {}}
+                            >
+                              {booking.status}
+                            </Badge>
+                          </div>
                         </div>
                       );
                     })}
