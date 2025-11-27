@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertCircle, Plus, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
@@ -55,6 +56,13 @@ const SlotBooking = () => {
   const [calculatedPay, setCalculatedPay] = useState<{ date: string; amount: number; breakdown: { item: string; amount: number }[] }[]>([]);
   const [bookingPayData, setBookingPayData] = useState<Map<string, { amount: number; breakdown: { item: string; amount: number }[] }>>(new Map());
   const [totalEstimatedEarnings, setTotalEstimatedEarnings] = useState<number>(0);
+  const [selectedPayBreakdown, setSelectedPayBreakdown] = useState<{
+    bookingId: string;
+    branchName: string;
+    date: string;
+    amount: number;
+    breakdown: { item: string; amount: number }[];
+  } | null>(null);
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
@@ -728,9 +736,8 @@ const SlotBooking = () => {
               </CardHeader>
               <CardContent>
                 {filteredBookings.length > 0 ? (
-                  <TooltipProvider>
-                    <div className="space-y-3">
-                      {filteredBookings.map((booking) => {
+                  <div className="space-y-3">
+                    {filteredBookings.map((booking) => {
                       const bookingBranch = branches.find(b => b.id === booking.branchId);
                       const branchColor = getBranchColorStyle(bookingBranch?.color || '#6b7280');
                       const payData = bookingPayData.get(booking.id);
@@ -757,29 +764,20 @@ const SlotBooking = () => {
                           <div className="flex items-center gap-2">
                             {/* Pay Badge - only for approved bookings with dynamic pricing */}
                             {booking.status === 'approved' && payData && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-help">
-                                    <DollarSign className="w-3 h-3 mr-1" />
-                                    S${payData.amount.toFixed(2)}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <div className="space-y-1">
-                                    <p className="font-semibold text-sm mb-2">Pay Breakdown</p>
-                                    {payData.breakdown.map((item, i) => (
-                                      <div key={i} className="flex justify-between text-xs gap-4">
-                                        <span className="text-muted-foreground">{item.item}</span>
-                                        <span className="font-medium">S${item.amount.toFixed(2)}</span>
-                                      </div>
-                                    ))}
-                                    <div className="border-t pt-1 mt-2 font-semibold flex justify-between text-sm">
-                                      <span>Total</span>
-                                      <span>S${payData.amount.toFixed(2)}</span>
-                                    </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
+                              <Badge 
+                                variant="outline" 
+                                className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-pointer transition-colors"
+                                onClick={() => setSelectedPayBreakdown({
+                                  bookingId: booking.id,
+                                  branchName: booking.branchName,
+                                  date: booking.date,
+                                  amount: payData.amount,
+                                  breakdown: payData.breakdown
+                                })}
+                              >
+                                <DollarSign className="w-3 h-3 mr-1" />
+                                S${payData.amount.toFixed(2)}
+                              </Badge>
                             )}
                             <Badge 
                               variant={
@@ -800,7 +798,6 @@ const SlotBooking = () => {
                       );
                     })}
                   </div>
-                </TooltipProvider>
                 ) : (
                   <div className={`text-center text-gray-500 ${isMobile ? 'py-6' : 'py-8'}`}>
                     <p className={isMobile ? 'text-sm' : ''}>No bookings found for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
@@ -812,6 +809,37 @@ const SlotBooking = () => {
           </Tabs>
         )}
       </div>
+
+      {/* Pay Breakdown Dialog */}
+      <Dialog open={!!selectedPayBreakdown} onOpenChange={(open) => !open && setSelectedPayBreakdown(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Pay Breakdown</DialogTitle>
+            <DialogDescription>
+              {selectedPayBreakdown && (
+                <>
+                  {selectedPayBreakdown.branchName} - {format(new Date(selectedPayBreakdown.date), 'PPP')}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPayBreakdown && (
+            <div className="space-y-3">
+              {selectedPayBreakdown.breakdown.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{item.item}</span>
+                  <span className="font-medium">S${item.amount.toFixed(2)}</span>
+                </div>
+              ))}
+              <Separator />
+              <div className="flex justify-between font-semibold text-base">
+                <span>Total</span>
+                <span className="text-green-600">S${selectedPayBreakdown.amount.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </ResponsiveLayout>
   );
