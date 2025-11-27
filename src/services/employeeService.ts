@@ -105,38 +105,27 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       };
     });
   } catch (error) {
-    console.error('EmployeeService: Error in getEmployees:', error);
+    logger.error('EmployeeService: Error in getEmployees:', error);
     throw error;
   }
 };
 
 export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching employees with full payroll data...');
+  logger.debug('Fetching employees with full payroll data');
   
   try {
-    const { data: employees, error } = await supabase
-      .from('employees')
-      .select(`
-        *,
-        allowances (*),
-        deductions (*),
-        admin_access (*),
-        certificates (*)
-      `)
-      .order('name')
-      .limit(200);
-
+...
     if (error) {
-      console.error('EmployeeService: Error fetching employees for payroll:', error);
+      logger.error('Error fetching employees for payroll:', error);
       throw error;
     }
 
     if (!employees || employees.length === 0) {
-      console.log('EmployeeService: No employees found for payroll');
+      logger.warn('No employees found for payroll');
       return [];
     }
 
-    console.log('EmployeeService: Full payroll employees fetched:', employees.length);
+    logger.debug(`Full payroll employees fetched: ${employees.length}`);
 
     // Fetch page access data separately since there's no foreign key relationship
     const employeeIds = employees.map(emp => emp.id);
@@ -146,7 +135,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
       .in('employee_id', employeeIds);
 
     if (pageAccessError) {
-      console.error('EmployeeService: Error fetching page access:', pageAccessError);
+      logger.error('Error fetching page access:', pageAccessError);
     }
 
     return employees.map((emp: any) => {
@@ -231,13 +220,13 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
       };
     });
   } catch (error) {
-    console.error('EmployeeService: Error in getEmployeesForPayroll:', error);
+    logger.error('Error in getEmployeesForPayroll:', error);
     throw error;
   }
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
-  console.log('EmployeeService: Fetching casual employees from Supabase...');
+  logger.debug('Fetching casual employees');
   
   const { data: employees, error } = await supabase
     .from('employees')
@@ -252,11 +241,11 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     .is('resign_date', null);
 
   if (error) {
-    console.error('EmployeeService: Error fetching casual employees:', error);
+    logger.error('Error fetching casual employees:', error);
     throw error;
   }
 
-  console.log('EmployeeService: Fetched casual employees:', employees);
+  logger.debug(`Fetched ${employees?.length || 0} casual employees`);
 
   const employeeIds = employees?.map(emp => emp.id) || [];
   const { data: pageAccessData, error: pageAccessError } = await supabase
@@ -265,7 +254,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     .in('employee_id', employeeIds);
 
   if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
+    logger.error('Error fetching page access:', pageAccessError);
   }
 
   return employees?.map(emp => {
@@ -352,7 +341,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
 };
 
 export const getEmployeeById = async (id: string): Promise<EmployeeProfile | null> => {
-  console.log('EmployeeService: Fetching employee by ID from Supabase:', id);
+  logger.debug('Fetching employee by ID', { id });
   
   const { data: employee, error } = await supabase
     .from('employees')
@@ -367,16 +356,16 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     .maybeSingle();
 
   if (error) {
-    console.error('EmployeeService: Error fetching employee by ID:', error);
+    logger.error('Error fetching employee by ID:', error);
     throw error;
   }
 
   if (!employee) {
-    console.log('EmployeeService: No employee found with ID:', id);
+    logger.warn('No employee found with ID', { id });
     return null;
   }
 
-  console.log('EmployeeService: Found employee:', employee.name, employee.email || 'No email');
+  logger.debug('Found employee', { name: employee.name, email: employee.email || 'No email' });
 
   const { data: pageAccess, error: pageAccessError } = await supabase
     .from('employee_page_access')
@@ -385,7 +374,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     .maybeSingle();
 
   if (pageAccessError) {
-    console.error('EmployeeService: Error fetching page access:', pageAccessError);
+    logger.error('Error fetching page access:', pageAccessError);
   }
 
   return {
@@ -468,21 +457,19 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
 };
 
 export const createEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Starting employee creation process...');
-  console.log('EmployeeService: Employee data received:', employeeData);
+  logger.info('Starting employee creation process');
+  logger.debug('Employee data received', { name: employeeData.name, email: employeeData.email });
   
   try {
-    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount'];
-    const missingFields = requiredFields.filter(field => !employeeData[field]);
-    
+...
     if (missingFields.length > 0) {
       const error = `Missing required fields: ${missingFields.join(', ')}`;
-      console.error('EmployeeService: Validation error:', error);
+      logger.error('Validation error:', error);
       throw new Error(error);
     }
 
     const employeeId = `EMP${Date.now()}`;
-    console.log('EmployeeService: Generated employee ID:', employeeId);
+    logger.debug('Generated employee ID', { employeeId });
     
     const insertData = {
       id: employeeId,
@@ -507,8 +494,8 @@ export const createEmployee = async (employeeData: any) => {
       join_date: employeeData.joinDate || null
     };
 
-    console.log('EmployeeService: Prepared data for insertion:', insertData);
-    console.log('EmployeeService: Starting database insertion...');
+    logger.debug('Prepared data for insertion');
+    logger.debug('Starting database insertion');
     
     // Add timeout to the database operation
     const insertPromise = supabase
@@ -526,25 +513,25 @@ export const createEmployee = async (employeeData: any) => {
     const employee = await Promise.race([insertPromise, timeoutPromise]) as any;
 
     if (employee.error) {
-      console.error('EmployeeService: Database insertion error:', employee.error);
+      logger.error('Database insertion error:', employee.error);
       throw new Error(`Database error: ${employee.error.message}`);
     }
 
     if (!employee.data) {
-      console.error('EmployeeService: No data returned from insertion');
+      logger.error('No data returned from insertion');
       throw new Error('No employee data returned from database');
     }
 
-    console.log('EmployeeService: Employee inserted successfully:', employee.data);
+    logger.info('Employee inserted successfully', { id: employee.data.id });
 
     // Create Supabase Auth user with timeout
     if (employeeData.email) {
-      console.log('EmployeeService: Creating Supabase Auth user...');
+      logger.debug('Creating Supabase Auth user');
       try {
-        const authPromise = createSingleSupabaseAuthUser(employeeData.email, employeeData.name);
+...
         const authTimeoutPromise = new Promise((resolve) => {
           setTimeout(() => {
-            console.warn('EmployeeService: Auth user creation timeout, continuing...');
+            logger.warn('Auth user creation timeout, continuing');
             resolve(false);
           }, 30000); // Shorter timeout for auth creation
         });
@@ -552,21 +539,21 @@ export const createEmployee = async (employeeData: any) => {
         const authCreated = await Promise.race([authPromise, authTimeoutPromise]);
         
         if (authCreated) {
-          console.log('EmployeeService: Supabase Auth user created successfully');
+          logger.info('Supabase Auth user created successfully');
         } else {
-          console.warn('EmployeeService: Auth user creation timed out or failed');
+          logger.warn('Auth user creation timed out or failed');
         }
       } catch (authError) {
-        console.error('EmployeeService: Error creating Supabase Auth user:', authError);
+        logger.error('Error creating Supabase Auth user:', authError);
         // Don't fail the employee creation if auth creation fails
       }
     }
 
-    console.log('EmployeeService: Employee creation process completed successfully');
+    logger.info('Employee creation process completed successfully');
     return employee.data;
     
   } catch (error) {
-    console.error('EmployeeService: Critical error in createEmployee:', error);
+    logger.error('Critical error in createEmployee:', error);
     
     // Provide more specific error messages
     if (error instanceof Error) {
@@ -586,12 +573,12 @@ export const createEmployee = async (employeeData: any) => {
 };
 
 export const addEmployee = async (employeeData: any) => {
-  console.log('EmployeeService: Adding employee (alias for createEmployee):', employeeData);
+  logger.debug('Adding employee (alias for createEmployee)');
   return await createEmployee(employeeData);
 };
 
 export const updateEmployee = async (id: string, employeeData: any) => {
-  console.log('EmployeeService: Updating employee in Supabase:', id, employeeData);
+  logger.debug('Updating employee', { id });
   
   const updateData = {
     name: employeeData.name,
@@ -616,7 +603,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     qualifications: employeeData.qualifications || {}
   };
 
-  console.log('EmployeeService: Processed update data for Supabase:', updateData);
+  logger.debug('Processed update data for Supabase');
 
   const { data: employee, error } = await supabase
     .from('employees')
@@ -626,34 +613,26 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     .single();
 
   if (error) {
-    console.error('EmployeeService: Error updating employee:', error);
+    logger.error('Error updating employee:', error);
     throw error;
   }
 
-  console.log('EmployeeService: Employee updated successfully:', employee);
+  logger.info('Employee updated successfully', { id });
   return employee;
 };
 
 export const deleteEmployee = async (id: string) => {
-  console.log('EmployeeService: Soft deleting employee (setting resign date) in Supabase:', id);
-  
-  const today = new Date().toISOString().split('T')[0];
+  logger.debug('Soft deleting employee (setting resign date)', { id });
   
   const { error } = await supabase
-    .from('employees')
-    .update({ resign_date: today })
-    .eq('id', id);
-
-  if (error) {
-    console.error('EmployeeService: Error soft deleting employee:', error);
-    throw error;
+...
   }
 
-  console.log('EmployeeService: Employee soft deleted successfully (resign date set)');
+  logger.info('Employee soft deleted successfully (resign date set)', { id });
 };
 
 export const updateEmployeeResignDate = async (id: string, resignDate: string) => {
-  console.log('EmployeeService: Updating employee resign date in Supabase:', id, resignDate);
+  logger.debug('Updating employee resign date', { id, resignDate });
   
   const { error } = await supabase
     .from('employees')
@@ -661,7 +640,7 @@ export const updateEmployeeResignDate = async (id: string, resignDate: string) =
     .eq('id', id);
 
   if (error) {
-    console.error('EmployeeService: Error updating resign date:', error);
+    logger.error('Error updating resign date:', error);
     throw error;
   }
 };
