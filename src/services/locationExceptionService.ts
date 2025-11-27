@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface LocationException {
   id: string;
@@ -13,7 +13,7 @@ export interface LocationException {
 }
 
 export const getLocationExceptions = async (employeeId?: string): Promise<LocationException[]> => {
-  console.log('Fetching location exceptions for employee:', employeeId);
+  logger.debug('Fetching location exceptions', { employeeId });
   
   let query = supabase
     .from('location_exceptions')
@@ -27,10 +27,11 @@ export const getLocationExceptions = async (employeeId?: string): Promise<Locati
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching location exceptions:', error);
+    logger.error('Error fetching location exceptions', error);
     throw error;
   }
 
+  logger.debug(`Fetched ${data?.length || 0} location exceptions`);
   return data || [];
 };
 
@@ -40,7 +41,7 @@ export const createLocationException = async (exceptionData: {
   created_by: string;
   expires_at?: string;
 }): Promise<void> => {
-  console.log('Creating location exception:', exceptionData);
+  logger.info('Creating location exception', { employeeId: exceptionData.employee_id });
 
   const { error } = await supabase
     .from('location_exceptions')
@@ -50,16 +51,18 @@ export const createLocationException = async (exceptionData: {
     }]);
 
   if (error) {
-    console.error('Error creating location exception:', error);
+    logger.error('Error creating location exception', error);
     throw error;
   }
+  
+  logger.debug('Location exception created successfully');
 };
 
 export const updateLocationException = async (
   id: string, 
   updates: Partial<LocationException>
 ): Promise<void> => {
-  console.log('Updating location exception:', id, updates);
+  logger.info('Updating location exception', { id });
 
   const { error } = await supabase
     .from('location_exceptions')
@@ -67,13 +70,15 @@ export const updateLocationException = async (
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating location exception:', error);
+    logger.error('Error updating location exception', error);
     throw error;
   }
+  
+  logger.debug('Location exception updated successfully');
 };
 
 export const deleteLocationException = async (id: string): Promise<void> => {
-  console.log('Deleting location exception:', id);
+  logger.info('Deleting location exception', { id });
 
   const { error } = await supabase
     .from('location_exceptions')
@@ -81,13 +86,15 @@ export const deleteLocationException = async (id: string): Promise<void> => {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting location exception:', error);
+    logger.error('Error deleting location exception', error);
     throw error;
   }
+  
+  logger.debug('Location exception deleted successfully');
 };
 
 export const hasActiveLocationException = async (employeeId: string): Promise<boolean> => {
-  console.log('Checking for active location exception:', employeeId);
+  logger.debug('Checking for active location exception', { employeeId });
 
   const { data, error } = await supabase
     .from('location_exceptions')
@@ -98,9 +105,11 @@ export const hasActiveLocationException = async (employeeId: string): Promise<bo
     .maybeSingle();
 
   if (error) {
-    console.error('Error checking location exception:', error);
+    logger.error('Error checking location exception', error);
     return false;
   }
 
-  return !!data;
+  const hasException = !!data;
+  logger.debug('Active location exception check result', { employeeId, hasException });
+  return hasException;
 };
