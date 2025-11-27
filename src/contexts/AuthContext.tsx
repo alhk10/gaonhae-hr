@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { getUserData, getUserAdminAccess, getUserPageAccess, checkSuperadminStatus } from '@/services/authOptimizationService';
+import { processUserSession } from '@/services/authSessionService';
 import { AuthContextType } from '@/types/auth';
-import { EMERGENCY_FALLBACKS } from '@/config/constants';
 import { logger } from '@/utils/logger';
 
 // Create context with default values
@@ -34,7 +33,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const handleUserSession = async (session: Session | null) => {
     logger.debug('Processing user session', { email: session?.user?.email });
     
-    if (!session?.user) {
+    const result = await processUserSession(session);
+    
+    if (!result) {
       setUser(null);
       setUserrole(null);
       setUserDetails(null);
@@ -44,286 +45,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    try {
-      logger.info('Starting session setup');
-      
-      // Step 1: Set basic user info immediately
-      setUser({
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.email!.split('@')[0],
-      });
-      
-      // Step 2: Get employee data
-      let userData;
-      try {
-        userData = await getUserData(session.user.email!);
-      } catch (error) {
-        logger.warn('getUserData failed:', error);
-        userData = null;
-      }
-      
-      if (!userData) {
-        // Check if user is a superadmin
-        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        logger.debug('Superadmin check', { email: session.user.email, isSuperadmin });
-        
-        if (isSuperadmin) {
-          logger.info('User is superadmin', { email: session.user.email });
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.email!,
-            role: 'superadmin',
-          });
-          setUserrole('superadmin');
-          setUserDetails(null);
-          setAdminAccess(null);
-          setPageAccess(null);
-          setIsLoading(false);
-          setRequiresPasswordChange(false);
-          
-          return;
-        }
-        
-        
-        // Try to get basic employee ID for PageAccessGuard compatibility
-        try {
-          // Quick lookup with 2 second timeout
-          const lookupPromise = supabase
-            .from('employees')
-            .select('id, name, type')
-            .eq('email', session.user.email!)
-            .maybeSingle();
-          const lookupTimeout = new Promise<{ data: any }>((resolve) =>
-            setTimeout(() => resolve({ data: null }), 2000)
-          );
-          const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
-          
-          if (employeeData) {
-            logger.debug('Employee ID found for fallback', { id: employeeData.id });
-            setUser({
-              id: session.user.id,
-              email: session.user.email!,
-              name: employeeData.name || session.user.email!.split('@')[0],
-              employeeId: employeeData.id
-            });
-            setUserDetails({
-              id: employeeData.id,
-              name: employeeData.name,
-              type: employeeData.type,
-              email: session.user.email
-            });
-          } else {
-            logger.warn('Employee ID lookup timed out');
-            setUser({
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.email!.split('@')[0]
-            });
-          }
-        } catch (error) {
-          logger.error('Employee ID lookup failed:', error);
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.email!.split('@')[0]
-          });
-        }
-        
-        setUserrole('employee');
-        setUserDetails(null);
-        setAdminAccess(EMERGENCY_FALLBACKS.DEFAULT_ADMIN_ACCESS);
-        setPageAccess(EMERGENCY_FALLBACKS.DEFAULT_PAGE_ACCESS);
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 3: Set user details and check for superadmin
-      setUserDetails(userData);
-      let role: 'employee' | 'admin' | 'superadmin' = 'employee';
-      
-      if (userData.isSuperadmin) {
-        role = 'superadmin';
-        logger.info('User identified as superadmin');
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: userData.name,
-          employeeId: userData.id,
-          department: userData.department,
-          position: userData.position
-        });
-        setUserrole(role);
-        setAdminAccess(null); // Superadmin has full access
-        setPageAccess(null);
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 4: Load admin permissions asynchronously with graceful fallback
-      console.log('🔍 Loading admin permissions...');
-      
-      // Set basic role first to allow app to function
-      setUserrole('employee');
-      setAdminAccess({});
-      setPageAccess({
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      });
-      setUser({
-        id: session.user.id,
-        email: session.user.email!,
-        name: userData.name,
-        employeeId: userData.id,
-        department: userData.department,
-        position: userData.position
-      });
-      setIsLoading(false); // Allow user to proceed while permissions load
-      
-      // Load permissions in background with shorter timeout
-      const permissionTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Permission timeout')), 10000)
-      );
-      
-      try {
-        const adminAccessData = await Promise.race([
-          getUserAdminAccess(userData.id),
-          permissionTimeout
-        ]);
-        
-        console.log('🔐 Admin access data loaded:', adminAccessData);
-        
-        // Check if user has any admin permissions
-        const hasAdminPermissions = adminAccessData && 
-          Object.values(adminAccessData).some(access => access === true);
-          
-        if (hasAdminPermissions) {
-          role = 'admin';
-          console.log('✅ Admin role confirmed with permissions:', 
-            Object.keys(adminAccessData).filter(key => adminAccessData[key]));
-          
-        }
-        
-        // Update state with loaded permissions
-        setUserrole(role);
-        setAdminAccess(adminAccessData || {});
-        
-        // Try to load page access (non-blocking)
-        try {
-          const pageAccessData = await Promise.race([
-            getUserPageAccess(userData.id),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Page access timeout')), 5000))
-          ]);
-          setPageAccess(pageAccessData || {
-            profile: true,
-            applyLeave: true,
-            submitClaim: true,
-            payslips: true,
-            myAttendance: true,
-            slotBookingEmployee: true
-          });
-        } catch (pageError) {
-          console.warn('⚠️ Page access load failed (non-critical):', pageError);
-          // Keep default page access
-        }
-        
-        
-      } catch (permissionError) {
-        console.warn('⚠️ Admin permission load failed, proceeding with employee role:', permissionError);
-        // User can still access the app with employee permissions
-        setUserrole('employee');
-        setAdminAccess({});
-        
-        // Show user-friendly message
-        toast({
-          title: "Loading Notice",
-          description: "Some features may take longer to load. You can continue using the application.",
-          variant: "default",
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Session setup error:', error);
-      
-      // Fallback: Set basic user info even if database queries fail
-      console.log('❌ Session setup error - implementing emergency fallback');
-      
-      // Check if user is a superadmin via database
-      try {
-        const isSuperadmin = await checkSuperadminStatus(session.user.email!);
-        
-        if (isSuperadmin) {
-          console.log('🆘 [Superadmin Emergency Fallback] Database issues - using superadmin permissions');
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.email!,
-          });
-          
-          setUserrole('superadmin');
-          setUserDetails(null);
-          setAdminAccess(null);
-          setPageAccess(null);
-          setIsLoading(false);
-          return;
-        }
-      } catch (superadminCheckError) {
-        console.error('❌ Superadmin check also failed:', superadminCheckError);
-      }
-      
-      
-      // Try to get basic employee ID for PageAccessGuard compatibility
-      // Try to get basic employee ID quickly; if it times out, proceed without it
-      try {
-        const lookupPromise = supabase
-          .from('employees')
-          .select('id')
-          .eq('email', session.user.email!)
-          .maybeSingle();
-        const lookupTimeout = new Promise<{ data: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null }), 3000)
-        );
-        const { data: employeeData }: any = await Promise.race([lookupPromise as any, lookupTimeout]);
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.email!.split('@')[0],
-          employeeId: employeeData?.id || undefined
-        });
-      } catch {
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.email!.split('@')[0]
-        });
-      }
-      setUserrole('employee');
-      setUserDetails(null);
-      setAdminAccess({});
-      setPageAccess({
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
-      });
-      setIsLoading(false);
-      
-      // Show user-friendly message about fallback mode
-      toast({
-        title: "Limited Access Mode",
-        description: "Running in limited access mode. Some features may not be available. Contact support if this persists.",
-        variant: "default",
-      });
-    }
+    setUser(result.user);
+    setUserrole(result.userrole);
+    setUserDetails(result.userDetails);
+    setAdminAccess(result.isSuperadmin ? null : (result.userDetails?.adminAccess || {}));
+    setPageAccess(result.isSuperadmin ? null : (result.userDetails?.pageAccess || {}));
+    setIsLoading(false);
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; needsVerification?: boolean }> => {
@@ -336,9 +63,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('AuthContext: Login error:', error);
+        logger.error('Login error', error);
         
-        // Check if error is due to email not being confirmed
         if (error.message.toLowerCase().includes('email not confirmed')) {
           toast({
             title: "Email Not Verified",
@@ -370,7 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
       return { success: false };
     } catch (error) {
-      console.error('AuthContext: Unexpected login error:', error);
+      logger.error('Unexpected login error', error);
       toast({
         title: "Login Error",
         description: "An unexpected error occurred during login.",
@@ -385,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('AuthContext: Logout error:', error);
+        logger.error('Logout error', error);
         toast({
           title: "Logout Error",
           description: error.message,
@@ -398,7 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     } catch (error) {
-      console.error('AuthContext: Unexpected logout error:', error);
+      logger.error('Unexpected logout error', error);
     }
   };
 
@@ -409,20 +135,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('AuthContext: Password update error:', error);
+        logger.error('Password update error', error);
         return false;
       }
 
       setRequiresPasswordChange(false);
       return true;
     } catch (error) {
-      console.error('AuthContext: Unexpected password update error:', error);
+      logger.error('Unexpected password update error', error);
       return false;
     }
   };
 
   useEffect(() => {
-    // Get initial session immediately with timeout fallback to avoid infinite loading
     const initAuth = async () => {
       try {
         const getSessionPromise = supabase.auth.getSession();
@@ -432,16 +157,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { session } } = await Promise.race([getSessionPromise as any, timeout]);
         await handleUserSession(session);
       } catch (error) {
-        console.error('AuthContext: Error getting initial session:', error);
+        logger.error('Error getting initial session', error);
         setIsLoading(false);
       }
     };
 
     initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription }, } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.info('Auth state changed', { event });
       await handleUserSession(session);
     });
 
@@ -470,9 +194,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  // Context should always have a value now, but let's add a sanity check
   if (!context || context.isLoading === undefined) {
-    console.error('useAuth: Context appears to be invalid:', context);
+    logger.error('useAuth: Context appears to be invalid', context);
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
