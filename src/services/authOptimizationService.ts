@@ -136,34 +136,34 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
     const { data, error } = result;
 
     if (error) {
-      console.error('[AuthOptimization] Employee query error:', error);
+      logger.error('Employee query error', error, { email });
       // If error and we have emergency fallback, use it
       if (emergencyFallbacks[email]) {
-        console.log('[AuthOptimization] 🆘 Database error - using emergency fallback for:', email);
+        logger.warn('Database error - using emergency fallback', { email });
         return emergencyFallbacks[email];
       }
       throw error;
     }
 
     if (!data) {
-      console.log('[AuthOptimization] No employee found for email:', email);
+      logger.info('No employee found for email', { email });
       // If no data and we have emergency fallback, use it
       if (emergencyFallbacks[email]) {
-        console.log('[AuthOptimization] 🆘 No data found - using emergency fallback for:', email);
+        logger.warn('No data found - using emergency fallback', { email });
         return emergencyFallbacks[email];
       }
       return null;
     }
 
-    console.log('[AuthOptimization] Employee data fetched successfully for:', email);
+    logger.debug('Employee data fetched successfully', { email });
     
     // Check superadmin status
     let isSuperadmin = false;
     try {
       isSuperadmin = await checkSuperadminStatusCached(email);
-      console.log('[AuthOptimization] Superadmin check for', email, ':', isSuperadmin);
+      logger.debug('Superadmin check result', { email, isSuperadmin });
     } catch (superadminError) {
-      console.warn('[AuthOptimization] Failed to check superadmin status for', email, ':', superadminError);
+      logger.warn('Failed to check superadmin status', superadminError, { email });
     }
     
     // Add additional processing fields
@@ -175,7 +175,7 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
     return userData;
     
   } catch (error) {
-    console.error('[AuthOptimization] Error fetching employee data:', error);
+    logger.error('Error fetching employee data', error);
     throw error;
   }
 };
@@ -188,7 +188,7 @@ export const getUserData = getCurrentUserEmployee;
  */
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
-    console.log('[AuthOptimization] Fetching admin access for employee:', employeeId);
+    logger.debug('Fetching admin access for employee', { employeeId });
     
     // Emergency admin access fallbacks for known employees during connectivity issues
     const adminAccessFallbacks: Record<string, any> = {
@@ -239,7 +239,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        console.log('[AuthOptimization] ⚠️ Admin access timeout after 3 seconds');
+        logger.warn('Admin access timeout after 3 seconds');
         reject(new Error('Admin access query timeout after 3 seconds'));
       }, 3000)
     );
@@ -250,7 +250,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
     } catch (timeoutError) {
       // If timeout and we have emergency fallback, use it
       if (adminAccessFallbacks[employeeId]) {
-        console.log('[AuthOptimization] 🆘 Admin access timeout - using emergency fallback for:', employeeId);
+        logger.warn('Admin access timeout - using emergency fallback', { employeeId });
         return adminAccessFallbacks[employeeId];
       }
       throw timeoutError;
@@ -259,26 +259,26 @@ export const getUserAdminAccess = async (employeeId: string) => {
     const { data, error } = result;
 
     if (error) {
-      console.error('[AuthOptimization] Admin access query error:', error);
+      logger.error('Admin access query error', error, { employeeId });
       // If error and we have emergency fallback, use it
       if (adminAccessFallbacks[employeeId]) {
-        console.log('[AuthOptimization] 🆘 Admin access error - using emergency fallback for:', employeeId);
+        logger.warn('Admin access error - using emergency fallback', { employeeId });
         return adminAccessFallbacks[employeeId];
       }
       throw error;
     }
 
     if (!data) {
-      console.log('[AuthOptimization] No admin access found for employee:', employeeId);
+      logger.info('No admin access found for employee', { employeeId });
       // If no data and we have emergency fallback, use it
       if (adminAccessFallbacks[employeeId]) {
-        console.log('[AuthOptimization] 🆘 No admin access data - using emergency fallback for:', employeeId);
+        logger.warn('No admin access data - using emergency fallback', { employeeId });
         return adminAccessFallbacks[employeeId];
       }
       return null;
     }
 
-    console.log('[AuthOptimization] Admin access fetched successfully for:', employeeId);
+    logger.debug('Admin access fetched successfully', { employeeId });
     
     // Convert snake_case to camelCase for frontend compatibility
     return {
@@ -292,7 +292,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
     };
     
   } catch (error) {
-    console.error('[AuthOptimization] Error fetching admin access:', error);
+    logger.error('Error fetching admin access', error);
     throw error;
   }
 };
@@ -302,7 +302,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
  */
 export const getUserPageAccess = async (employeeId: string) => {
   try {
-    console.log('[AuthOptimization] Fetching page access for employee:', employeeId);
+    logger.debug('Fetching page access for employee', { employeeId });
     
     // Page access query with standard timeout
     const pageAccessPromise = supabase
@@ -318,12 +318,12 @@ export const getUserPageAccess = async (employeeId: string) => {
     const { data, error } = await Promise.race([pageAccessPromise, timeoutPromise]);
 
     if (error) {
-      console.error('[AuthOptimization] Page access query error:', error);
+      logger.error('Page access query error', error, { employeeId });
       throw error;
     }
 
     if (!data) {
-      console.log('[AuthOptimization] No page access found for employee, using defaults:', employeeId);
+      logger.debug('No page access found for employee, using defaults', { employeeId });
       return {
         profile: true,
         applyLeave: true,
@@ -334,7 +334,7 @@ export const getUserPageAccess = async (employeeId: string) => {
       };
     }
 
-    console.log('[AuthOptimization] Page access fetched successfully for:', employeeId);
+    logger.debug('Page access fetched successfully', { employeeId });
     
     // Convert snake_case to camelCase
     return {
@@ -347,7 +347,7 @@ export const getUserPageAccess = async (employeeId: string) => {
     };
     
   } catch (error) {
-    console.error('[AuthOptimization] Error fetching page access:', error);
+    logger.error('Error fetching page access', error);
     throw error;
   }
 };
@@ -359,7 +359,7 @@ export const checkSuperadminStatus = async (email: string): Promise<boolean> => 
   try {
     return await checkSuperadminStatusCached(email);
   } catch (error) {
-    console.error('[AuthOptimization] Error checking superadmin status:', error);
+    logger.error('Error checking superadmin status', error);
     return false;
   }
 };
@@ -369,7 +369,7 @@ export const checkSuperadminStatus = async (email: string): Promise<boolean> => 
  */
 export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
   try {
-    console.log('[AuthOptimization] Checking superadmin status for:', email);
+    logger.debug('Checking superadmin status', { email });
     
     const { data, error } = await supabase
       .from('superadmin_users')
@@ -378,21 +378,21 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
       .maybeSingle();
 
     if (error) {
-      console.error('[AuthOptimization] Superadmin query error:', error);
+      logger.error('Superadmin query error', error, { email });
       return false;
     }
 
     const isSuperadmin = data?.is_active === true;
-    console.log('[AuthOptimization] Superadmin status for', email, ':', isSuperadmin);
+    logger.debug('Superadmin status result', { email, isSuperadmin });
     
     return isSuperadmin;
   } catch (error) {
-    console.error('[AuthOptimization] Error checking superadmin status:', error);
+    logger.error('Error checking superadmin status', error);
     return false;
   }
 };
 
 // Cache clearing placeholder
 export const clearAuthCache = () => {
-  console.log('[AuthOptimization] Cache cleared');
+  logger.debug('Auth cache cleared');
 };
