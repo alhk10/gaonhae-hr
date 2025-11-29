@@ -42,7 +42,7 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
         .maybeSingle();
         
       const quickTimeout = new Promise<{ data: null, error: null }>((resolve) =>
-        setTimeout(() => resolve({ data: null, error: null }), 2000)
+        setTimeout(() => resolve({ data: null, error: null }), 800)
       );
       
       const quickResult = await Promise.race([quickCheck, quickTimeout]);
@@ -68,9 +68,9 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        logger.warn('Database timeout after 3 seconds');
-        reject(new Error('Employee query timeout after 3 seconds'));
-      }, 3000)
+        logger.warn('Database timeout after 1 second');
+        reject(new Error('Employee query timeout after 1 second'));
+      }, 1000)
     );
 
     let result;
@@ -172,9 +172,9 @@ export const getUserAdminAccess = async (employeeId: string) => {
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        logger.warn('Admin access timeout after 3 seconds');
-        reject(new Error('Admin access query timeout after 3 seconds'));
-      }, 3000)
+        logger.warn('Admin access timeout after 1 second');
+        reject(new Error('Admin access query timeout after 1 second'));
+      }, 1000)
     );
 
     let result;
@@ -245,7 +245,7 @@ export const getUserPageAccess = async (employeeId: string) => {
       .maybeSingle();
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Page access query timeout after 3 seconds')), 3000)
+      setTimeout(() => reject(new Error('Page access query timeout after 1 second')), 1000)
     );
 
     const { data, error } = await Promise.race([pageAccessPromise, timeoutPromise]);
