@@ -45,7 +45,8 @@ const transformSlotBookingFromDB = (dbRow: any): SlotBooking => ({
   id: dbRow.id,
   created_at: dbRow.created_at,
   employeeId: dbRow.employee_id,
-  employeeName: dbRow.employee_name,
+  // Use current display_name from employees table if available, otherwise fall back to stored employee_name
+  employeeName: dbRow.employees?.display_name || dbRow.employees?.name || dbRow.employee_name,
   date: dbRow.date,
   branchId: dbRow.branch_id,
   branchName: dbRow.branch_name,
@@ -65,7 +66,13 @@ export const getAllSlotBookings = async (): Promise<SlotBooking[]> => {
   try {
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .select('*')
+      .select(`
+        *,
+        employees:employee_id (
+          name,
+          display_name
+        )
+      `)
       .order('date', { ascending: true });
 
     if (error) {
@@ -376,7 +383,13 @@ export const getEmployeeSlotBookings = async (employeeId: string): Promise<SlotB
   try {
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .select('*')
+      .select(`
+        *,
+        employees:employee_id (
+          name,
+          display_name
+        )
+      `)
       .eq('employee_id', employeeId)
       .order('date', { ascending: false });
 
@@ -397,7 +410,13 @@ export const getBranchSlotBookings = async (branchId: string): Promise<SlotBooki
   try {
     const { data, error } = await supabase
       .from('slot_bookings_new')
-      .select('*')
+      .select(`
+        *,
+        employees:employee_id (
+          name,
+          display_name
+        )
+      `)
       .eq('branch_id', branchId)
       .order('date', { ascending: true });
 
@@ -427,7 +446,7 @@ export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists
   try {
     const { data, error } = await supabase
       .from('employees')
-      .select('name')
+      .select('name, display_name')
       .eq('id', employeeId)
       .single();
 
@@ -435,7 +454,7 @@ export const verifyEmployeeExists = async (employeeId: string): Promise<{ exists
       return { exists: false };
     }
 
-    return { exists: true, employeeName: data.name };
+    return { exists: true, employeeName: data.display_name || data.name };
   } catch (error) {
     logger.error('Error verifying employee', error);
     return { exists: false };
