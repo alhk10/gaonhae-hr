@@ -90,7 +90,7 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
     };
   }
 
-  // Apply 2025 CPF wage band calculation based on attached rate table
+  // Apply 2025 CPF wage band calculation based on CPF Board rates
   let employeeCPF = 0;
   let employerCPF = 0;
 
@@ -109,8 +109,10 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
       employerCPF = cpfSalary * 0.17; // 17% employer contribution
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
-      employeeCPF = Math.round((cpfSalary - 500) * 0.20 * 100) / 100; // 20% on amount above $500
-      employerCPF = Math.round((85 + (cpfSalary - 500) * 0.17) * 100) / 100; // $85 + 17% on amount above $500
+      // Employee CPF = 0.6 × (TW - $500) per CPF Board formula
+      employeeCPF = Math.round((cpfSalary - 500) * 0.60 * 100) / 100;
+      // Employer CPF = 0.17 × TW (17% of total wages)
+      employerCPF = Math.round(cpfSalary * 0.17 * 100) / 100;
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.20 * 100) / 100; // 20% employee
@@ -128,8 +130,10 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
       employerCPF = Math.round(cpfSalary * 0.135 * 100) / 100; // 13.5% employer contribution
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
-      employeeCPF = Math.round((cpfSalary - 500) * 0.17 * 100) / 100; // 17% on amount above $500
-      employerCPF = Math.round((67.5 + (cpfSalary - 500) * 0.135) * 100) / 100; // $67.5 + 13.5% on amount above $500
+      // Employee CPF = 0.45 × (TW - $500) per CPF Board formula
+      employeeCPF = Math.round((cpfSalary - 500) * 0.45 * 100) / 100;
+      // Employer CPF = 0.135 × TW (13.5% of total wages)
+      employerCPF = Math.round(cpfSalary * 0.135 * 100) / 100;
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.17 * 100) / 100; // 17% employee
@@ -147,8 +151,10 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
       employerCPF = Math.round(cpfSalary * 0.09 * 100) / 100; // 9% employer contribution
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
-      employeeCPF = Math.round((cpfSalary - 500) * 0.115 * 100) / 100; // 11.5% on amount above $500
-      employerCPF = Math.round((45 + (cpfSalary - 500) * 0.09) * 100) / 100; // $45 + 9% on amount above $500
+      // Employee CPF = 0.315 × (TW - $500) per CPF Board formula
+      employeeCPF = Math.round((cpfSalary - 500) * 0.315 * 100) / 100;
+      // Employer CPF = 0.09 × TW (9% of total wages)
+      employerCPF = Math.round(cpfSalary * 0.09 * 100) / 100;
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.115 * 100) / 100; // 11.5% employee
@@ -163,11 +169,13 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
     } else if (cpfSalary <= 500) {
       // NIL employee contribution for wages above $50 but not exceeding $500
       employeeCPF = 0;
-      employerCPF = Math.round(cpfSalary * 0.075 * 100) / 100; // 7.5% employer contribution (corrected from 5%)
+      employerCPF = Math.round(cpfSalary * 0.075 * 100) / 100; // 7.5% employer contribution
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
-      employeeCPF = Math.round((cpfSalary - 500) * 0.05 * 100) / 100; // 5% on amount above $500
-      employerCPF = Math.round((37.5 + (cpfSalary - 500) * 0.075) * 100) / 100; // $37.5 + 7.5% on amount above $500 (corrected)
+      // Employee CPF = 0.15 × (TW - $500) per CPF Board formula
+      employeeCPF = Math.round((cpfSalary - 500) * 0.15 * 100) / 100;
+      // Employer CPF = 0.075 × TW (7.5% of total wages)
+      employerCPF = Math.round(cpfSalary * 0.075 * 100) / 100;
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.05 * 100) / 100; // 5% employee
@@ -185,8 +193,10 @@ export const calculateCPF = (salary: number, residencyStatus: string, age: numbe
       employerCPF = Math.round(cpfSalary * 0.035 * 100) / 100; // 3.5% employer contribution
     } else if (cpfSalary <= 750) {
       // Graduated rates for wages above $500 but not exceeding $750
-      employeeCPF = Math.round((cpfSalary - 500) * 0.05 * 100) / 100; // 5% on amount above $500
-      employerCPF = Math.round((17.5 + (cpfSalary - 500) * 0.035) * 100) / 100; // $17.5 + 3.5% on amount above $500
+      // Employee CPF = 0.15 × (TW - $500) per CPF Board formula
+      employeeCPF = Math.round((cpfSalary - 500) * 0.15 * 100) / 100;
+      // Employer CPF = 0.035 × TW (3.5% of total wages)
+      employerCPF = Math.round(cpfSalary * 0.035 * 100) / 100;
     } else {
       // Full rates for wages above $750
       employeeCPF = Math.round(cpfSalary * 0.05 * 100) / 100; // 5% employee

@@ -119,10 +119,14 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
 
   const handleInputChange = (field: string, value: string | number) => {
     console.log(`Updating field ${field} with value:`, value);
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      // Auto-set payment type to Daily when employee type changes to Casual
+      if (field === 'type' && value === 'Casual') {
+        newData.paymentType = 'Daily';
+      }
+      return newData;
+    });
   };
 
   const handleAddAllowance = (newAllowance: AllowanceDeduction) => {
@@ -163,13 +167,13 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         return;
       }
       
-      // Validate salary based on payment type
-      if (formData.paymentType === 'Monthly' && !formData.baseSalary.trim()) {
+      // Validate salary based on payment type and employee type
+      if (formData.paymentType === 'Monthly' && formData.type === 'Full-Time' && !formData.baseSalary.trim()) {
         toast("Please enter base salary for monthly payment");
         return;
       }
       
-      if (formData.paymentType === 'Hourly' && !formData.hourlyRate.trim()) {
+      if (formData.paymentType === 'Hourly' && formData.type === 'Full-Time' && !formData.hourlyRate.trim()) {
         toast("Please enter hourly rate for hourly payment");
         return;
       }
@@ -370,15 +374,26 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Hourly">Hourly</SelectItem>
-                  <SelectItem value="Daily">Daily</SelectItem>
+                  {formData.type === 'Full-Time' ? (
+                    <>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Hourly">Hourly</SelectItem>
+                      <SelectItem value="Daily">Daily</SelectItem>
+                    </>
+                  ) : (
+                    <SelectItem value="Daily">Daily (Dynamic Pricing)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
+              {formData.type === 'Casual' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Casual employees use dynamic pricing based on slot bookings
+                </p>
+              )}
             </div>
 
-            {/* Show Base Salary for Monthly payment (both Full-Time and Casual) */}
-            {formData.paymentType === 'Monthly' && (
+            {/* Show Base Salary for Monthly payment (Full-Time only) */}
+            {formData.paymentType === 'Monthly' && formData.type === 'Full-Time' && (
               <div>
                 <Label htmlFor="baseSalary">Base Salary (S$)</Label>
                 <Input
@@ -395,7 +410,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               </div>
             )}
 
-            {formData.paymentType === 'Hourly' && (
+            {formData.paymentType === 'Hourly' && formData.type === 'Full-Time' && (
               <div>
                 <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
                 <Input
