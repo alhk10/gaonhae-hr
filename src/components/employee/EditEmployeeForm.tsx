@@ -67,6 +67,10 @@ const POSITION_OPTIONS = [
 
 const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, onCancel }) => {
   const { user, userrole } = useAuth();
+  
+  // Auto-convert casual employees to Daily payment type (legacy Monthly/Hourly no longer supported)
+  const initialPaymentType = employee.type === 'Casual' ? 'Daily' : (employee.paymentType || 'Monthly');
+  
   const [formData, setFormData] = useState({
     name: employee.name,
     nric: employee.nric,
@@ -77,7 +81,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     hourlyRate: employee.hourlyRate ? employee.hourlyRate.toString() : '',
     dailyWeekdayRate: employee.dailyWeekdayRate ? employee.dailyWeekdayRate.toString() : '',
     dailyWeekendRate: employee.dailyWeekendRate ? employee.dailyWeekendRate.toString() : '',
-    paymentType: employee.paymentType || 'Monthly',
+    paymentType: initialPaymentType,
     bankName: employee.bankName,
     bankAccount: employee.bankAccount,
     branch: employee.branch || employee.department || '',
