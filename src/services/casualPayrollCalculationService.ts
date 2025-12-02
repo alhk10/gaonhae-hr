@@ -74,8 +74,6 @@ export async function calculateCasualEmployeePayroll(
     
     if (employee.paymentType === 'Hourly' && employee.hourlyRate) {
       basePay = hoursWorked * employee.hourlyRate;
-    } else if (employee.paymentType === 'Daily' && employee.dailyRate) {
-      basePay = daysWorked * employee.dailyRate;
     } else if (employee.paymentType === 'Monthly' && employee.baseSalary) {
       basePay = employee.baseSalary;
     }

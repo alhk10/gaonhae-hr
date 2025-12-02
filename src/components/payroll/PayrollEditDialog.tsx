@@ -110,14 +110,11 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       if (empData.paymentType === 'Hourly' && empData.hourlyRate) {
         const hoursWorked = 120;
         grossPay = empData.hourlyRate * hoursWorked + totalAllowances;
-      } else if (empData.paymentType === 'Daily' && (empData.dailyRate || empData.dailyWeekdayRate)) {
-        const weekdays = 18;
-        const weekends = 4;
-        const weekdayPay = (empData.dailyWeekdayRate || empData.dailyRate || 0) * weekdays;
-        const weekendPay = (empData.dailyWeekendRate || empData.dailyRate || 0) * weekends;
-        grossPay = weekdayPay + weekendPay + totalAllowances;
       } else if (empData.paymentType === 'Monthly' && empData.baseSalary) {
         grossPay = empData.baseSalary + totalAllowances;
+      } else {
+        // Daily employees use dynamic pricing
+        grossPay = (empData.baseSalary || 0) + totalAllowances;
       }
       
       const cpfCalc = calculateCPF(grossPay, empData.residencyStatus, age);
@@ -132,9 +129,6 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       type: empData.type,
       baseSalary: empData.baseSalary,
       hourlyRate: empData.hourlyRate,
-      dailyRate: empData.dailyRate,
-      dailyWeekdayRate: empData.dailyWeekdayRate,
-      dailyWeekendRate: empData.dailyWeekendRate,
       paymentType: empData.paymentType,
       allowances: allowances.map(a => ({ 
         id: a.id.toString(),
@@ -210,10 +204,8 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
 
     try {
       // Update in database if it's a base value
-      if (column === 'baseSalary' || column === 'hourlyRate' || column === 'dailyWeekdayRate') {
-        const updateField = column === 'baseSalary' ? 'base_salary' : 
-                           column === 'hourlyRate' ? 'hourly_rate' : 
-                           'daily_weekday_rate';
+      if (column === 'baseSalary' || column === 'hourlyRate') {
+        const updateField = column === 'baseSalary' ? 'base_salary' : 'hourly_rate';
         
         const { error } = await supabase
           .from('employees')
@@ -241,7 +233,6 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       if (column && newValue !== undefined) {
         if (column === 'baseSalary') emp.baseSalary = newValue;
         else if (column === 'hourlyRate') emp.hourlyRate = newValue;
-        else if (column === 'dailyWeekdayRate') emp.dailyWeekdayRate = newValue;
       }
 
       // Recalculate payroll
@@ -254,8 +245,6 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
       } else if (emp.type === 'Casual') {
         if (emp.paymentType === 'Hourly') {
           grossPay = (emp.hourlyRate || 0) * 120 + totalAllowances;
-        } else if (emp.paymentType === 'Daily') {
-          grossPay = (emp.dailyWeekdayRate || 0) * 18 + (emp.dailyWeekendRate || emp.dailyRate || 0) * 4 + totalAllowances;
         } else {
           grossPay = (emp.baseSalary || 0) + totalAllowances;
         }
