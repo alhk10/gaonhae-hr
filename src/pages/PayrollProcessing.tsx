@@ -219,32 +219,33 @@ const PayrollProcessing = () => {
           
           // Convert employees to EmployeeProfile format and add to payroll
           const allEmployeeIds = employees.map(emp => emp.id);
+          // getEmployeesForPayroll() returns camelCase - use those directly
           const employeeProfiles = employees.map((emp: any) => ({
             id: emp.id,
             name: emp.name,
             nric: emp.nric || '',
-            dateOfBirth: emp.date_of_birth || '',
-            residencyStatus: emp.residency_status || '',
+            dateOfBirth: emp.dateOfBirth || '',
+            residencyStatus: emp.residencyStatus || '',
             type: emp.type as 'Full-Time' | 'Casual',
-            baseSalary: emp.base_salary || undefined,
-            hourlyRate: emp.hourly_rate || undefined,
-            dailyRate: emp.daily_rate || undefined,
-            dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-            dailyWeekendRate: emp.daily_weekend_rate || undefined,
-            paymentType: (emp.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
-            bankName: emp.bank_name || '',
-            bankAccount: emp.bank_account || '',
+            baseSalary: emp.baseSalary || undefined,
+            hourlyRate: emp.hourlyRate || undefined,
+            dailyRate: emp.dailyRate || undefined,
+            dailyWeekdayRate: emp.dailyWeekdayRate || undefined,
+            dailyWeekendRate: emp.dailyWeekendRate || undefined,
+            paymentType: (emp.paymentType as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
+            bankName: emp.bankName || '',
+            bankAccount: emp.bankAccount || '',
             branch: '',
             position: emp.position || '',
             phone: emp.phone || '',
             address: emp.address || '',
             email: emp.email,
-            joinDate: emp.join_date,
+            joinDate: emp.joinDate,
             qualifications: emp.qualifications || {},
-            allowances: [],
-            deductions: [],
-            certificates: [],
-            adminAccess: {
+            allowances: emp.allowances || [],
+            deductions: emp.deductions || [],
+            certificates: emp.certificates || [],
+            adminAccess: emp.adminAccess || {
               employees: false,
               payroll: false,
               leaveManagement: false,
@@ -253,7 +254,7 @@ const PayrollProcessing = () => {
               slotBooking: false,
               reports: false
             },
-            pageAccess: {
+            pageAccess: emp.pageAccess || {
               profile: true,
               applyLeave: true,
               submitClaim: true,
