@@ -199,7 +199,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string) => {
+  const addCasualEmployee = useCallback(async (employee: Omit<CasualEmployee, 'id' | 'totalPay' | 'grossPay' | 'employeeCPF' | 'employerCPF'> & { claims?: number }, periodOverride?: string, prefetchedProfile?: EmployeeProfile) => {
     const id = uuidv4();
     const effectivePeriod = periodOverride || payrollState.currentPeriod;
     
@@ -211,6 +211,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     console.log('║  Period:', effectivePeriod.padEnd(49), '║');
     console.log('║  Hours:', String(employee.hoursWorked || 0).padEnd(51), '║');
     console.log('║  Days:', String(employee.daysWorked || 0).padEnd(52), '║');
+    console.log('║  Prefetched Profile:', prefetchedProfile ? 'YES' : 'NO'.padEnd(37), '║');
     console.log('╚════════════════════════════════════════════════════════════════╝\n');
     
     if (!effectivePeriod) {
@@ -218,8 +219,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       throw new Error('No period provided for payroll calculation');
     }
     
-    // Find the employee profile from available employees for complete data
-    let employeeProfile = payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
+    // Use prefetched profile if provided, otherwise find from available employees
+    let employeeProfile = prefetchedProfile || payrollState.availableEmployees.find(emp => emp.id === employee.employeeId);
     
     // If not found in available employees, fetch directly from database
     if (!employeeProfile) {
@@ -534,7 +535,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const { data: employees, error } = await supabase
         .from('employees')
-        .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date');
+        .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date, qualifications');
 
       if (error) throw error;
       
@@ -656,6 +657,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         address: emp.address || '',
         email: emp.email,
         joinDate: emp.join_date,
+        qualifications: (emp.qualifications as any) || {},
         allowances: allowancesByEmployee[emp.id] || [],
         deductions: deductionsByEmployee[emp.id] || [],
         certificates: [],
@@ -785,6 +787,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log(`    ✓ Calling addCasualEmployee with period: ${effectivePeriod}`);
         
         try {
+          // Pass the full employee profile to ensure qualifications are available
           await addCasualEmployee({
             employeeId: employee.id,
             name: employee.name,
@@ -795,7 +798,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             dailyRate: employee.dailyRate,
             baseSalary: employee.baseSalary,
             claims: totalClaims
-          }, effectivePeriod);
+          }, effectivePeriod, employee);
           console.log(`    ✅ ${employee.name} added successfully`);
         } catch (error) {
           console.error(`    ❌ Failed to add ${employee.name}:`, error);
