@@ -198,14 +198,30 @@ export async function calculateCasualEmployeePayroll(
     
     result.slotBookingPay = totalSlotPay;
     result.slotCount = totalSlots;
-    result.calculationMethod = 'dynamic_pricing';
     
-    // Step 6: Calculate final payroll with CPF
-    const grossPay = totalSlotPay + approvedClaims;
+    // Step 6: Determine base pay - use slot pay if available, otherwise fall back to monthly salary
+    let basePay = totalSlotPay;
+    
+    // If no attended slots but employee has monthly salary, use monthly salary as fallback
+    if (totalSlots === 0 && employee.paymentType === 'Monthly' && employee.baseSalary) {
+      logger.warn(`No attended slots found for ${employee.name}, using monthly salary fallback: $${employee.baseSalary}`);
+      basePay = employee.baseSalary;
+      result.warnings.push('No attended slots - using monthly salary');
+      result.calculationMethod = 'legacy_rates'; // Mark as legacy since using monthly salary
+    } else if (totalSlots > 0) {
+      result.calculationMethod = 'dynamic_pricing';
+    } else {
+      // No slots and no monthly salary - $0 pay
+      result.calculationMethod = 'dynamic_pricing';
+      result.warnings.push('No attended slots and no monthly salary configured');
+    }
+    
+    // Calculate final payroll with CPF
+    const grossPay = basePay + approvedClaims;
     const age = calculateAge(employee.dateOfBirth);
     const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
     
-    result.baseSalary = totalSlotPay;
+    result.baseSalary = basePay;
     result.grossPay = grossPay;
     result.employeeCPF = cpf.employeeCPF;
     result.employerCPF = cpf.employerCPF;
