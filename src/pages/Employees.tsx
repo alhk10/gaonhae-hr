@@ -35,6 +35,7 @@ const Employees = () => {
   
   // Form States
   const [paymentType, setPaymentType] = useState('Monthly');
+  const [employeeType, setEmployeeType] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [newEmployeeAdminAccess, setNewEmployeeAdminAccess] = useState<AdminAccessPermissions>({
     employees: false,
@@ -167,6 +168,7 @@ const Employees = () => {
   const handleCloseAddForm = () => {
     setShowAddForm(false);
     setPaymentType('Monthly');
+    setEmployeeType('');
     setSubmitError(null);
     setNewEmployeeAdminAccess({
       employees: false,
@@ -428,7 +430,19 @@ const Employees = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type *</label>
-                      <select name="type" className="w-full p-2 border border-gray-300 rounded-lg" required>
+                      <select 
+                        name="type" 
+                        className="w-full p-2 border border-gray-300 rounded-lg" 
+                        required
+                        value={employeeType}
+                        onChange={(e) => {
+                          setEmployeeType(e.target.value);
+                          // Auto-set payment type to Daily for casual employees
+                          if (e.target.value === 'Casual') {
+                            setPaymentType('Daily');
+                          }
+                        }}
+                      >
                         <option value="">Select Type</option>
                         <option value="Full-Time">Full-Time</option>
                         <option value="Casual">Casual</option>
@@ -460,21 +474,32 @@ const Employees = () => {
                         className="w-full p-2 border border-gray-300 rounded-lg"
                         value={paymentType}
                         onChange={(e) => setPaymentType(e.target.value)}
+                        disabled={employeeType === 'Casual'}
                       >
-                        <option value="Monthly">Monthly</option>
-                        <option value="Hourly">Hourly</option>
-                        <option value="Daily">Daily</option>
+                        {employeeType === 'Casual' ? (
+                          <option value="Daily">Daily (Dynamic Pricing)</option>
+                        ) : (
+                          <>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Hourly">Hourly</option>
+                            <option value="Daily">Daily</option>
+                          </>
+                        )}
                       </select>
+                      {employeeType === 'Casual' && (
+                        <p className="text-xs text-gray-500 mt-1">Casual employees use dynamic pricing based on slot bookings</p>
+                      )}
                     </div>
 
-                    {paymentType === 'Monthly' && (
+                    {/* Only show Monthly/Hourly fields for Full-Time employees */}
+                    {paymentType === 'Monthly' && employeeType === 'Full-Time' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (S$)</label>
                         <Input name="baseSalary" type="number" step="0.01" />
                       </div>
                     )}
 
-                    {paymentType === 'Hourly' && (
+                    {paymentType === 'Hourly' && employeeType === 'Full-Time' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (S$)</label>
                         <Input name="hourlyRate" type="number" step="0.01" />
