@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { calculateSlotPay } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorked, getExpectedSlotDuration } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
 import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -12,6 +12,8 @@ interface SlotBookingPayData {
     branchName: string;
     pay: number;
     hasAttendance: boolean;
+    hoursWorked?: number;
+    expectedHours?: number;
   }>;
 }
 
@@ -54,12 +56,12 @@ export const getSlotBookingPayForPeriod = async (
 
     logger.debug(`Found ${bookings.length} approved booking(s) for ${employee.name}`);
 
-    // Fetch attendance records for these dates
+    // Fetch attendance records for these dates with check-in and check-out times
     const bookingDates = bookings.map(b => b.date);
     
     const { data: attendanceRecords, error: attendanceError } = await supabase
       .from('attendance')
-      .select('employee_id, date, status, check_in')
+      .select('employee_id, date, status, check_in, check_out')
       .eq('employee_id', employeeId)
       .in('date', bookingDates)
       .in('status', ['Present', 'Late', 'present', 'late']);
@@ -69,39 +71,56 @@ export const getSlotBookingPayForPeriod = async (
       throw attendanceError;
     }
 
+    // Create map with attendance data including times
     const attendanceMap = new Map(
-      (attendanceRecords || []).map(a => [a.date, true])
+      (attendanceRecords || []).map(a => [a.date, { 
+        checkIn: a.check_in, 
+        checkOut: a.check_out 
+      }])
     );
 
     console.log('[SlotBookingPayroll] Attendance records found:', attendanceRecords?.length || 0);
     console.log('[SlotBookingPayroll] Attendance dates:', Array.from(attendanceMap.keys()));
 
-    // Calculate pay for each booking using dynamic pricing
+    // Calculate pay for each booking using dynamic pricing with proration
     const breakdown: SlotBookingPayData['breakdown'] = [];
     let totalPay = 0;
     let totalSlots = 0;
 
     for (const booking of bookings) {
-      const hasAttendance = attendanceMap.has(booking.date);
+      const attendance = attendanceMap.get(booking.date);
       
       // Only count bookings where employee actually attended
-      if (!hasAttendance) {
+      if (!attendance) {
         console.log('[SlotBookingPayroll] Skipping booking on', booking.date, '- no attendance record');
         continue;
       }
 
-      // Calculate pay using dynamic pricing
+      // Calculate actual hours worked from attendance times
+      const actualHoursWorked = calculateActualHoursWorked(
+        booking.date,
+        attendance.checkIn,
+        attendance.checkOut
+      );
+      const expectedHours = getExpectedSlotDuration(booking.date);
+
+      console.log(`[SlotBookingPayroll] ${booking.date}: Check-in ${attendance.checkIn || 'N/A'}, Check-out ${attendance.checkOut || 'N/A'}, Hours: ${actualHoursWorked.toFixed(2)}/${expectedHours.toFixed(2)}`);
+
+      // Calculate pay using dynamic pricing with proration
       const pay = await calculateSlotPay(
         booking.date,
         employee.qualifications,
-        employee.joinDate
+        employee.joinDate,
+        actualHoursWorked
       );
 
       breakdown.push({
         date: booking.date,
         branchName: booking.branch_name || 'Unknown Branch',
         pay,
-        hasAttendance: true
+        hasAttendance: true,
+        hoursWorked: actualHoursWorked,
+        expectedHours
       });
 
       totalPay += pay;

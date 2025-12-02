@@ -1,6 +1,17 @@
 import { EmployeeQualifications } from '@/types/employee';
 import { getActivePricingConfig } from '@/services/slotPricingService';
 
+// Slot duration constants (in hours)
+export const SLOT_DURATIONS = {
+  weekday: 6.33, // Tue-Fri: 2:10pm to 8:30pm = 6 hours 20 minutes
+  weekend: 7.83, // Sat-Sun: 9:10am to 5:00pm = 7 hours 50 minutes
+};
+
+export const SLOT_TIMES = {
+  weekday: { start: '14:10', end: '20:30' }, // Tue-Fri
+  weekend: { start: '09:10', end: '17:00' }, // Sat-Sun
+};
+
 // Cache for pricing config to avoid repeated database calls
 let pricingConfigCache: {
   weekdayBaseRate: number;
@@ -164,12 +175,65 @@ const calculateYearsOfService = (joinDate: string | undefined, bookingDate: stri
 };
 
 /**
- * Calculate the total pay for a slot booking based on date and employee qualifications
+ * Calculate expected slot duration based on day of week
+ */
+export const getExpectedSlotDuration = (dateString: string): number => {
+  return isWeekend(dateString) ? SLOT_DURATIONS.weekend : SLOT_DURATIONS.weekday;
+};
+
+/**
+ * Calculate actual hours worked from check-in and check-out times
+ * Returns expected duration if check-out is missing (full day assumed)
+ */
+export const calculateActualHoursWorked = (
+  dateString: string,
+  checkIn: string | null,
+  checkOut: string | null
+): number => {
+  const expectedDuration = getExpectedSlotDuration(dateString);
+  
+  // If no check-in or check-out, assume full day
+  if (!checkIn || !checkOut) {
+    return expectedDuration;
+  }
+
+  try {
+    // Parse times (format: "HH:MM:SS" or "HH:MM")
+    const parseTime = (timeStr: string): number => {
+      const parts = timeStr.split(':');
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      return hours + minutes / 60;
+    };
+
+    const checkInHours = parseTime(checkIn);
+    const checkOutHours = parseTime(checkOut);
+    
+    // Calculate duration
+    let duration = checkOutHours - checkInHours;
+    
+    // Handle overnight shifts (shouldn't happen but just in case)
+    if (duration < 0) {
+      duration += 24;
+    }
+
+    // Cap at expected duration (no overtime pay beyond slot duration)
+    return Math.min(duration, expectedDuration);
+  } catch (error) {
+    console.error('[SlotPayCalc] Error parsing attendance times:', error);
+    return expectedDuration;
+  }
+};
+
+/**
+ * Calculate the total pay for a slot booking based on date, employee qualifications, and hours worked
+ * Pay is prorated: (fullDayRate / expectedDuration) × actualHoursWorked
  */
 export const calculateSlotPay = async (
   dateString: string,
   qualifications?: EmployeeQualifications,
-  joinDate?: string
+  joinDate?: string,
+  actualHoursWorked?: number
 ): Promise<number> => {
   // Only calculate pay for dates from November 2025 onwards
   if (!isFromNovember2024(dateString)) {
@@ -266,8 +330,20 @@ export const calculateSlotPay = async (
   }
 
   console.log(`[SlotPayCalc]   Qual bonus total: +$${qualBonus}`);
-  console.log(`[SlotPayCalc]   ✅ TOTAL PAY: $${totalPay}`);
+  
+  // Apply proration if actual hours worked is provided
+  const expectedDuration = getExpectedSlotDuration(dateString);
+  const hoursWorked = actualHoursWorked ?? expectedDuration;
+  
+  if (hoursWorked < expectedDuration) {
+    const prorationFactor = hoursWorked / expectedDuration;
+    const proratedPay = Math.round(totalPay * prorationFactor * 100) / 100; // Round to 2 decimals
+    console.log(`[SlotPayCalc]   Proration: ${hoursWorked.toFixed(2)}h / ${expectedDuration.toFixed(2)}h = ${(prorationFactor * 100).toFixed(1)}%`);
+    console.log(`[SlotPayCalc]   ✅ PRORATED PAY: $${proratedPay} (full rate: $${totalPay})`);
+    return proratedPay;
+  }
 
+  console.log(`[SlotPayCalc]   ✅ TOTAL PAY: $${totalPay} (full slot)`);
   return totalPay;
 };
 
@@ -277,7 +353,8 @@ export const calculateSlotPay = async (
 export const getPayBreakdown = async (
   dateString: string,
   qualifications?: EmployeeQualifications,
-  joinDate?: string
+  joinDate?: string,
+  actualHoursWorked?: number
 ): Promise<{ item: string; amount: number }[]> => {
   if (!isFromNovember2024(dateString)) {
     return [];
@@ -288,11 +365,22 @@ export const getPayBreakdown = async (
 
   const breakdown: { item: string; amount: number }[] = [];
 
+  // Calculate proration factor
+  const expectedDuration = getExpectedSlotDuration(dateString);
+  const hoursWorked = actualHoursWorked ?? expectedDuration;
+  const prorationFactor = hoursWorked / expectedDuration;
+  const isProrated = hoursWorked < expectedDuration;
+
+  // Helper to apply proration
+  const applyProration = (amount: number): number => {
+    return isProrated ? Math.round(amount * prorationFactor * 100) / 100 : amount;
+  };
+
   // Base rate
   const baseRate = isWeekend(dateString) ? config.weekendBaseRate : config.weekdayBaseRate;
   breakdown.push({
     item: isWeekend(dateString) ? 'Weekend Base' : 'Weekday Base',
-    amount: baseRate,
+    amount: applyProration(baseRate),
   });
 
   // Add years of service bonus
@@ -301,49 +389,55 @@ export const getPayBreakdown = async (
     const serviceBonus = yearsOfService * config.yearsOfServiceBonusPerYear;
     breakdown.push({
       item: `Service Bonus (${yearsOfService} ${yearsOfService === 1 ? 'year' : 'years'})`,
-      amount: serviceBonus
+      amount: applyProration(serviceBonus)
     });
   }
 
-  if (!qualifications) {
-    return breakdown;
+  if (qualifications) {
+    // Dan level bonus
+    if (qualifications.danFourthAbove) {
+      breakdown.push({ item: '4th Dan & Above', amount: applyProration(config.danBonuses.thirdAndAbove) });
+    } else if (qualifications.danThird) {
+      breakdown.push({ item: '3rd Dan', amount: applyProration(config.danBonuses.thirdAndAbove) });
+    } else if (qualifications.danSecond) {
+      breakdown.push({ item: '2nd Dan', amount: applyProration(config.danBonuses.second) });
+    } else if (qualifications.danFirst) {
+      breakdown.push({ item: '1st Dan', amount: applyProration(config.danBonuses.first) });
+    }
+
+    // Qualifications
+    if (qualifications.stfCoachInduction) {
+      breakdown.push({ item: 'Coach Induction', amount: applyProration(config.qualificationBonuses.stfCoachInduction) });
+    }
+    if (qualifications.stfPoomsaeCoachLevel1) {
+      breakdown.push({ item: 'Poomsae Coach L1', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel1) });
+    }
+    if (qualifications.stfPoomsaeCoachLevel2) {
+      breakdown.push({ item: 'Poomsae Coach L2', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel2) });
+    }
+    if (qualifications.stfPoomsaeCoachLevel3) {
+      breakdown.push({ item: 'Poomsae Coach L3', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel3) });
+    }
+    if (qualifications.sgCoachLevel1) {
+      breakdown.push({ item: 'SG Coach L1', amount: applyProration(config.qualificationBonuses.sgCoachLevel1) });
+    }
+    if (qualifications.sgCoachLevel2) {
+      breakdown.push({ item: 'SG Coach L2', amount: applyProration(config.qualificationBonuses.sgCoachLevel2) });
+    }
+    if (qualifications.stfPoomsaeReferee) {
+      breakdown.push({ item: 'STF Poomsae Referee', amount: applyProration(config.qualificationBonuses.stfPoomsaeReferee) });
+    }
+    if (qualifications.stfKyorugiReferee) {
+      breakdown.push({ item: 'STF Kyorugi Referee', amount: applyProration(config.qualificationBonuses.stfKyorugiReferee) });
+    }
   }
 
-  // Dan level bonus
-  if (qualifications.danFourthAbove) {
-    breakdown.push({ item: '4th Dan & Above', amount: config.danBonuses.thirdAndAbove });
-  } else if (qualifications.danThird) {
-    breakdown.push({ item: '3rd Dan', amount: config.danBonuses.thirdAndAbove });
-  } else if (qualifications.danSecond) {
-    breakdown.push({ item: '2nd Dan', amount: config.danBonuses.second });
-  } else if (qualifications.danFirst) {
-    breakdown.push({ item: '1st Dan', amount: config.danBonuses.first });
-  }
-
-  // Qualifications
-  if (qualifications.stfCoachInduction) {
-    breakdown.push({ item: 'Coach Induction', amount: config.qualificationBonuses.stfCoachInduction });
-  }
-  if (qualifications.stfPoomsaeCoachLevel1) {
-    breakdown.push({ item: 'Poomsae Coach L1', amount: config.qualificationBonuses.stfPoomsaeCoachLevel1 });
-  }
-  if (qualifications.stfPoomsaeCoachLevel2) {
-    breakdown.push({ item: 'Poomsae Coach L2', amount: config.qualificationBonuses.stfPoomsaeCoachLevel2 });
-  }
-  if (qualifications.stfPoomsaeCoachLevel3) {
-    breakdown.push({ item: 'Poomsae Coach L3', amount: config.qualificationBonuses.stfPoomsaeCoachLevel3 });
-  }
-  if (qualifications.sgCoachLevel1) {
-    breakdown.push({ item: 'SG Coach L1', amount: config.qualificationBonuses.sgCoachLevel1 });
-  }
-  if (qualifications.sgCoachLevel2) {
-    breakdown.push({ item: 'SG Coach L2', amount: config.qualificationBonuses.sgCoachLevel2 });
-  }
-  if (qualifications.stfPoomsaeReferee) {
-    breakdown.push({ item: 'STF Poomsae Referee', amount: config.qualificationBonuses.stfPoomsaeReferee });
-  }
-  if (qualifications.stfKyorugiReferee) {
-    breakdown.push({ item: 'STF Kyorugi Referee', amount: config.qualificationBonuses.stfKyorugiReferee });
+  // Add proration info line if applicable
+  if (isProrated) {
+    breakdown.push({
+      item: `Prorated (${hoursWorked.toFixed(1)}h / ${expectedDuration.toFixed(1)}h)`,
+      amount: 0 // Info line, no amount
+    });
   }
 
   return breakdown;
