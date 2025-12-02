@@ -18,7 +18,6 @@ import PayrollPeriodSelector from '@/components/payroll/PayrollPeriodSelector';
 import EditSalaryDialog from '@/components/payroll/EditSalaryDialog';
 import EditAllowancesDialog from '@/components/payroll/EditAllowancesDialog';
 import EditDeductionsDialog from '@/components/payroll/EditDeductionsDialog';
-import { CasualEmployeePayBadge } from '@/components/payroll/CasualEmployeePayBadge';
 import { SlotBreakdownDialog } from '@/components/payroll/SlotBreakdownDialog';
 import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService';
 import { format } from 'date-fns';
@@ -833,13 +832,11 @@ const PayrollProcessing = () => {
                 <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold w-[140px]">Employee</TableHead>
-                        <TableHead className="font-semibold w-[80px]">Type</TableHead>
-                        <TableHead className="font-semibold w-[100px]">Rate</TableHead>
+                        <TableHead className="font-semibold w-[180px]">Employee</TableHead>
                         <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
                         <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
                         <TableHead className="font-semibold w-[80px]">Claims</TableHead>
-                        <TableHead className="font-semibold text-right w-[100px]">Net Pay</TableHead>
+                        <TableHead className="font-semibold text-right w-[120px]">Net Pay</TableHead>
                         <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -870,46 +867,10 @@ const PayrollProcessing = () => {
                               <div className="min-w-0">
                                 <p className="font-medium text-sm truncate">{employee.name}</p>
                                 <p className="text-xs text-gray-500 truncate">{employee.id}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1">
-                                <Badge variant="outline" className="border-purple-200 text-purple-700 text-xs">
-                                  {employee.paymentType}
-                                </Badge>
-                                <CasualEmployeePayBadge 
-                                  warnings={employee.warnings || []}
-                                  slotCount={employee.slotBookingMetadata?.totalSlots}
-                                  slotBookingPay={employee.slotBookingPay}
-                                  calculationMethod={employee.slotBookingMetadata?.calculationMethod}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-1">
-                                <div className="text-sm">
-                                  {employee.paymentType === 'Hourly' && (
-                                    <div>S${employee.hourlyRate}/hr</div>
-                                  )}
-                                  {employee.paymentType === 'Daily' && (
-                                    <div className="space-y-1">
-                                      <div className="text-xs">WD: S${employee.dailyWeekdayRate || employee.dailyRate}</div>
-                                      <div className="text-xs">WE: S${employee.dailyWeekendRate || employee.dailyRate}</div>
-                                    </div>
-                                  )}
-                                  {employee.paymentType === 'Monthly' && (
-                                    <div>S${employee.baseSalary}/month</div>
-                                  )}
-                                </div>
-                                {!isPeriodLocked && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditSalary(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
+                                {employee.slotBookingMetadata?.totalSlots > 0 && (
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    {employee.slotBookingMetadata.totalSlots} slot(s) attended
+                                  </p>
                                 )}
                               </div>
                             </TableCell>
