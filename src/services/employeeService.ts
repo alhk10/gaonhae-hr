@@ -391,6 +391,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
   return {
     id: employee.id,
     name: employee.name,
+    display_name: employee.display_name || '',
     nric: employee.nric || '',
     dateOfBirth: employee.date_of_birth,
     residencyStatus: employee.residency_status,
@@ -595,6 +596,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
   
   const updateData = {
     name: employeeData.name,
+    display_name: employeeData.display_name || employeeData.displayName || null,
     nric: employeeData.nric,
     date_of_birth: employeeData.dateOfBirth,
     residency_status: employeeData.residencyStatus,
