@@ -30,9 +30,6 @@ export interface CasualEmployee {
   grossPay: number;
   daysWorked?: number;
   paymentType?: string;
-  dailyRate?: number;
-  dailyWeekdayRate?: number;
-  dailyWeekendRate?: number;
   baseSalary?: number;
   allowances?: any[];
   deductions?: any[];

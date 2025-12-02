@@ -736,9 +736,6 @@ export type Database = {
           bank_name: string
           base_salary: number | null
           created_at: string | null
-          daily_rate: number | null
-          daily_weekday_rate: number | null
-          daily_weekend_rate: number | null
           date_of_birth: string
           department: string | null
           display_name: string | null
@@ -763,9 +760,6 @@ export type Database = {
           bank_name: string
           base_salary?: number | null
           created_at?: string | null
-          daily_rate?: number | null
-          daily_weekday_rate?: number | null
-          daily_weekend_rate?: number | null
           date_of_birth: string
           department?: string | null
           display_name?: string | null
@@ -790,9 +784,6 @@ export type Database = {
           bank_name?: string
           base_salary?: number | null
           created_at?: string | null
-          daily_rate?: number | null
-          daily_weekday_rate?: number | null
-          daily_weekend_rate?: number | null
           date_of_birth?: string
           department?: string | null
           display_name?: string | null
@@ -2661,11 +2652,9 @@ export type Database = {
           bank_name: string | null
           base_salary: number | null
           created_at: string | null
-          daily_rate: number | null
-          daily_weekday_rate: number | null
-          daily_weekend_rate: number | null
           date_of_birth: string | null
           department: string | null
+          display_name: string | null
           email: string | null
           hourly_rate: number | null
           id: string | null
@@ -2675,6 +2664,7 @@ export type Database = {
           payment_type: string | null
           phone: string | null
           position: string | null
+          qualifications: Json | null
           residency_status: string | null
           resign_date: string | null
           type: string | null
@@ -2686,11 +2676,9 @@ export type Database = {
           bank_name?: string | null
           base_salary?: number | null
           created_at?: string | null
-          daily_rate?: number | null
-          daily_weekday_rate?: number | null
-          daily_weekend_rate?: number | null
           date_of_birth?: string | null
           department?: string | null
+          display_name?: string | null
           email?: string | null
           hourly_rate?: number | null
           id?: string | null
@@ -2700,6 +2688,7 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          qualifications?: Json | null
           residency_status?: string | null
           resign_date?: string | null
           type?: string | null
@@ -2711,11 +2700,9 @@ export type Database = {
           bank_name?: string | null
           base_salary?: number | null
           created_at?: string | null
-          daily_rate?: number | null
-          daily_weekday_rate?: number | null
-          daily_weekend_rate?: number | null
           date_of_birth?: string | null
           department?: string | null
+          display_name?: string | null
           email?: string | null
           hourly_rate?: number | null
           id?: string | null
@@ -2725,6 +2712,7 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          qualifications?: Json | null
           residency_status?: string | null
           resign_date?: string | null
           type?: string | null
