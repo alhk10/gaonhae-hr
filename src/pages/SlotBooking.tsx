@@ -523,7 +523,7 @@ const SlotBooking = () => {
           
           const bookingId = await addSlotBooking({
             employeeId: user.employeeId,
-            employeeName: user.name,
+            employeeName: userDetails?.display_name || userDetails?.name || user.name,
             branchId: selectedBranch,
             branchName: currentBranch.name,
             date: dateStr,

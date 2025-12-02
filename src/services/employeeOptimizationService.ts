@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger';
 interface CasualEmployeeForBooking {
   id: string;
   name: string;
+  display_name: string | null;
   type: string;
 }
 
@@ -16,7 +17,7 @@ export const getCasualEmployeesForBooking = async (): Promise<CasualEmployeeForB
     // Fetch only essential fields for casual employees
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, type')
+      .select('id, name, display_name, type')
       .eq('type', 'Casual')
       .order('name', { ascending: true });
 
@@ -31,6 +32,7 @@ export const getCasualEmployeesForBooking = async (): Promise<CasualEmployeeForB
     const employees = (data || []).map(emp => ({
       id: emp.id,
       name: emp.name,
+      display_name: emp.display_name,
       type: emp.type
     }));
 

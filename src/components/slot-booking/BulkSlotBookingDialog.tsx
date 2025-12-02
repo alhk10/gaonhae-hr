@@ -34,6 +34,7 @@ interface BulkSlotBookingDialogProps {
 interface EmployeeData {
   id: string;
   name: string;
+  display_name: string | null;
   type: string;
 }
 
@@ -171,13 +172,13 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           // Check for existing booking before creating
           const existingBooking = await checkForExistingBooking(employeeId, dateStr);
           if (existingBooking) {
-            errors.push(`${employee?.name || 'Unknown'} already has a booking for this date`);
+            errors.push(`${employee?.display_name || employee?.name || 'Unknown'} already has a booking for this date`);
             continue;
           }
           
           await addAdminSlotBooking({
             employeeId,
-            employeeName: employee?.name || 'Unknown',
+            employeeName: employee?.display_name || employee?.name || 'Unknown',
             branchId: selectedBranch,
             branchName: branch?.name || 'Unknown Branch',
             date: dateStr,
@@ -185,12 +186,12 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
           });
           
           successCount++;
-          console.log(`Successfully created booking for ${employee?.name || employeeId}`);
+          console.log(`Successfully created booking for ${employee?.display_name || employee?.name || employeeId}`);
         } catch (error) {
           const employee = employees.find(emp => emp.id === employeeId);
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`${employee?.name || 'Unknown'}: ${errorMsg}`);
-          console.error('Error creating booking for', employee?.name || employeeId, ':', error);
+          errors.push(`${employee?.display_name || employee?.name || 'Unknown'}: ${errorMsg}`);
+          console.error('Error creating booking for', employee?.display_name || employee?.name || employeeId, ':', error);
         }
       }
 
@@ -353,7 +354,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
                             onCheckedChange={() => handleEmployeeToggle(employee.id)}
                           />
                           <div className="flex-1">
-                            <p className="font-medium">{employee.name}</p>
+                            <p className="font-medium">{employee.display_name || employee.name}</p>
                             <p className="text-sm text-gray-500">ID: {employee.id}</p>
                           </div>
                         </div>
