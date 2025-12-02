@@ -522,22 +522,27 @@ const EmployeeDetails = () => {
                 </div>
                 <div>
                   <Label htmlFor="paymentType">Payment Type</Label>
-                  <Select
-                    value={employeeData.paymentType || ''}
-                    onValueChange={(value) => handleInputChange({ target: { name: 'paymentType', value } } as any)}
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select payment type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Hourly">Hourly</SelectItem>
-                      <SelectItem value="Daily">Daily</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {employeeData.type === 'Full-Time' ? (
+                    <Select
+                      value={employeeData.paymentType || 'Monthly'}
+                      onValueChange={(value) => handleInputChange({ target: { name: 'paymentType', value } } as any)}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select payment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Hourly">Hourly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                      Dynamic Pricing
+                    </div>
+                  )}
                 </div>
-                {employeeData.paymentType === 'Monthly' && (
+                {employeeData.type === 'Full-Time' && employeeData.paymentType === 'Monthly' && (
                   <div>
                     <Label htmlFor="baseSalary">Base Salary (S$)</Label>
                     <Input
@@ -551,7 +556,7 @@ const EmployeeDetails = () => {
                     />
                   </div>
                 )}
-                {employeeData.paymentType === 'Hourly' && (
+                {employeeData.type === 'Full-Time' && employeeData.paymentType === 'Hourly' && (
                   <div>
                     <Label htmlFor="hourlyRate">Hourly Rate (S$)</Label>
                     <Input
@@ -565,7 +570,7 @@ const EmployeeDetails = () => {
                     />
                   </div>
                 )}
-                {employeeData.paymentType === 'Daily' && (
+                {employeeData.type === 'Casual' && (
                   <>
                     <div className="md:col-span-2 p-3 bg-muted/50 rounded-lg">
                       <p className="text-sm text-muted-foreground">
