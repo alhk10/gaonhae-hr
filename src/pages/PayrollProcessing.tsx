@@ -219,50 +219,9 @@ const PayrollProcessing = () => {
           
           // Convert employees to EmployeeProfile format and add to payroll
           const allEmployeeIds = employees.map(emp => emp.id);
-          // getEmployeesForPayroll() returns camelCase - use those directly
-          const employeeProfiles = employees.map((emp: any) => ({
-            id: emp.id,
-            name: emp.name,
-            nric: emp.nric || '',
-            dateOfBirth: emp.dateOfBirth || '',
-            residencyStatus: emp.residencyStatus || '',
-            type: emp.type as 'Full-Time' | 'Casual',
-            baseSalary: emp.baseSalary || undefined,
-            hourlyRate: emp.hourlyRate || undefined,
-            dailyRate: emp.dailyRate || undefined,
-            dailyWeekdayRate: emp.dailyWeekdayRate || undefined,
-            dailyWeekendRate: emp.dailyWeekendRate || undefined,
-            paymentType: (emp.paymentType as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
-            bankName: emp.bankName || '',
-            bankAccount: emp.bankAccount || '',
-            branch: '',
-            position: emp.position || '',
-            phone: emp.phone || '',
-            address: emp.address || '',
-            email: emp.email,
-            joinDate: emp.joinDate,
-            qualifications: emp.qualifications || {},
-            allowances: emp.allowances || [],
-            deductions: emp.deductions || [],
-            certificates: emp.certificates || [],
-            adminAccess: emp.adminAccess || {
-              employees: false,
-              payroll: false,
-              leaveManagement: false,
-              claims: false,
-              attendance: false,
-              slotBooking: false,
-              reports: false
-            },
-            pageAccess: emp.pageAccess || {
-              profile: true,
-              applyLeave: true,
-              submitClaim: true,
-              payslips: true,
-              myAttendance: true,
-              slotBookingEmployee: true
-            }
-          }));
+          // getEmployeesForPayroll() returns camelCase objects - pass them directly
+          // These already have the correct structure with baseSalary, qualifications, etc.
+          const employeeProfiles = employees;
           
           console.log('\n[PayrollProcessing] 📝 Adding all employees to payroll...');
           console.log('[PayrollProcessing] Period being passed:', selectedPeriod);
