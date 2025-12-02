@@ -79,8 +79,6 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     type: employee.type,
     baseSalary: employee.baseSalary ? employee.baseSalary.toString() : '',
     hourlyRate: employee.hourlyRate ? employee.hourlyRate.toString() : '',
-    dailyWeekdayRate: employee.dailyWeekdayRate ? employee.dailyWeekdayRate.toString() : '',
-    dailyWeekendRate: employee.dailyWeekendRate ? employee.dailyWeekendRate.toString() : '',
     paymentType: initialPaymentType,
     bankName: employee.bankName,
     bankAccount: employee.bankAccount,
@@ -182,8 +180,8 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         return;
       }
       
-      if (formData.paymentType === 'Daily' && (!formData.dailyWeekdayRate.trim() || !formData.dailyWeekendRate.trim())) {
-        toast("Please enter both weekday and weekend rates for daily payment");
+      if (formData.paymentType === 'Daily' && formData.type === 'Full-Time') {
+        toast("Please select Monthly or Hourly for Full-Time employees");
         return;
       }
       
@@ -192,8 +190,6 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         ...formData,
         baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : null,
         hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : null,
-        dailyWeekdayRate: formData.dailyWeekdayRate && formData.dailyWeekdayRate.trim() !== '' ? Number(formData.dailyWeekdayRate) : null,
-        dailyWeekendRate: formData.dailyWeekendRate && formData.dailyWeekendRate.trim() !== '' ? Number(formData.dailyWeekendRate) : null,
       };
 
       console.log('Processed update data with converted numbers:', updateData);
@@ -205,8 +201,6 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         ...updateData,
         baseSalary: updateData.baseSalary || undefined,
         hourlyRate: updateData.hourlyRate || undefined,
-        dailyWeekdayRate: updateData.dailyWeekdayRate || undefined,
-        dailyWeekendRate: updateData.dailyWeekendRate || undefined,
         // Convert back to EmployeeAllowance[] and EmployeeDeduction[]
         allowances: allowances.map(a => ({ ...a, id: a.id })),
         deductions: deductions.map(d => ({ ...d, id: d.id })),
@@ -426,33 +420,6 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                   placeholder="Enter hourly rate"
                 />
               </div>
-            )}
-
-            {formData.paymentType === 'Daily' && (
-              <>
-                <div>
-                  <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
-                  <Input
-                    id="dailyWeekdayRate"
-                    type="number"
-                    step="0.01"
-                    value={formData.dailyWeekdayRate}
-                    onChange={(e) => handleInputChange('dailyWeekdayRate', e.target.value)}
-                    placeholder="Enter weekday rate"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
-                  <Input
-                    id="dailyWeekendRate"
-                    type="number"
-                    step="0.01"
-                    value={formData.dailyWeekendRate}
-                    onChange={(e) => handleInputChange('dailyWeekendRate', e.target.value)}
-                    placeholder="Enter weekend rate"
-                  />
-                </div>
-              </>
             )}
 
             <div>

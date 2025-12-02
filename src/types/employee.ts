@@ -73,9 +73,6 @@ export interface PayrollEmployee {
   type: 'Full-Time' | 'Casual';
   baseSalary?: number;
   hourlyRate?: number;
-  dailyRate?: number;
-  dailyWeekdayRate?: number;
-  dailyWeekendRate?: number;
   paymentType: 'Monthly' | 'Hourly' | 'Daily';
   allowances: EmployeeAllowance[];
   deductions: EmployeeDeduction[];
@@ -138,9 +135,6 @@ export interface EmployeeProfile {
   type: 'Full-Time' | 'Casual';
   baseSalary?: number;
   hourlyRate?: number;
-  dailyRate?: number;
-  dailyWeekdayRate?: number;
-  dailyWeekendRate?: number;
   paymentType: 'Monthly' | 'Hourly' | 'Daily';
   bankName: string;
   bankAccount: string;

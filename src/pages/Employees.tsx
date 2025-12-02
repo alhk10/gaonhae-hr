@@ -505,19 +505,6 @@ const Employees = () => {
                         <Input name="hourlyRate" type="number" step="0.01" />
                       </div>
                     )}
-
-                    {paymentType === 'Daily' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekday Rate (S$)</label>
-                          <Input name="dailyWeekdayRate" type="number" step="0.01" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Daily Weekend Rate (S$)</label>
-                          <Input name="dailyWeekendRate" type="number" step="0.01" />
-                        </div>
-                      </div>
-                    )}
                   </div>
                   
                   <div>

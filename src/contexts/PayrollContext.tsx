@@ -260,9 +260,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             type: empData.type as 'Full-Time' | 'Casual',
             baseSalary: empData.base_salary,
             hourlyRate: empData.hourly_rate,
-            dailyRate: empData.daily_rate,
-            dailyWeekdayRate: empData.daily_weekday_rate,
-            dailyWeekendRate: empData.daily_weekend_rate,
             paymentType: empData.payment_type as 'Monthly' | 'Hourly' | 'Daily',
             nric: empData.nric,
             dateOfBirth: empData.date_of_birth,
@@ -535,7 +532,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const { data: employees, error } = await supabase
         .from('employees')
-        .select('id, name, type, base_salary, hourly_rate, daily_rate, daily_weekday_rate, daily_weekend_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date, qualifications');
+        .select('id, name, type, base_salary, hourly_rate, payment_type, nric, date_of_birth, residency_status, bank_name, bank_account, position, phone, address, email, join_date, qualifications');
 
       if (error) throw error;
       
@@ -547,10 +544,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           type: 'Casual',
           base_salary: 0,
           hourly_rate: 14.00,
-          daily_rate: 0,
-          daily_weekday_rate: 0,
-          daily_weekend_rate: 0,
-          payment_type: 'Hourly',
+          payment_type: 'Daily',
           nric: 'T0277825J',
           date_of_birth: '',
           residency_status: 'PR',
@@ -568,10 +562,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           type: 'Casual',
           base_salary: 800.00,
           hourly_rate: 0,
-          daily_rate: 0,
-          daily_weekday_rate: 0,
-          daily_weekend_rate: 0,
-          payment_type: 'Monthly',
+          payment_type: 'Daily',
           nric: 'T0631113F',
           date_of_birth: '',
           residency_status: 'Citizen',
@@ -645,9 +636,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         type: emp.type as 'Full-Time' | 'Casual',
         baseSalary: emp.base_salary || undefined,
         hourlyRate: emp.hourly_rate || undefined,
-        dailyRate: emp.daily_rate || undefined,
-        dailyWeekdayRate: emp.daily_weekday_rate || undefined,
-        dailyWeekendRate: emp.daily_weekend_rate || undefined,
         paymentType: (emp.payment_type as 'Monthly' | 'Hourly' | 'Daily') || 'Monthly',
         bankName: emp.bank_name || '',
         bankAccount: emp.bank_account || '',
@@ -913,9 +901,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             id: employee.id,
             name: employee.name,
             employeeId: employee.id,
-            paymentType: employee.payment_type || 'Hourly',
+            paymentType: 'Daily',
             hourlyRate: employee.hourly_rate || 0,
-            dailyRate: employee.daily_rate || employee.daily_weekday_rate || 0,
             baseSalary: employee.base_salary || 0,
             totalHours: item.totalHours,
             totalDays: item.totalDays,
@@ -955,9 +942,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             id: wangEmployee.id,
             name: wangEmployee.name,
             employeeId: wangEmployee.id,
-            paymentType: 'Hourly',
+            paymentType: 'Daily',
             hourlyRate: 14.00,
-            dailyRate: 0,
             baseSalary: 0,
             totalHours: 5.55, // From attendance query
             totalDays: 1,
@@ -1000,7 +986,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           hoursWorked: hoursWorked,
           daysWorked: daysWorked,
           paymentType: paymentType,
-          dailyRate: employee.dailyRate,
           baseSalary: employee.baseSalary
         }, payrollState.currentPeriod);
       }
