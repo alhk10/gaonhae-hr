@@ -412,10 +412,6 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
                   <span>Days Worked:</span>
                   <span>{emp.daysWorked || 0}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Daily Rate:</span>
-                  <span>{formatCurrency(emp.dailyRate || 0)}</span>
-                </div>
               </>
             )}
             {emp.paymentType === 'Monthly' && (
@@ -467,7 +463,7 @@ export const PayrollCalculationDetails: React.FC<PayrollCalculationDetailsProps>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>Base Pay:</span>
-              <span>{formatCurrency(emp.baseSalary || (emp.hoursWorked || 0) * (emp.hourlyRate || 0) || (emp.daysWorked || 0) * (emp.dailyRate || 0) || 0)}</span>
+              <span>{formatCurrency(emp.baseSalary || (emp.hoursWorked || 0) * (emp.hourlyRate || 0) || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Allowances:</span>

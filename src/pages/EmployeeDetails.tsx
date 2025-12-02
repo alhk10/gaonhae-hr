@@ -567,29 +567,10 @@ const EmployeeDetails = () => {
                 )}
                 {employeeData.paymentType === 'Daily' && (
                   <>
-                    <div>
-                      <Label htmlFor="dailyWeekdayRate">Daily Weekday Rate (S$)</Label>
-                      <Input
-                        id="dailyWeekdayRate"
-                        name="dailyWeekdayRate"
-                        type="number"
-                        step="0.01"
-                        value={employeeData.dailyWeekdayRate?.toString() || ''}
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dailyWeekendRate">Daily Weekend Rate (S$)</Label>
-                      <Input
-                        id="dailyWeekendRate"
-                        name="dailyWeekendRate"
-                        type="number"
-                        step="0.01"
-                        value={employeeData.dailyWeekendRate?.toString() || ''}
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
-                      />
+                    <div className="md:col-span-2 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Casual employees use dynamic pricing based on slot bookings
+                      </p>
                     </div>
                   </>
                 )}

@@ -255,7 +255,6 @@ const PayrollProcessing = () => {
                     name: missingEmp.name,
                     paymentType: missingEmp.paymentType,
                     hourlyRate: missingEmp.hourlyRate || 0,
-                    dailyRate: 0,
                     baseSalary: missingEmp.baseSalary || 0,
                     hoursWorked: attendanceData.totalHours,
                     daysWorked: attendanceData.totalDays,
@@ -287,9 +286,7 @@ const PayrollProcessing = () => {
       ? employee.baseSalary || 0
       : employee.paymentType === 'Hourly' 
         ? employee.hourlyRate || 0
-        : employee.paymentType === 'Daily'
-          ? employee.dailyWeekdayRate || employee.dailyRate || 0
-          : employee.baseSalary || 0;
+        : employee.baseSalary || 0;
 
     setEditSalaryDialog({
       isOpen: true,
@@ -337,8 +334,7 @@ const PayrollProcessing = () => {
       .from('employees')
       .update({
         [editSalaryDialog.employeeType === 'Full-Time' ? 'base_salary' : 
-         editSalaryDialog.paymentType === 'Hourly' ? 'hourly_rate' :
-         editSalaryDialog.paymentType === 'Daily' ? 'daily_weekday_rate' : 'base_salary']: newSalary
+         editSalaryDialog.paymentType === 'Hourly' ? 'hourly_rate' : 'base_salary']: newSalary
       })
       .eq('id', editSalaryDialog.employeeId);
 
@@ -357,9 +353,7 @@ const PayrollProcessing = () => {
               ? { baseSalary: newSalary }
               : editSalaryDialog.paymentType === 'Hourly'
                 ? { hourlyRate: newSalary }
-                : editSalaryDialog.paymentType === 'Daily'
-                  ? { dailyWeekdayRate: newSalary }
-                  : { baseSalary: newSalary }
+                : { baseSalary: newSalary }
             )
           }
         : emp
@@ -1196,7 +1190,7 @@ const PayrollProcessing = () => {
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">{employee.name}</TableCell>
                     <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
-                    <TableCell>S${(employee.hourlyRate || employee.dailyRate || 0).toFixed(2)}</TableCell>
+                    <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}</TableCell>
                     <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
                     <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
                     <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>

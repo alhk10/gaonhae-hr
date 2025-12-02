@@ -56,10 +56,8 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
       return `S$${employee.baseSalary.toLocaleString()}/month`;
     } else if (employee.hourlyRate) {
       return `S$${employee.hourlyRate}/hour`;
-    } else if (employee.dailyWeekdayRate) {
-      return `S$${employee.dailyWeekdayRate}/day`;
     }
-    return 'Not set';
+    return 'Dynamic Pricing';
   };
 
   return (

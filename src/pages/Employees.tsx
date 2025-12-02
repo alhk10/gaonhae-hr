@@ -223,8 +223,6 @@ const Employees = () => {
         paymentType: formData.get('paymentType') as string || 'Monthly',
         baseSalary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
         hourlyRate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
-        dailyWeekdayRate: formData.get('dailyWeekdayRate') ? parseFloat(formData.get('dailyWeekdayRate') as string) : null,
-        dailyWeekendRate: formData.get('dailyWeekendRate') ? parseFloat(formData.get('dailyWeekendRate') as string) : null,
         joinDate: formData.get('joinDate') as string,
       };
 

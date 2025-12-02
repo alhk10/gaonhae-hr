@@ -85,7 +85,6 @@ export interface CasualPayrollCalculationResult extends PayrollCalculationResult
   hoursWorked: number;
   daysWorked: number;
   hourlyRate?: number;
-  dailyRate?: number;
   paymentType: string;
 }
 
@@ -103,15 +102,7 @@ export const validateEmployeeForPayroll = (employee: EmployeeProfile): { isValid
       errors.push('Base salary must be greater than 0 for full-time employees');
     }
   } else if (employee.type === 'Casual') {
-    if (employee.paymentType === 'Hourly' && (!employee.hourlyRate || employee.hourlyRate <= 0)) {
-      errors.push('Hourly rate must be greater than 0 for hourly casual employees');
-    }
-    if (employee.paymentType === 'Daily' && (!employee.dailyRate || employee.dailyRate <= 0)) {
-      errors.push('Daily rate must be greater than 0 for daily casual employees');
-    }
-    if (employee.paymentType === 'Monthly' && (!employee.baseSalary || employee.baseSalary <= 0)) {
-      errors.push('Monthly salary must be greater than 0 for monthly casual employees');
-    }
+    // Casual employees use dynamic pricing from slot bookings - no rate validation needed
   }
 
   return {
@@ -205,7 +196,6 @@ export const calculateCasualPayroll = (
   const paymentType = employee.paymentType || 'Monthly';
   let baseSalary = 0;
   let hourlyRate = employee.hourlyRate || 0;
-  let dailyRate = employee.dailyRate || employee.dailyWeekdayRate || 0;
 
   // If slot booking pay is provided (from dynamic pricing), use it as base salary
   if (slotBookingPay !== undefined && slotBookingPay > 0) {
@@ -225,8 +215,8 @@ export const calculateCasualPayroll = (
         warnings.push('No hours worked recorded for hourly employee');
       }
     } else if (paymentType === 'Daily') {
-      // For daily employees, base salary should be calculated from actual attendance days
-      baseSalary = dailyRate * daysWorked;
+      // Daily employees now use dynamic pricing, so calculate from base salary or use 0
+      baseSalary = employee.baseSalary || 0;
       hoursWorked = daysWorked * 8; // Estimate hours from days
       
       if (daysWorked <= 0) {
@@ -335,7 +325,6 @@ export const calculateCasualPayroll = (
     hoursWorked,
     daysWorked,
     hourlyRate,
-    dailyRate,
     paymentType,
     errors,
     warnings

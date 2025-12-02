@@ -462,8 +462,6 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                                 type: 'Casual' as const,
                                 baseSalary: employee.baseSalary,
                                 hourlyRate: employee.hourlyRate,
-                                dailyRate: employee.dailyRate,
-                                dailyWeekdayRate: employee.dailyWeekdayRate,
                                 hoursWorked: employee.hoursWorked,
                                 daysWorked: employee.daysWorked,
                                 paymentType: 'Daily',
@@ -580,10 +578,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                             {employee.type}
                           </Badge>
                           <span className="text-xs text-gray-500">
-                            {employee.paymentType || 'Monthly'} • 
-                            S${employee.baseSalary || employee.hourlyRate || employee.dailyRate || 0}
-                            {employee.paymentType === 'Hourly' ? '/hr' : 
-                             employee.paymentType === 'Daily' ? '/day' : ''}
+                            {employee.type === 'Casual' ? 'Dynamic Pricing' : `S$${employee.baseSalary || employee.hourlyRate || 0}`}
                           </span>
                         </div>
                         {hasErrors && (
@@ -629,12 +624,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
           <div className="space-y-4">
             <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-3">
               {eligibleCasualEmployees.map((employee) => {
-                const paymentType = employee.paymentType || 'Hourly';
-                const calculatedPay = paymentType === 'Hourly' 
-                  ? employee.totalHours * employee.hourlyRate
-                  : paymentType === 'Daily'
-                  ? employee.totalDays * employee.dailyRate
-                  : employee.baseSalary;
+                const calculatedPay = employee.totalHours * (employee.hourlyRate || 0);
 
                 return (
                   <div key={employee.id} className="p-3 bg-gray-50 rounded-lg">
@@ -643,7 +633,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                         <p className="font-medium text-gray-900">{employee.name}</p>
                         <div className="flex items-center space-x-4 mt-1">
                           <Badge variant="outline" className="text-xs">
-                            {paymentType}
+                            Dynamic Pricing
                           </Badge>
                           <span className="text-xs text-gray-600">
                             {employee.attendanceRecords} attendance records
@@ -656,19 +646,12 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mt-2 text-xs text-gray-600">
+                    <div className="grid grid-cols-2 gap-4 mt-2 text-xs text-gray-600">
                       <div>
                         <span className="font-medium">Hours:</span> {employee.totalHours.toFixed(1)}
                       </div>
                       <div>
                         <span className="font-medium">Days:</span> {employee.totalDays}
-                      </div>
-                      <div>
-                        <span className="font-medium">Rate:</span> S${
-                          paymentType === 'Hourly' ? employee.hourlyRate.toFixed(2) + '/hr' :
-                          paymentType === 'Daily' ? employee.dailyRate.toFixed(2) + '/day' :
-                          employee.baseSalary.toFixed(2) + '/month'
-                        }
                       </div>
                     </div>
                   </div>
@@ -682,12 +665,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                 </p>
                 <p className="text-sm text-blue-700">
                   Estimated total amount: S${eligibleCasualEmployees.reduce((sum, emp) => {
-                    const paymentType = emp.paymentType || 'Hourly';
-                    const calculatedPay = paymentType === 'Hourly' 
-                      ? emp.totalHours * emp.hourlyRate
-                      : paymentType === 'Daily'
-                      ? emp.totalDays * emp.dailyRate
-                      : emp.baseSalary;
+                    const calculatedPay = emp.totalHours * (emp.hourlyRate || 0);
                     return sum + calculatedPay;
                   }, 0).toFixed(2)}
                 </p>

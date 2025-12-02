@@ -53,9 +53,6 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         type: emp.type as 'Full-Time' | 'Casual',
         baseSalary: 0, // Load on demand
         hourlyRate: 0, // Load on demand
-        dailyRate: 0, // Load on demand
-        dailyWeekdayRate: 0, // Load on demand
-        dailyWeekendRate: 0, // Load on demand
         paymentType: 'Monthly' as 'Monthly' | 'Hourly' | 'Daily', // Load on demand
         bankName: '', // Load on demand
         bankAccount: '', // Load on demand

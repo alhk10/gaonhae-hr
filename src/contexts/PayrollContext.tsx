@@ -783,7 +783,6 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             hoursWorked: hoursWorked,
             daysWorked: daysWorked,
             paymentType: employee.paymentType,
-            dailyRate: employee.dailyRate,
             baseSalary: employee.baseSalary,
             claims: totalClaims
           }, effectivePeriod, employee);
