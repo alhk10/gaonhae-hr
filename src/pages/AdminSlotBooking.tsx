@@ -993,17 +993,17 @@ const AdminSlotBooking = () => {
                                              ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
                                              ...(booking.status === 'approved' && { border: '1px solid #10b981' })
                                            }}
-                                          title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
-                                        >
-                                          <span className="truncate">
-                                            {isMobile ? 
-                                              booking.employeeName.split(' ')[0].slice(0, 6) : 
-                                              booking.employeeName.split(' ')[0].slice(0, 12)
-                                            }
-                                            {booking.status === 'pending' && ' ⏳'}
-                                            {booking.status === 'approved' && !hasClockedIn && ' ✅'}
-                                            {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
-                                          </span>
+                                           title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
+                                         >
+                                           <span className="truncate">
+                                             {isMobile ? 
+                                               booking.employeeName.slice(0, 10) : 
+                                               booking.employeeName
+                                             }
+                                             {booking.status === 'pending' && ' ⏳'}
+                                             {booking.status === 'approved' && !hasClockedIn && ' ✅'}
+                                             {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
+                                           </span>
                                         </div>
                                       );
                                     })}
