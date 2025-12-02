@@ -436,12 +436,8 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                   const hasValidationIssues = validationIssues.some(issue => issue.employeeId === employee.employeeId);
                   const validationIssue = validationIssues.find(issue => issue.employeeId === employee.employeeId);
                   
-                  const paymentType = employee.paymentType || (employee.baseSalary ? 'Monthly' : 'Hourly');
-                  const rateDisplay = paymentType === 'Hourly' 
-                    ? `${employee.hoursWorked}h @ S$${(employee.hourlyRate || 0).toFixed(2)}/hr`
-                    : paymentType === 'Daily'
-                    ? `${employee.daysWorked || 0} days @ S$${(employee.dailyWeekdayRate || employee.dailyRate || 0).toFixed(2)}/day`
-                    : `Monthly: S$${(employee.baseSalary || 0).toFixed(2)}`;
+                  // Show slot count for dynamic pricing
+                  const slotCount = employee.slotBookingMetadata?.totalSlots || 0;
 
                   return (
                     <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -454,7 +450,11 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                             )}
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{paymentType}</Badge>
+                            {slotCount > 0 && (
+                              <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
+                                {slotCount} slot(s)
+                              </Badge>
+                            )}
                             <PayrollCalculationDetails 
                               employee={{
                                 id: employee.employeeId,
@@ -466,7 +466,7 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                                 dailyWeekdayRate: employee.dailyWeekdayRate,
                                 hoursWorked: employee.hoursWorked,
                                 daysWorked: employee.daysWorked,
-                                paymentType: (employee.paymentType as 'Monthly' | 'Hourly' | 'Daily') || 'Hourly',
+                                paymentType: 'Daily',
                                 allowances: employee.allowances || [],
                                 deductions: employee.deductions || [],
                                 grossPay: employee.grossPay,
@@ -481,13 +481,9 @@ const PayrollEmployeeManager: React.FC<PayrollEmployeeManagerProps> = ({ payroll
                               onUpdateBaseSalary={handleUpdateBaseSalary}
                               onUpdateAllowances={updateEmployeeAllowances}
                               onUpdateDeductions={updateEmployeeDeductions}
-                              onUpdateHoursWorked={handleUpdateHoursWorked}
-                              onUpdateHourlyRate={handleUpdateHourlyRate}
-                              onUpdateMonthlySalary={handleUpdateMonthlySalary}
                             />
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{rateDisplay}</p>
                         <div className="flex items-center mt-1">
                           <DollarSign className="w-3 h-3 text-green-600 mr-1" />
                           <p className="text-sm font-semibold text-green-600">
