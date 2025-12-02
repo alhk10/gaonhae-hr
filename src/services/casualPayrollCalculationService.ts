@@ -106,20 +106,47 @@ export async function calculateCasualEmployeePayroll(
     logger.debug(`Date range for ${period}: ${startDateStr} to ${endDateStr}`);
     
     // Step 3: Fetch approved slot bookings
-    logger.debug('Fetching slot bookings...');
+    logger.info(`[CasualPayroll] Fetching slot bookings for ${employee.name} (${employee.id})`);
+    logger.info(`[CasualPayroll] Date range: ${startDateStr} to ${endDateStr}`);
+    
+    // Query with lowercase 'approved' status (database uses lowercase)
     const { data: bookings, error: bookingsError } = await supabase
       .from('slot_bookings_new')
       .select('id, employee_id, date, branch_name, status')
       .eq('employee_id', employee.id)
-      .ilike('status', 'approved')
+      .eq('status', 'approved')
       .gte('date', startDateStr)
       .lte('date', endDateStr)
       .order('date', { ascending: true });
+    
+    logger.info(`[CasualPayroll] Slot bookings result: ${bookings?.length || 0} bookings found`);
+    if (bookings && bookings.length > 0) {
+      logger.info(`[CasualPayroll] First booking: ${JSON.stringify(bookings[0])}`);
+    }
     
     if (bookingsError) {
       logger.error('Bookings fetch error:', bookingsError);
       result.errors.push(`Failed to fetch bookings: ${bookingsError.message}`);
       throw bookingsError;
+    }
+    
+    if (!bookings || bookings.length === 0) {
+      logger.warn(`[CasualPayroll] No approved bookings found for ${employee.name} - checking with Approved status...`);
+      
+      // Try with 'Approved' (capitalized) as fallback
+      const { data: bookingsCapitalized, error: bookingsCapError } = await supabase
+        .from('slot_bookings_new')
+        .select('id, employee_id, date, branch_name, status')
+        .eq('employee_id', employee.id)
+        .eq('status', 'Approved')
+        .gte('date', startDateStr)
+        .lte('date', endDateStr);
+      
+      if (!bookingsCapError && bookingsCapitalized && bookingsCapitalized.length > 0) {
+        logger.info(`[CasualPayroll] Found ${bookingsCapitalized.length} bookings with capitalized Approved`);
+        // Use capitalized results
+        bookings.push(...bookingsCapitalized);
+      }
     }
     
     if (!bookings || bookings.length === 0) {
@@ -133,7 +160,7 @@ export async function calculateCasualEmployeePayroll(
         basePay = employee.baseSalary;
       }
       
-      const grossPay = basePay + approvedClaims;
+      const grossPay = basePay + totalAllowances + approvedClaims;
       const age = calculateAge(employee.dateOfBirth);
       const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
       
@@ -141,22 +168,26 @@ export async function calculateCasualEmployeePayroll(
       result.grossPay = grossPay;
       result.employeeCPF = cpf.employeeCPF;
       result.employerCPF = cpf.employerCPF;
-      result.totalPay = grossPay - cpf.employeeCPF;
+      result.totalPay = grossPay - cpf.employeeCPF - totalDeductions;
       
       return result;
     }
     
-    logger.debug(`Found ${bookings.length} approved bookings`);
+    logger.info(`[CasualPayroll] Found ${bookings.length} approved bookings for ${employee.name}`);
     
     // Step 4: Fetch attendance records with check-in/check-out times for proration
-    logger.debug('Fetching attendance records...');
+    logger.info('[CasualPayroll] Fetching attendance records...');
     const bookingDates = bookings.map(b => b.date);
+    logger.info(`[CasualPayroll] Booking dates: ${bookingDates.join(', ')}`);
+    
     const { data: attendanceRecords, error: attendanceError } = await supabase
       .from('attendance')
       .select('employee_id, date, status, check_in, check_out')
       .eq('employee_id', employee.id)
       .in('date', bookingDates)
-      .in('status', ['Present', 'Late', 'present', 'late']);
+      .or('status.eq.Present,status.eq.Late,status.eq.present,status.eq.late');
+    
+    logger.info(`[CasualPayroll] Attendance result: ${attendanceRecords?.length || 0} records found`);
     
     if (attendanceError) {
       logger.error('Attendance fetch error:', attendanceError);
