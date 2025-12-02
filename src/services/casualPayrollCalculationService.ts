@@ -43,6 +43,12 @@ export async function calculateCasualEmployeePayroll(
 ): Promise<CasualPayrollResult> {
   logger.info(`Calculating payroll for ${employee.name} (${employee.id}) for ${period}`);
   
+  // Calculate total allowances and deductions from employee profile
+  const totalAllowances = (employee.allowances || []).reduce((sum, a) => sum + Number(a.amount || 0), 0);
+  const totalDeductions = (employee.deductions || []).reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  
+  logger.debug(`Employee allowances: $${totalAllowances}, deductions: $${totalDeductions}`);
+  
   const result: CasualPayrollResult = {
     baseSalary: 0,
     totalPay: 0,
@@ -74,18 +80,22 @@ export async function calculateCasualEmployeePayroll(
       basePay = employee.baseSalary;
     }
     
-    const grossPay = basePay + approvedClaims;
+    // Gross Pay = Base Pay + Allowances + Claims
+    const grossPay = basePay + totalAllowances + approvedClaims;
     const age = calculateAge(employee.dateOfBirth);
     const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
+    
+    // Net Pay = Gross Pay - CPF - Deductions
+    const netPay = grossPay - cpf.employeeCPF - totalDeductions;
     
     result.baseSalary = basePay;
     result.grossPay = grossPay;
     result.employeeCPF = cpf.employeeCPF;
     result.employerCPF = cpf.employerCPF;
-    result.totalPay = grossPay - cpf.employeeCPF;
+    result.totalPay = netPay;
     result.calculationMethod = 'legacy_rates';
     
-    logger.info(`Legacy calculation complete: Net Pay = $${result.totalPay.toFixed(2)}`);
+    logger.info(`Legacy calculation complete: Gross=$${grossPay.toFixed(2)}, CPF=$${cpf.employeeCPF.toFixed(2)}, Deductions=$${totalDeductions.toFixed(2)}, Net=$${netPay.toFixed(2)}`);
     return result;
   }
   
@@ -217,15 +227,21 @@ export async function calculateCasualEmployeePayroll(
     }
     
     // Calculate final payroll with CPF
-    const grossPay = basePay + approvedClaims;
+    // Gross Pay = Base Pay + Allowances + Claims
+    const grossPay = basePay + totalAllowances + approvedClaims;
     const age = calculateAge(employee.dateOfBirth);
     const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
+    
+    // Net Pay = Gross Pay - CPF - Deductions
+    const netPay = grossPay - cpf.employeeCPF - totalDeductions;
     
     result.baseSalary = basePay;
     result.grossPay = grossPay;
     result.employeeCPF = cpf.employeeCPF;
     result.employerCPF = cpf.employerCPF;
-    result.totalPay = grossPay - cpf.employeeCPF;
+    result.totalPay = netPay;
+    
+    logger.info(`Dynamic pricing complete: Gross=$${grossPay.toFixed(2)}, CPF=$${cpf.employeeCPF.toFixed(2)}, Deductions=$${totalDeductions.toFixed(2)}, Net=$${netPay.toFixed(2)}`);
     
   } catch (error) {
     logger.error('Error in dynamic pricing calculation:', error);
@@ -237,15 +253,19 @@ export async function calculateCasualEmployeePayroll(
       basePay = employee.baseSalary;
     }
     
-    const grossPay = basePay + approvedClaims;
+    // Gross Pay = Base Pay + Allowances + Claims
+    const grossPay = basePay + totalAllowances + approvedClaims;
     const age = calculateAge(employee.dateOfBirth);
     const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
+    
+    // Net Pay = Gross Pay - CPF - Deductions
+    const netPay = grossPay - cpf.employeeCPF - totalDeductions;
     
     result.baseSalary = basePay;
     result.grossPay = grossPay;
     result.employeeCPF = cpf.employeeCPF;
     result.employerCPF = cpf.employerCPF;
-    result.totalPay = grossPay - cpf.employeeCPF;
+    result.totalPay = netPay;
     result.calculationMethod = 'legacy_rates';
   }
   
