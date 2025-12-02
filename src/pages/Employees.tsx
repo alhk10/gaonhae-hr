@@ -475,17 +475,16 @@ const Employees = () => {
                         disabled={employeeType === 'Casual'}
                       >
                         {employeeType === 'Casual' ? (
-                          <option value="Daily">Daily (Dynamic Pricing)</option>
+                          <option value="Daily">Dynamic Pricing</option>
                         ) : (
                           <>
                             <option value="Monthly">Monthly</option>
                             <option value="Hourly">Hourly</option>
-                            <option value="Daily">Daily</option>
                           </>
                         )}
                       </select>
                       {employeeType === 'Casual' && (
-                        <p className="text-xs text-gray-500 mt-1">Casual employees use dynamic pricing based on slot bookings</p>
+                        <p className="text-xs text-gray-500 mt-1">Pay calculated from slot bookings and qualifications</p>
                       )}
                     </div>
 

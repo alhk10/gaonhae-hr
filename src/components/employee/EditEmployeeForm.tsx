@@ -367,25 +367,24 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
 
             <div>
               <Label htmlFor="paymentType">Payment Type</Label>
-              <Select value={formData.paymentType} onValueChange={(value) => handleInputChange('paymentType', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {formData.type === 'Full-Time' ? (
-                    <>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Hourly">Hourly</SelectItem>
-                      <SelectItem value="Daily">Daily</SelectItem>
-                    </>
-                  ) : (
-                    <SelectItem value="Daily">Daily (Dynamic Pricing)</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              {formData.type === 'Full-Time' ? (
+                <Select value={formData.paymentType} onValueChange={(value) => handleInputChange('paymentType', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Hourly">Hourly</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                  Dynamic Pricing
+                </div>
+              )}
               {formData.type === 'Casual' && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Casual employees use dynamic pricing based on slot bookings
+                  Pay calculated from slot bookings and qualifications
                 </p>
               )}
             </div>
