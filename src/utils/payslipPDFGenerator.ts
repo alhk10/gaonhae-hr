@@ -36,7 +36,7 @@ export const generatePayslipPDF = async (data: PayslipData) => {
   
   // Add logo and company text centered together
   const pageWidth = 148; // A5 width in mm
-  const logoWidth = 26.25; // increased by 5% from 25
+  const logoWidth = 28.875; // increased by 10% from 26.25
   const textWidth = 65;
   const totalWidth = logoWidth + 3 + textWidth; // logo + gap + text
   const startX = (pageWidth - totalWidth) / 2 - 10; // shifted 1cm (10mm) left
@@ -52,21 +52,25 @@ export const generatePayslipPDF = async (data: PayslipData) => {
     });
     
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 6, logoWidth, Math.min(logoHeight, 14.7)); // height also increased by 5%
+    doc.addImage(logoImg, 'JPEG', startX, 6, logoWidth, Math.min(logoHeight, 16.17)); // height also increased by 10%
   } catch (error) {
     console.warn('Could not load logo for PDF:', error);
   }
   
   // Company details to the right of logo, vertically centered
   const textX = startX + logoWidth + 3;
-  doc.setFontSize(8.48); // increased by 1 from 7.48
+  doc.setTextColor(54, 54, 54); // #363636
+  doc.setFontSize(9.48); // increased by 1 from 8.48
   doc.setFont('helvetica', 'bold');
   doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 11);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.48); // increased by 1 from 6.48
+  doc.setFontSize(8.48); // increased by 1 from 7.48
   doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 14);
   
-  // Header - PAYSLIP (centered) - adjusted for A5
+  // Reset text color to black for the rest of the document
+  doc.setTextColor(0, 0, 0);
+  
+  // Header - PAYSLIP (centered) - adjusted for A5 with line break before
   doc.setFontSize(11.34);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYSLIP', 74, 25, { align: 'center' });
