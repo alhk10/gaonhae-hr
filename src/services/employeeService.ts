@@ -196,7 +196,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           leaveManagement: emp.admin_access.leave_management || false,
           claims: emp.admin_access.claims || false,
           attendance: emp.admin_access.attendance || false,
-          slotBooking: emp.admin_access.slotBooking || false,
+          slotBooking: emp.admin_access.slotBooking || emp.admin_access.slot_booking || false,
           reports: emp.admin_access.reports || false
         } : {
           employees: false,
@@ -306,15 +306,15 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         fileType: cert.file_type
       })) || [],
       qualifications: (emp.qualifications as any) || {},
-      adminAccess: emp.admin_access?.length > 0 ? {
-        employees: emp.admin_access[0]?.employees || false,
-        payroll: emp.admin_access[0]?.payroll || false,
-        leaveManagement: emp.admin_access[0]?.leave_management || false,
-        claims: emp.admin_access[0]?.claims || false,
-        attendance: emp.admin_access[0]?.attendance || false,
-        slotBooking: emp.admin_access[0]?.slotBooking || false,
-        reports: emp.admin_access[0]?.reports || false
-      } : {
+        adminAccess: emp.admin_access?.length > 0 ? {
+          employees: emp.admin_access[0]?.employees || false,
+          payroll: emp.admin_access[0]?.payroll || false,
+          leaveManagement: emp.admin_access[0]?.leave_management || false,
+          claims: emp.admin_access[0]?.claims || false,
+          attendance: emp.admin_access[0]?.attendance || false,
+          slotBooking: emp.admin_access[0]?.slotBooking || emp.admin_access[0]?.slot_booking || false,
+          reports: emp.admin_access[0]?.reports || false
+        } : {
         employees: false,
         payroll: false,
         leaveManagement: false,
@@ -324,12 +324,12 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         reports: false
       },
       pageAccess: pageAccess ? {
-        profile: pageAccess.profile || false,
-        applyLeave: pageAccess.apply_leave || false,
-        submitClaim: pageAccess.submit_claim || false,
-        payslips: pageAccess.payslips || false,
-        myAttendance: pageAccess.my_attendance || false,
-        slotBookingEmployee: pageAccess.slot_booking_employee || false
+        profile: pageAccess.profile ?? true,
+        applyLeave: pageAccess.apply_leave ?? true,
+        submitClaim: pageAccess.submit_claim ?? true,
+        payslips: pageAccess.payslips ?? true,
+        myAttendance: pageAccess.my_attendance ?? true,
+        slotBookingEmployee: pageAccess.slot_booking_employee ?? true
       } : {
         profile: true,
         applyLeave: true,
@@ -426,7 +426,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       leaveManagement: employee.admin_access[0]?.leave_management || false,
       claims: employee.admin_access[0]?.claims || false,
       attendance: employee.admin_access[0]?.attendance || false,
-      slotBooking: employee.admin_access[0]?.slotBooking || false,
+      slotBooking: employee.admin_access[0]?.slotBooking || employee.admin_access[0]?.slot_booking || false,
       reports: employee.admin_access[0]?.reports || false
     } : {
       employees: false,
@@ -439,12 +439,12 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     },
     qualifications: (employee.qualifications as any) || {},
     pageAccess: pageAccess ? {
-      profile: pageAccess.profile || false,
-      applyLeave: pageAccess.apply_leave || false,
-      submitClaim: pageAccess.submit_claim || false,
-      payslips: pageAccess.payslips || false,
-      myAttendance: pageAccess.my_attendance || false,
-      slotBookingEmployee: pageAccess.slot_booking_employee || false
+      profile: pageAccess.profile ?? true,
+      applyLeave: pageAccess.apply_leave ?? true,
+      submitClaim: pageAccess.submit_claim ?? true,
+      payslips: pageAccess.payslips ?? true,
+      myAttendance: pageAccess.my_attendance ?? true,
+      slotBookingEmployee: pageAccess.slot_booking_employee ?? true
     } : {
       profile: true,
       applyLeave: true,
@@ -671,6 +671,7 @@ export const updateEmployeeAdminAccess = async (employeeId: string, adminAccess:
     claims: adminAccess.claims,
     attendance: adminAccess.attendance,
     slotBooking: adminAccess.slotBooking,
+    slot_booking: adminAccess.slotBooking,
     reports: adminAccess.reports
   };
 

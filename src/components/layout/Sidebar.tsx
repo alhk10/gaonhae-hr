@@ -110,6 +110,13 @@ const Sidebar = () => {
         { icon: FileText, label: 'Claims Management', path: '/claims' },
         { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
+        // Employee self-service pages for superadmins
+        { icon: UserCheck, label: 'Profile', path: '/profile' },
+        { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
+        { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
+        { icon: DollarSign, label: 'Payslips', path: '/payslips' },
+        { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
+        { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
       ];
 
       // Add Sales Module items if user has access
