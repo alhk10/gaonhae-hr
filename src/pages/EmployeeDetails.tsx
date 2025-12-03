@@ -446,6 +446,17 @@ const EmployeeDetails = () => {
                   </div>
                 </div>
                 <div>
+                  <Label htmlFor="resignDate">Resign Date</Label>
+                  <div className="relative">
+                    <DatePicker
+                      onSelect={(date) => handleDateChange('resignDate', date)}
+                      selected={employeeData.resignDate ? new Date(employeeData.resignDate) : undefined}
+                      disabled={!isEditing}
+                    />
+                    <Calendar className="absolute top-2 right-2 w-4 h-4 text-gray-500" />
+                  </div>
+                </div>
+                <div>
                   <Label htmlFor="position">Position</Label>
                   <Input
                     id="position"
