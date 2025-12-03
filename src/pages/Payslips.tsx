@@ -83,7 +83,7 @@ const PayslipsContent = () => {
     initializeData();
   }, [user?.employeeId]);
 
-  const handleDownloadPayslipPDF = (month: string) => {
+  const handleDownloadPayslipPDF = async (month: string) => {
     try {
       console.log('Starting PDF download for month:', month);
       
@@ -125,7 +125,7 @@ const PayslipsContent = () => {
       
       console.log('PDF data being passed to generator:', pdfData);
       
-      generatePayslipPDF(pdfData);
+      await generatePayslipPDF(pdfData);
       toast.success(`PDF payslip downloaded for ${month}`, {
         description: `Employee: ${currentEmployee.name} (${currentEmployee.id})`
       });
