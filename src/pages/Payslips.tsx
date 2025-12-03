@@ -189,8 +189,8 @@ const PayslipsContent = () => {
     );
   }
 
-  const totalEarningsYear = payslips.reduce((sum, payslip) => sum + payslip.grossSalary + payslip.approvedClaims, 0);
-  const totalCPFYear = payslips.reduce((sum, payslip) => sum + payslip.totalCPF, 0);
+  const totalEarningsYear = payslips.reduce((sum, payslip) => sum + (payslip.grossSalary || 0) + (payslip.approvedClaims || 0), 0);
+  const totalCPFYear = payslips.reduce((sum, payslip) => sum + (payslip.totalCPF || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -206,7 +206,7 @@ const PayslipsContent = () => {
                 <p className="text-sm font-medium text-gray-600">Total Earnings (Year)</p>
                 <p className="text-2xl font-bold text-gray-900">S${totalEarningsYear.toLocaleString()}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Including claims: S${(payslips.reduce((sum, p) => sum + p.approvedClaims, 0)).toLocaleString()}
+                  Including claims: S${(payslips.reduce((sum, p) => sum + (p.approvedClaims || 0), 0)).toLocaleString()}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-green-500" />
@@ -240,15 +240,15 @@ const PayslipsContent = () => {
                 <div>
                   <p className="font-medium text-gray-900">{payslip.month}</p>
                   <p className="text-sm text-gray-600">
-                    Net: S${payslip.netSalary.toLocaleString()} • 
-                    Gross: S${(payslip.grossSalary + payslip.approvedClaims).toLocaleString()} • 
-                    CPF: S${payslip.totalCPF.toLocaleString()}
-                    {payslip.approvedClaims > 0 && ` • Claims: S${payslip.approvedClaims.toLocaleString()}`}
+                    Net: S${(payslip.netSalary || 0).toLocaleString()} • 
+                    Gross: S${((payslip.grossSalary || 0) + (payslip.approvedClaims || 0)).toLocaleString()} • 
+                    CPF: S${(payslip.totalCPF || 0).toLocaleString()}
+                    {(payslip.approvedClaims || 0) > 0 && ` • Claims: S${(payslip.approvedClaims || 0).toLocaleString()}`}
                   </p>
                   <p className="text-xs text-gray-400">
-                    Base: S${payslip.baseSalary.toLocaleString()} • 
-                    Allowances: S${payslip.totalAllowances.toLocaleString()} • 
-                    Deductions: S${payslip.totalDeductions.toLocaleString()}
+                    Base: S${(payslip.baseSalary || 0).toLocaleString()} • 
+                    Allowances: S${(payslip.totalAllowances || 0).toLocaleString()} • 
+                    Deductions: S${(payslip.totalDeductions || 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex gap-2">
