@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, DollarSign } from "lucide-react";
+import { Calendar, Clock, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
 interface SlotBreakdownItem {
@@ -9,7 +9,33 @@ interface SlotBreakdownItem {
   branchName: string;
   pay: number;
   hasAttendance: boolean;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  hoursWorked?: number | null;
 }
+
+const formatTime = (time: string | null | undefined): string => {
+  if (!time) return '-';
+  // Time is in HH:MM:SS format
+  const parts = time.split(':');
+  if (parts.length >= 2) {
+    const hours = parseInt(parts[0], 10);
+    const minutes = parts[1];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes} ${ampm}`;
+  }
+  return time;
+};
+
+const formatDuration = (hours: number | null | undefined): string => {
+  if (hours === null || hours === undefined) return '-';
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+};
 
 interface SlotBreakdownDialogProps {
   isOpen: boolean;
@@ -30,7 +56,7 @@ export function SlotBreakdownDialog({
 }: SlotBreakdownDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
@@ -59,12 +85,15 @@ export function SlotBreakdownDialog({
 
           {/* Breakdown Table */}
           {breakdown.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="font-semibold">Date</TableHead>
                     <TableHead className="font-semibold">Branch</TableHead>
+                    <TableHead className="font-semibold">Clock In</TableHead>
+                    <TableHead className="font-semibold">Clock Out</TableHead>
+                    <TableHead className="font-semibold">Duration</TableHead>
                     <TableHead className="font-semibold text-right">Pay Amount</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -81,6 +110,23 @@ export function SlotBreakdownDialog({
                         <Badge variant="outline" className="border-primary/30 text-primary">
                           {item.branchName}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          {formatTime(item.checkIn)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          {formatTime(item.checkOut)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium">
+                          {formatDuration(item.hoursWorked)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="font-semibold text-green-600">
