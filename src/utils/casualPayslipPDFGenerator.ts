@@ -3,10 +3,11 @@ import jsPDF from 'jspdf';
 interface SlotEntry {
   date: string;
   branchName: string;
-  dayRate: number;
+  dayRate?: number;
   clockIn: string | null;
   clockOut: string | null;
   hoursWorked: number;
+  expectedHours?: number;
   pay: number;
 }
 
@@ -34,6 +35,32 @@ interface CasualPayslipData {
   allowances: Array<{ name: string; amount: number }>;
   deductions: Array<{ name: string; amount: number }>;
 }
+
+// Helper to format time from ISO string
+const formatTime = (timeStr: string | null): string => {
+  if (!timeStr) return '-';
+  try {
+    // Handle both full ISO strings and time-only strings
+    if (timeStr.includes('T')) {
+      const date = new Date(timeStr);
+      return date.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    // Already in HH:mm format
+    return timeStr.substring(0, 5);
+  } catch {
+    return timeStr;
+  }
+};
+
+// Helper to format date
+const formatDate = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' });
+  } catch {
+    return dateStr;
+  }
+};
 
 export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   // Use A4 for more space for timesheet
@@ -155,11 +182,15 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
       doc.rect(15, yPos - 3, 180, 5, 'F');
     }
     
-    doc.text(slot.date, 17, yPos);
+    // Calculate day rate if not provided (full rate before proration)
+    const expectedHours = slot.expectedHours || slot.hoursWorked || 6.33;
+    const dayRate = slot.dayRate || (slot.hoursWorked > 0 ? (slot.pay / slot.hoursWorked) * expectedHours : slot.pay);
+    
+    doc.text(formatDate(slot.date), 17, yPos);
     doc.text(slot.branchName.substring(0, 15), 42, yPos);
-    doc.text(`$${slot.dayRate.toFixed(2)}`, 80, yPos);
-    doc.text(slot.clockIn || '-', 105, yPos);
-    doc.text(slot.clockOut || '-', 130, yPos);
+    doc.text(`$${dayRate.toFixed(2)}`, 80, yPos);
+    doc.text(formatTime(slot.clockIn), 105, yPos);
+    doc.text(formatTime(slot.clockOut), 130, yPos);
     doc.text(slot.hoursWorked.toFixed(1), 157, yPos);
     doc.text(`$${slot.pay.toFixed(2)}`, 175, yPos);
     yPos += 5;
