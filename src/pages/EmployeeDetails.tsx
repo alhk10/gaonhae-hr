@@ -138,6 +138,7 @@ const EmployeeDetails = () => {
     onSuccess: () => {
       console.log('Employee updated successfully');
       queryClient.invalidateQueries({ queryKey: ['employee', id] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast("Employee updated successfully");
       setIsEditing(false);
     },
