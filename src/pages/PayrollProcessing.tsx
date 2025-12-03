@@ -1260,6 +1260,7 @@ const PayrollProcessing = () => {
                           };
                           
                           const formattedPeriod = formatPeriodForAPI(selectedPeriod);
+                          console.log('[ForceRecalculate] Starting for period:', selectedPeriod, formattedPeriod);
                           
                           // Delete cached payroll record
                           const { error: deleteError } = await authService
@@ -1269,12 +1270,34 @@ const PayrollProcessing = () => {
                           
                           if (deleteError) {
                             console.error('Error deleting cached payroll:', deleteError);
-                            toast.error('Failed to delete cached payroll');
-                          } else {
-                            toast.success('Cached payroll deleted. Refreshing page...');
-                            // Force reload after a short delay
-                            setTimeout(() => window.location.reload(), 500);
                           }
+                          
+                          // Clear current payroll state
+                          setCurrentPeriod(selectedPeriod);
+                          
+                          // Wait for state to clear
+                          await new Promise(resolve => setTimeout(resolve, 100));
+                          
+                          // Refetch all employees
+                          const employees = await getEmployeesForPayroll();
+                          setAllEmployees(employees);
+                          
+                          // Load optimized payroll data
+                          const employeeIds = employees.map(emp => emp.id);
+                          const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
+                          setPayrollData(optimizedPayrollData);
+                          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
+                          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+                          
+                          // Refresh available employees in context
+                          await refreshAvailableEmployees();
+                          await new Promise(resolve => setTimeout(resolve, 200));
+                          
+                          // Add all employees to payroll with the correct period
+                          console.log('[ForceRecalculate] Adding employees with period:', selectedPeriod);
+                          await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod, employees);
+                          
+                          toast.success('Payroll recalculated successfully');
                         } catch (error) {
                           console.error('Error:', error);
                           toast.error('Failed to recalculate payroll');
