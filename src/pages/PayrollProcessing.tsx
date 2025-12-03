@@ -100,7 +100,15 @@ const PayrollProcessing = () => {
   const [slotBreakdownOpen, setSlotBreakdownOpen] = useState(false);
   const [slotBreakdownData, setSlotBreakdownData] = useState<{
     employeeName: string;
-    breakdown: Array<{ date: string; branchName: string; pay: number; hasAttendance: boolean }>;
+    breakdown: Array<{ 
+      date: string; 
+      branchName: string; 
+      pay: number; 
+      hasAttendance: boolean;
+      checkIn?: string | null;
+      checkOut?: string | null;
+      hoursWorked?: number;
+    }>;
     totalPay: number;
     totalSlots: number;
   } | null>(null);

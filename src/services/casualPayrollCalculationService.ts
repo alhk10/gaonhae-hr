@@ -24,6 +24,9 @@ export interface CasualPayrollResult {
     date: string;
     branchName: string;
     pay: number;
+    checkIn?: string | null;
+    checkOut?: string | null;
+    hoursWorked?: number | null;
   }>;
   warnings: string[];
   errors: string[];
@@ -234,7 +237,10 @@ export async function calculateCasualEmployeePayroll(
       result.breakdown.push({
         date: booking.date,
         branchName: booking.branch_name || 'Unknown',
-        pay
+        pay,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
+        hoursWorked: actualHoursWorked
       });
       
       totalSlotPay += pay;

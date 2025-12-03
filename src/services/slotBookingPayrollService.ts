@@ -12,6 +12,8 @@ interface SlotBookingPayData {
     branchName: string;
     pay: number;
     hasAttendance: boolean;
+    checkIn?: string | null;
+    checkOut?: string | null;
     hoursWorked?: number;
     expectedHours?: number;
   }>;
@@ -119,6 +121,8 @@ export const getSlotBookingPayForPeriod = async (
         branchName: booking.branch_name || 'Unknown Branch',
         pay,
         hasAttendance: true,
+        checkIn: attendance.checkIn,
+        checkOut: attendance.checkOut,
         hoursWorked: actualHoursWorked,
         expectedHours
       });
