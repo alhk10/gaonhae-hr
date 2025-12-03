@@ -457,10 +457,88 @@ const PayrollProcessing = () => {
   };
 
 
-  const handleProcessPayment = () => {
-    setPayrollStatus('paid');
-    setCurrentStep('cpf');
-    toast("Payments processed. Moving to CPF submission.");
+  const handleProcessPayment = async () => {
+    try {
+      // Get list of employees marked as paid
+      const paidEmployeeIds = Object.entries(paidStatus)
+        .filter(([_, isPaid]) => isPaid)
+        .map(([employeeId]) => employeeId);
+
+      if (paidEmployeeIds.length === 0) {
+        toast.error("Please select at least one employee to mark as paid");
+        return;
+      }
+
+      // Save payroll records for each paid employee
+      const { savePayrollRecord } = await import('@/services/payrollService');
+      const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+
+      for (const employeeId of paidEmployeeIds) {
+        const employee = allEmployees.find(e => e.id === employeeId);
+        if (!employee) continue;
+
+        const fullTimePayroll = payrollState.fullTimeEmployees.find(e => e.employeeId === employeeId);
+        const casualPayroll = payrollState.casualEmployees.find(e => e.employeeId === employeeId);
+
+        const allowances = employeeAllowances[employeeId] || [];
+        const deductions = employeeDeductions[employeeId] || [];
+        const approvedClaims = getApprovedClaimsTotal(employeeId);
+
+        let payrollDataToSave: any = {
+          employeeType: employee.type,
+          baseSalary: employee.baseSalary || 0,
+          totalAllowances: allowances.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0),
+          totalDeductions: deductions.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0),
+          approvedClaims,
+          allowances: allowances.map((a: any) => ({ name: a.name, amount: Number(a.amount || 0) })),
+          deductions: deductions.map((d: any) => ({ name: d.name, amount: Number(d.amount || 0) })),
+        };
+
+        if (employee.type === 'Casual' && casualPayroll) {
+          // Fetch slot breakdown data for casual employees
+          let slotBreakdown: any[] = [];
+          try {
+            const fullEmployeeProfile = await getEmployeeById(employeeId);
+            if (fullEmployeeProfile) {
+              const slotData = await getSlotBookingPayForPeriod(employeeId, selectedPeriod, fullEmployeeProfile);
+              slotBreakdown = slotData.breakdown || [];
+            }
+          } catch (error) {
+            console.error('Error fetching slot data for payslip:', error);
+          }
+
+          payrollDataToSave = {
+            ...payrollDataToSave,
+            grossSalary: casualPayroll.grossPay || 0,
+            employeeCPF: casualPayroll.employeeCPF || 0,
+            employerCPF: casualPayroll.employerCPF || 0,
+            totalCPF: (casualPayroll.employeeCPF || 0) + (casualPayroll.employerCPF || 0),
+            netSalary: casualPayroll.totalPay || 0,
+            slotBookingPay: casualPayroll.slotBookingPay || 0,
+            slotBreakdown,
+            calculationMethod: casualPayroll.slotBookingMetadata?.calculationMethod || 'legacy_rates',
+          };
+        } else if (fullTimePayroll) {
+          payrollDataToSave = {
+            ...payrollDataToSave,
+            grossSalary: fullTimePayroll.grossPay || 0,
+            employeeCPF: fullTimePayroll.cpfEmployee || 0,
+            employerCPF: fullTimePayroll.cpfEmployer || 0,
+            totalCPF: (fullTimePayroll.cpfEmployee || 0) + (fullTimePayroll.cpfEmployer || 0),
+            netSalary: fullTimePayroll.netPay || 0,
+          };
+        }
+
+        await savePayrollRecord(employeeId, selectedPeriod, payrollDataToSave);
+      }
+
+      toast.success(`Payroll records saved for ${paidEmployeeIds.length} employee(s). Payslips are now available.`);
+      setPayrollStatus('paid');
+      setCurrentStep('cpf');
+    } catch (error) {
+      console.error('Error processing payments:', error);
+      toast.error('Error processing payments. Please try again.');
+    }
   };
 
   const handleCPFSubmission = async () => {
