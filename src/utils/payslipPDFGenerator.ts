@@ -24,7 +24,7 @@ interface PayslipData {
   deductions: Array<{ name: string; amount: number }>;
 }
 
-export const generatePayslipPDF = (data: PayslipData) => {
+export const generatePayslipPDF = async (data: PayslipData) => {
   // Change paper size to A5
   const doc = new jsPDF('p', 'mm', 'a5');
   
@@ -33,6 +33,24 @@ export const generatePayslipPDF = (data: PayslipData) => {
   
   // Generate PayslipID (using employee ID and month)
   const payslipId = `PS-${data.employee.id}-${data.month.replace(' ', '').substring(0, 3).toLowerCase()}${new Date().getFullYear()}`;
+  
+  // Add logo to top right
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      logoImg.onload = () => resolve();
+      logoImg.onerror = () => reject(new Error('Failed to load logo'));
+      logoImg.src = '/images/company-logo.jpg';
+    });
+    
+    // Add logo to top right corner (x: 100, y: 5, width: 35, height proportional)
+    const logoWidth = 35;
+    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+    doc.addImage(logoImg, 'JPEG', 100, 5, logoWidth, Math.min(logoHeight, 18));
+  } catch (error) {
+    console.warn('Could not load logo for PDF:', error);
+  }
   
   // Company details (top left) - adjusted for A5, increased size by 1
   doc.setFontSize(7.48);
