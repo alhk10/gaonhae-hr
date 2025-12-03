@@ -73,7 +73,7 @@ export const generatePayslipPDF = async (data: PayslipData) => {
   // Header - PAYSLIP (centered) - adjusted for A5 with line break before
   doc.setFontSize(11.34);
   doc.setFont('helvetica', 'bold');
-  doc.text('PAYSLIP', 74, 25, { align: 'center' });
+  doc.text('PAYSLIP', 74, 30, { align: 'center' });
   
   // Pay period (left-aligned under payslip) - added extra line space
   doc.setFontSize(8.1);
