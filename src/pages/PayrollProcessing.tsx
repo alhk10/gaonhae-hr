@@ -1045,15 +1045,19 @@ const PayrollProcessing = () => {
   };
 
   const renderPaymentStep = () => {
-    // Filter out resigned employees
+    // Filter out resigned employees and those with $0 net salary
     const activeFullTimeEmployees = payrollState.fullTimeEmployees.filter(employee => {
       const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-      return !employeeDetails?.resignDate;
+      const approvedClaims = getApprovedClaimsTotal(employee.id);
+      const totalPay = employee.netPay + approvedClaims;
+      return !employeeDetails?.resignDate && totalPay > 0;
     });
     
     const activeCasualEmployees = payrollState.casualEmployees.filter(employee => {
       const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-      return !employeeDetails?.resignDate;
+      const approvedClaims = getApprovedClaimsTotal(employee.id);
+      const totalPay = employee.totalPay + approvedClaims;
+      return !employeeDetails?.resignDate && totalPay > 0;
     });
 
     const handlePaidToggle = (employeeId: string, checked: boolean) => {
