@@ -1123,20 +1123,43 @@ const PayrollProcessing = () => {
   };
 
   const renderPaymentStep = () => {
-    // Filter out resigned employees and those with $0 net salary
-    const activeFullTimeEmployees = payrollState.fullTimeEmployees.filter(employee => {
-      const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-      const approvedClaims = getApprovedClaimsTotal(employee.id);
-      const totalPay = employee.netPay + approvedClaims;
-      return !employeeDetails?.resignDate && totalPay > 0;
-    });
+    // Get ALL employees with their payroll data, filter out resigned and $0 salary
+    const activeFullTimeEmployees = allEmployees
+      .filter(emp => emp.type === 'Full-Time' && !emp.resignDate)
+      .map(emp => {
+        const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
+        const approvedClaims = getApprovedClaimsTotal(emp.id);
+        const netPay = payrollData?.netPay || 0;
+        return {
+          id: emp.id,
+          employeeId: emp.id,
+          name: emp.displayName || emp.name,
+          netPay: netPay,
+          bankName: emp.bankName,
+          bankAccount: emp.bankAccount,
+          totalPay: netPay + approvedClaims
+        };
+      })
+      .filter(emp => emp.totalPay > 0);
     
-    const activeCasualEmployees = payrollState.casualEmployees.filter(employee => {
-      const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-      const approvedClaims = getApprovedClaimsTotal(employee.id);
-      const totalPay = employee.totalPay + approvedClaims;
-      return !employeeDetails?.resignDate && totalPay > 0;
-    });
+    const activeCasualEmployees = allEmployees
+      .filter(emp => emp.type === 'Casual' && !emp.resignDate)
+      .map(emp => {
+        const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
+        const approvedClaims = getApprovedClaimsTotal(emp.id);
+        const totalPay = payrollData?.totalPay || payrollData?.netPay || 0;
+        return {
+          id: emp.id,
+          employeeId: emp.id,
+          name: emp.displayName || emp.name,
+          totalPay: totalPay,
+          netPay: totalPay + approvedClaims,
+          bankName: emp.bankName,
+          bankAccount: emp.bankAccount,
+          slotBookingMetadata: payrollData?.slotBookingMetadata
+        };
+      })
+      .filter(emp => emp.netPay > 0);
 
     const handlePaidToggle = (employeeId: string, checked: boolean) => {
       setPaidStatus(prev => ({
@@ -1145,10 +1168,10 @@ const PayrollProcessing = () => {
       }));
     };
 
-    // Calculate total net salary
+    // Calculate total net salary (already includes claims in totalPay/netPay)
     const totalNetSalary = 
-      activeFullTimeEmployees.reduce((sum, emp) => sum + emp.netPay + getApprovedClaimsTotal(emp.id), 0) +
-      activeCasualEmployees.reduce((sum, emp) => sum + emp.totalPay + getApprovedClaimsTotal(emp.id), 0);
+      activeFullTimeEmployees.reduce((sum, emp) => sum + emp.totalPay, 0) +
+      activeCasualEmployees.reduce((sum, emp) => sum + emp.netPay, 0);
     
     return (
     <Card>
@@ -1175,8 +1198,6 @@ const PayrollProcessing = () => {
           </TableHeader>
           <TableBody>
             {activeFullTimeEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
-              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               const isPaid = paidStatus[employee.employeeId] || false;
               
               return (
@@ -1185,9 +1206,9 @@ const PayrollProcessing = () => {
                   <TableCell className="py-2">
                     <Badge variant="outline">Monthly</Badge>
                   </TableCell>
-                  <TableCell className="py-2">S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
-                  <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">S${employee.totalPay.toFixed(2)}</TableCell>
+                  <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2 text-center">
                     <input
                       type="checkbox"
@@ -1200,8 +1221,6 @@ const PayrollProcessing = () => {
               );
             })}
             {activeCasualEmployees.map((employee) => {
-              const approvedClaims = getApprovedClaimsTotal(employee.id);
-              const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
               const isPaid = paidStatus[employee.employeeId] || false;
               
               return (
@@ -1210,9 +1229,9 @@ const PayrollProcessing = () => {
                   <TableCell className="py-2">
                     <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
                   </TableCell>
-                  <TableCell className="py-2">S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
-                  <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
-                  <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">S${employee.netPay.toFixed(2)}</TableCell>
+                  <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
+                  <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2 text-center">
                     <input
                       type="checkbox"
