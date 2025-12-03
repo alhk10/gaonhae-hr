@@ -55,6 +55,7 @@ const PayrollProcessing = () => {
   const [isPeriodLocked, setIsPeriodLocked] = useState(false);
   const [periodStatus, setPeriodStatus] = useState<{ status: string; finalizedBy?: string; finalizedAt?: string } | null>(null);
   const [paidStatus, setPaidStatus] = useState<{[key: string]: boolean}>({});
+  const [cpfPaidStatus, setCpfPaidStatus] = useState<{[key: string]: boolean}>({});
 
   // Edit dialog states
   const [editSalaryDialog, setEditSalaryDialog] = useState<{
@@ -1260,95 +1261,134 @@ const PayrollProcessing = () => {
     );
   };
 
-  const renderCPFStep = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <FileText className="w-5 h-5" />
-          <span>CPF Contribution Submission</span>
-        </CardTitle>
-        <CardDescription>Submit CPF contributions for employees (Claims are not subject to CPF)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee Name</TableHead>
-              <TableHead>NRIC/FIN</TableHead>
-              <TableHead>Basic/Rate</TableHead>
-              <TableHead>Total Allowance Amount</TableHead>
-              <TableHead>Employee CPF</TableHead>
-              <TableHead>Employer CPF</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payrollState.fullTimeEmployees
-              .filter((employee) => {
-                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-                const residencyStatus = employeeDetails?.residencyStatus;
-                return residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen' || residencyStatus === 'PR';
-              })
-              .map((employee) => {
-                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-                const totalAllowanceAmount = employee.allowancesArray?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
-                return (
-                  <TableRow key={employee.id}>
-                    <TableCell className="font-medium">{employee.name}</TableCell>
-                    <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
-                    <TableCell>S${(employee.baseSalary || 0).toFixed(2)}</TableCell>
-                    <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
-                    <TableCell>S${employee.cpfEmployee.toFixed(2)}</TableCell>
-                    <TableCell>S${employee.cpfEmployer.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                        {payrollState.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            {payrollState.casualEmployees
-              .filter((employee) => {
-                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-                const residencyStatus = employeeDetails?.residencyStatus;
-                return residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen' || residencyStatus === 'PR';
-              })
-              .map((employee) => {
-                const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
-                const totalAllowanceAmount = employee.allowances?.reduce((sum, allowance) => sum + allowance.amount, 0) || 0;
+  const renderCPFStep = () => {
+    // Filter for CPF eligible employees (Singapore Citizens and PRs only - exclude EP, S Pass, Work Permit)
+    // Also filter out resigned employees and remove duplicates
+    const cpfEligibleResidencyStatuses = ['Singapore Citizen', 'Citizen', 'PR', 'Permanent Resident'];
+    const seenEmployeeIds = new Set<string>();
+    
+    const cpfEligibleEmployees = allEmployees
+      .filter(emp => {
+        // Filter out resigned employees
+        if (emp.resignDate) return false;
+        
+        // Filter for CPF eligible residency status only
+        const isEligible = cpfEligibleResidencyStatuses.some(status => 
+          emp.residencyStatus?.toLowerCase() === status.toLowerCase()
+        );
+        if (!isEligible) return false;
+        
+        // Remove duplicates
+        if (seenEmployeeIds.has(emp.id)) return false;
+        seenEmployeeIds.add(emp.id);
+        
+        return true;
+      })
+      .map(emp => {
+        // Get payroll data for this employee
+        const fullTimeData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
+        const casualData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
+        const payrollInfo = fullTimeData || casualData;
+        
+        // Calculate allowances
+        const allowances = employeeAllowances[emp.id] || [];
+        const totalAllowanceAmount = allowances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+        
+        // Get gross pay (base salary for full-time, slot booking pay for casual)
+        let grossPay = 0;
+        if (emp.type === 'Full-Time') {
+          grossPay = emp.baseSalary || 0;
+        } else {
+          // For casual employees, use slot booking pay (gross pay)
+          grossPay = casualData?.grossPay || casualData?.totalPay || 0;
+        }
+        
+        // Get CPF values - handle both FullTimeEmployee (cpfEmployee/cpfEmployer) and CasualEmployee (employeeCPF/employerCPF)
+        const employeeCPF = (payrollInfo as any)?.cpfEmployee || (payrollInfo as any)?.employeeCPF || 0;
+        const employerCPF = (payrollInfo as any)?.cpfEmployer || (payrollInfo as any)?.employerCPF || 0;
+        
+        return {
+          id: emp.id,
+          name: emp.displayName || emp.name,
+          nric: emp.nric,
+          type: emp.type,
+          grossPay,
+          totalAllowanceAmount,
+          employeeCPF,
+          employerCPF
+        };
+      })
+      // Filter out employees with zero CPF contributions
+      .filter(emp => emp.employeeCPF > 0 || emp.employerCPF > 0);
+    
+    const handleCpfPaidToggle = (employeeId: string, checked: boolean) => {
+      setCpfPaidStatus(prev => ({
+        ...prev,
+        [employeeId]: checked
+      }));
+    };
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="w-5 h-5" />
+            <span>CPF Contribution Submission</span>
+          </CardTitle>
+          <CardDescription>Submit CPF contributions for employees (Claims are not subject to CPF)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee Name</TableHead>
+                <TableHead>NRIC/FIN</TableHead>
+                <TableHead>Basic/Rate</TableHead>
+                <TableHead>Total Allowance Amount</TableHead>
+                <TableHead>Employee CPF</TableHead>
+                <TableHead>Employer CPF</TableHead>
+                <TableHead className="text-center">Paid</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {cpfEligibleEmployees.map((employee) => {
+                const isPaid = cpfPaidStatus[employee.id] || false;
                 
                 return (
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">{employee.name}</TableCell>
-                    <TableCell>{employeeDetails?.nric || 'N/A'}</TableCell>
-                    <TableCell>S${(employee.hourlyRate || 0).toFixed(2)}</TableCell>
-                    <TableCell>S${totalAllowanceAmount.toFixed(2)}</TableCell>
+                    <TableCell>{employee.nric || 'N/A'}</TableCell>
+                    <TableCell>S${employee.grossPay.toFixed(2)}</TableCell>
+                    <TableCell>S${employee.totalAllowanceAmount.toFixed(2)}</TableCell>
                     <TableCell>S${employee.employeeCPF.toFixed(2)}</TableCell>
                     <TableCell>S${employee.employerCPF.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant={payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                        {payrollState.status}
-                      </Badge>
+                    <TableCell className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={isPaid}
+                        onChange={(e) => handleCpfPaidToggle(employee.id, e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      />
                     </TableCell>
                   </TableRow>
                 );
               })}
-          </TableBody>
-        </Table>
-        <div className="flex justify-between mt-4">
-          <Button variant="outline" onClick={handleBackStep}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <Button onClick={handleCPFSubmission}>
-            <FileText className="w-4 h-4 mr-2" />
-            Submit CPF Contributions
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+            </TableBody>
+          </Table>
+          <div className="flex justify-between mt-4">
+            <Button variant="outline" onClick={handleBackStep}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <Button onClick={handleCPFSubmission}>
+              <FileText className="w-4 h-4 mr-2" />
+              Submit CPF Contributions
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
