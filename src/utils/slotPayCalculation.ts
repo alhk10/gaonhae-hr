@@ -183,7 +183,8 @@ export const getExpectedSlotDuration = (dateString: string): number => {
 
 /**
  * Calculate actual hours worked from check-in and check-out times
- * Returns expected duration if check-out is missing (full day assumed)
+ * Returns 1 hour if check-out is missing (minimal work assumed)
+ * Returns expected duration if both check-in and check-out are missing
  */
 export const calculateActualHoursWorked = (
   dateString: string,
@@ -192,9 +193,14 @@ export const calculateActualHoursWorked = (
 ): number => {
   const expectedDuration = getExpectedSlotDuration(dateString);
   
-  // If no check-in or check-out, assume full day
-  if (!checkIn || !checkOut) {
+  // If no check-in, assume full day (attendance not recorded)
+  if (!checkIn) {
     return expectedDuration;
+  }
+  
+  // If check-in exists but no check-out, assume only 1 hour of work
+  if (!checkOut) {
+    return 1;
   }
 
   try {
