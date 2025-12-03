@@ -597,6 +597,7 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     address: employeeData.address,
     email: employeeData.email,
     join_date: employeeData.joinDate || null,
+    resign_date: employeeData.resignDate || null,
     qualifications: employeeData.qualifications || {}
   };
 
