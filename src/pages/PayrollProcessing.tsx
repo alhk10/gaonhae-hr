@@ -1066,6 +1066,11 @@ const PayrollProcessing = () => {
         [employeeId]: checked
       }));
     };
+
+    // Calculate total net salary
+    const totalNetSalary = 
+      activeFullTimeEmployees.reduce((sum, emp) => sum + emp.netPay + getApprovedClaimsTotal(emp.id), 0) +
+      activeCasualEmployees.reduce((sum, emp) => sum + emp.totalPay + getApprovedClaimsTotal(emp.id), 0);
     
     return (
     <Card>
@@ -1074,7 +1079,9 @@ const PayrollProcessing = () => {
           <CreditCard className="w-5 h-5" />
           <span>Payment Processing</span>
         </CardTitle>
-        <CardDescription>Process payments to employee bank accounts</CardDescription>
+        <CardDescription>
+          Total Net Salary: <span className="font-semibold text-foreground">S${totalNetSalary.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
