@@ -107,7 +107,7 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   // Header
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('PAYSLIP - CASUAL EMPLOYEE', 105, 35, { align: 'center' });
+  doc.text('PAYSLIP', 105, 35, { align: 'center' });
   
   // Pay period
   doc.setFontSize(9);
