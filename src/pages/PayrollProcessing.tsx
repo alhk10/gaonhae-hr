@@ -54,6 +54,7 @@ const PayrollProcessing = () => {
   const [loading, setLoading] = useState(true);
   const [isPeriodLocked, setIsPeriodLocked] = useState(false);
   const [periodStatus, setPeriodStatus] = useState<{ status: string; finalizedBy?: string; finalizedAt?: string } | null>(null);
+  const [paidStatus, setPaidStatus] = useState<{[key: string]: boolean}>({});
 
   // Edit dialog states
   const [editSalaryDialog, setEditSalaryDialog] = useState<{
@@ -1044,18 +1045,23 @@ const PayrollProcessing = () => {
   };
 
   const renderPaymentStep = () => {
-    console.log('=== PAYMENT STEP DEBUG ===');
-    console.log('PayrollState fullTimeEmployees:', payrollState.fullTimeEmployees.length);
-    console.log('PayrollState casualEmployees:', payrollState.casualEmployees.length);
-    console.log('Full-time employee names:', payrollState.fullTimeEmployees.map(emp => emp.name));
-    console.log('Casual employee names:', payrollState.casualEmployees.map(emp => emp.name));
+    // Filter out resigned employees
+    const activeFullTimeEmployees = payrollState.fullTimeEmployees.filter(employee => {
+      const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+      return !employeeDetails?.resignDate;
+    });
     
-    // Check specifically for Wang Pot Chien and Siti Aisyah
-    const wangInPayroll = payrollState.casualEmployees.find(emp => emp.name.toLowerCase().includes('wang'));
-    const sitiInPayroll = payrollState.casualEmployees.find(emp => emp.name.toLowerCase().includes('siti'));
-    console.log('Wang Pot Chien in payroll state:', wangInPayroll ? `YES - ${wangInPayroll.name}` : 'NO');
-    console.log('Siti Aisyah in payroll state:', sitiInPayroll ? `YES - ${sitiInPayroll.name}` : 'NO');
-    console.log('=== END PAYMENT STEP DEBUG ===');
+    const activeCasualEmployees = payrollState.casualEmployees.filter(employee => {
+      const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+      return !employeeDetails?.resignDate;
+    });
+
+    const handlePaidToggle = (employeeId: string, checked: boolean) => {
+      setPaidStatus(prev => ({
+        ...prev,
+        [employeeId]: checked
+      }));
+    };
     
     return (
     <Card>
@@ -1075,46 +1081,56 @@ const PayrollProcessing = () => {
               <TableHead>Net Salary</TableHead>
               <TableHead>Bank Name</TableHead>
               <TableHead>Bank Account</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="text-center">Paid</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {payrollState.fullTimeEmployees.map((employee) => {
+            {activeFullTimeEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
-              // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+              const isPaid = paidStatus[employee.employeeId] || false;
               
               return (
                 <TableRow key={employee.id} className="h-12">
                   <TableCell className="font-medium py-2">{employee.name}</TableCell>
-                  <TableCell className="py-2">Monthly</TableCell>
+                  <TableCell className="py-2">
+                    <Badge variant="outline">Monthly</Badge>
+                  </TableCell>
                   <TableCell className="py-2">S${(employee.netPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                      {payrollState.status}
-                    </Badge>
+                  <TableCell className="py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isPaid}
+                      onChange={(e) => handlePaidToggle(employee.employeeId, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
                   </TableCell>
                 </TableRow>
               );
             })}
-            {payrollState.casualEmployees.map((employee) => {
+            {activeCasualEmployees.map((employee) => {
               const approvedClaims = getApprovedClaimsTotal(employee.id);
-              // Get employee details from allEmployees for bank information
               const employeeDetails = allEmployees.find(emp => emp.id === employee.employeeId);
+              const isPaid = paidStatus[employee.employeeId] || false;
               
               return (
                 <TableRow key={employee.id} className="h-12">
                   <TableCell className="font-medium py-2">{employee.name}</TableCell>
-                  <TableCell className="py-2">{employee.paymentType || 'Hourly'}</TableCell>
+                  <TableCell className="py-2">
+                    <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
+                  </TableCell>
                   <TableCell className="py-2">S${(employee.totalPay + approvedClaims).toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employeeDetails?.bankAccount || 'Unknown'}</TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={payrollState.status === 'paid' || payrollState.status === 'completed' ? 'default' : 'secondary'}>
-                      {payrollState.status}
-                    </Badge>
+                  <TableCell className="py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isPaid}
+                      onChange={(e) => handlePaidToggle(employee.employeeId, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
                   </TableCell>
                 </TableRow>
               );
