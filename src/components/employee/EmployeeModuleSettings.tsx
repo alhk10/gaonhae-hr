@@ -65,8 +65,12 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' }
   ];
 
-  // Filter employees based on the selected type
+  // Filter employees: only current (non-resigned) employees, then by type
   const filteredEmployees = employees.filter(employee => {
+    // Exclude resigned employees
+    if (employee.resignDate) return false;
+    
+    // Filter by type
     if (employeeTypeFilter === 'all') return true;
     return employee.type.toLowerCase() === employeeTypeFilter.toLowerCase();
   });
