@@ -34,7 +34,14 @@ export const generatePayslipPDF = async (data: PayslipData) => {
   // Generate PayslipID (using employee ID and month)
   const payslipId = `PS-${data.employee.id}-${data.month.replace(' ', '').substring(0, 3).toLowerCase()}${new Date().getFullYear()}`;
   
-  // Add logo to top right
+  // Add logo and company text centered together
+  const pageWidth = 148; // A5 width in mm
+  const logoWidth = 25;
+  const textWidth = 65;
+  const totalWidth = logoWidth + 3 + textWidth; // logo + gap + text
+  const startX = (pageWidth - totalWidth) / 2;
+  
+  // Add logo to the left side of centered block
   try {
     const logoImg = new Image();
     logoImg.crossOrigin = 'anonymous';
@@ -44,21 +51,20 @@ export const generatePayslipPDF = async (data: PayslipData) => {
       logoImg.src = '/images/company-logo.jpg';
     });
     
-    // Add logo to top right corner (x: 100, y: 5, width: 35, height proportional)
-    const logoWidth = 35;
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', 100, 5, logoWidth, Math.min(logoHeight, 18));
+    doc.addImage(logoImg, 'JPEG', startX, 6, logoWidth, Math.min(logoHeight, 14));
   } catch (error) {
     console.warn('Could not load logo for PDF:', error);
   }
   
-  // Company details (top left) - adjusted for A5, increased size by 1
+  // Company details to the right of logo, vertically centered
+  const textX = startX + logoWidth + 3;
   doc.setFontSize(7.48);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', 10, 14);
+  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.48);
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', 10, 17);
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 14);
   
   // Header - PAYSLIP (centered) - adjusted for A5
   doc.setFontSize(11.34);
