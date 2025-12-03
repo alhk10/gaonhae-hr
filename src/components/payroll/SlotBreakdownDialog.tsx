@@ -147,9 +147,15 @@ export function SlotBreakdownDialog({
 
           {/* Average Pay Info */}
           {breakdown.length > 0 && (
-            <div className="bg-muted/30 rounded-lg p-3 text-sm">
+            <div className="bg-muted/30 rounded-lg p-3 text-sm flex flex-wrap gap-x-6 gap-y-1">
               <p className="text-muted-foreground">
                 Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
+              </p>
+              <p className="text-muted-foreground">
+                Average pay per hour: <span className="font-semibold text-foreground">S${(() => {
+                  const totalHours = breakdown.reduce((sum, item) => sum + (item.hoursWorked || 0), 0);
+                  return totalHours > 0 ? (totalPay / totalHours).toFixed(2) : '0.00';
+                })()}</span>
               </p>
             </div>
           )}
