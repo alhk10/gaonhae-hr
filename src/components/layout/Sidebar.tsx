@@ -117,6 +117,8 @@ const Sidebar = () => {
         { icon: DollarSign, label: 'Payslips', path: '/payslips' },
         { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
         { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
+        // Admin payslip management
+        { icon: FileText, label: 'Payslip Management', path: '/payslip-management' },
       ];
 
       // Add Sales Module items if user has access
