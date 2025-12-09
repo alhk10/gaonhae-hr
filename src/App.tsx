@@ -27,6 +27,7 @@ const CasualEmployees = lazy(() => import('./pages/CasualEmployees'));
 const AdminSlotBooking = lazy(() => import('./pages/AdminSlotBooking'));
 const SlotBooking = lazy(() => import('./pages/SlotBooking'));
 const Payslips = lazy(() => import('./pages/Payslips'));
+const PayslipManagement = lazy(() => import('./pages/PayslipManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -240,6 +241,14 @@ function App() {
                           <PageAccessGuard requiredPermission="employees">
                             <CasualEmployees />
                           </PageAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/payslip-management" 
+                      element={
+                        <AuthGuard>
+                          <PayslipManagement />
                         </AuthGuard>
                       } 
                     />
