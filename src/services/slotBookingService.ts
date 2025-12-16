@@ -232,6 +232,7 @@ export const addAdminSlotBooking = async (booking: {
   branchName: string;
   date: string;
   notes?: string;
+  allowRebook?: boolean;
 }): Promise<string> => {
   try {
     logger.info('Adding admin slot booking', { booking });
@@ -247,9 +248,30 @@ export const addAdminSlotBooking = async (booking: {
     if (existingError) {
       logger.error('Error checking existing bookings for admin override', existingError);
     } else if (existingBookings && existingBookings.length > 0) {
-      const errorMsg = `Employee ${booking.employeeName} already has an active booking for ${booking.date}`;
-      logger.error(errorMsg);
-      throw new Error(errorMsg);
+      if (booking.allowRebook) {
+        // Cancel existing bookings when rebooking is allowed
+        logger.info('Admin override: Cancelling existing bookings for rebooking', { 
+          employeeId: booking.employeeId, 
+          date: booking.date,
+          existingCount: existingBookings.length 
+        });
+        
+        for (const existingBooking of existingBookings) {
+          const { error: cancelError } = await supabase
+            .from('slot_bookings_new')
+            .update({ status: 'cancelled', notes: `Cancelled for rebooking - ${existingBooking.notes || ''}` })
+            .eq('id', existingBooking.id);
+          
+          if (cancelError) {
+            logger.error('Error cancelling existing booking for rebook', cancelError);
+            throw new Error(`Failed to cancel existing booking: ${cancelError.message}`);
+          }
+        }
+      } else {
+        const errorMsg = `Employee ${booking.employeeName} already has an active booking for ${booking.date}`;
+        logger.error(errorMsg);
+        throw new Error(errorMsg);
+      }
     }
 
     const bookingId = `ADMIN_${booking.employeeId.replace('EMP', '')}_${Date.now()}`;

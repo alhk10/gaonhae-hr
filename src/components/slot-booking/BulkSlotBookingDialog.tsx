@@ -165,15 +165,18 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       for (const employeeId of selectedEmployees) {
         try {
           const employee = employees.find(emp => emp.id === employeeId);
-          const notes = overrideSlotLimit && selectedEmployees.length > availableSlots
-            ? `Bulk booking created by Admin - Slot limit override applied (${selectedEmployees.length} bookings, ${availableSlots} slots available)`
+          const notes = overrideSlotLimit
+            ? `Bulk booking created by Admin - Override applied`
             : 'Bulk booking created by Admin';
             
-          // Check for existing booking before creating
-          const existingBooking = await checkForExistingBooking(employeeId, dateStr);
-          if (existingBooking) {
-            errors.push(`${employee?.display_name || employee?.name || 'Unknown'} already has a booking for this date`);
-            continue;
+          // When override is enabled, allow rebooking (cancel existing and create new)
+          // Otherwise, check for existing booking and skip
+          if (!overrideSlotLimit) {
+            const existingBooking = await checkForExistingBooking(employeeId, dateStr);
+            if (existingBooking) {
+              errors.push(`${employee?.display_name || employee?.name || 'Unknown'} already has a booking for this date`);
+              continue;
+            }
           }
           
           await addAdminSlotBooking({
@@ -182,7 +185,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
             branchId: selectedBranch,
             branchName: branch?.name || 'Unknown Branch',
             date: dateStr,
-            notes
+            notes,
+            allowRebook: overrideSlotLimit
           });
           
           successCount++;
