@@ -1660,6 +1660,9 @@ export type Database = {
       }
       payroll_records: {
         Row: {
+          cpf_paid: boolean | null
+          cpf_paid_at: string | null
+          cpf_paid_by: string | null
           created_at: string | null
           employee_id: string | null
           finalized_at: string | null
@@ -1668,11 +1671,17 @@ export type Database = {
           is_locked: boolean | null
           month: string
           payroll_data: Json
+          salary_paid: boolean | null
+          salary_paid_at: string | null
+          salary_paid_by: string | null
           status: string | null
           updated_at: string | null
           year: number
         }
         Insert: {
+          cpf_paid?: boolean | null
+          cpf_paid_at?: string | null
+          cpf_paid_by?: string | null
           created_at?: string | null
           employee_id?: string | null
           finalized_at?: string | null
@@ -1681,11 +1690,17 @@ export type Database = {
           is_locked?: boolean | null
           month: string
           payroll_data: Json
+          salary_paid?: boolean | null
+          salary_paid_at?: string | null
+          salary_paid_by?: string | null
           status?: string | null
           updated_at?: string | null
           year: number
         }
         Update: {
+          cpf_paid?: boolean | null
+          cpf_paid_at?: string | null
+          cpf_paid_by?: string | null
           created_at?: string | null
           employee_id?: string | null
           finalized_at?: string | null
@@ -1694,6 +1709,9 @@ export type Database = {
           is_locked?: boolean | null
           month?: string
           payroll_data?: Json
+          salary_paid?: boolean | null
+          salary_paid_at?: string | null
+          salary_paid_by?: string | null
           status?: string | null
           updated_at?: string | null
           year?: number

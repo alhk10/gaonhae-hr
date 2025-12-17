@@ -23,7 +23,7 @@ import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
-import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus } from '@/services/payrollService';
+import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
 
 
@@ -170,6 +170,20 @@ const PayrollProcessing = () => {
         const status = await getPayrollStatus(formattedPeriod);
         setPeriodStatus(status);
         setIsPeriodLocked(status?.status === 'finalized' || false);
+        
+        // Load existing payment status from Supabase
+        const paymentRecords = await getPayrollRecordsForPeriod(selectedPeriod);
+        const salaryStatus: {[key: string]: boolean} = {};
+        const cpfStatus: {[key: string]: boolean} = {};
+        paymentRecords.forEach(record => {
+          if (record.employeeId) {
+            salaryStatus[record.employeeId] = record.salaryPaid;
+            cpfStatus[record.employeeId] = record.cpfPaid;
+          }
+        });
+        setPaidStatus(salaryStatus);
+        setCpfPaidStatus(cpfStatus);
+        console.log('[PayrollProcessing] 💰 Loaded payment status from Supabase', { salaryStatus, cpfStatus });
         
         // Get all employees with full payroll data
         const employees = await getEmployeesForPayroll();
@@ -1162,11 +1176,28 @@ const PayrollProcessing = () => {
       })
       .filter(emp => emp.netPay > 0);
 
-    const handlePaidToggle = (employeeId: string, checked: boolean) => {
+    const handlePaidToggle = async (employeeId: string, checked: boolean) => {
+      // Update local state immediately for responsive UI
       setPaidStatus(prev => ({
         ...prev,
         [employeeId]: checked
       }));
+      
+      // Save to Supabase
+      try {
+        const { data: { user } } = await authService.auth.getUser();
+        const paidBy = user?.email || 'system';
+        await updateSalaryPaymentStatus(employeeId, selectedPeriod, checked, paidBy);
+        console.log('[PayrollProcessing] 💾 Saved salary payment status', { employeeId, checked });
+      } catch (error) {
+        console.error('Error saving salary payment status:', error);
+        toast.error('Failed to save payment status');
+        // Revert local state on error
+        setPaidStatus(prev => ({
+          ...prev,
+          [employeeId]: !checked
+        }));
+      }
     };
 
     // Calculate total net salary (already includes claims in totalPay/netPay)
@@ -1321,11 +1352,28 @@ const PayrollProcessing = () => {
       // Filter out employees with zero CPF contributions
       .filter(emp => emp.employeeCPF > 0 || emp.employerCPF > 0);
     
-    const handleCpfPaidToggle = (employeeId: string, checked: boolean) => {
+    const handleCpfPaidToggle = async (employeeId: string, checked: boolean) => {
+      // Update local state immediately for responsive UI
       setCpfPaidStatus(prev => ({
         ...prev,
         [employeeId]: checked
       }));
+      
+      // Save to Supabase
+      try {
+        const { data: { user } } = await authService.auth.getUser();
+        const paidBy = user?.email || 'system';
+        await updateCpfPaymentStatus(employeeId, selectedPeriod, checked, paidBy);
+        console.log('[PayrollProcessing] 💾 Saved CPF payment status', { employeeId, checked });
+      } catch (error) {
+        console.error('Error saving CPF payment status:', error);
+        toast.error('Failed to save CPF payment status');
+        // Revert local state on error
+        setCpfPaidStatus(prev => ({
+          ...prev,
+          [employeeId]: !checked
+        }));
+      }
     };
     
     return (
