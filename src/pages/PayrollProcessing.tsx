@@ -1157,21 +1157,27 @@ const PayrollProcessing = () => {
       })
       .filter(emp => emp.totalPay > 0);
     
-    const activeCasualEmployees = allEmployees
-      .filter(emp => emp.type === 'Casual' && !emp.resignDate)
+    // Get casual employees from payroll context - they should already be calculated
+    const activeCasualEmployees = payrollState.casualEmployees
+      .filter(emp => {
+        // Check if the employee exists in allEmployees and is not resigned
+        const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
+        return employeeInfo && !employeeInfo.resignDate;
+      })
       .map(emp => {
-        const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
-        const approvedClaims = getApprovedClaimsTotal(emp.id);
-        const totalPay = payrollData?.totalPay || payrollData?.netPay || 0;
+        const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
+        const approvedClaims = getApprovedClaimsTotal(emp.employeeId);
+        const totalPay = emp.totalPay || emp.netPay || 0;
+        
         return {
-          id: emp.id,
-          employeeId: emp.id,
-          name: emp.displayName || emp.name,
+          id: emp.employeeId,
+          employeeId: emp.employeeId,
+          name: employeeInfo?.displayName || employeeInfo?.name || emp.name,
           totalPay: totalPay,
           netPay: totalPay + approvedClaims,
-          bankName: emp.bankName,
-          bankAccount: emp.bankAccount,
-          slotBookingMetadata: payrollData?.slotBookingMetadata
+          bankName: employeeInfo?.bankName || '',
+          bankAccount: employeeInfo?.bankAccount || '',
+          slotBookingMetadata: emp.slotBookingMetadata
         };
       })
       .filter(emp => emp.netPay > 0);
