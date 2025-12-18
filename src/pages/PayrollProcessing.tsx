@@ -57,6 +57,75 @@ const PayrollProcessing = () => {
   const [paidStatus, setPaidStatus] = useState<{[key: string]: boolean}>({});
   const [cpfPaidStatus, setCpfPaidStatus] = useState<{[key: string]: boolean}>({});
 
+  // Helper function to force recalculate payroll
+  const forceRecalculatePayroll = async (period: string = selectedPeriod, showToast: boolean = true) => {
+    setLoading(true);
+    try {
+      const formatPeriodForAPILocal = (p: string): string => {
+        const [monthName, year] = p.split(' ');
+        const monthNames = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthIndex = monthNames.indexOf(monthName) + 1;
+        return `${year}-${monthIndex.toString().padStart(2, '0')}`;
+      };
+      
+      const formattedPeriod = formatPeriodForAPILocal(period);
+      console.log('[ForceRecalculate] Starting for period:', period, formattedPeriod);
+      
+      // Delete cached payroll record
+      const { error: deleteError } = await authService
+        .from('payroll_records')
+        .delete()
+        .eq('id', `PERIOD_${formattedPeriod}`);
+      
+      if (deleteError) {
+        console.error('Error deleting cached payroll:', deleteError);
+      }
+      
+      // Clear current payroll state
+      setCurrentPeriod(period);
+      
+      // Wait for state to clear
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refetch all employees
+      const employees = await getEmployeesForPayroll();
+      setAllEmployees(employees);
+      
+      // Load optimized payroll data
+      const employeeIds = employees.map(emp => emp.id);
+      const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, period);
+      setPayrollData(optimizedPayrollData);
+      setEmployeeAllowances(optimizedPayrollData?.allowances || {});
+      setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+      
+      // Refresh available employees in context
+      await refreshAvailableEmployees();
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Add all employees to payroll with the correct period
+      console.log('[ForceRecalculate] Adding employees with period:', period);
+      await addEmployeesToPayroll(employeeIds, optimizedPayrollData, period, employees);
+      
+      if (showToast) {
+        toast.success('Payroll recalculated successfully');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to recalculate payroll');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle period change with auto-recalculation
+  const handlePeriodChange = async (newPeriod: string) => {
+    setSelectedPeriod(newPeriod);
+    await forceRecalculatePayroll(newPeriod, false);
+  };
+
   // Edit dialog states
   const [editSalaryDialog, setEditSalaryDialog] = useState<{
     isOpen: boolean;
@@ -474,6 +543,9 @@ const PayrollProcessing = () => {
 
   const handleProcessPayment = async () => {
     try {
+      // Force recalculate before processing payments
+      await forceRecalculatePayroll(selectedPeriod, false);
+      
       // Get list of employees marked as paid
       const paidEmployeeIds = Object.entries(paidStatus)
         .filter(([_, isPaid]) => isPaid)
@@ -671,7 +743,7 @@ const PayrollProcessing = () => {
         {/* Payroll Period Selector */}
         <PayrollPeriodSelector 
           selectedPeriod={selectedPeriod}
-          onPeriodChange={setSelectedPeriod}
+          onPeriodChange={handlePeriodChange}
         />
 
         {/* Summary Cards */}
@@ -1117,8 +1189,10 @@ const PayrollProcessing = () => {
             <span>Save Draft</span>
           </Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
               if (currentStep === 'processing') {
+                // Force recalculate before moving to payment step
+                await forceRecalculatePayroll(selectedPeriod, false);
                 setCurrentStep('payment');
                 setPayrollStatus('paid');
               } else if (currentStep === 'payment') {
@@ -1126,11 +1200,11 @@ const PayrollProcessing = () => {
                 setPayrollStatus('completed');
               }
             }}
-            disabled={currentStep === 'cpf'}
+            disabled={currentStep === 'cpf' || loading}
             className="flex items-center space-x-2"
           >
             <ArrowRight className="w-4 h-4" />
-            <span>Next</span>
+            <span>{loading ? 'Calculating...' : 'Next'}</span>
           </Button>
         </div>
       </div>
@@ -1479,71 +1553,15 @@ const PayrollProcessing = () => {
                   <Button
                     onClick={async () => {
                       if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
-                        setLoading(true);
-                        try {
-                          const formatPeriodForAPI = (period: string): string => {
-                            const [monthName, year] = period.split(' ');
-                            const monthNames = [
-                              'January', 'February', 'March', 'April', 'May', 'June',
-                              'July', 'August', 'September', 'October', 'November', 'December'
-                            ];
-                            const monthIndex = monthNames.indexOf(monthName) + 1;
-                            return `${year}-${monthIndex.toString().padStart(2, '0')}`;
-                          };
-                          
-                          const formattedPeriod = formatPeriodForAPI(selectedPeriod);
-                          console.log('[ForceRecalculate] Starting for period:', selectedPeriod, formattedPeriod);
-                          
-                          // Delete cached payroll record
-                          const { error: deleteError } = await authService
-                            .from('payroll_records')
-                            .delete()
-                            .eq('id', `PERIOD_${formattedPeriod}`);
-                          
-                          if (deleteError) {
-                            console.error('Error deleting cached payroll:', deleteError);
-                          }
-                          
-                          // Clear current payroll state
-                          setCurrentPeriod(selectedPeriod);
-                          
-                          // Wait for state to clear
-                          await new Promise(resolve => setTimeout(resolve, 100));
-                          
-                          // Refetch all employees
-                          const employees = await getEmployeesForPayroll();
-                          setAllEmployees(employees);
-                          
-                          // Load optimized payroll data
-                          const employeeIds = employees.map(emp => emp.id);
-                          const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
-                          setPayrollData(optimizedPayrollData);
-                          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
-                          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
-                          
-                          // Refresh available employees in context
-                          await refreshAvailableEmployees();
-                          await new Promise(resolve => setTimeout(resolve, 200));
-                          
-                          // Add all employees to payroll with the correct period
-                          console.log('[ForceRecalculate] Adding employees with period:', selectedPeriod);
-                          await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod, employees);
-                          
-                          toast.success('Payroll recalculated successfully');
-                        } catch (error) {
-                          console.error('Error:', error);
-                          toast.error('Failed to recalculate payroll');
-                        } finally {
-                          setLoading(false);
-                        }
+                        await forceRecalculatePayroll(selectedPeriod, true);
                       }
                     }}
                     variant="outline"
                     className="gap-2"
                     disabled={loading}
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    Force Recalculate
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? 'Recalculating...' : 'Force Recalculate'}
                   </Button>
                   <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
                     1. Processing
