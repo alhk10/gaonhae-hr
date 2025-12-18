@@ -1141,12 +1141,13 @@ const PayrollProcessing = () => {
     // Get full-time employees from payroll context - they should already be calculated
     const activeFullTimeEmployees = payrollState.fullTimeEmployees
       .filter(emp => {
-        const employeeInfo = allEmployees.find(e => e.id === emp.id || e.id === emp.employeeId);
+        const empId = emp.employeeId || emp.id;
+        const employeeInfo = allEmployees.find(e => e.id === empId);
         return employeeInfo && !employeeInfo.resignDate;
       })
       .map(emp => {
-        const employeeInfo = allEmployees.find(e => e.id === emp.id || e.id === emp.employeeId);
         const empId = emp.employeeId || emp.id;
+        const employeeInfo = allEmployees.find(e => e.id === empId);
         const approvedClaims = getApprovedClaimsTotal(empId);
         const netPay = emp.netPay || 0;
         return {
