@@ -1189,10 +1189,8 @@ const PayrollProcessing = () => {
             <span>Save Draft</span>
           </Button>
           <Button
-            onClick={async () => {
+            onClick={() => {
               if (currentStep === 'processing') {
-                // Force recalculate before moving to payment step
-                await forceRecalculatePayroll(selectedPeriod, false);
                 setCurrentStep('payment');
                 setPayrollStatus('paid');
               } else if (currentStep === 'payment') {
@@ -1200,11 +1198,11 @@ const PayrollProcessing = () => {
                 setPayrollStatus('completed');
               }
             }}
-            disabled={currentStep === 'cpf' || loading}
+            disabled={currentStep === 'cpf'}
             className="flex items-center space-x-2"
           >
             <ArrowRight className="w-4 h-4" />
-            <span>{loading ? 'Calculating...' : 'Next'}</span>
+            <span>Next</span>
           </Button>
         </div>
       </div>
