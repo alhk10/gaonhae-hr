@@ -1138,20 +1138,25 @@ const PayrollProcessing = () => {
   };
 
   const renderPaymentStep = () => {
-    // Get ALL employees with their payroll data, filter out resigned and $0 salary
-    const activeFullTimeEmployees = allEmployees
-      .filter(emp => emp.type === 'Full-Time' && !emp.resignDate)
+    // Get full-time employees from payroll context - they should already be calculated
+    const activeFullTimeEmployees = payrollState.fullTimeEmployees
+      .filter(emp => {
+        const employeeInfo = allEmployees.find(e => e.id === emp.id || e.id === emp.employeeId);
+        return employeeInfo && !employeeInfo.resignDate;
+      })
       .map(emp => {
-        const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
-        const approvedClaims = getApprovedClaimsTotal(emp.id);
-        const netPay = payrollData?.netPay || 0;
+        const employeeInfo = allEmployees.find(e => e.id === emp.id || e.id === emp.employeeId);
+        const empId = emp.employeeId || emp.id;
+        const approvedClaims = getApprovedClaimsTotal(empId);
+        const netPay = emp.netPay || 0;
         return {
-          id: emp.id,
-          employeeId: emp.id,
-          name: emp.displayName || emp.name,
+          id: empId,
+          employeeId: empId,
+          name: employeeInfo?.displayName || employeeInfo?.name || emp.name,
           netPay: netPay,
-          bankName: emp.bankName,
-          bankAccount: emp.bankAccount,
+          bankName: employeeInfo?.bankName || '',
+          bankAccount: employeeInfo?.bankAccount || '',
+          paymentType: emp.paymentType || 'Monthly',
           totalPay: netPay + approvedClaims
         };
       })
