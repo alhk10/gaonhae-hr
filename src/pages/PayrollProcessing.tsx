@@ -1222,11 +1222,13 @@ const PayrollProcessing = () => {
         const employeeInfo = allEmployees.find(e => e.id === empId);
         const approvedClaims = getApprovedClaimsTotal(empId);
         const netPay = emp.netPay || 0;
+        const grossSalary = emp.grossPay || employeeInfo?.baseSalary || 0;
         return {
           id: empId,
           employeeId: empId,
           name: employeeInfo?.displayName || employeeInfo?.name || emp.name,
           netPay: netPay,
+          grossSalary: grossSalary,
           bankName: employeeInfo?.bankName || '',
           bankAccount: employeeInfo?.bankAccount || '',
           paymentType: emp.paymentType || 'Monthly',
@@ -1306,6 +1308,7 @@ const PayrollProcessing = () => {
             <TableRow>
               <TableHead>Employee Name</TableHead>
               <TableHead>Payment Type</TableHead>
+              <TableHead>Total Salary</TableHead>
               <TableHead>Net Salary</TableHead>
               <TableHead>Bank Name</TableHead>
               <TableHead>Bank Account</TableHead>
@@ -1322,6 +1325,7 @@ const PayrollProcessing = () => {
                   <TableCell className="py-2">
                     <Badge variant="outline">Monthly</Badge>
                   </TableCell>
+                  <TableCell className="py-2">S${employee.grossSalary.toFixed(2)}</TableCell>
                   <TableCell className="py-2">S${employee.totalPay.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
@@ -1345,6 +1349,7 @@ const PayrollProcessing = () => {
                   <TableCell className="py-2">
                     <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
                   </TableCell>
+                  <TableCell className="py-2">S${employee.totalPay.toFixed(2)}</TableCell>
                   <TableCell className="py-2">S${employee.netPay.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
