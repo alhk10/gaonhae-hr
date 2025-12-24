@@ -181,9 +181,11 @@ const PayrollProcessing = () => {
       checkOut?: string | null;
       hoursWorked?: number;
       attendanceId?: number | null;
+      fullSlotRate?: number;
     }>;
     totalPay: number;
     totalSlots: number;
+    fullSlotRate?: number;
   } | null>(null);
 
   // Load all employee data with allowances and deductions - OPTIMIZED
@@ -1134,6 +1136,7 @@ const PayrollProcessing = () => {
                                           breakdown: slotData.breakdown,
                                           totalPay: slotData.totalPay,
                                           totalSlots: slotData.totalSlots,
+                                          fullSlotRate: slotData.fullSlotRate,
                                         });
                                         setSlotBreakdownOpen(true);
                                       } catch (error) {
@@ -1627,6 +1630,7 @@ const PayrollProcessing = () => {
                 breakdown={slotBreakdownData.breakdown}
                 totalPay={slotBreakdownData.totalPay}
                 totalSlots={slotBreakdownData.totalSlots}
+                fullSlotRate={slotBreakdownData.fullSlotRate}
                 onUpdate={async () => {
                   // Refresh the slot breakdown data after an update
                   try {
@@ -1643,6 +1647,7 @@ const PayrollProcessing = () => {
                         breakdown: slotData.breakdown,
                         totalPay: slotData.totalPay,
                         totalSlots: slotData.totalSlots,
+                        fullSlotRate: slotData.fullSlotRate,
                       });
                     }
                   } catch (error) {

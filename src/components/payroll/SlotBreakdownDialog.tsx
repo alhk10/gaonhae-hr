@@ -18,6 +18,8 @@ export interface SlotBreakdownItem {
   checkOut?: string | null;
   hoursWorked?: number | null;
   attendanceId?: number | null;
+  expectedHours?: number | null;
+  fullSlotRate?: number | null;
 }
 
 const formatTime = (time: string | null | undefined): string => {
@@ -77,6 +79,7 @@ interface SlotBreakdownDialogProps {
   breakdown: SlotBreakdownItem[];
   totalPay: number;
   totalSlots: number;
+  fullSlotRate?: number;
   onUpdate?: () => void;
 }
 
@@ -87,6 +90,7 @@ export function SlotBreakdownDialog({
   breakdown,
   totalPay,
   totalSlots,
+  fullSlotRate,
   onUpdate,
 }: SlotBreakdownDialogProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -300,18 +304,26 @@ export function SlotBreakdownDialog({
             </div>
           )}
 
-          {/* Average Pay Info */}
+          {/* Pay Rate Info */}
           {breakdown.length > 0 && (
-            <div className="bg-muted/30 rounded-lg p-3 text-sm flex flex-wrap gap-x-6 gap-y-1">
-              <p className="text-muted-foreground">
-                Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
-              </p>
-              <p className="text-muted-foreground">
-                Average pay per hour: <span className="font-semibold text-foreground">S${(() => {
-                  const totalHours = breakdown.reduce((sum, item) => sum + (item.hoursWorked || 0), 0);
-                  return totalHours > 0 ? (totalPay / totalHours).toFixed(2) : '0.00';
-                })()}</span>
-              </p>
+            <div className="bg-muted/30 rounded-lg p-3 text-sm space-y-2">
+              {fullSlotRate && (
+                <p className="text-muted-foreground">
+                  Full slot rate (inc. bonuses): <span className="font-semibold text-primary">S${fullSlotRate.toFixed(2)}</span>
+                  <span className="text-xs ml-1">(prorated based on hours worked)</span>
+                </p>
+              )}
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                <p className="text-muted-foreground">
+                  Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Average pay per hour: <span className="font-semibold text-foreground">S${(() => {
+                    const totalHours = breakdown.reduce((sum, item) => sum + (item.hoursWorked || 0), 0);
+                    return totalHours > 0 ? (totalPay / totalHours).toFixed(2) : '0.00';
+                  })()}</span>
+                </p>
+              </div>
             </div>
           )}
         </div>
