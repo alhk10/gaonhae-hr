@@ -1,10 +1,15 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Calendar, Clock, DollarSign, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
+import { updateAttendanceRecord } from "@/services/attendanceService";
+import { toast } from "sonner";
 
-interface SlotBreakdownItem {
+export interface SlotBreakdownItem {
   date: string;
   branchName: string;
   pay: number;
@@ -12,6 +17,7 @@ interface SlotBreakdownItem {
   checkIn?: string | null;
   checkOut?: string | null;
   hoursWorked?: number | null;
+  attendanceId?: number | null;
 }
 
 const formatTime = (time: string | null | undefined): string => {
@@ -37,6 +43,33 @@ const formatDuration = (hours: number | null | undefined): string => {
   return `${h}h ${m}m`;
 };
 
+// Convert 12-hour time input to 24-hour format for storage
+const convertTo24Hour = (time: string): string => {
+  if (!time) return '';
+  // If already in HH:MM format, return as-is
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
+    return time.length === 5 ? `${time}:00` : time;
+  }
+  return time;
+};
+
+// Calculate hours worked from check-in and check-out times
+const calculateHoursWorked = (checkIn: string | null, checkOut: string | null): number | null => {
+  if (!checkIn || !checkOut) return null;
+  
+  const parseTime = (time: string): number => {
+    const parts = time.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  };
+  
+  const inMinutes = parseTime(checkIn);
+  const outMinutes = parseTime(checkOut);
+  
+  if (outMinutes <= inMinutes) return null;
+  
+  return (outMinutes - inMinutes) / 60;
+};
+
 interface SlotBreakdownDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -44,6 +77,7 @@ interface SlotBreakdownDialogProps {
   breakdown: SlotBreakdownItem[];
   totalPay: number;
   totalSlots: number;
+  onUpdate?: () => void;
 }
 
 export function SlotBreakdownDialog({
@@ -53,7 +87,68 @@ export function SlotBreakdownDialog({
   breakdown,
   totalPay,
   totalSlots,
+  onUpdate,
 }: SlotBreakdownDialogProps) {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editCheckIn, setEditCheckIn] = useState('');
+  const [editCheckOut, setEditCheckOut] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleStartEdit = (index: number, item: SlotBreakdownItem) => {
+    setEditingIndex(index);
+    // Convert time to HH:MM format for input
+    const formatForInput = (time: string | null | undefined): string => {
+      if (!time) return '';
+      const parts = time.split(':');
+      if (parts.length >= 2) {
+        return `${parts[0].padStart(2, '0')}:${parts[1]}`;
+      }
+      return '';
+    };
+    setEditCheckIn(formatForInput(item.checkIn));
+    setEditCheckOut(formatForInput(item.checkOut));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setEditCheckIn('');
+    setEditCheckOut('');
+  };
+
+  const handleSaveEdit = async (item: SlotBreakdownItem) => {
+    if (!item.attendanceId) {
+      toast.error('Cannot update: No attendance record found for this slot');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const checkInTime = editCheckIn ? convertTo24Hour(editCheckIn) : null;
+      const checkOutTime = editCheckOut ? convertTo24Hour(editCheckOut) : null;
+      const hoursWorked = calculateHoursWorked(checkInTime, checkOutTime);
+
+      await updateAttendanceRecord(item.attendanceId, {
+        checkIn: checkInTime,
+        checkOut: checkOutTime,
+        hoursWorked: hoursWorked,
+      });
+
+      toast.success('Attendance times updated successfully');
+      setEditingIndex(null);
+      setEditCheckIn('');
+      setEditCheckOut('');
+      
+      if (onUpdate) {
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error);
+      toast.error('Failed to update attendance times');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -95,6 +190,7 @@ export function SlotBreakdownDialog({
                     <TableHead className="font-semibold">Clock Out</TableHead>
                     <TableHead className="font-semibold">Duration</TableHead>
                     <TableHead className="font-semibold text-right">Pay Amount</TableHead>
+                    <TableHead className="font-semibold w-20">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -112,26 +208,85 @@ export function SlotBreakdownDialog({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          {formatTime(item.checkIn)}
-                        </div>
+                        {editingIndex === index ? (
+                          <Input
+                            type="time"
+                            value={editCheckIn}
+                            onChange={(e) => setEditCheckIn(e.target.value)}
+                            className="w-28 h-8 text-sm"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            {formatTime(item.checkIn)}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          {formatTime(item.checkOut)}
-                        </div>
+                        {editingIndex === index ? (
+                          <Input
+                            type="time"
+                            value={editCheckOut}
+                            onChange={(e) => setEditCheckOut(e.target.value)}
+                            className="w-28 h-8 text-sm"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            {formatTime(item.checkOut)}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm font-medium">
-                          {formatDuration(item.hoursWorked)}
+                          {editingIndex === index 
+                            ? formatDuration(calculateHoursWorked(
+                                editCheckIn ? convertTo24Hour(editCheckIn) : null,
+                                editCheckOut ? convertTo24Hour(editCheckOut) : null
+                              ))
+                            : formatDuration(item.hoursWorked)
+                          }
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="font-semibold text-green-600">
                           S${item.pay.toFixed(2)}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {editingIndex === index ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => handleSaveEdit(item)}
+                              disabled={isSaving}
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={handleCancelEdit}
+                              disabled={isSaving}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                            onClick={() => handleStartEdit(index, item)}
+                            disabled={!item.attendanceId}
+                            title={item.attendanceId ? "Edit times" : "No attendance record"}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

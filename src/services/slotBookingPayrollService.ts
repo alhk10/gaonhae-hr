@@ -16,6 +16,7 @@ interface SlotBookingPayData {
     checkOut?: string | null;
     hoursWorked?: number;
     expectedHours?: number;
+    attendanceId?: number | null;
   }>;
 }
 
@@ -63,7 +64,7 @@ export const getSlotBookingPayForPeriod = async (
     
     const { data: attendanceRecords, error: attendanceError } = await supabase
       .from('attendance')
-      .select('employee_id, date, status, check_in, check_out')
+      .select('id, employee_id, date, status, check_in, check_out')
       .eq('employee_id', employeeId)
       .in('date', bookingDates)
       .in('status', ['Present', 'Late', 'present', 'late']);
@@ -73,9 +74,10 @@ export const getSlotBookingPayForPeriod = async (
       throw attendanceError;
     }
 
-    // Create map with attendance data including times
+    // Create map with attendance data including times and ID
     const attendanceMap = new Map(
       (attendanceRecords || []).map(a => [a.date, { 
+        id: a.id,
         checkIn: a.check_in, 
         checkOut: a.check_out 
       }])
@@ -124,7 +126,8 @@ export const getSlotBookingPayForPeriod = async (
         checkIn: attendance.checkIn,
         checkOut: attendance.checkOut,
         hoursWorked: actualHoursWorked,
-        expectedHours
+        expectedHours,
+        attendanceId: attendance.id
       });
 
       totalPay += pay;

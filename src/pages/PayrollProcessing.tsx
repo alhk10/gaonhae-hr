@@ -170,6 +170,7 @@ const PayrollProcessing = () => {
   // Slot breakdown dialog state
   const [slotBreakdownOpen, setSlotBreakdownOpen] = useState(false);
   const [slotBreakdownData, setSlotBreakdownData] = useState<{
+    employeeId: string;
     employeeName: string;
     breakdown: Array<{ 
       date: string; 
@@ -179,6 +180,7 @@ const PayrollProcessing = () => {
       checkIn?: string | null;
       checkOut?: string | null;
       hoursWorked?: number;
+      attendanceId?: number | null;
     }>;
     totalPay: number;
     totalSlots: number;
@@ -1127,6 +1129,7 @@ const PayrollProcessing = () => {
                                           fullEmployeeProfile
                                         );
                                         setSlotBreakdownData({
+                                          employeeId: employee.id,
                                           employeeName: employee.name,
                                           breakdown: slotData.breakdown,
                                           totalPay: slotData.totalPay,
@@ -1624,6 +1627,28 @@ const PayrollProcessing = () => {
                 breakdown={slotBreakdownData.breakdown}
                 totalPay={slotBreakdownData.totalPay}
                 totalSlots={slotBreakdownData.totalSlots}
+                onUpdate={async () => {
+                  // Refresh the slot breakdown data after an update
+                  try {
+                    const fullEmployeeProfile = await getEmployeeById(slotBreakdownData.employeeId);
+                    if (fullEmployeeProfile) {
+                      const slotData = await getSlotBookingPayForPeriod(
+                        slotBreakdownData.employeeId,
+                        selectedPeriod,
+                        fullEmployeeProfile
+                      );
+                      setSlotBreakdownData({
+                        employeeId: slotBreakdownData.employeeId,
+                        employeeName: slotBreakdownData.employeeName,
+                        breakdown: slotData.breakdown,
+                        totalPay: slotData.totalPay,
+                        totalSlots: slotData.totalSlots,
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Error refreshing slot breakdown:', error);
+                  }
+                }}
               />
             )}
           </div>
