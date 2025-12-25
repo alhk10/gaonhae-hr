@@ -1027,26 +1027,33 @@ const PayrollProcessing = () => {
                         const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
                         const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
                         
-                        // Use already-calculated values from context (don't recalculate!)
-                        // The calculation was already done correctly by calculateCasualEmployeePayroll
-                        const netPay = employee.netPay || employee.totalPay || 0;
-                        const grossPay = employee.grossPay || 0;
+                        // Get gross pay from employee data
+                        const grossPay = employee.grossPay || employee.totalPay || 0;
                         
-                        // Get CPF from payroll data - if missing but we have gross pay, derive from formula
-                        // CPF for Singapore Citizens = 20% of gross pay (capped at $6800)
+                        // Calculate Employee CPF based on residency status
+                        // Singapore Citizens and "Citizen" should have CPF deducted
                         let employeeCPF = employee.cpfEmployee || employee.employeeCPF || 0;
                         
-                        // Fallback: If CPF is 0 but gross pay exists and net pay is less than gross pay,
-                        // the difference is likely CPF + deductions. Derive CPF from gross pay.
-                        if (employeeCPF === 0 && grossPay > 0 && grossPay > netPay) {
-                          // Standard CPF rate for Singapore Citizens under 55 is 20%
-                          const cpfSalary = Math.min(grossPay, 6800);
-                          if (cpfSalary > 750) {
-                            employeeCPF = Math.round(cpfSalary * 0.20 * 100) / 100;
-                          } else if (cpfSalary > 500) {
-                            employeeCPF = Math.round((cpfSalary - 500) * 0.60 * 100) / 100;
+                        // If CPF is 0 but employee should have CPF (Singapore Citizen/Citizen), calculate it
+                        if (employeeCPF === 0 && grossPay > 0) {
+                          // Check employee's residency status from allEmployees or employee data
+                          const empProfile = allEmployees.find(e => e.id === employee.id);
+                          const residencyStatus = empProfile?.residencyStatus || employee.residencyStatus || '';
+                          
+                          // Singapore Citizens and Citizens should have CPF deducted
+                          if (residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen') {
+                            const cpfSalary = Math.min(grossPay, 6800);
+                            if (cpfSalary > 750) {
+                              employeeCPF = Math.round(cpfSalary * 0.20 * 100) / 100;
+                            } else if (cpfSalary > 500) {
+                              employeeCPF = Math.round((cpfSalary - 500) * 0.60 * 100) / 100;
+                            }
                           }
                         }
+                        
+                        // Calculate Net Pay = Gross Pay - Employee CPF - Deductions
+                        // This ensures CPF is always properly deducted for display
+                        const netPay = grossPay - employeeCPF - totalDeductions;
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
