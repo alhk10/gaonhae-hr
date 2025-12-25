@@ -22,9 +22,10 @@ import { BookingCardWithPay } from '@/components/slot-booking/BookingCardWithPay
 import AdminSlotBookingActions from '@/components/admin/AdminSlotBookingActions';
 import AdminSlotBookingSummary from '@/components/admin/AdminSlotBookingSummary';
 import PricingSettingsTab from '@/components/slot-booking/PricingSettingsTab';
+import { SlotTimingSettingsTab } from '@/components/slot-booking/SlotTimingSettingsTab';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isFromNovember2024, clearPricingCache } from '@/utils/slotPayCalculation';
-import { updatePricingConfig, SlotPricingConfig } from '@/services/slotPricingService';
+import { updatePricingConfig, SlotPricingConfig, SlotTimingConfig } from '@/services/slotPricingService';
 import {
   getBranches,
   getAllSlotBookings,
@@ -768,8 +769,9 @@ const AdminSlotBooking = () => {
                     </DialogHeader>
                     <form onSubmit={handleSettingsSave}>
                       <Tabs defaultValue="slots" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="slots">Weekly Slots</TabsTrigger>
+                          <TabsTrigger value="timing">Slot Timing</TabsTrigger>
                           <TabsTrigger value="pricing">Dynamic Pricing</TabsTrigger>
                         </TabsList>
                         
@@ -833,6 +835,12 @@ const AdminSlotBooking = () => {
                               })}
                             </div>
                           </div>
+                        </TabsContent>
+
+                        <TabsContent value="timing">
+                          <SlotTimingSettingsTab 
+                            onConfigChange={(config) => setPricingConfig(prev => ({ ...prev, ...config }))}
+                          />
                         </TabsContent>
                         
                         <TabsContent value="pricing">
