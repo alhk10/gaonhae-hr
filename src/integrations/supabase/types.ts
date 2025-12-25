@@ -1979,11 +1979,17 @@ export type Database = {
           dan_second_bonus: number
           dan_third_above_bonus: number
           effective_from: string | null
+          friday_end_time: string | null
+          friday_start_time: string | null
           id: string
           is_active: boolean | null
           milestone_10_slots_bonus: number | null
           milestone_16_slots_bonus: number | null
           milestone_5_slots_bonus: number | null
+          monday_end_time: string | null
+          monday_start_time: string | null
+          saturday_end_time: string | null
+          saturday_start_time: string | null
           sg_coach_level1_bonus: number
           sg_coach_level2_bonus: number
           stf_coach_induction_bonus: number
@@ -1992,8 +1998,16 @@ export type Database = {
           stf_poomsae_coach_level2_bonus: number
           stf_poomsae_coach_level3_bonus: number
           stf_poomsae_referee_bonus: number
+          sunday_end_time: string | null
+          sunday_start_time: string | null
+          thursday_end_time: string | null
+          thursday_start_time: string | null
+          tuesday_end_time: string | null
+          tuesday_start_time: string | null
           updated_at: string
           updated_by: string | null
+          wednesday_end_time: string | null
+          wednesday_start_time: string | null
           weekday_base_rate: number
           weekend_base_rate: number
           years_of_service_bonus_per_year: number
@@ -2005,11 +2019,17 @@ export type Database = {
           dan_second_bonus?: number
           dan_third_above_bonus?: number
           effective_from?: string | null
+          friday_end_time?: string | null
+          friday_start_time?: string | null
           id?: string
           is_active?: boolean | null
           milestone_10_slots_bonus?: number | null
           milestone_16_slots_bonus?: number | null
           milestone_5_slots_bonus?: number | null
+          monday_end_time?: string | null
+          monday_start_time?: string | null
+          saturday_end_time?: string | null
+          saturday_start_time?: string | null
           sg_coach_level1_bonus?: number
           sg_coach_level2_bonus?: number
           stf_coach_induction_bonus?: number
@@ -2018,8 +2038,16 @@ export type Database = {
           stf_poomsae_coach_level2_bonus?: number
           stf_poomsae_coach_level3_bonus?: number
           stf_poomsae_referee_bonus?: number
+          sunday_end_time?: string | null
+          sunday_start_time?: string | null
+          thursday_end_time?: string | null
+          thursday_start_time?: string | null
+          tuesday_end_time?: string | null
+          tuesday_start_time?: string | null
           updated_at?: string
           updated_by?: string | null
+          wednesday_end_time?: string | null
+          wednesday_start_time?: string | null
           weekday_base_rate?: number
           weekend_base_rate?: number
           years_of_service_bonus_per_year?: number
@@ -2031,11 +2059,17 @@ export type Database = {
           dan_second_bonus?: number
           dan_third_above_bonus?: number
           effective_from?: string | null
+          friday_end_time?: string | null
+          friday_start_time?: string | null
           id?: string
           is_active?: boolean | null
           milestone_10_slots_bonus?: number | null
           milestone_16_slots_bonus?: number | null
           milestone_5_slots_bonus?: number | null
+          monday_end_time?: string | null
+          monday_start_time?: string | null
+          saturday_end_time?: string | null
+          saturday_start_time?: string | null
           sg_coach_level1_bonus?: number
           sg_coach_level2_bonus?: number
           stf_coach_induction_bonus?: number
@@ -2044,8 +2078,16 @@ export type Database = {
           stf_poomsae_coach_level2_bonus?: number
           stf_poomsae_coach_level3_bonus?: number
           stf_poomsae_referee_bonus?: number
+          sunday_end_time?: string | null
+          sunday_start_time?: string | null
+          thursday_end_time?: string | null
+          thursday_start_time?: string | null
+          tuesday_end_time?: string | null
+          tuesday_start_time?: string | null
           updated_at?: string
           updated_by?: string | null
+          wednesday_end_time?: string | null
+          wednesday_start_time?: string | null
           weekday_base_rate?: number
           weekend_base_rate?: number
           years_of_service_bonus_per_year?: number
