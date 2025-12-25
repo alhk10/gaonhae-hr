@@ -278,7 +278,7 @@ const Sidebar = () => {
   if (isAuthLoading || isDataLoading) {
     
     return (
-      <div className={`${isMobile ? 'hidden' : 'w-64'} bg-white border-r border-gray-200 h-full`}>
+      <div className={`${isMobile ? 'hidden' : 'w-64'} bg-white border-r border-gray-200 h-full overflow-y-auto`}>
         <div className="p-6">
           <div className="text-center text-gray-500">Loading...</div>
         </div>
@@ -331,7 +331,7 @@ const Sidebar = () => {
   }
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-full">
+    <div className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto">
       <div className="p-6">
         <nav className="space-y-1">
           {menuItems.map((item) => (
