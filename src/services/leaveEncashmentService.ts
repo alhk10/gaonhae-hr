@@ -175,15 +175,16 @@ export const getEmployeeEncashmentRecords = async (employeeId: string): Promise<
   }
 };
 
-// Get all encashment records (for admin)
+// Get all encashment records (for admin) - only for active employees
 export const getAllEncashmentRecords = async (year?: number): Promise<LeaveEncashmentRecord[]> => {
   try {
     let query = supabase
       .from('leave_encashment_records')
       .select(`
         *,
-        employees!inner(name, email)
+        employees!inner(name, email, resign_date)
       `)
+      .is('employees.resign_date', null) // Filter out resigned employees
       .order('year', { ascending: false });
 
     if (year) {
@@ -196,7 +197,7 @@ export const getAllEncashmentRecords = async (year?: number): Promise<LeaveEncas
       throw error;
     }
     
-    logger.debug(`Fetched ${data?.length || 0} total encashment records`, { year });
+    logger.debug(`Fetched ${data?.length || 0} total encashment records (active employees only)`, { year });
     return data || [];
   } catch (error) {
     logger.error('Exception in getAllEncashmentRecords', error);

@@ -79,36 +79,48 @@ const Claims = () => {
       const data = await getClaims();
       console.log('📊 Raw claims data from service:', data);
       
-      const employeeNames = await Promise.all(
+      // Fetch employee details including resign status
+      const employeeDetails = await Promise.all(
         data.map(async (claim) => {
           try {
             const employee = await getEmployeeById(claim.employeeId || '');
-            return employee?.name || 'Unknown Employee';
+            return {
+              name: employee?.name || 'Unknown Employee',
+              resignDate: employee?.resignDate || null
+            };
           } catch (error) {
             console.error(`Error fetching employee for claim ${claim.id}:`, error);
-            return 'Unknown Employee';
+            return { name: 'Unknown Employee', resignDate: null };
           }
         })
       );
 
-      const transformedClaims: ClaimWithEmployee[] = data.map((claim, index) => ({
-        id: claim.id,
-        employeeId: claim.employeeId || '',
-        employee: employeeNames[index],
-        employeeName: employeeNames[index],
-        type: claim.type,
-        amount: claim.amount,
-        date: claim.date || new Date().toISOString(),
-        submittedDate: claim.date || new Date().toISOString(),
-        status: claim.status as 'Pending' | 'Approved' | 'Rejected',
-        description: claim.description,
-        receipt_url: claim.receipt_url || undefined,
-        reviewed_by: undefined,
-        reviewed_date: undefined,
-      }));
+      // Filter out claims from resigned employees
+      const transformedClaims: ClaimWithEmployee[] = data
+        .map((claim, index) => ({
+          id: claim.id,
+          employeeId: claim.employeeId || '',
+          employee: employeeDetails[index].name,
+          employeeName: employeeDetails[index].name,
+          type: claim.type,
+          amount: claim.amount,
+          date: claim.date || new Date().toISOString(),
+          submittedDate: claim.date || new Date().toISOString(),
+          status: claim.status as 'Pending' | 'Approved' | 'Rejected',
+          description: claim.description,
+          receipt_url: claim.receipt_url || undefined,
+          reviewed_by: undefined,
+          reviewed_date: undefined,
+          _resignDate: employeeDetails[index].resignDate
+        }))
+        .filter(claim => !(claim as any)._resignDate) // Filter out resigned employees
+        .map(({ ...claim }) => {
+          delete (claim as any)._resignDate;
+          return claim;
+        });
 
       setClaims(transformedClaims);
-      console.log('📊 Processed claims data:', transformedClaims);
+      console.log('📊 Processed claims data (active employees only):', transformedClaims);
     } catch (error) {
       console.error('Error loading claims:', error);
       toast.error('Error loading claims data');

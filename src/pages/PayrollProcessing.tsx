@@ -698,8 +698,9 @@ const PayrollProcessing = () => {
 
   const renderProcessingStep = () => {
     // CRITICAL FIX: Merge employee data with calculated payroll data safely
+    // Filter out resigned employees from the processing view
     const fullTimeEmployeeData = allEmployees
-      .filter(emp => emp.type === 'Full-Time')
+      .filter(emp => emp.type === 'Full-Time' && !emp.resignDate) // Exclude resigned employees
       .map(emp => {
         const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
         // Only merge specific calculated fields, don't overwrite arrays
@@ -716,7 +717,7 @@ const PayrollProcessing = () => {
       });
     
     const casualEmployeeData = allEmployees
-      .filter(emp => emp.type === 'Casual')
+      .filter(emp => emp.type === 'Casual' && !emp.resignDate) // Exclude resigned employees
       .map(emp => {
         const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
         // Only merge specific calculated fields, preserve employee structure
@@ -738,6 +739,9 @@ const PayrollProcessing = () => {
     const fullTimeEmployees = fullTimeEmployeeData;
     const casualEmployees = casualEmployeeData;
     
+    // Filter allEmployees for summary cards to show only active employees
+    const activeEmployeesCount = allEmployees.filter(emp => !emp.resignDate).length;
+    
     console.log('DEBUG PayrollProcessing: Full-time employees with payroll:', fullTimeEmployees.length);
     console.log('DEBUG PayrollProcessing: Casual employees with payroll:', casualEmployees.length);
     console.log('DEBUG PayrollProcessing: Payroll data:', payrollData);
@@ -757,8 +761,8 @@ const PayrollProcessing = () => {
               <div className="flex items-center">
                 <Users className="w-8 h-8 text-blue-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-blue-600">Total Employees</p>
-                  <p className="text-2xl font-bold text-blue-900">{allEmployees.length}</p>
+                  <p className="text-sm text-blue-600">Active Employees</p>
+                  <p className="text-2xl font-bold text-blue-900">{activeEmployeesCount}</p>
                 </div>
               </div>
             </CardContent>
