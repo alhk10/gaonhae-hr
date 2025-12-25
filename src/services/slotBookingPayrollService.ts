@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { calculateSlotPay, calculateActualHoursWorked, getExpectedSlotDuration } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
 import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -103,12 +103,12 @@ export const getSlotBookingPayForPeriod = async (
       }
 
       // Calculate actual hours worked from attendance times
-      const actualHoursWorked = calculateActualHoursWorked(
+      const actualHoursWorked = await calculateActualHoursWorkedAsync(
         booking.date,
         attendance.checkIn,
         attendance.checkOut
       );
-      const expectedHours = getExpectedSlotDuration(booking.date);
+      const expectedHours = await getExpectedSlotDurationAsync(booking.date);
 
       console.log(`[SlotBookingPayroll] ${booking.date}: Check-in ${attendance.checkIn || 'N/A'}, Check-out ${attendance.checkOut || 'N/A'}, Hours: ${actualHoursWorked.toFixed(2)}/${expectedHours.toFixed(2)}`);
 

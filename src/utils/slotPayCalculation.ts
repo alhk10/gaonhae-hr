@@ -363,21 +363,53 @@ export const calculateActualHoursWorked = (
   }
 
   try {
-    // Parse times (format: "HH:MM:SS" or "HH:MM")
-    const parseTime = (timeStr: string): number => {
-      const parts = timeStr.split(':');
-      const hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      return hours + minutes / 60;
-    };
-
-    const checkInHours = parseTime(checkIn);
-    const checkOutHours = parseTime(checkOut);
+    const checkInHours = parseTimeToHours(checkIn);
+    const checkOutHours = parseTimeToHours(checkOut);
     
     // Calculate duration
     let duration = checkOutHours - checkInHours;
     
     // Handle overnight shifts (shouldn't happen but just in case)
+    if (duration < 0) {
+      duration += 24;
+    }
+
+    // Cap at expected duration (no overtime pay beyond slot duration)
+    return Math.min(duration, expectedDuration);
+  } catch (error) {
+    console.error('[SlotPayCalc] Error parsing attendance times:', error);
+    return expectedDuration;
+  }
+};
+
+/**
+ * Calculate actual hours worked asynchronously (ensures cache is populated)
+ */
+export const calculateActualHoursWorkedAsync = async (
+  dateString: string,
+  checkIn: string | null,
+  checkOut: string | null
+): Promise<number> => {
+  const expectedDuration = await getExpectedSlotDurationAsync(dateString);
+  
+  // If no check-in, assume full day (attendance not recorded)
+  if (!checkIn) {
+    return expectedDuration;
+  }
+  
+  // If check-in exists but no check-out, assume only 1 hour of work
+  if (!checkOut) {
+    return 1;
+  }
+
+  try {
+    const checkInHours = parseTimeToHours(checkIn);
+    const checkOutHours = parseTimeToHours(checkOut);
+    
+    // Calculate duration
+    let duration = checkOutHours - checkInHours;
+    
+    // Handle overnight shifts
     if (duration < 0) {
       duration += 24;
     }
@@ -497,7 +529,7 @@ export const calculateSlotPay = async (
   console.log(`[SlotPayCalc]   Qual bonus total: +$${qualBonus}`);
   
   // Apply proration if actual hours worked is provided
-  const expectedDuration = getExpectedSlotDuration(dateString);
+  const expectedDuration = await getExpectedSlotDurationAsync(dateString);
   const hoursWorked = actualHoursWorked ?? expectedDuration;
   
   if (hoursWorked < expectedDuration) {
@@ -531,7 +563,7 @@ export const getPayBreakdown = async (
   const breakdown: { item: string; amount: number }[] = [];
 
   // Calculate proration factor
-  const expectedDuration = getExpectedSlotDuration(dateString);
+  const expectedDuration = await getExpectedSlotDurationAsync(dateString);
   const hoursWorked = actualHoursWorked ?? expectedDuration;
   const prorationFactor = hoursWorked / expectedDuration;
   const isProrated = hoursWorked < expectedDuration;
