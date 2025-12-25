@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { Calendar, Users } from 'lucide-react';
-import { getCachedCasualEmployeesForBooking } from '@/services/employeeOptimizationService';
+import { Calendar, Users, Search } from 'lucide-react';
+import { getEmployees } from '@/services/employeeService';
 import { addLeaveRequest } from '@/services/leaveService';
 import { format } from 'date-fns';
 
@@ -34,23 +35,33 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
   const [leaveType, setLeaveType] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       loadEmployees();
+      setSearchTerm('');
     }
   }, [isOpen]);
 
   const loadEmployees = async () => {
     try {
       setLoadingEmployees(true);
-      console.log('BulkLeaveDialog: Loading employees...');
+      console.log('BulkLeaveDialog: Loading full-time employees...');
       
-      // Use the optimized employee service for consistent performance
-      const employeeData = await getCachedCasualEmployeesForBooking();
-      console.log('BulkLeaveDialog: Loaded employees:', employeeData);
+      // Fetch all employees and filter for full-time only (casual employees don't have leave benefits)
+      const allEmployees = await getEmployees();
+      const fullTimeEmployees = allEmployees
+        .filter(emp => emp.type === 'Full-Time' && !emp.resignDate)
+        .map(emp => ({
+          id: emp.id,
+          name: emp.name,
+          type: emp.type
+        }));
       
-      setEmployees(employeeData);
+      console.log('BulkLeaveDialog: Loaded full-time employees:', fullTimeEmployees.length);
+      
+      setEmployees(fullTimeEmployees);
     } catch (error) {
       console.error('BulkLeaveDialog: Error loading employees:', error);
       toast.error('Error loading employees. Please try again.');
@@ -58,6 +69,15 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
       setLoadingEmployees(false);
     }
   };
+
+  // Filter employees based on search term
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm.trim()) return employees;
+    const lowerSearch = searchTerm.toLowerCase();
+    return employees.filter(emp => 
+      emp.name.toLowerCase().includes(lowerSearch)
+    );
+  }, [employees, searchTerm]);
 
   const handleEmployeeToggle = (employeeId: string) => {
     setSelectedEmployees(prev => 
@@ -68,10 +88,14 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedEmployees.length === employees.length) {
-      setSelectedEmployees([]);
+    // Select/deselect only filtered employees
+    const filteredIds = filteredEmployees.map(emp => emp.id);
+    const allFilteredSelected = filteredIds.every(id => selectedEmployees.includes(id));
+    
+    if (allFilteredSelected) {
+      setSelectedEmployees(prev => prev.filter(id => !filteredIds.includes(id)));
     } else {
-      setSelectedEmployees(employees.map(emp => emp.id));
+      setSelectedEmployees(prev => [...new Set([...prev, ...filteredIds])]);
     }
   };
 
@@ -113,6 +137,9 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
     }
   };
 
+  const filteredSelectedCount = filteredEmployees.filter(emp => selectedEmployees.includes(emp.id)).length;
+  const allFilteredSelected = filteredEmployees.length > 0 && filteredEmployees.every(emp => selectedEmployees.includes(emp.id));
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
@@ -122,7 +149,7 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
             <span>Add Bulk Leave</span>
           </DialogTitle>
           <DialogDescription>
-            Add leave for multiple employees on {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'selected date'}
+            Add leave for multiple full-time employees on {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'selected date'}
           </DialogDescription>
         </DialogHeader>
 
@@ -144,26 +171,37 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Employees</label>
+              <label className="text-sm font-medium">Full-Time Employees</label>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
                 className="text-xs"
-                disabled={loadingEmployees}
+                disabled={loadingEmployees || filteredEmployees.length === 0}
               >
-                {selectedEmployees.length === employees.length ? 'Deselect All' : 'Select All'}
+                {allFilteredSelected ? 'Deselect All' : 'Select All'}
               </Button>
+            </div>
+            
+            {/* Search field */}
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employee..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
             </div>
             
             <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
               {loadingEmployees ? (
                 <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-xs text-gray-600 mt-1">Loading employees...</p>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-xs text-muted-foreground mt-1">Loading employees...</p>
                 </div>
-              ) : employees.length > 0 ? (
-                employees.map((employee) => (
+              ) : filteredEmployees.length > 0 ? (
+                filteredEmployees.map((employee) => (
                   <div key={employee.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={employee.id}
@@ -179,14 +217,16 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
                   </div>
                 ))
               ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <Users className="w-6 h-6 mx-auto mb-1 text-gray-300" />
-                  <p className="text-xs">No employees found</p>
+                <div className="text-center py-4 text-muted-foreground">
+                  <Users className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p className="text-xs">
+                    {searchTerm ? 'No matching employees found' : 'No full-time employees found'}
+                  </p>
                 </div>
               )}
             </div>
             
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               {selectedEmployees.length} employee(s) selected
             </p>
           </div>
