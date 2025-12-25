@@ -9,7 +9,10 @@ import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, Search } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { addLeaveRequest } from '@/services/leaveService';
-import { format } from 'date-fns';
+import { format, eachDayOfInterval, differenceInCalendarDays } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface BulkLeaveDialogProps {
   isOpen: boolean;
@@ -36,13 +39,17 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fromDate, setFromDate] = useState<Date | undefined>(selectedDate || undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(selectedDate || undefined);
 
   useEffect(() => {
     if (isOpen) {
       loadEmployees();
       setSearchTerm('');
+      setFromDate(selectedDate || new Date());
+      setToDate(selectedDate || new Date());
     }
-  }, [isOpen]);
+  }, [isOpen, selectedDate]);
 
   const loadEmployees = async () => {
     try {
@@ -99,15 +106,27 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
     }
   };
 
+  // Calculate number of days
+  const daysCount = useMemo(() => {
+    if (!fromDate || !toDate) return 0;
+    return differenceInCalendarDays(toDate, fromDate) + 1;
+  }, [fromDate, toDate]);
+
   const handleSubmit = async () => {
-    if (!selectedDate || selectedEmployees.length === 0 || !leaveType) {
-      toast.error('Please select date, employees, and leave type');
+    if (!fromDate || !toDate || selectedEmployees.length === 0 || !leaveType) {
+      toast.error('Please select date range, employees, and leave type');
+      return;
+    }
+
+    if (toDate < fromDate) {
+      toast.error('To Date cannot be before From Date');
       return;
     }
 
     setLoading(true);
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const startDateStr = format(fromDate, 'yyyy-MM-dd');
+      const endDateStr = format(toDate, 'yyyy-MM-dd');
       
       for (const employeeId of selectedEmployees) {
         const employee = employees.find(emp => emp.id === employeeId);
@@ -115,16 +134,16 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
           employeeId,
           employeeName: employee?.name || 'Unknown',
           type: leaveType,
-          startDate: dateStr,
-          endDate: dateStr,
-          days: 1,
+          startDate: startDateStr,
+          endDate: endDateStr,
+          days: daysCount,
           status: 'Approved',
           reason: 'Bulk leave entry',
-          appliedOn: dateStr
+          appliedOn: format(new Date(), 'yyyy-MM-dd')
         });
       }
 
-      toast.success(`Bulk leave added for ${selectedEmployees.length} employees`);
+      toast.success(`Bulk leave added for ${selectedEmployees.length} employees (${daysCount} day${daysCount > 1 ? 's' : ''})`);
       onSuccess();
       onClose();
       setSelectedEmployees([]);
@@ -149,15 +168,83 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
             <span>Add Bulk Leave</span>
           </DialogTitle>
           <DialogDescription>
-            Add leave for multiple full-time employees on {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'selected date'}
+            Add leave for multiple full-time employees
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Date Range Selection */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">From Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal mt-1",
+                      !fromDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {fromDate ? format(fromDate, "dd/MM/yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={(date) => {
+                      setFromDate(date);
+                      if (date && toDate && date > toDate) {
+                        setToDate(date);
+                      }
+                    }}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-sm font-medium">To Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal mt-1",
+                      !toDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "dd/MM/yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    disabled={(date) => fromDate ? date < fromDate : false}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          
+          {daysCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {daysCount} day{daysCount > 1 ? 's' : ''} selected
+            </p>
+          )}
+
           <div>
             <label className="text-sm font-medium">Leave Type</label>
             <Select value={leaveType} onValueChange={setLeaveType}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
@@ -234,7 +321,7 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
           <div className="flex space-x-2 pt-4">
             <Button
               onClick={handleSubmit}
-              disabled={loading || selectedEmployees.length === 0 || !leaveType}
+              disabled={loading || selectedEmployees.length === 0 || !leaveType || !fromDate || !toDate}
               className="flex-1"
             >
               <Users className="w-4 h-4 mr-2" />
