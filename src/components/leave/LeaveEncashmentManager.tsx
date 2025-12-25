@@ -52,7 +52,18 @@ const LeaveEncashmentManager = () => {
         getAllEncashmentRecords(selectedYear)
       ]);
       
-      setEmployeesWithUnusedLeave(unusedLeaveData);
+      // Filter unused leave data to exclude resigned employees
+      // The encashment records already filter via getAllEncashmentRecords
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: activeEmployeeIds } = await supabase
+        .from('employees')
+        .select('id')
+        .is('resign_date', null);
+      
+      const activeIds = new Set((activeEmployeeIds || []).map(e => e.id));
+      const filteredUnusedLeave = unusedLeaveData.filter(emp => activeIds.has(emp.employee_id));
+      
+      setEmployeesWithUnusedLeave(filteredUnusedLeave);
       setEncashmentRecords(recordsData);
     } catch (error) {
       console.error('Error loading encashment data:', error);

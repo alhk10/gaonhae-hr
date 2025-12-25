@@ -37,8 +37,20 @@ const EnhancedLeaveSummary = () => {
     try {
       setLoading(true);
       
-      // Load eligible employees and entitlements
-      const employees = await getEligibleEmployeesForLeave(selectedYear);
+      // Load eligible employees and entitlements (DB function already filters for active employees)
+      const allEmployees = await getEligibleEmployeesForLeave(selectedYear);
+      
+      // Additionally filter out any resigned employees on the client side
+      // This is a safety check in case the DB function doesn't account for resign_date
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: activeEmployeeIds } = await supabase
+        .from('employees')
+        .select('id')
+        .is('resign_date', null);
+      
+      const activeIds = new Set((activeEmployeeIds || []).map(e => e.id));
+      const employees = allEmployees.filter(emp => activeIds.has(emp.id));
+      
       setEligibleEmployees(employees);
 
       // Calculate entitlements for each employee
@@ -71,13 +83,16 @@ const EnhancedLeaveSummary = () => {
 
       setEntitlements(entitlementsMap);
 
-      // Load encashment data
+      // Load encashment data (filter for active employees only)
       const [unusedLeave, encashmentHistory] = await Promise.all([
         getEmployeesWithUnusedLeave(selectedYear),
         getAllEncashmentRecords(selectedYear)
       ]);
 
-      setUnusedLeaveData(unusedLeave);
+      // Filter unused leave to only active employees
+      const filteredUnusedLeave = unusedLeave.filter(emp => activeIds.has(emp.employee_id));
+      
+      setUnusedLeaveData(filteredUnusedLeave);
       setEncashmentRecords(encashmentHistory);
 
     } catch (error) {

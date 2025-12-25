@@ -54,26 +54,34 @@ const LeaveManagement = () => {
         getEmployees()
       ]);
 
-      // Map employee names to leave requests
-      const requestsWithEmployees = requestsData.map(request => ({
-        id: request.id,
-        employeeId: request.employeeId,
-        employeeName: employeesData.find(emp => emp.id === request.employeeId)?.name || 'Unknown Employee',
-        type: request.type,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        daysRequested: request.days,
-        reason: request.reason,
-        status: request.status,
-        appliedDate: request.appliedOn,
-        reviewedBy: request.approvedBy,
-        reviewedDate: request.approvedOn
-      }));
+      // Get active employees only (not resigned)
+      const activeEmployeeIds = new Set(
+        employeesData.filter(emp => !emp.resignDate).map(emp => emp.id)
+      );
+
+      // Map employee names to leave requests and filter out resigned employees
+      const requestsWithEmployees = requestsData
+        .filter(request => activeEmployeeIds.has(request.employeeId)) // Filter out resigned employees
+        .map(request => ({
+          id: request.id,
+          employeeId: request.employeeId,
+          employeeName: employeesData.find(emp => emp.id === request.employeeId)?.name || 'Unknown Employee',
+          type: request.type,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          daysRequested: request.days,
+          reason: request.reason,
+          status: request.status,
+          appliedDate: request.appliedOn,
+          reviewedBy: request.approvedBy,
+          reviewedDate: request.approvedOn
+        }));
 
       setLeaveRequests(requestsWithEmployees);
-      setEmployees(employeesData);
-      console.log('📋 Loaded leave requests:', requestsWithEmployees.length);
-      console.log('👥 Loaded employees:', employeesData.length);
+      // Store only active employees for UI filtering
+      setEmployees(employeesData.filter(emp => !emp.resignDate));
+      console.log('📋 Loaded leave requests (active employees only):', requestsWithEmployees.length);
+      console.log('👥 Loaded active employees:', employeesData.filter(emp => !emp.resignDate).length);
     } catch (error) {
       console.error('Error loading leave data:', error);
       toast.error('Failed to load leave data');

@@ -88,13 +88,38 @@ export const getDashboardStats = async () => {
   }
 };
 
-// Get recent activity from Supabase
+// Get recent activity from Supabase (only from active/non-resigned employees)
 export const getRecentActivity = async (limit: number = 3) => {
   logger.debug('Starting getRecentActivity', { limit });
   
   try {
     const timeoutDuration = DEFAULT_QUERY_TIMEOUT;
     
+    // First get active employee IDs (not resigned)
+    const activeEmployeesQuery = supabase
+      .from('employees')
+      .select('id, name')
+      .is('resign_date', null);
+
+    const { data: activeEmployees, error: empError } = await activeEmployeesQuery;
+    
+    if (empError) {
+      logger.error('Error fetching active employees', empError);
+      throw empError;
+    }
+
+    if (!activeEmployees || activeEmployees.length === 0) {
+      logger.debug('No active employees found');
+      return [];
+    }
+
+    const activeEmployeeIds = activeEmployees.map(emp => emp.id);
+    const employeeMap = new Map();
+    activeEmployees.forEach((emp: any) => {
+      employeeMap.set(emp.id, emp.name);
+    });
+    
+    // Get claims only from active employees
     const activityQuery = supabase
       .from('claims')
       .select(`
@@ -105,6 +130,7 @@ export const getRecentActivity = async (limit: number = 3) => {
         submitted_date,
         employee_id
       `)
+      .in('employee_id', activeEmployeeIds)
       .order('submitted_date', { ascending: false })
       .limit(limit);
 
@@ -122,37 +148,6 @@ export const getRecentActivity = async (limit: number = 3) => {
     if (!claims || claims.length === 0) {
       logger.debug('No recent activity found');
       return [];
-    }
-
-    // Get employee names for the claims
-    const employeeIds = claims.map((claim: any) => claim.employee_id).filter(Boolean);
-    
-    if (employeeIds.length === 0) {
-      logger.debug('No employee IDs found in claims');
-      return [];
-    }
-
-    const employeesQuery = supabase
-      .from('employees')
-      .select('id, name')
-      .in('id', employeeIds);
-
-    const employeesTimeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Employee lookup timeout')), timeoutDuration);
-    });
-
-    const { data: employees, error: employeesError } = await Promise.race([employeesQuery, employeesTimeoutPromise]) as any;
-
-    if (employeesError) {
-      logger.error('Error fetching employees for activity', employeesError);
-      // Continue without employee names
-    }
-
-    const employeeMap = new Map();
-    if (employees) {
-      employees.forEach((emp: any) => {
-        employeeMap.set(emp.id, emp.name);
-      });
     }
 
     const activity = claims.map((claim: any) => ({
