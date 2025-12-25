@@ -181,8 +181,13 @@ export function SlotBreakdownDialog({
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-900">Total Pay</span>
+                {milestoneBonus !== undefined && milestoneBonus > 0 && (
+                  <span className="text-xs text-green-700">(inc. bonus)</span>
+                )}
               </div>
-              <p className="text-2xl font-bold text-green-900">S${totalPay.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-green-900">
+                S${((totalPay) + (milestoneBonus || 0)).toFixed(2)}
+              </p>
             </div>
           </div>
 
