@@ -1,16 +1,20 @@
 import { EmployeeQualifications } from '@/types/employee';
 import { getActivePricingConfig } from '@/services/slotPricingService';
 
-// Slot duration constants (in hours)
+// Default slot duration constants (in hours) - used as fallback
 export const SLOT_DURATIONS = {
   weekday: 6.33, // Tue-Fri: 2:10pm to 8:30pm = 6 hours 20 minutes
   weekend: 7.83, // Sat-Sun: 9:10am to 5:00pm = 7 hours 50 minutes
 };
 
+// Default slot times - used as fallback
 export const SLOT_TIMES = {
   weekday: { start: '14:10', end: '20:30' }, // Tue-Fri
   weekend: { start: '09:10', end: '17:00' }, // Sat-Sun
 };
+
+// Day of week mapping (0 = Sunday, 1 = Monday, etc.)
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 // Cache for pricing config to avoid repeated database calls
 let pricingConfigCache: {
@@ -32,6 +36,15 @@ let pricingConfigCache: {
     slots5: number;
     slots10: number;
     slots16: number;
+  };
+  slotTimings: {
+    monday: { start: string; end: string };
+    tuesday: { start: string; end: string };
+    wednesday: { start: string; end: string };
+    thursday: { start: string; end: string };
+    friday: { start: string; end: string };
+    saturday: { start: string; end: string };
+    sunday: { start: string; end: string };
   };
   lastFetched: number;
 } | null = null;
@@ -86,6 +99,15 @@ const getPricingConfig = async () => {
           slots10: config.milestone_10_slots_bonus ?? 50,
           slots16: config.milestone_16_slots_bonus ?? 100,
         },
+        slotTimings: {
+          monday: { start: config.monday_start_time || '09:00', end: config.monday_end_time || '21:00' },
+          tuesday: { start: config.tuesday_start_time || '09:00', end: config.tuesday_end_time || '21:00' },
+          wednesday: { start: config.wednesday_start_time || '09:00', end: config.wednesday_end_time || '21:00' },
+          thursday: { start: config.thursday_start_time || '09:00', end: config.thursday_end_time || '21:00' },
+          friday: { start: config.friday_start_time || '09:00', end: config.friday_end_time || '21:00' },
+          saturday: { start: config.saturday_start_time || '09:00', end: config.saturday_end_time || '21:00' },
+          sunday: { start: config.sunday_start_time || '09:00', end: config.sunday_end_time || '21:00' },
+        },
         lastFetched: now,
       };
       console.log('[SlotPayCalc] ✓ Cached config:', {
@@ -111,6 +133,15 @@ const getPricingConfig = async () => {
           stfKyorugiReferee: 3,
         },
         milestoneBonuses: { slots5: 20, slots10: 50, slots16: 100 },
+        slotTimings: {
+          monday: { start: '09:00', end: '21:00' },
+          tuesday: { start: '09:00', end: '21:00' },
+          wednesday: { start: '09:00', end: '21:00' },
+          thursday: { start: '09:00', end: '21:00' },
+          friday: { start: '09:00', end: '21:00' },
+          saturday: { start: '09:00', end: '21:00' },
+          sunday: { start: '09:00', end: '21:00' },
+        },
         lastFetched: now,
       };
     }
@@ -133,6 +164,15 @@ const getPricingConfig = async () => {
         stfKyorugiReferee: 3,
       },
       milestoneBonuses: { slots5: 20, slots10: 50, slots16: 100 },
+      slotTimings: {
+        monday: { start: '09:00', end: '21:00' },
+        tuesday: { start: '09:00', end: '21:00' },
+        wednesday: { start: '09:00', end: '21:00' },
+        thursday: { start: '09:00', end: '21:00' },
+        friday: { start: '09:00', end: '21:00' },
+        saturday: { start: '09:00', end: '21:00' },
+        sunday: { start: '09:00', end: '21:00' },
+      },
       lastFetched: now,
     };
   }
@@ -217,10 +257,87 @@ const calculateYearsOfService = (joinDate: string | undefined, bookingDate: stri
 };
 
 /**
- * Calculate expected slot duration based on day of week
+ * Parse time string (HH:MM or HH:MM:SS) to decimal hours
+ */
+const parseTimeToHours = (timeStr: string): number => {
+  const parts = timeStr.split(':');
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  return hours + minutes / 60;
+};
+
+/**
+ * Get slot timing configuration for a specific date
+ * Returns start and end times from the database configuration
+ */
+export const getSlotTimingForDate = async (dateString: string): Promise<{ start: string; end: string }> => {
+  const config = await getPricingConfig();
+  const date = new Date(dateString);
+  const dayOfWeek = date.getDay();
+  const dayName = DAY_NAMES[dayOfWeek];
+  
+  return config.slotTimings[dayName];
+};
+
+/**
+ * Get slot timing synchronously from cache (for use where async isn't available)
+ * Falls back to default timings if cache is not populated
+ */
+export const getSlotTimingForDateSync = (dateString: string): { start: string; end: string } => {
+  const date = new Date(dateString);
+  const dayOfWeek = date.getDay();
+  const dayName = DAY_NAMES[dayOfWeek];
+  
+  if (pricingConfigCache) {
+    return pricingConfigCache.slotTimings[dayName];
+  }
+  
+  // Fallback to legacy timings if cache not populated
+  return isWeekend(dateString) ? SLOT_TIMES.weekend : SLOT_TIMES.weekday;
+};
+
+/**
+ * Calculate expected slot duration based on day of week using configured timings
  */
 export const getExpectedSlotDuration = (dateString: string): number => {
-  return isWeekend(dateString) ? SLOT_DURATIONS.weekend : SLOT_DURATIONS.weekday;
+  const timing = getSlotTimingForDateSync(dateString);
+  
+  try {
+    const startHours = parseTimeToHours(timing.start);
+    const endHours = parseTimeToHours(timing.end);
+    
+    let duration = endHours - startHours;
+    if (duration < 0) {
+      duration += 24; // Handle overnight slots
+    }
+    
+    return duration;
+  } catch (error) {
+    console.error('[SlotPayCalc] Error calculating duration from config, using legacy:', error);
+    return isWeekend(dateString) ? SLOT_DURATIONS.weekend : SLOT_DURATIONS.weekday;
+  }
+};
+
+/**
+ * Get expected slot duration asynchronously (ensures cache is populated)
+ */
+export const getExpectedSlotDurationAsync = async (dateString: string): Promise<number> => {
+  const timing = await getSlotTimingForDate(dateString);
+  
+  try {
+    const startHours = parseTimeToHours(timing.start);
+    const endHours = parseTimeToHours(timing.end);
+    
+    let duration = endHours - startHours;
+    if (duration < 0) {
+      duration += 24; // Handle overnight slots
+    }
+    
+    return duration;
+  } catch (error) {
+    console.error('[SlotPayCalc] Error calculating duration from config, using legacy:', error);
+    return isWeekend(dateString) ? SLOT_DURATIONS.weekend : SLOT_DURATIONS.weekday;
+  }
 };
 
 /**
