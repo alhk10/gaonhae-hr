@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Calendar, AlertTriangle, CheckCircle, Trash2, DollarSign, TrendingUp } from 'lucide-react';
+import { Users, Calendar, AlertTriangle, CheckCircle, Trash2, DollarSign, TrendingUp, Banknote } from 'lucide-react';
 import { 
   getEligibleEmployeesForLeave, 
   calculateEmployeeLeaveEntitlement,
@@ -18,6 +18,9 @@ import {
   getAllEncashmentRecords 
 } from '@/services/leaveEncashmentService';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+
+const WORK_DAYS_PER_YEAR = 261; // Standard work days in a year (52 weeks × 5 days, excluding weekends)
 
 const EnhancedLeaveSummary = () => {
   const { user, userrole } = useAuth();
@@ -28,6 +31,8 @@ const EnhancedLeaveSummary = () => {
   const [loading, setLoading] = useState(true);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [encashingEmployeeId, setEncashingEmployeeId] = useState<string | null>(null);
+  const [employeeSalaries, setEmployeeSalaries] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadAllData();
@@ -40,15 +45,19 @@ const EnhancedLeaveSummary = () => {
       // Load eligible employees and entitlements (DB function already filters for active employees)
       const allEmployees = await getEligibleEmployeesForLeave(selectedYear);
       
-      // Additionally filter out any resigned employees on the client side
-      // This is a safety check in case the DB function doesn't account for resign_date
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data: activeEmployeeIds } = await supabase
+      // Additionally filter out any resigned employees on the client side and get salaries
+      const { data: activeEmployeeData } = await supabase
         .from('employees')
-        .select('id')
+        .select('id, base_salary')
         .is('resign_date', null);
       
-      const activeIds = new Set((activeEmployeeIds || []).map(e => e.id));
+      const activeIds = new Set((activeEmployeeData || []).map(e => e.id));
+      const salaryMap: Record<string, number> = {};
+      (activeEmployeeData || []).forEach(e => {
+        salaryMap[e.id] = Number(e.base_salary) || 0;
+      });
+      setEmployeeSalaries(salaryMap);
+      
       const employees = allEmployees.filter(emp => activeIds.has(emp.id));
       
       setEligibleEmployees(employees);
@@ -104,6 +113,63 @@ const EnhancedLeaveSummary = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateEncashmentAmount = (unusedDays: number, annualSalary: number): number => {
+    // Formula: (unused leave days / work days in year) × annual salary
+    return (unusedDays / WORK_DAYS_PER_YEAR) * annualSalary;
+  };
+
+  const handleEncashLeave = async (employeeId: string, employeeName: string, unusedDays: number) => {
+    const annualSalary = employeeSalaries[employeeId] || 0;
+    
+    if (annualSalary <= 0) {
+      toast({
+        title: "Error",
+        description: "Employee has no base salary configured. Cannot calculate encashment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const encashmentAmount = calculateEncashmentAmount(unusedDays, annualSalary * 12); // Convert monthly to annual
+    
+    if (!confirm(`Add leave encashment allowance of $${encashmentAmount.toFixed(2)} for ${employeeName}?\n\nCalculation: ${unusedDays} days ÷ ${WORK_DAYS_PER_YEAR} work days × $${(annualSalary * 12).toFixed(2)} annual salary`)) {
+      return;
+    }
+
+    try {
+      setEncashingEmployeeId(employeeId);
+      
+      // Add the encashment as an allowance
+      const { error } = await supabase
+        .from('allowances')
+        .insert({
+          employee_id: employeeId,
+          name: `Leave Encashment (${selectedYear})`,
+          amount: encashmentAmount,
+          type: 'Adhoc'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Encashment Added",
+        description: `Leave encashment allowance of $${encashmentAmount.toFixed(2)} added for ${employeeName}`,
+      });
+
+      // Reload data to refresh the view
+      await loadAllData();
+    } catch (error) {
+      console.error('Error adding encashment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add leave encashment allowance",
+        variant: "destructive",
+      });
+    } finally {
+      setEncashingEmployeeId(null);
     }
   };
 
@@ -393,7 +459,7 @@ const EnhancedLeaveSummary = () => {
                           </div>
                         </div>
                         
-                        <div className="flex space-x-4 text-sm">
+                        <div className="flex items-center space-x-4 text-sm">
                           <div className="text-center">
                             <p className="text-xs text-gray-500">Total Entitlement</p>
                             <p className="font-medium">{employee.total_entitlement}</p>
@@ -406,6 +472,28 @@ const EnhancedLeaveSummary = () => {
                             <p className="text-xs text-gray-500">Unused</p>
                             <p className="font-bold text-orange-600">{employee.unused_leave_days}</p>
                           </div>
+                          {employee.unused_leave_days > 0 && userrole === 'superadmin' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-600 hover:bg-emerald-50"
+                              onClick={() => handleEncashLeave(
+                                employee.employee_id, 
+                                employee.employee_name, 
+                                employee.unused_leave_days
+                              )}
+                              disabled={encashingEmployeeId === employee.employee_id}
+                            >
+                              {encashingEmployeeId === employee.employee_id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600" />
+                              ) : (
+                                <>
+                                  <Banknote className="w-4 h-4 mr-1" />
+                                  Encash
+                                </>
+                              )}
+                            </Button>
+                          )}
                           {encashmentRecord && (
                             <>
                               <div className="text-center">
