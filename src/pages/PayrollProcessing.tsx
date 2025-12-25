@@ -1284,14 +1284,39 @@ const PayrollProcessing = () => {
       .map(emp => {
         const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
         const approvedClaims = getApprovedClaimsTotal(emp.employeeId);
-        const totalPay = emp.totalPay || emp.netPay || 0;
+        
+        // Get gross pay (total salary before CPF deduction)
+        const grossPay = emp.grossPay || emp.totalPay || emp.netPay || 0;
+        
+        // Get deductions for this employee
+        const empDeductions = employeeDeductions[emp.employeeId] || [];
+        const totalDeductions = empDeductions.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+        
+        // Calculate Employee CPF for Singapore Citizens/Citizens
+        let employeeCPF = emp.cpfEmployee || emp.employeeCPF || 0;
+        
+        // If CPF is 0 but employee should have CPF, calculate it
+        if (employeeCPF === 0 && grossPay > 0) {
+          const residencyStatus = employeeInfo?.residencyStatus || '';
+          if (residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen') {
+            const cpfSalary = Math.min(grossPay, 6800);
+            if (cpfSalary > 750) {
+              employeeCPF = Math.round(cpfSalary * 0.20 * 100) / 100;
+            } else if (cpfSalary > 500) {
+              employeeCPF = Math.round((cpfSalary - 500) * 0.60 * 100) / 100;
+            }
+          }
+        }
+        
+        // Net Pay = Gross Pay - Employee CPF - Deductions
+        const netPay = grossPay - employeeCPF - totalDeductions;
         
         return {
           id: emp.employeeId,
           employeeId: emp.employeeId,
           name: employeeInfo?.displayName || employeeInfo?.name || emp.name,
-          totalPay: totalPay,
-          netPay: totalPay + approvedClaims,
+          totalPay: grossPay, // Total Salary = Gross Pay
+          netPay: netPay,      // Net Pay = Gross Pay - CPF - Deductions
           bankName: employeeInfo?.bankName || '',
           bankAccount: employeeInfo?.bankAccount || '',
           slotBookingMetadata: emp.slotBookingMetadata
