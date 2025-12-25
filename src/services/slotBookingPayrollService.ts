@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync, calculateMilestoneBonus, getMilestoneBonusConfig } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
 import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -8,6 +8,8 @@ interface SlotBookingPayData {
   totalSlots: number;
   totalPay: number;
   fullSlotRate?: number;
+  milestoneBonus?: number;
+  milestoneBonusThreshold?: number; // 5, 10, or 16
   breakdown: Array<{
     date: string;
     branchName: string;
@@ -152,12 +154,25 @@ export const getSlotBookingPayForPeriod = async (
       employeeFullSlotRate = breakdown[0].fullSlotRate;
     }
 
-    console.log('[SlotBookingPayroll] Total slots with attendance:', totalSlots, 'Total pay:', totalPay);
+    // Calculate milestone bonus
+    const milestoneBonus = await calculateMilestoneBonus(totalSlots);
+    let milestoneBonusThreshold: number | undefined;
+    if (totalSlots >= 16) {
+      milestoneBonusThreshold = 16;
+    } else if (totalSlots >= 10) {
+      milestoneBonusThreshold = 10;
+    } else if (totalSlots >= 5) {
+      milestoneBonusThreshold = 5;
+    }
+
+    console.log('[SlotBookingPayroll] Total slots with attendance:', totalSlots, 'Total pay:', totalPay, 'Milestone bonus:', milestoneBonus);
 
     return {
       totalSlots,
       totalPay,
       fullSlotRate: employeeFullSlotRate,
+      milestoneBonus: milestoneBonus > 0 ? milestoneBonus : undefined,
+      milestoneBonusThreshold,
       breakdown
     };
   } catch (error) {

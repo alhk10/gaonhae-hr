@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Clock, DollarSign, Pencil, Check, X } from "lucide-react";
+import { Calendar, Clock, DollarSign, Pencil, Check, X, Award } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { updateAttendanceRecord } from "@/services/attendanceService";
@@ -80,6 +80,8 @@ interface SlotBreakdownDialogProps {
   totalPay: number;
   totalSlots: number;
   fullSlotRate?: number;
+  milestoneBonus?: number;
+  milestoneBonusThreshold?: number;
   onUpdate?: () => void;
 }
 
@@ -91,6 +93,8 @@ export function SlotBreakdownDialog({
   totalPay,
   totalSlots,
   fullSlotRate,
+  milestoneBonus,
+  milestoneBonusThreshold,
   onUpdate,
 }: SlotBreakdownDialogProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -181,6 +185,28 @@ export function SlotBreakdownDialog({
               <p className="text-2xl font-bold text-green-900">S${totalPay.toFixed(2)}</p>
             </div>
           </div>
+
+          {/* Milestone Bonus Display */}
+          {milestoneBonus !== undefined && milestoneBonus > 0 && (
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-600" />
+                  <div>
+                    <span className="text-sm font-medium text-amber-900">
+                      Milestone Bonus Earned
+                    </span>
+                    <p className="text-xs text-amber-700">
+                      Achieved {milestoneBonusThreshold}+ slots milestone
+                    </p>
+                  </div>
+                </div>
+                <Badge className="bg-amber-500 text-white text-lg px-3 py-1">
+                  +S${milestoneBonus.toFixed(2)}
+                </Badge>
+              </div>
+            </div>
+          )}
 
           {/* Breakdown Table */}
           {breakdown.length > 0 ? (
