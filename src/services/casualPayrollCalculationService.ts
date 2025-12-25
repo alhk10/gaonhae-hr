@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
-import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync, calculateMilestoneBonus } from '@/utils/slotPayCalculation';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { isNovember2025OrLater, getDateRangeForPeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -19,6 +19,7 @@ export interface CasualPayrollResult {
   employerCPF: number;
   slotBookingPay: number;
   slotCount: number;
+  milestoneBonus: number;
   calculationMethod: 'dynamic_pricing' | 'legacy_rates';
   breakdown: Array<{
     date: string;
@@ -60,6 +61,7 @@ export async function calculateCasualEmployeePayroll(
     employerCPF: 0,
     slotBookingPay: 0,
     slotCount: 0,
+    milestoneBonus: 0,
     calculationMethod: 'legacy_rates',
     breakdown: [],
     warnings: [],
@@ -254,8 +256,16 @@ export async function calculateCasualEmployeePayroll(
     result.slotBookingPay = totalSlotPay;
     result.slotCount = totalSlots;
     
-    // Step 6: Determine base pay - use slot pay if available, otherwise fall back to monthly salary
-    let basePay = totalSlotPay;
+    // Step 6: Calculate milestone bonus based on total slots
+    const milestoneBonus = await calculateMilestoneBonus(totalSlots);
+    result.milestoneBonus = milestoneBonus;
+    
+    if (milestoneBonus > 0) {
+      logger.info(`Milestone bonus: $${milestoneBonus.toFixed(2)} for ${totalSlots} slots`);
+    }
+    
+    // Step 7: Determine base pay - use slot pay + milestone bonus if available
+    let basePay = totalSlotPay + milestoneBonus;
     
     // If no attended slots but employee has monthly salary, use monthly salary as fallback
     if (totalSlots === 0 && employee.paymentType === 'Monthly' && employee.baseSalary) {
@@ -272,7 +282,7 @@ export async function calculateCasualEmployeePayroll(
     }
     
     // Calculate final payroll with CPF
-    // Gross Pay = Base Pay + Allowances + Claims
+    // Gross Pay = Base Pay + Allowances + Claims (milestone bonus already in basePay)
     const grossPay = basePay + totalAllowances + approvedClaims;
     const age = calculateAge(employee.dateOfBirth);
     const cpf = calculateCPF(grossPay, employee.residencyStatus, age);
@@ -286,7 +296,7 @@ export async function calculateCasualEmployeePayroll(
     result.employerCPF = cpf.employerCPF;
     result.totalPay = netPay;
     
-    logger.info(`Dynamic pricing complete: Gross=$${grossPay.toFixed(2)}, CPF=$${cpf.employeeCPF.toFixed(2)}, Deductions=$${totalDeductions.toFixed(2)}, Net=$${netPay.toFixed(2)}`);
+    logger.info(`Dynamic pricing complete: Gross=$${grossPay.toFixed(2)} (inc. milestone $${milestoneBonus.toFixed(2)}), CPF=$${cpf.employeeCPF.toFixed(2)}, Deductions=$${totalDeductions.toFixed(2)}, Net=$${netPay.toFixed(2)}`);
     
   } catch (error) {
     logger.error('Error in dynamic pricing calculation:', error);
