@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile } from '@/types/employee';
-import { calculateSlotPay, calculateActualHoursWorked, getExpectedSlotDuration } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorked, getExpectedSlotDurationAsync } from '@/utils/slotPayCalculation';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { isNovember2025OrLater, getDateRangeForPeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -224,7 +224,7 @@ export async function calculateCasualEmployeePayroll(
         attendance.checkIn,
         attendance.checkOut
       );
-      const expectedHours = getExpectedSlotDuration(booking.date);
+      const expectedHours = await getExpectedSlotDurationAsync(booking.date);
       
       // Calculate dynamic pricing for this slot with proration
       const pay = await calculateSlotPay(
