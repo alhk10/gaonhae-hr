@@ -28,6 +28,11 @@ let pricingConfigCache: {
     stfPoomsaeReferee: number;
     stfKyorugiReferee: number;
   };
+  milestoneBonuses: {
+    slots5: number;
+    slots10: number;
+    slots16: number;
+  };
   lastFetched: number;
 } | null = null;
 
@@ -76,6 +81,11 @@ const getPricingConfig = async () => {
           stfPoomsaeReferee: config.stf_poomsae_referee_bonus,
           stfKyorugiReferee: config.stf_kyorugi_referee_bonus,
         },
+        milestoneBonuses: {
+          slots5: config.milestone_5_slots_bonus ?? 20,
+          slots10: config.milestone_10_slots_bonus ?? 50,
+          slots16: config.milestone_16_slots_bonus ?? 100,
+        },
         lastFetched: now,
       };
       console.log('[SlotPayCalc] ✓ Cached config:', {
@@ -100,6 +110,7 @@ const getPricingConfig = async () => {
           stfPoomsaeReferee: 3,
           stfKyorugiReferee: 3,
         },
+        milestoneBonuses: { slots5: 20, slots10: 50, slots16: 100 },
         lastFetched: now,
       };
     }
@@ -121,6 +132,7 @@ const getPricingConfig = async () => {
         stfPoomsaeReferee: 3,
         stfKyorugiReferee: 3,
       },
+      milestoneBonuses: { slots5: 20, slots10: 50, slots16: 100 },
       lastFetched: now,
     };
   }
@@ -133,6 +145,36 @@ const getPricingConfig = async () => {
  */
 export const clearPricingCache = () => {
   pricingConfigCache = null;
+};
+
+/**
+ * Get milestone bonus configuration for display/calculation
+ */
+export const getMilestoneBonusConfig = async (): Promise<{
+  slots5: number;
+  slots10: number;
+  slots16: number;
+}> => {
+  const config = await getPricingConfig();
+  return config.milestoneBonuses;
+};
+
+/**
+ * Calculate milestone bonus based on number of slots in a month
+ * Returns the bonus amount (only the highest achieved milestone)
+ */
+export const calculateMilestoneBonus = async (slotCount: number): Promise<number> => {
+  const config = await getPricingConfig();
+  
+  if (slotCount >= 16) {
+    return config.milestoneBonuses.slots16;
+  } else if (slotCount >= 10) {
+    return config.milestoneBonuses.slots10;
+  } else if (slotCount >= 5) {
+    return config.milestoneBonuses.slots5;
+  }
+  
+  return 0;
 };
 
 /**

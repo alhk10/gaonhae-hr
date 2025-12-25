@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Award, GraduationCap } from 'lucide-react';
+import { DollarSign, Award, GraduationCap, Trophy } from 'lucide-react';
 import { getActivePricingConfig, SlotPricingConfig } from '@/services/slotPricingService';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -106,6 +106,58 @@ const PricingSettingsTab: React.FC<PricingSettingsTabProps> = ({ onConfigChange 
               <p className="text-xs text-muted-foreground">
                 Additional payment per day for each year worked (default: $3)
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Monthly Milestone Bonuses */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5" />
+            <CardTitle>Monthly Milestone Bonuses</CardTitle>
+          </div>
+          <CardDescription>
+            One-time bonus paid per month when employee reaches slot milestones
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="milestone_5">5 Slots Bonus ($)</Label>
+              <Input
+                id="milestone_5"
+                type="number"
+                step="0.01"
+                value={config.milestone_5_slots_bonus}
+                onChange={(e) => handleChange('milestone_5_slots_bonus', e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestone_10">10 Slots Bonus ($)</Label>
+              <Input
+                id="milestone_10"
+                type="number"
+                step="0.01"
+                value={config.milestone_10_slots_bonus}
+                onChange={(e) => handleChange('milestone_10_slots_bonus', e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestone_16">16 Slots Bonus ($)</Label>
+              <Input
+                id="milestone_16"
+                type="number"
+                step="0.01"
+                value={config.milestone_16_slots_bonus}
+                onChange={(e) => handleChange('milestone_16_slots_bonus', e.target.value)}
+                className="font-mono"
+              />
             </div>
           </div>
         </CardContent>
