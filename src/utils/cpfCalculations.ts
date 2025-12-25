@@ -25,7 +25,8 @@ export const getCPFRates = (residencyStatus: string, age: number = 30): CPFRates
   }
 
   // Age-based rates for Singapore Citizens and PR Year 2 onwards (2025 rates)
-  if (residencyStatus === 'Singapore Citizen' || residencyStatus === 'Permanent Resident Year 2') {
+  // Also handle 'Citizen' as alias for 'Singapore Citizen'
+  if (residencyStatus === 'Singapore Citizen' || residencyStatus === 'Citizen' || residencyStatus === 'Permanent Resident Year 2') {
     // Age 55 and below: Full rates
     if (age <= 55) {
       return {
