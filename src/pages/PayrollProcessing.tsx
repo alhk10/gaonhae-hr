@@ -1031,14 +1031,22 @@ const PayrollProcessing = () => {
                         // The calculation was already done correctly by calculateCasualEmployeePayroll
                         const netPay = employee.netPay || employee.totalPay || 0;
                         const grossPay = employee.grossPay || 0;
-                        const employeeCPF = employee.cpfEmployee || employee.employeeCPF || 0;
                         
-                        console.log(`Payroll Display - Employee: ${employee.name}`);
-                        console.log(`  - Calculation Method: ${employee.slotBookingMetadata?.calculationMethod || 'unknown'}`);
-                        console.log(`  - Slot Booking Pay: $${employee.slotBookingPay || 0}`);
-                        console.log(`  - Total Slots: ${employee.slotBookingMetadata?.totalSlots || 0}`);
-                        console.log(`  - Gross Pay: $${grossPay}`);
-                        console.log(`  - Net Pay: $${netPay}`);
+                        // Get CPF from payroll data - if missing but we have gross pay, derive from formula
+                        // CPF for Singapore Citizens = 20% of gross pay (capped at $6800)
+                        let employeeCPF = employee.cpfEmployee || employee.employeeCPF || 0;
+                        
+                        // Fallback: If CPF is 0 but gross pay exists and net pay is less than gross pay,
+                        // the difference is likely CPF + deductions. Derive CPF from gross pay.
+                        if (employeeCPF === 0 && grossPay > 0 && grossPay > netPay) {
+                          // Standard CPF rate for Singapore Citizens under 55 is 20%
+                          const cpfSalary = Math.min(grossPay, 6800);
+                          if (cpfSalary > 750) {
+                            employeeCPF = Math.round(cpfSalary * 0.20 * 100) / 100;
+                          } else if (cpfSalary > 500) {
+                            employeeCPF = Math.round((cpfSalary - 500) * 0.60 * 100) / 100;
+                          }
+                        }
                         
                         return (
                           <TableRow key={employee.id} className="hover:bg-gray-50">
