@@ -17,6 +17,9 @@ export interface SlotPricingConfig {
   sg_coach_level2_bonus: number;
   stf_poomsae_referee_bonus: number;
   stf_kyorugi_referee_bonus: number;
+  milestone_5_slots_bonus: number;
+  milestone_10_slots_bonus: number;
+  milestone_16_slots_bonus: number;
   is_active: boolean;
   effective_from: string;
   created_at: string;

@@ -1981,6 +1981,9 @@ export type Database = {
           effective_from: string | null
           id: string
           is_active: boolean | null
+          milestone_10_slots_bonus: number | null
+          milestone_16_slots_bonus: number | null
+          milestone_5_slots_bonus: number | null
           sg_coach_level1_bonus: number
           sg_coach_level2_bonus: number
           stf_coach_induction_bonus: number
@@ -2004,6 +2007,9 @@ export type Database = {
           effective_from?: string | null
           id?: string
           is_active?: boolean | null
+          milestone_10_slots_bonus?: number | null
+          milestone_16_slots_bonus?: number | null
+          milestone_5_slots_bonus?: number | null
           sg_coach_level1_bonus?: number
           sg_coach_level2_bonus?: number
           stf_coach_induction_bonus?: number
@@ -2027,6 +2033,9 @@ export type Database = {
           effective_from?: string | null
           id?: string
           is_active?: boolean | null
+          milestone_10_slots_bonus?: number | null
+          milestone_16_slots_bonus?: number | null
+          milestone_5_slots_bonus?: number | null
           sg_coach_level1_bonus?: number
           sg_coach_level2_bonus?: number
           stf_coach_induction_bonus?: number
