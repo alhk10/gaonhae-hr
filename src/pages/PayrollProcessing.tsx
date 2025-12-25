@@ -1014,6 +1014,7 @@ const PayrollProcessing = () => {
                         <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
                         <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
                         <TableHead className="font-semibold w-[80px]">Claims</TableHead>
+                        <TableHead className="font-semibold w-[100px]">Employee CPF</TableHead>
                         <TableHead className="font-semibold text-right w-[120px]">Net Pay</TableHead>
                         <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
                       </TableRow>
@@ -1112,6 +1113,13 @@ const PayrollProcessing = () => {
                               <div className="text-center">
                                 <div className="bg-blue-50 px-2 py-1 rounded text-sm">
                                   <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-center">
+                                <div className="bg-purple-50 px-2 py-1 rounded text-sm">
+                                  <span className="font-medium text-purple-900">S${employeeCPF.toFixed(2)}</span>
                                 </div>
                               </div>
                             </TableCell>
