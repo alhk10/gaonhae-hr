@@ -76,21 +76,35 @@ const SubmitPartnersClaim = () => {
         setIsLoading(true);
         setEmployeeLoadError(null);
         
-        // Load branches
-        const { data: branchData, error: branchError } = await supabase
-          .from('branches')
-          .select('id, name')
-          .order('name');
-        
-        if (!branchError && branchData) {
-          setBranches(branchData);
-        }
-        
         const employees = await getEmployees();
         const employee = employees.find(emp => emp.email === user.email);
         
         if (employee) {
           setCurrentEmployee(employee);
+          
+          // Load only branches tagged to this partner via partner_branch_shares
+          const { data: sharesData, error: sharesError } = await supabase
+            .from('partner_branch_shares')
+            .select('branch_id')
+            .eq('employee_id', employee.id)
+            .is('effective_to', null);
+          
+          if (!sharesError && sharesData && sharesData.length > 0) {
+            const taggedBranchIds = sharesData.map(s => s.branch_id);
+            
+            const { data: branchData, error: branchError } = await supabase
+              .from('branches')
+              .select('id, name')
+              .in('id', taggedBranchIds)
+              .order('name');
+            
+            if (!branchError && branchData) {
+              setBranches(branchData);
+            }
+          } else {
+            // No tagged branches
+            setBranches([]);
+          }
           
           // Load partner claims (using claims table with partner-specific types)
           const { data: claimsData, error } = await supabase
