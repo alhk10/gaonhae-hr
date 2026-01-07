@@ -146,11 +146,19 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       deductions: employeeProfile.deductions || [],
     } as FullTimeEmployee;
 
-    setPayrollState(prevState => ({
-      ...prevState,
-      fullTimeEmployees: [...prevState.fullTimeEmployees, newEmployee],
-      lastUpdated: new Date(),
-    }));
+    setPayrollState(prevState => {
+      // De-duplicate: check if employee already exists
+      const alreadyExists = prevState.fullTimeEmployees.some(emp => emp.employeeId === newEmployee.employeeId);
+      if (alreadyExists) {
+        console.log(`  ⚠ Full-time employee ${newEmployee.name} already in payroll, skipping`);
+        return prevState;
+      }
+      return {
+        ...prevState,
+        fullTimeEmployees: [...prevState.fullTimeEmployees, newEmployee],
+        lastUpdated: new Date(),
+      };
+    });
   }, [payrollState.availableEmployees]);
 
   const updateFullTimeEmployee = useCallback((id: string, updates: Partial<Omit<FullTimeEmployee, 'id' | 'netPay' | 'grossPay' | 'cpfEmployee' | 'cpfEmployer'>>) => {
@@ -373,11 +381,19 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log('     - slotBookingPay:', newEmployee.slotBookingPay);
       console.log('');
 
-      setPayrollState(prevState => ({
-        ...prevState,
-        casualEmployees: [...prevState.casualEmployees, newEmployee],
-        lastUpdated: new Date(),
-      }));
+      setPayrollState(prevState => {
+        // De-duplicate: check if employee already exists
+        const alreadyExists = prevState.casualEmployees.some(emp => emp.employeeId === newEmployee.employeeId);
+        if (alreadyExists) {
+          console.log(`  ⚠ Casual employee ${newEmployee.name} already in payroll, skipping`);
+          return prevState;
+        }
+        return {
+          ...prevState,
+          casualEmployees: [...prevState.casualEmployees, newEmployee],
+          lastUpdated: new Date(),
+        };
+      });
 
       console.log('  ✅ Employee added to payroll state\n');
     } catch (error) {
@@ -737,17 +753,24 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     }
 
+    // Track processed IDs locally to prevent duplicates within this batch
+    const processedIdsInBatch = new Set<string>();
+    
     for (const employee of employeesToAdd) {
       console.log(`\n  → Processing: ${employee.name} (${employee.type})`);
       
-      // Check for duplicates before adding
+      // Check for duplicates - both from existing state AND within this batch
       const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
       const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
+      const processedInBatch = processedIdsInBatch.has(employee.id);
       
-      if (existsInFullTime || existsInCasual) {
-        console.log(`    ⊗ Already in payroll, skipping...`);
+      if (existsInFullTime || existsInCasual || processedInBatch) {
+        console.log(`    ⊗ Already in payroll or batch, skipping...`);
         continue;
       }
+      
+      // Mark as processed for this batch
+      processedIdsInBatch.add(employee.id);
 
       // Get claims for this employee
       const employeeClaims = payrollOptimizedData?.claims?.[employee.id] || claimsData?.claims?.[employee.id] || [];

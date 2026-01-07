@@ -1248,9 +1248,15 @@ const PayrollProcessing = () => {
 
   const renderPaymentStep = () => {
     // Get full-time employees from payroll context - they should already be calculated
+    // De-duplicate by employee ID to prevent duplicate rows
+    const seenFullTimeIds = new Set<string>();
     const activeFullTimeEmployees = payrollState.fullTimeEmployees
       .filter(emp => {
         const empId = emp.employeeId || emp.id;
+        // Skip if already seen this employee
+        if (seenFullTimeIds.has(empId)) return false;
+        seenFullTimeIds.add(empId);
+        
         const employeeInfo = allEmployees.find(e => e.id === empId);
         return employeeInfo && !employeeInfo.resignDate;
       })
@@ -1275,8 +1281,14 @@ const PayrollProcessing = () => {
       .filter(emp => emp.totalPay > 0);
     
     // Get casual employees from payroll context - they should already be calculated
+    // De-duplicate by employee ID to prevent duplicate rows
+    const seenCasualIds = new Set<string>();
     const activeCasualEmployees = payrollState.casualEmployees
       .filter(emp => {
+        // Skip if already seen this employee
+        if (seenCasualIds.has(emp.employeeId)) return false;
+        seenCasualIds.add(emp.employeeId);
+        
         // Check if the employee exists in allEmployees and is not resigned
         const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
         return employeeInfo && !employeeInfo.resignDate;
