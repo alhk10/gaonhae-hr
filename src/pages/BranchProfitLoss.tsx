@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 interface Branch {
   id: string;
@@ -48,6 +49,9 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const DEFAULT_REVENUE_CATEGORIES = ['Sales', 'Training Fees', 'Equipment Sales', 'Membership Fees', 'Event Revenue', 'Other Revenue'];
+const DEFAULT_EXPENSE_CATEGORIES = ['Rent', 'Utilities', 'Salaries', 'Equipment', 'Marketing', 'Insurance', 'Supplies', 'Maintenance', 'Partner Claim', 'Transport', 'Other Expenses'];
+
 const BranchProfitLoss = () => {
   const { user, userrole } = useAuth();
   const isMobile = useIsMobile();
@@ -59,6 +63,12 @@ const BranchProfitLoss = () => {
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [isLoading, setIsLoading] = useState(true);
   const [profitLossData, setProfitLossData] = useState<ProfitLossData[]>([]);
+  
+  // Categories state
+  const [revenueCategories, setRevenueCategories] = useState<string[]>(DEFAULT_REVENUE_CATEGORIES);
+  const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
+  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState<'revenue' | 'expense' | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -162,6 +172,21 @@ const BranchProfitLoss = () => {
             share_percentage: Number(item.share_percentage) || 100,
             type: item.type as 'revenue' | 'expense'
           })));
+          
+          // Extract unique categories from existing data
+          const uniqueRevenueCategories = new Set([...DEFAULT_REVENUE_CATEGORIES]);
+          const uniqueExpenseCategories = new Set([...DEFAULT_EXPENSE_CATEGORIES]);
+          
+          data.forEach(item => {
+            if (item.type === 'revenue' && item.subcategory) {
+              uniqueRevenueCategories.add(item.subcategory);
+            } else if (item.type === 'expense' && item.subcategory) {
+              uniqueExpenseCategories.add(item.subcategory);
+            }
+          });
+          
+          setRevenueCategories(Array.from(uniqueRevenueCategories).sort());
+          setExpenseCategories(Array.from(uniqueExpenseCategories).sort());
         }
       } catch (error) {
         console.error('Error loading P&L data:', error);
@@ -171,6 +196,50 @@ const BranchProfitLoss = () => {
 
     loadPLData();
   }, [selectedBranch, selectedMonth, selectedYear]);
+  
+  // Get default share percentage from partner's branch share
+  const getDefaultSharePercentage = () => {
+    const partnerShare = partnerShares.find(s => s.branch_id === selectedBranch);
+    return partnerShare?.share_percentage?.toString() || '100';
+  };
+  
+  // Handle adding new category
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    
+    if (showAddCategoryDialog === 'revenue') {
+      if (revenueCategories.includes(newCategoryName.trim())) {
+        toast.error("Category already exists");
+        return;
+      }
+      setRevenueCategories(prev => [...prev, newCategoryName.trim()].sort());
+    } else if (showAddCategoryDialog === 'expense') {
+      if (expenseCategories.includes(newCategoryName.trim())) {
+        toast.error("Category already exists");
+        return;
+      }
+      setExpenseCategories(prev => [...prev, newCategoryName.trim()].sort());
+    }
+    
+    setNewCategoryName('');
+    setShowAddCategoryDialog(null);
+    toast.success("Category added");
+  };
+  
+  // Start adding with default share percentage
+  const startAddingEntry = (type: 'revenue' | 'expense') => {
+    setIsAdding(type);
+    setNewEntryData({
+      category: '',
+      subcategory: '',
+      description: '',
+      amount: '',
+      share_percentage: getDefaultSharePercentage()
+    });
+  };
 
   const canViewAllBranches = userrole === 'superadmin' || 
     currentEmployee?.position === 'Senior Partner';
@@ -362,17 +431,37 @@ const BranchProfitLoss = () => {
   // Render editable row
   const renderEditableRow = (item: ProfitLossData, isExpense: boolean = false) => {
     const isEditing = editingId === item.id;
+    const categories = isExpense ? expenseCategories : revenueCategories;
     
     if (isEditing && editData) {
       return (
         <TableRow key={item.id} className="bg-blue-50">
           <TableCell className={isExpense ? "pl-6" : ""}>
-            <Input
+            <Select
               value={editData.subcategory}
-              onChange={(e) => setEditData({ ...editData, subcategory: e.target.value })}
-              className="h-8 text-sm"
-              placeholder="Category"
-            />
+              onValueChange={(value) => {
+                if (value === '__add_new__') {
+                  setShowAddCategoryDialog(isExpense ? 'expense' : 'revenue');
+                } else {
+                  setEditData({ ...editData, subcategory: value });
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+                <SelectItem value="__add_new__" className="text-primary">
+                  <span className="flex items-center gap-1">
+                    <PlusCircle className="w-3 h-3" />
+                    Add New Category
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </TableCell>
           <TableCell>
             <Input
@@ -453,15 +542,38 @@ const BranchProfitLoss = () => {
   const renderAddRow = (type: 'revenue' | 'expense') => {
     if (isAdding !== type) return null;
     
+    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    
     return (
       <TableRow className="bg-green-50">
         <TableCell className={type === 'expense' ? "pl-6" : ""}>
-          <Input
-            value={newEntryData.subcategory}
-            onChange={(e) => setNewEntryData({ ...newEntryData, subcategory: e.target.value })}
-            className="h-8 text-sm"
-            placeholder="Category name"
-          />
+          <div className="flex gap-1 items-center">
+            <Select
+              value={newEntryData.subcategory}
+              onValueChange={(value) => {
+                if (value === '__add_new__') {
+                  setShowAddCategoryDialog(type);
+                } else {
+                  setNewEntryData({ ...newEntryData, subcategory: value });
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+                <SelectItem value="__add_new__" className="text-primary">
+                  <span className="flex items-center gap-1">
+                    <PlusCircle className="w-3 h-3" />
+                    Add New Category
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </TableCell>
         <TableCell>
           <Input
@@ -671,7 +783,7 @@ const BranchProfitLoss = () => {
                       Revenue
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => setIsAdding('revenue')} className="gap-1" disabled={isAdding !== null}>
+                      <Button size="sm" variant="outline" onClick={() => startAddingEntry('revenue')} className="gap-1" disabled={isAdding !== null}>
                         <Plus className="w-4 h-4" />
                         Add
                       </Button>
@@ -719,7 +831,7 @@ const BranchProfitLoss = () => {
                       Expenses
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => setIsAdding('expense')} className="gap-1" disabled={isAdding !== null}>
+                      <Button size="sm" variant="outline" onClick={() => startAddingEntry('expense')} className="gap-1" disabled={isAdding !== null}>
                         <Plus className="w-4 h-4" />
                         Add
                       </Button>
@@ -839,6 +951,30 @@ const BranchProfitLoss = () => {
             </CardContent>
           </Card>
         )}
+        
+        {/* Add Category Dialog */}
+        <Dialog open={showAddCategoryDialog !== null} onOpenChange={(open) => !open && setShowAddCategoryDialog(null)}>
+          <DialogContent className="sm:max-w-md bg-background">
+            <DialogHeader>
+              <DialogTitle>Add New {showAddCategoryDialog === 'revenue' ? 'Revenue' : 'Expense'} Category</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Category Name</label>
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Enter category name"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddCategoryDialog(null)}>Cancel</Button>
+              <Button onClick={handleAddCategory}>Add Category</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ResponsiveLayout>
   );
