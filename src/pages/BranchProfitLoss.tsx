@@ -599,11 +599,20 @@ const BranchProfitLoss = () => {
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 3;
 
-    // Revenue entries
+    // Revenue entries - sorted by category sort_order
     doc.setFont('helvetica', 'normal');
     const revenueEntries = profitLossData.filter(item => item.type === 'revenue');
     
-    revenueEntries.forEach(item => {
+    // Sort revenue entries based on category sort_order from revenueCategories
+    const sortedRevenueEntries = [...revenueEntries].sort((a, b) => {
+      const catA = revenueCategories.find(c => c.name === a.subcategory);
+      const catB = revenueCategories.find(c => c.name === b.subcategory);
+      const orderA = catA?.sort_order ?? 999;
+      const orderB = catB?.sort_order ?? 999;
+      return orderA - orderB;
+    });
+    
+    sortedRevenueEntries.forEach(item => {
       if (yPos > pageHeight - 30) {
         doc.addPage();
         yPos = 20;
