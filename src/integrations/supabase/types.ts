@@ -2107,6 +2107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      published_pl_reports: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          month: number
+          notes: string | null
+          published_at: string
+          published_by: string | null
+          year: number
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          month: number
+          notes?: string | null
+          published_at?: string
+          published_by?: string | null
+          year: number
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          published_at?: string
+          published_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           action: string
