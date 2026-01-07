@@ -269,7 +269,8 @@ const Sidebar = () => {
       if (pageAccess.myAttendance && !isPartnerPosition) {
         menuItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
       }
-      if (pageAccess.slotBookingEmployee) {
+      // Hide Slot Booking for partners
+      if (pageAccess.slotBookingEmployee && !isPartnerPosition) {
         menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
       }
     }
