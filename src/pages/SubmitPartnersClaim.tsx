@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase, Building2 } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase, Building2, Settings, Check, X, Edit2, Trash2, Save } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,16 @@ import { getEmployees } from '@/services/employeeService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Branch {
   id: string;
@@ -34,6 +44,7 @@ interface PartnerClaim {
   reviewed_by: string | null;
   reviewed_date: string | null;
   branch_id: string | null;
+  employee_name?: string;
 }
 
 const PARTNER_CLAIM_TYPES = [
@@ -51,12 +62,17 @@ const SubmitPartnersClaim = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [claims, setClaims] = useState<PartnerClaim[]>([]);
+  const [allClaims, setAllClaims] = useState<PartnerClaim[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [allBranches, setAllBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [employeeLoadError, setEmployeeLoadError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingClaim, setEditingClaim] = useState<PartnerClaim | null>(null);
+  const [deleteClaimId, setDeleteClaimId] = useState<number | null>(null);
   
   const [formData, setFormData] = useState({
     type: '',
@@ -75,9 +91,43 @@ const SubmitPartnersClaim = () => {
       try {
         setIsLoading(true);
         setEmployeeLoadError(null);
+
+        // Check if user is admin (superadmin or has claims access)
+        const { data: superadminData } = await supabase
+          .from('superadmin_users')
+          .select('id')
+          .eq('employee_email', user.email)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        const isSuperadmin = !!superadminData;
+        
+        // Load all branches for admin use
+        const { data: allBranchData } = await supabase
+          .from('branches')
+          .select('id, name')
+          .order('name');
+        
+        if (allBranchData) {
+          setAllBranches(allBranchData);
+        }
         
         const employees = await getEmployees();
         const employee = employees.find(emp => emp.email === user.email);
+
+        // Check admin access for claims
+        let hasClaimsAccess = false;
+        if (employee) {
+          const { data: adminAccess } = await supabase
+            .from('admin_access')
+            .select('claims')
+            .eq('employee_id', employee.id)
+            .maybeSingle();
+          
+          hasClaimsAccess = adminAccess?.claims || false;
+        }
+        
+        setIsAdmin(isSuperadmin || hasClaimsAccess);
         
         if (employee) {
           setCurrentEmployee(employee);
@@ -119,6 +169,23 @@ const SubmitPartnersClaim = () => {
           }
         } else {
           setEmployeeLoadError(`Employee not found for email: ${user.email}`);
+        }
+
+        // Load all partner claims for admin management
+        if (isSuperadmin || hasClaimsAccess) {
+          const { data: allClaimsData } = await supabase
+            .from('claims')
+            .select('*, employees(name)')
+            .in('type', PARTNER_CLAIM_TYPES.map(t => t.name))
+            .order('submitted_date', { ascending: false });
+          
+          if (allClaimsData) {
+            const claimsWithNames = allClaimsData.map(c => ({
+              ...c,
+              employee_name: (c.employees as any)?.name || 'Unknown'
+            }));
+            setAllClaims(claimsWithNames as PartnerClaim[]);
+          }
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
@@ -274,7 +341,143 @@ const SubmitPartnersClaim = () => {
 
   const getBranchName = (branchId: string | null) => {
     if (!branchId) return '-';
-    return branches.find(b => b.id === branchId)?.name || branchId;
+    const branch = allBranches.find(b => b.id === branchId) || branches.find(b => b.id === branchId);
+    return branch?.name || branchId;
+  };
+
+  // Admin functions
+  const handleApproveClaim = async (claimId: number) => {
+    try {
+      const claim = allClaims.find(c => c.id === claimId);
+      if (!claim) return;
+
+      const { error } = await supabase
+        .from('claims')
+        .update({
+          status: 'Approved',
+          reviewed_date: new Date().toISOString(),
+          reviewed_by: user?.email
+        })
+        .eq('id', claimId);
+
+      if (error) throw error;
+
+      // Sync to Branch P&L
+      if (claim.branch_id) {
+        const submittedDate = new Date(claim.submitted_date);
+        const month = submittedDate.getMonth() + 1;
+        const year = submittedDate.getFullYear();
+
+        const { data: existingEntry } = await supabase
+          .from('branch_profit_loss_entries')
+          .select('id, amount, description')
+          .eq('branch_id', claim.branch_id)
+          .eq('month', month)
+          .eq('year', year)
+          .eq('category', 'Partner Claims')
+          .eq('subcategory', claim.type)
+          .maybeSingle();
+
+        if (existingEntry) {
+          const newAmount = Number(existingEntry.amount) + claim.amount;
+          await supabase
+            .from('branch_profit_loss_entries')
+            .update({
+              amount: newAmount,
+              description: `${existingEntry.description || ''} | Claim #${claim.id}`.substring(0, 500),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingEntry.id);
+        } else {
+          await supabase
+            .from('branch_profit_loss_entries')
+            .insert({
+              branch_id: claim.branch_id,
+              month,
+              year,
+              category: 'Partner Claims',
+              subcategory: claim.type,
+              description: `Partner claim #${claim.id}: ${claim.description?.substring(0, 200)}`,
+              amount: claim.amount,
+              share_percentage: 100,
+              type: 'expense',
+              created_by: 'system'
+            });
+        }
+      }
+
+      setAllClaims(prev => prev.map(c => c.id === claimId ? { ...c, status: 'Approved' } : c));
+      toast.success('Claim approved and added to expenses');
+    } catch (error) {
+      console.error('Error approving claim:', error);
+      toast.error('Failed to approve claim');
+    }
+  };
+
+  const handleRejectClaim = async (claimId: number) => {
+    try {
+      const { error } = await supabase
+        .from('claims')
+        .update({
+          status: 'Rejected',
+          reviewed_date: new Date().toISOString(),
+          reviewed_by: user?.email
+        })
+        .eq('id', claimId);
+
+      if (error) throw error;
+
+      setAllClaims(prev => prev.map(c => c.id === claimId ? { ...c, status: 'Rejected' } : c));
+      toast.success('Claim rejected');
+    } catch (error) {
+      console.error('Error rejecting claim:', error);
+      toast.error('Failed to reject claim');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingClaim) return;
+
+    try {
+      const { error } = await supabase
+        .from('claims')
+        .update({
+          type: editingClaim.type,
+          amount: editingClaim.amount,
+          description: editingClaim.description,
+          branch_id: editingClaim.branch_id
+        })
+        .eq('id', editingClaim.id);
+
+      if (error) throw error;
+
+      setAllClaims(prev => prev.map(c => c.id === editingClaim.id ? editingClaim : c));
+      setEditingClaim(null);
+      toast.success('Claim updated successfully');
+    } catch (error) {
+      console.error('Error updating claim:', error);
+      toast.error('Failed to update claim');
+    }
+  };
+
+  const handleDeleteClaim = async () => {
+    if (!deleteClaimId) return;
+
+    try {
+      const { error } = await supabase
+        .from('claims')
+        .delete()
+        .eq('id', deleteClaimId);
+
+      if (error) throw error;
+
+      setAllClaims(prev => prev.filter(c => c.id !== deleteClaimId));
+      setDeleteClaimId(null);
+      toast.success('Claim deleted successfully');
+    } catch (error) {
+      console.error('Error deleting claim:', error);
+      toast.error('Failed to delete claim');
+    }
   };
 
   if (isLoading) {
@@ -333,9 +536,10 @@ const SubmitPartnersClaim = () => {
         </div>
 
         <Tabs defaultValue="submit" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className={`grid w-full mb-6 ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="submit">Submit Claim</TabsTrigger>
             <TabsTrigger value="history">Claim History</TabsTrigger>
+            {isAdmin && <TabsTrigger value="manage">Manage Claims</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="submit" className="space-y-6">
@@ -512,7 +716,188 @@ const SubmitPartnersClaim = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Admin Management Tab */}
+          {isAdmin && (
+            <TabsContent value="manage" className="space-y-6">
+              <Card className="shadow-lg border-0">
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b">
+                  <CardTitle className="text-gray-800 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-orange-600" />
+                    Manage Partner Claims
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {allClaims.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Partner</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Branch</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {allClaims.map((claim) => (
+                            <TableRow key={claim.id}>
+                              {editingClaim?.id === claim.id ? (
+                                <>
+                                  <TableCell>{claim.employee_name}</TableCell>
+                                  <TableCell>
+                                    <Select 
+                                      value={editingClaim.type} 
+                                      onValueChange={(v) => setEditingClaim({ ...editingClaim, type: v })}
+                                    >
+                                      <SelectTrigger className="w-40">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {PARTNER_CLAIM_TYPES.map((type) => (
+                                          <SelectItem key={type.id} value={type.name}>
+                                            {type.icon} {type.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Select 
+                                      value={editingClaim.branch_id || ''} 
+                                      onValueChange={(v) => setEditingClaim({ ...editingClaim, branch_id: v })}
+                                    >
+                                      <SelectTrigger className="w-32">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {allBranches.map((branch) => (
+                                          <SelectItem key={branch.id} value={branch.id}>
+                                            {branch.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>{claim.submitted_date}</TableCell>
+                                  <TableCell>
+                                    <Input 
+                                      type="number"
+                                      step="0.01"
+                                      className="w-24"
+                                      value={editingClaim.amount}
+                                      onChange={(e) => setEditingClaim({ ...editingClaim, amount: parseFloat(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={getStatusBadgeVariant(claim.status)}>
+                                      {claim.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" onClick={handleSaveEdit} className="bg-green-600 hover:bg-green-700">
+                                        <Save className="w-3 h-3" />
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => setEditingClaim(null)}>
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </>
+                              ) : (
+                                <>
+                                  <TableCell className="font-medium">{claim.employee_name}</TableCell>
+                                  <TableCell>
+                                    <span className="mr-2">{getClaimTypeIcon(claim.type)}</span>
+                                    {claim.type}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{getBranchName(claim.branch_id)}</Badge>
+                                  </TableCell>
+                                  <TableCell>{claim.submitted_date}</TableCell>
+                                  <TableCell className="font-medium">{formatAmount(claim.amount)}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={getStatusBadgeVariant(claim.status)}>
+                                      {claim.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      {claim.status === 'Pending' && (
+                                        <>
+                                          <Button 
+                                            size="sm" 
+                                            onClick={() => handleApproveClaim(claim.id)}
+                                            className="bg-green-600 hover:bg-green-700"
+                                          >
+                                            <Check className="w-3 h-3" />
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="destructive"
+                                            onClick={() => handleRejectClaim(claim.id)}
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </>
+                                      )}
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        onClick={() => setEditingClaim(claim)}
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="text-red-600 hover:text-red-700"
+                                        onClick={() => setDeleteClaimId(claim.id)}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No partner claims to manage</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteClaimId !== null} onOpenChange={() => setDeleteClaimId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Claim</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this claim? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteClaim} className="bg-red-600 hover:bg-red-700">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ResponsiveLayout>
   );
