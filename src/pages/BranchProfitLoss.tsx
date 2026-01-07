@@ -482,6 +482,15 @@ const BranchProfitLoss = () => {
 
     setIsSaving(true);
     try {
+      // Find the item to get its type
+      const editingItem = profitLossData.find(item => item.id === editData.id);
+      const isRevenue = editingItem?.type === 'revenue';
+      
+      // For revenue entries, recalculate amount from sales_amount, discount, cost_price, and quantity
+      const calculatedAmount = isRevenue 
+        ? calculateRevenueAmount(editData.sales_amount, editData.discount_percentage, editData.cost_price, editData.quantity)
+        : parseFloat(editData.amount) || 0;
+      
       const { error } = await supabase
         .from('branch_profit_loss_entries')
         .update({
@@ -492,7 +501,7 @@ const BranchProfitLoss = () => {
           quantity: parseFloat(editData.quantity) || 1,
           sales_amount: editData.sales_amount ? parseFloat(editData.sales_amount) : null,
           discount_percentage: editData.discount_percentage ? parseFloat(editData.discount_percentage) : null,
-          amount: parseFloat(editData.amount) || 0,
+          amount: calculatedAmount,
           share_percentage: parseFloat(editData.share_percentage) || 100,
           updated_by: user?.email
         })
@@ -512,7 +521,7 @@ const BranchProfitLoss = () => {
               quantity: parseFloat(editData.quantity) || 1,
               sales_amount: editData.sales_amount ? parseFloat(editData.sales_amount) : null,
               discount_percentage: editData.discount_percentage ? parseFloat(editData.discount_percentage) : null,
-              amount: parseFloat(editData.amount) || 0,
+              amount: calculatedAmount,
               share_percentage: parseFloat(editData.share_percentage) || 100
             }
           : item
