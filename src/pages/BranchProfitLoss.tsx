@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
@@ -14,6 +15,12 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface Branch {
   id: string;
   name: string;
+}
+
+interface PartnerBranchShare {
+  branch_id: string;
+  share_percentage: number;
+  branch?: Branch;
 }
 
 interface ProfitLossData {
@@ -32,6 +39,7 @@ const BranchProfitLoss = () => {
   const { user, userrole } = useAuth();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+  const [partnerShares, setPartnerShares] = useState<PartnerBranchShare[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
@@ -73,20 +81,31 @@ const BranchProfitLoss = () => {
           setBranches(branchData);
         }
         
-        // Load current employee for non-superadmin users
+        // Load current employee and their branch shares for non-superadmin users
         if (userrole !== 'superadmin' && user?.email) {
           const employees = await getEmployees();
           const employee = employees.find(emp => emp.email === user.email);
           setCurrentEmployee(employee);
           
-          // For partners, filter to their assigned branch
-          if (employee?.position === 'Partner' && employee?.department) {
-            const matchingBranch = branchData?.find(
-              b => b.name.toLowerCase() === employee.department.toLowerCase() ||
-                   b.id.toLowerCase() === employee.department.toLowerCase()
-            );
-            if (matchingBranch) {
-              setSelectedBranch(matchingBranch.id);
+          // Load partner branch shares for this employee
+          if (employee && (employee.position === 'Partner' || employee.position === 'Senior Partner')) {
+            const { data: sharesData, error: sharesError } = await supabase
+              .from('partner_branch_shares')
+              .select('branch_id, share_percentage')
+              .eq('employee_id', employee.id)
+              .is('effective_to', null);
+            
+            if (!sharesError && sharesData) {
+              const sharesWithBranches = sharesData.map(share => ({
+                ...share,
+                branch: branchData?.find(b => b.id === share.branch_id)
+              }));
+              setPartnerShares(sharesWithBranches);
+              
+              // Auto-select first branch if partner has shares
+              if (sharesData.length > 0 && !selectedBranch) {
+                setSelectedBranch(sharesData[0].branch_id);
+              }
             }
           }
         }
@@ -111,15 +130,22 @@ const BranchProfitLoss = () => {
   const getAvailableBranches = () => {
     if (canViewAllBranches) return branches;
     
-    // Partners can only see their assigned branch
-    if (currentEmployee?.department) {
-      return branches.filter(
-        b => b.name.toLowerCase() === currentEmployee.department.toLowerCase() ||
-             b.id.toLowerCase() === currentEmployee.department.toLowerCase()
-      );
+    // Partners can only see branches they have shares in
+    if (partnerShares.length > 0) {
+      const partnerBranchIds = partnerShares.map(s => s.branch_id);
+      return branches.filter(b => partnerBranchIds.includes(b.id));
     }
     return [];
   };
+
+  // Get the partner's share percentage for the selected branch
+  const getSelectedBranchShare = () => {
+    if (userrole === 'superadmin') return null;
+    const share = partnerShares.find(s => s.branch_id === selectedBranch);
+    return share?.share_percentage || null;
+  };
+
+  const selectedShare = getSelectedBranchShare();
 
   const totalRevenue = profitLossData
     .filter(item => item.type === 'revenue')
@@ -385,7 +411,7 @@ const BranchProfitLoss = () => {
             {/* Net Summary */}
             <Card className={`shadow-lg border-2 ${netProfit >= 0 ? 'border-emerald-300 bg-emerald-50' : 'border-red-300 bg-red-50'}`}>
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
                       Net {netProfit >= 0 ? 'Profit' : 'Loss'} for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear}
@@ -405,6 +431,42 @@ const BranchProfitLoss = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Partner Share Section - Only show for partners with assigned shares */}
+            {selectedShare && (
+              <Card className="shadow-lg border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-indigo-100">
+                        <User className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Your Partner Share</h3>
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
+                            <Percent className="w-3 h-3 mr-1" />
+                            {selectedShare}% Share
+                          </Badge>
+                          of {branches.find(b => b.id === selectedBranch)?.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-indigo-700 font-medium">
+                        Your Share of {netProfit >= 0 ? 'Profit' : 'Loss'}
+                      </p>
+                      <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                        S${Math.abs(netProfit * (selectedShare / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Based on {selectedShare}% of S${Math.abs(netProfit).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         ) : (
           <Card className="shadow-lg">

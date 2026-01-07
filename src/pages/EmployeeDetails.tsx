@@ -24,6 +24,7 @@ import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/
 import EmployeeClaimHistory from '@/components/employee/EmployeeClaimHistory';
 import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
 import EmployeePayrollHistory from '@/components/employee/EmployeePayrollHistory';
+import PartnerBranchSharesManager from '@/components/employee/PartnerBranchSharesManager';
 import { AdminAccessPermissions, EmployeePageAccessPermissions, EmployeeQualifications } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -660,6 +661,13 @@ const EmployeeDetails = () => {
             <EmployeePayrollHistory 
               employeeId={employeeData.id} 
               employeeName={employeeData.name} 
+            />
+
+            {/* Partner Branch Shares - Only visible for Partner/Senior Partner positions */}
+            <PartnerBranchSharesManager
+              employeeId={employeeData.id}
+              employeeName={employeeData.name}
+              position={employeeData.position || ''}
             />
           </div>
         </div>
