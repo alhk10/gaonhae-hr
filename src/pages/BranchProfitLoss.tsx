@@ -635,18 +635,18 @@ const BranchProfitLoss = () => {
     if (isEditing && editData) {
       const calculatedAmount = calculateRevenueAmount(editData.sales_amount, editData.discount_percentage, editData.cost_price, editData.quantity);
       return (
-        <TableRow key={item.id} className="bg-blue-50">
-          <TableCell>
+        <TableRow key={item.id} className="bg-blue-50 text-xs">
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.share_percentage}
               onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
-              className="h-8 text-sm w-16"
+              className="h-7 text-xs w-14"
               min="0"
               max="100"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Select
               value={editData.subcategory}
               onValueChange={(value) => {
@@ -657,10 +657,10 @@ const BranchProfitLoss = () => {
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
-              <SelectContent className="bg-background z-50">
+              <SelectContent className="bg-background z-50 text-xs">
                 {revenueCategories.map(cat => (
                   <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
@@ -673,69 +673,69 @@ const BranchProfitLoss = () => {
               </SelectContent>
             </Select>
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               value={editData.description}
               onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-              className="h-8 text-sm"
+              className="h-7 text-xs"
               placeholder="Description"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.cost_price}
               onChange={(e) => setEditData({ ...editData, cost_price: e.target.value })}
-              className="h-8 text-sm w-24"
+              className="h-7 text-xs w-20"
               step="0.01"
               placeholder="0.00"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.quantity}
               onChange={(e) => setEditData({ ...editData, quantity: e.target.value })}
-              className="h-8 text-sm w-16"
+              className="h-7 text-xs w-12"
               min="1"
               placeholder="1"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.sales_amount}
               onChange={(e) => setEditData({ ...editData, sales_amount: e.target.value })}
-              className="h-8 text-sm w-24"
+              className="h-7 text-xs w-20"
               step="0.01"
               placeholder="0.00"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.discount_percentage}
               onChange={(e) => setEditData({ ...editData, discount_percentage: e.target.value })}
-              className="h-8 text-sm w-16"
+              className="h-7 text-xs w-12"
               min="0"
               max="100"
               placeholder="0"
             />
           </TableCell>
-          <TableCell className="text-right font-medium">
+          <TableCell className="text-right font-medium text-xs py-1">
             S${calculatedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </TableCell>
-          <TableCell className="text-right font-medium text-emerald-700">
+          <TableCell className="text-right font-medium text-emerald-700 text-xs py-1">
             S${(calculatedAmount * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </TableCell>
           {isSuperadmin && (
-            <TableCell>
+            <TableCell className="py-1">
               <div className="flex gap-1">
-                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
-                  <Check className="w-4 h-4" />
+                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-6 w-6 text-green-600 hover:text-green-700">
+                  <Check className="w-3 h-3" />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-7 w-7 text-gray-600 hover:text-gray-700">
-                  <X className="w-4 h-4" />
+                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-6 w-6 text-gray-600 hover:text-gray-700">
+                  <X className="w-3 h-3" />
                 </Button>
               </div>
             </TableCell>
@@ -791,18 +791,18 @@ const BranchProfitLoss = () => {
     
     if (isEditing && editData) {
       return (
-        <TableRow key={item.id} className="bg-blue-50">
-          <TableCell>
+        <TableRow key={item.id} className="bg-blue-50 text-xs">
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.share_percentage}
               onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
-              className="h-8 text-sm w-16"
+              className="h-7 text-xs w-14"
               min="0"
               max="100"
             />
           </TableCell>
-          <TableCell className="pl-6">
+          <TableCell className="pl-6 py-1">
             <Select
               value={editData.subcategory}
               onValueChange={(value) => {
@@ -813,10 +813,10 @@ const BranchProfitLoss = () => {
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
-              <SelectContent className="bg-background z-50">
+              <SelectContent className="bg-background z-50 text-xs">
                 {expenseCategories.map(cat => (
                   <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
@@ -829,34 +829,34 @@ const BranchProfitLoss = () => {
               </SelectContent>
             </Select>
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               value={editData.description}
               onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-              className="h-8 text-sm"
+              className="h-7 text-xs"
               placeholder="Description"
             />
           </TableCell>
-          <TableCell>
+          <TableCell className="py-1">
             <Input
               type="number"
               value={editData.amount}
               onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
-              className="h-8 text-sm w-28"
+              className="h-7 text-xs w-24"
               step="0.01"
             />
           </TableCell>
-          <TableCell className="text-right font-medium text-red-600">
+          <TableCell className="text-right font-medium text-red-600 text-xs py-1">
             S${((parseFloat(editData.amount) || 0) * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </TableCell>
           {isSuperadmin && (
-            <TableCell>
+            <TableCell className="py-1">
               <div className="flex gap-1">
-                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
-                  <Check className="w-4 h-4" />
+                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-6 w-6 text-green-600 hover:text-green-700">
+                  <Check className="w-3 h-3" />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-7 w-7 text-gray-600 hover:text-gray-700">
-                  <X className="w-4 h-4" />
+                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-6 w-6 text-gray-600 hover:text-gray-700">
+                  <X className="w-3 h-3" />
                 </Button>
               </div>
             </TableCell>
@@ -901,18 +901,18 @@ const BranchProfitLoss = () => {
     const calculatedAmount = calculateRevenueAmount(newEntryData.sales_amount, newEntryData.discount_percentage, newEntryData.cost_price, newEntryData.quantity);
     
     return (
-      <TableRow className="bg-green-50">
-        <TableCell>
+      <TableRow className="bg-green-50 text-xs">
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.share_percentage}
             onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
-            className="h-8 text-sm w-16"
+            className="h-7 text-xs w-14"
             min="0"
             max="100"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <div className="flex gap-1 items-center">
             <Select
               value={newEntryData.subcategory}
@@ -926,10 +926,10 @@ const BranchProfitLoss = () => {
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
-              <SelectContent className="bg-background z-50">
+              <SelectContent className="bg-background z-50 text-xs">
                 {revenueCategories.map(cat => (
                   <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
@@ -943,68 +943,68 @@ const BranchProfitLoss = () => {
             </Select>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             value={newEntryData.description}
             onChange={(e) => setNewEntryData({ ...newEntryData, description: e.target.value })}
-            className="h-8 text-sm"
+            className="h-7 text-xs"
             placeholder="Description"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.cost_price}
             onChange={(e) => setNewEntryData({ ...newEntryData, cost_price: e.target.value })}
-            className="h-8 text-sm w-24"
+            className="h-7 text-xs w-20"
             step="0.01"
             placeholder="0.00"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.quantity}
             onChange={(e) => setNewEntryData({ ...newEntryData, quantity: e.target.value })}
-            className="h-8 text-sm w-16"
+            className="h-7 text-xs w-12"
             min="1"
             placeholder="1"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.sales_amount}
             onChange={(e) => setNewEntryData({ ...newEntryData, sales_amount: e.target.value })}
-            className="h-8 text-sm w-24"
+            className="h-7 text-xs w-20"
             step="0.01"
             placeholder="0.00"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.discount_percentage}
             onChange={(e) => setNewEntryData({ ...newEntryData, discount_percentage: e.target.value })}
-            className="h-8 text-sm w-16"
+            className="h-7 text-xs w-12"
             min="0"
             max="100"
             placeholder="0"
           />
         </TableCell>
-        <TableCell className="text-right font-medium">
+        <TableCell className="text-right font-medium text-xs py-1">
           S${calculatedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell className="text-right font-medium text-emerald-700">
+        <TableCell className="text-right font-medium text-emerald-700 text-xs py-1">
           S${(calculatedAmount * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('revenue')} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
-              <Check className="w-4 h-4" />
+            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('revenue')} disabled={isSaving} className="h-6 w-6 text-green-600 hover:text-green-700">
+              <Check className="w-3 h-3" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
-              <X className="w-4 h-4" />
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-6 w-6 text-gray-600 hover:text-gray-700">
+              <X className="w-3 h-3" />
             </Button>
           </div>
         </TableCell>
@@ -1017,18 +1017,18 @@ const BranchProfitLoss = () => {
     if (isAdding !== 'expense') return null;
     
     return (
-      <TableRow className="bg-green-50">
-        <TableCell>
+      <TableRow className="bg-green-50 text-xs">
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.share_percentage}
             onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
-            className="h-8 text-sm w-16"
+            className="h-7 text-xs w-14"
             min="0"
             max="100"
           />
         </TableCell>
-        <TableCell className="pl-6">
+        <TableCell className="pl-6 py-1">
           <div className="flex gap-1 items-center">
             <Select
               value={newEntryData.subcategory}
@@ -1040,10 +1040,10 @@ const BranchProfitLoss = () => {
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
-              <SelectContent className="bg-background z-50">
+              <SelectContent className="bg-background z-50 text-xs">
                 {expenseCategories.map(cat => (
                   <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
@@ -1057,34 +1057,34 @@ const BranchProfitLoss = () => {
             </Select>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             value={newEntryData.description}
             onChange={(e) => setNewEntryData({ ...newEntryData, description: e.target.value })}
-            className="h-8 text-sm"
+            className="h-7 text-xs"
             placeholder="Description"
           />
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <Input
             type="number"
             value={newEntryData.amount}
             onChange={(e) => setNewEntryData({ ...newEntryData, amount: e.target.value })}
-            className="h-8 text-sm w-28"
+            className="h-7 text-xs w-24"
             step="0.01"
             placeholder="0.00"
           />
         </TableCell>
-        <TableCell className="text-right font-medium text-red-600">
+        <TableCell className="text-right font-medium text-red-600 text-xs py-1">
           S${((parseFloat(newEntryData.amount) || 0) * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell>
+        <TableCell className="py-1">
           <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('expense')} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
-              <Check className="w-4 h-4" />
+            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('expense')} disabled={isSaving} className="h-6 w-6 text-green-600 hover:text-green-700">
+              <Check className="w-3 h-3" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
-              <X className="w-4 h-4" />
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-6 w-6 text-gray-600 hover:text-gray-700">
+              <X className="w-3 h-3" />
             </Button>
           </div>
         </TableCell>
