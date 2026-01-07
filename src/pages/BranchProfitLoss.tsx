@@ -32,6 +32,8 @@ interface ProfitLossData {
   description: string;
   cost_price: number | null;
   quantity: number;
+  sales_amount: number | null;
+  discount_percentage: number | null;
   amount: number;
   share_percentage: number;
   type: 'revenue' | 'expense';
@@ -44,6 +46,8 @@ interface InlineEditData {
   description: string;
   cost_price: string;
   quantity: string;
+  sales_amount: string;
+  discount_percentage: string;
   amount: string;
   share_percentage: string;
 }
@@ -84,6 +88,8 @@ const BranchProfitLoss = () => {
     subcategory: '',
     cost_price: '',
     quantity: '1',
+    sales_amount: '',
+    discount_percentage: '0',
     description: '',
     amount: '',
     share_percentage: '100'
@@ -178,6 +184,8 @@ const BranchProfitLoss = () => {
             description: item.description || '',
             cost_price: item.cost_price ? Number(item.cost_price) : null,
             quantity: Number(item.quantity) || 1,
+            sales_amount: item.sales_amount ? Number(item.sales_amount) : null,
+            discount_percentage: item.discount_percentage ? Number(item.discount_percentage) : null,
             amount: Number(item.amount),
             share_percentage: Number(item.share_percentage) || 100,
             type: item.type as 'revenue' | 'expense'
@@ -265,10 +273,22 @@ const BranchProfitLoss = () => {
       subcategory: '',
       cost_price: '',
       quantity: '1',
+      sales_amount: '',
+      discount_percentage: '0',
       description: '',
       amount: '',
       share_percentage: getDefaultSharePercentage()
     });
+  };
+  
+  // Calculate revenue amount: (Sales Amount * (1 - discount%/100)) - (cost_price * qty)
+  const calculateRevenueAmount = (salesAmount: string, discountPct: string, costPrice: string, qty: string) => {
+    const sales = parseFloat(salesAmount) || 0;
+    const discount = parseFloat(discountPct) || 0;
+    const cost = parseFloat(costPrice) || 0;
+    const quantity = parseFloat(qty) || 1;
+    const discountedSales = sales * (1 - discount / 100);
+    return discountedSales - (cost * quantity);
   };
 
   const canViewAllBranches = userrole === 'superadmin' || 
@@ -328,6 +348,8 @@ const BranchProfitLoss = () => {
       description: item.description,
       cost_price: item.cost_price?.toString() || '',
       quantity: item.quantity.toString(),
+      sales_amount: item.sales_amount?.toString() || '',
+      discount_percentage: item.discount_percentage?.toString() || '0',
       amount: item.amount.toString(),
       share_percentage: item.share_percentage.toString()
     });
@@ -353,6 +375,8 @@ const BranchProfitLoss = () => {
           description: editData.description,
           cost_price: editData.cost_price ? parseFloat(editData.cost_price) : null,
           quantity: parseFloat(editData.quantity) || 1,
+          sales_amount: editData.sales_amount ? parseFloat(editData.sales_amount) : null,
+          discount_percentage: editData.discount_percentage ? parseFloat(editData.discount_percentage) : null,
           amount: parseFloat(editData.amount) || 0,
           share_percentage: parseFloat(editData.share_percentage) || 100,
           updated_by: user?.email
@@ -371,6 +395,8 @@ const BranchProfitLoss = () => {
               description: editData.description,
               cost_price: editData.cost_price ? parseFloat(editData.cost_price) : null,
               quantity: parseFloat(editData.quantity) || 1,
+              sales_amount: editData.sales_amount ? parseFloat(editData.sales_amount) : null,
+              discount_percentage: editData.discount_percentage ? parseFloat(editData.discount_percentage) : null,
               amount: parseFloat(editData.amount) || 0,
               share_percentage: parseFloat(editData.share_percentage) || 100
             }
@@ -390,13 +416,28 @@ const BranchProfitLoss = () => {
 
   // Add new entry
   const handleAddEntry = async (type: 'revenue' | 'expense') => {
-    if (!newEntryData.subcategory || !newEntryData.amount) {
-      toast.error("Please fill in category and amount");
+    if (!newEntryData.subcategory) {
+      toast.error("Please fill in category");
+      return;
+    }
+    
+    // For revenue, validate sales_amount; for expense, validate amount
+    if (type === 'revenue' && !newEntryData.sales_amount) {
+      toast.error("Please fill in sales amount");
+      return;
+    }
+    if (type === 'expense' && !newEntryData.amount) {
+      toast.error("Please fill in amount");
       return;
     }
 
     setIsSaving(true);
     try {
+      // Calculate amount for revenue
+      const calculatedAmount = type === 'revenue' 
+        ? calculateRevenueAmount(newEntryData.sales_amount, newEntryData.discount_percentage, newEntryData.cost_price, newEntryData.quantity)
+        : parseFloat(newEntryData.amount) || 0;
+      
       const entryData = {
         branch_id: selectedBranch,
         month: parseInt(selectedMonth),
@@ -404,9 +445,11 @@ const BranchProfitLoss = () => {
         category: newEntryData.category || (type === 'revenue' ? 'Revenue' : 'Other'),
         subcategory: newEntryData.subcategory,
         description: newEntryData.description,
-        cost_price: newEntryData.cost_price ? parseFloat(newEntryData.cost_price) : null,
-        quantity: parseFloat(newEntryData.quantity) || 1,
-        amount: parseFloat(newEntryData.amount) || 0,
+        cost_price: type === 'revenue' && newEntryData.cost_price ? parseFloat(newEntryData.cost_price) : null,
+        quantity: type === 'revenue' ? (parseFloat(newEntryData.quantity) || 1) : 1,
+        sales_amount: type === 'revenue' && newEntryData.sales_amount ? parseFloat(newEntryData.sales_amount) : null,
+        discount_percentage: type === 'revenue' && newEntryData.discount_percentage ? parseFloat(newEntryData.discount_percentage) : null,
+        amount: calculatedAmount,
         share_percentage: parseFloat(newEntryData.share_percentage) || 100,
         type,
         created_by: user?.email
@@ -428,13 +471,15 @@ const BranchProfitLoss = () => {
         description: data.description || '',
         cost_price: data.cost_price ? Number(data.cost_price) : null,
         quantity: Number(data.quantity) || 1,
+        sales_amount: data.sales_amount ? Number(data.sales_amount) : null,
+        discount_percentage: data.discount_percentage ? Number(data.discount_percentage) : null,
         amount: Number(data.amount),
         share_percentage: Number(data.share_percentage) || 100,
         type: data.type as 'revenue' | 'expense'
       }]);
 
       setIsAdding(null);
-      setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', description: '', amount: '', share_percentage: '100' });
+      setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' });
       toast.success("Entry added successfully");
     } catch (error: any) {
       console.error('Error adding entry:', error);
@@ -468,12 +513,12 @@ const BranchProfitLoss = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
-  // Render editable row
-  const renderEditableRow = (item: ProfitLossData, isExpense: boolean = false) => {
+  // Render editable row for revenue
+  const renderRevenueEditableRow = (item: ProfitLossData) => {
     const isEditing = editingId === item.id;
-    const categories = isExpense ? expenseCategories : revenueCategories;
     
     if (isEditing && editData) {
+      const calculatedAmount = calculateRevenueAmount(editData.sales_amount, editData.discount_percentage, editData.cost_price, editData.quantity);
       return (
         <TableRow key={item.id} className="bg-blue-50">
           <TableCell>
@@ -486,12 +531,12 @@ const BranchProfitLoss = () => {
               max="100"
             />
           </TableCell>
-          <TableCell className={isExpense ? "pl-6" : ""}>
+          <TableCell>
             <Select
               value={editData.subcategory}
               onValueChange={(value) => {
                 if (value === '__add_new__') {
-                  setShowAddCategoryDialog(isExpense ? 'expense' : 'revenue');
+                  setShowAddCategoryDialog('revenue');
                 } else {
                   setEditData({ ...editData, subcategory: value });
                 }
@@ -501,7 +546,7 @@ const BranchProfitLoss = () => {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
-                {categories.map(cat => (
+                {revenueCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
@@ -544,13 +589,149 @@ const BranchProfitLoss = () => {
           <TableCell>
             <Input
               type="number"
+              value={editData.sales_amount}
+              onChange={(e) => setEditData({ ...editData, sales_amount: e.target.value })}
+              className="h-8 text-sm w-24"
+              step="0.01"
+              placeholder="0.00"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.discount_percentage}
+              onChange={(e) => setEditData({ ...editData, discount_percentage: e.target.value })}
+              className="h-8 text-sm w-16"
+              min="0"
+              max="100"
+              placeholder="0"
+            />
+          </TableCell>
+          <TableCell className="text-right font-medium">
+            S${calculatedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </TableCell>
+          <TableCell className="text-right font-medium text-emerald-700">
+            S${(calculatedAmount * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </TableCell>
+          {isSuperadmin && (
+            <TableCell>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </TableCell>
+          )}
+        </TableRow>
+      );
+    }
+
+    return (
+      <TableRow key={item.id || `temp-${item.subcategory}`}>
+        <TableCell className="text-right">
+          <Badge variant="secondary">{item.share_percentage}%</Badge>
+        </TableCell>
+        <TableCell className="font-medium">{item.subcategory}</TableCell>
+        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.cost_price ? `S$${item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+        </TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.quantity}
+        </TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.sales_amount ? `S$${item.sales_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+        </TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.discount_percentage ? `${item.discount_percentage}%` : '-'}
+        </TableCell>
+        <TableCell className="text-right font-medium">
+          S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell className="text-right font-medium text-emerald-700">
+          S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        {isSuperadmin && (
+          <TableCell>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-7 w-7" disabled={!item.id}>
+                <Edit2 className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700" disabled={!item.id}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  };
+  
+  // Render editable row for expense
+  const renderExpenseEditableRow = (item: ProfitLossData) => {
+    const isEditing = editingId === item.id;
+    
+    if (isEditing && editData) {
+      return (
+        <TableRow key={item.id} className="bg-blue-50">
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.share_percentage}
+              onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
+              className="h-8 text-sm w-16"
+              min="0"
+              max="100"
+            />
+          </TableCell>
+          <TableCell className="pl-6">
+            <Select
+              value={editData.subcategory}
+              onValueChange={(value) => {
+                if (value === '__add_new__') {
+                  setShowAddCategoryDialog('expense');
+                } else {
+                  setEditData({ ...editData, subcategory: value });
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {expenseCategories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+                <SelectItem value="__add_new__" className="text-primary">
+                  <span className="flex items-center gap-1">
+                    <PlusCircle className="w-3 h-3" />
+                    Add New Category
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </TableCell>
+          <TableCell>
+            <Input
+              value={editData.description}
+              onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+              className="h-8 text-sm"
+              placeholder="Description"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              type="number"
               value={editData.amount}
               onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
               className="h-8 text-sm w-28"
               step="0.01"
             />
           </TableCell>
-          <TableCell className={`text-right font-medium ${isExpense ? 'text-red-600' : 'text-emerald-700'}`}>
+          <TableCell className="text-right font-medium text-red-600">
             S${((parseFloat(editData.amount) || 0) * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </TableCell>
           {isSuperadmin && (
@@ -574,18 +755,12 @@ const BranchProfitLoss = () => {
         <TableCell className="text-right">
           <Badge variant="secondary">{item.share_percentage}%</Badge>
         </TableCell>
-        <TableCell className={`font-medium ${isExpense ? "pl-6" : ""}`}>{item.subcategory}</TableCell>
+        <TableCell className="font-medium pl-6">{item.subcategory}</TableCell>
         <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
-          {item.cost_price ? `S$${item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-        </TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
-          {item.quantity}
-        </TableCell>
         <TableCell className="text-right font-medium">
           S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell className={`text-right font-medium ${isExpense ? 'text-red-600' : 'text-emerald-700'}`}>
+        <TableCell className="text-right font-medium text-red-600">
           S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
         {isSuperadmin && (
@@ -604,11 +779,11 @@ const BranchProfitLoss = () => {
     );
   };
 
-  // Render add new row
-  const renderAddRow = (type: 'revenue' | 'expense') => {
-    if (isAdding !== type) return null;
+  // Render add new row for revenue
+  const renderRevenueAddRow = () => {
+    if (isAdding !== 'revenue') return null;
     
-    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    const calculatedAmount = calculateRevenueAmount(newEntryData.sales_amount, newEntryData.discount_percentage, newEntryData.cost_price, newEntryData.quantity);
     
     return (
       <TableRow className="bg-green-50">
@@ -622,13 +797,13 @@ const BranchProfitLoss = () => {
             max="100"
           />
         </TableCell>
-        <TableCell className={type === 'expense' ? "pl-6" : ""}>
+        <TableCell>
           <div className="flex gap-1 items-center">
             <Select
               value={newEntryData.subcategory}
               onValueChange={(value) => {
                 if (value === '__add_new__') {
-                  setShowAddCategoryDialog(type);
+                  setShowAddCategoryDialog('revenue');
                 } else {
                   setNewEntryData({ ...newEntryData, subcategory: value });
                 }
@@ -638,7 +813,7 @@ const BranchProfitLoss = () => {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
-                {categories.map(cat => (
+                {revenueCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
@@ -682,6 +857,100 @@ const BranchProfitLoss = () => {
         <TableCell>
           <Input
             type="number"
+            value={newEntryData.sales_amount}
+            onChange={(e) => setNewEntryData({ ...newEntryData, sales_amount: e.target.value })}
+            className="h-8 text-sm w-24"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.discount_percentage}
+            onChange={(e) => setNewEntryData({ ...newEntryData, discount_percentage: e.target.value })}
+            className="h-8 text-sm w-16"
+            min="0"
+            max="100"
+            placeholder="0"
+          />
+        </TableCell>
+        <TableCell className="text-right font-medium">
+          S${calculatedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell className="text-right font-medium text-emerald-700">
+          S${(calculatedAmount * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('revenue')} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+  
+  // Render add new row for expense
+  const renderExpenseAddRow = () => {
+    if (isAdding !== 'expense') return null;
+    
+    return (
+      <TableRow className="bg-green-50">
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.share_percentage}
+            onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
+            className="h-8 text-sm w-16"
+            min="0"
+            max="100"
+          />
+        </TableCell>
+        <TableCell className="pl-6">
+          <div className="flex gap-1 items-center">
+            <Select
+              value={newEntryData.subcategory}
+              onValueChange={(value) => {
+                if (value === '__add_new__') {
+                  setShowAddCategoryDialog('expense');
+                } else {
+                  setNewEntryData({ ...newEntryData, subcategory: value });
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 text-sm min-w-[140px] bg-background">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {expenseCategories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+                <SelectItem value="__add_new__" className="text-primary">
+                  <span className="flex items-center gap-1">
+                    <PlusCircle className="w-3 h-3" />
+                    Add New Category
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Input
+            value={newEntryData.description}
+            onChange={(e) => setNewEntryData({ ...newEntryData, description: e.target.value })}
+            className="h-8 text-sm"
+            placeholder="Description"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
             value={newEntryData.amount}
             onChange={(e) => setNewEntryData({ ...newEntryData, amount: e.target.value })}
             className="h-8 text-sm w-28"
@@ -689,15 +958,15 @@ const BranchProfitLoss = () => {
             placeholder="0.00"
           />
         </TableCell>
-        <TableCell className={`text-right font-medium ${type === 'expense' ? 'text-red-600' : 'text-emerald-700'}`}>
+        <TableCell className="text-right font-medium text-red-600">
           S${((parseFloat(newEntryData.amount) || 0) * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
         <TableCell>
           <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => handleAddEntry(type)} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
+            <Button size="icon" variant="ghost" onClick={() => handleAddEntry('expense')} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
               <Check className="w-4 h-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', sales_amount: '', discount_percentage: '0', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -885,17 +1154,21 @@ const BranchProfitLoss = () => {
                         <TableHead>Description</TableHead>
                         <TableHead className="text-right">Cost Price</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Sales Amount</TableHead>
+                        <TableHead className="text-right">Discount %</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {profitLossData.filter(item => item.type === 'revenue').map((item) => renderEditableRow(item, false))}
-                      {renderAddRow('revenue')}
+                      {profitLossData.filter(item => item.type === 'revenue').map((item) => renderRevenueEditableRow(item))}
+                      {renderRevenueAddRow()}
                       <TableRow className="bg-emerald-50 font-bold">
                         <TableCell></TableCell>
                         <TableCell>Total Revenue</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
@@ -935,8 +1208,6 @@ const BranchProfitLoss = () => {
                         <TableHead className="text-right w-16">Share %</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Cost Price</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
@@ -946,19 +1217,17 @@ const BranchProfitLoss = () => {
                       {Object.entries(groupedExpenses).map(([category, items]) => (
                         <React.Fragment key={category}>
                           <TableRow className="bg-gray-50">
-                            <TableCell colSpan={isSuperadmin ? 8 : 7} className="font-semibold text-gray-700">
+                            <TableCell colSpan={isSuperadmin ? 6 : 5} className="font-semibold text-gray-700">
                               {category}
                             </TableCell>
                           </TableRow>
-                          {items.map((item) => renderEditableRow(item, true))}
+                          {items.map((item) => renderExpenseEditableRow(item))}
                         </React.Fragment>
                       ))}
-                      {renderAddRow('expense')}
+                      {renderExpenseAddRow()}
                       <TableRow className="bg-red-50 font-bold">
                         <TableCell></TableCell>
                         <TableCell>Total Expenses</TableCell>
-                        <TableCell></TableCell>
-                        <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell className="text-right">
                           S${profitLossData.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

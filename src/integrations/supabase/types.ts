@@ -308,9 +308,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          discount_percentage: number | null
           id: string
           month: number
           quantity: number | null
+          sales_amount: number | null
           share_percentage: number | null
           subcategory: string
           type: string
@@ -326,9 +328,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discount_percentage?: number | null
           id?: string
           month: number
           quantity?: number | null
+          sales_amount?: number | null
           share_percentage?: number | null
           subcategory: string
           type: string
@@ -344,9 +348,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discount_percentage?: number | null
           id?: string
           month?: number
           quantity?: number | null
+          sales_amount?: number | null
           share_percentage?: number | null
           subcategory?: string
           type?: string
