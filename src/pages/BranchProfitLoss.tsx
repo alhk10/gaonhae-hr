@@ -565,12 +565,14 @@ const BranchProfitLoss = () => {
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
-    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, margin + 60, yPos);
+    doc.text(`Partner's Share of Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
+    yPos += 5;
+    doc.text(`Partner's Share of Total Expenses: ${formatCurrency(totalExpenses)}`, margin, yPos);
+    yPos += 5;
     
     const netProfit = totalRevenue - totalExpenses;
     doc.setFont('helvetica', 'bold');
-    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, margin + 120, yPos);
+    doc.text(`Partner's Share of Net Profit: ${formatCurrency(netProfit)}`, margin, yPos);
     
     yPos += 10;
 
@@ -639,7 +641,7 @@ const BranchProfitLoss = () => {
     // Revenue total
     yPos += 2;
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
+    doc.text(`Partner's Share of Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
     yPos += 10;
 
     // Expenses Section
@@ -694,7 +696,7 @@ const BranchProfitLoss = () => {
     // Expenses total
     yPos += 2;
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, margin, yPos);
+    doc.text(`Partner's Share of Total Expenses: ${formatCurrency(totalExpenses)}`, margin, yPos);
     yPos += 10;
 
     // Net Profit Summary
@@ -707,7 +709,7 @@ const BranchProfitLoss = () => {
     doc.setFont('helvetica', 'bold');
     const profitColor = netProfit >= 0 ? [16, 185, 129] : [239, 68, 68];
     doc.setTextColor(profitColor[0], profitColor[1], profitColor[2]);
-    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, margin, yPos);
+    doc.text(`Partner's Share of Net Profit: ${formatCurrency(netProfit)}`, margin, yPos);
     doc.setTextColor(0, 0, 0);
 
     // Footer
