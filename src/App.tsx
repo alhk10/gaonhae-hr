@@ -31,6 +31,11 @@ const PayslipManagement = lazy(() => import('./pages/PayslipManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const SubmitPartnersClaim = lazy(() => import('./pages/SubmitPartnersClaim'));
+const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
+
+// Position-based access guard
+const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
 
 // Sales module (lazy loaded)
 const SalesAccessGuard = lazy(() => import('./components/sales/SalesAccessGuard'));
@@ -257,6 +262,28 @@ function App() {
                       element={
                         <AuthGuard>
                           <Settings />
+                        </AuthGuard>
+                      } 
+                    />
+                    
+                    {/* Partner-only Routes */}
+                    <Route 
+                      path="/submit-partners-claim" 
+                      element={
+                        <AuthGuard>
+                          <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
+                            <SubmitPartnersClaim />
+                          </PositionAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/branch-profit-loss" 
+                      element={
+                        <AuthGuard>
+                          <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
+                            <BranchProfitLoss />
+                          </PositionAccessGuard>
                         </AuthGuard>
                       } 
                     />

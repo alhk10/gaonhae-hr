@@ -17,7 +17,9 @@ import {
   ShoppingCart,
   Package,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  Briefcase,
+  FileSpreadsheet
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -132,6 +134,12 @@ const Sidebar = () => {
           { icon: TrendingUp, label: 'Sales Reports', path: '/sales/reports' }
         );
       }
+
+      // Partner pages (superadmin can access all)
+      adminItems.push(
+        { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
+        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' }
+      );
 
       adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
 
@@ -254,6 +262,15 @@ const Sidebar = () => {
       if (pageAccess.slotBookingEmployee) {
         menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
       }
+    }
+
+    // Add partner-specific pages based on position
+    const employeePosition = currentEmployee?.position?.toLowerCase() || '';
+    if (employeePosition === 'partner' || employeePosition === 'senior partner') {
+      menuItems.push(
+        { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
+        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' }
+      );
     }
 
     return menuItems;
