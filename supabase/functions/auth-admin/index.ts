@@ -36,26 +36,31 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), { 
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: "Missing or invalid Authorization header" }), { 
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Client with the caller's JWT to read user and check superadmin
+    // Client with the caller's JWT to validate and check superadmin
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user?.email) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+    
+    // Use getClaims to validate JWT without requiring active session
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    
+    if (claimsErr || !claimsData?.claims?.email) {
+      console.error('JWT validation failed:', claimsErr?.message || 'No email in claims');
+      return new Response(JSON.stringify({ error: "Unauthorized", details: claimsErr?.message }), { 
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const callerEmail = userData.user.email;
+    const callerEmail = claimsData.claims.email as string;
     const { data: isSuper, error: roleErr } = await userClient.rpc("is_superadmin", { user_email: callerEmail });
     if (roleErr) {
       return new Response(JSON.stringify({ error: "Role check failed", details: roleErr.message }), { 
