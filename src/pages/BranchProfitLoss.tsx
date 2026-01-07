@@ -188,6 +188,25 @@ const BranchProfitLoss = () => {
       }
 
       try {
+        // For non-superadmins, check if report is published first
+        if (userrole !== 'superadmin') {
+          const { data: publishedData } = await supabase
+            .from('published_pl_reports')
+            .select('id')
+            .eq('branch_id', selectedBranch)
+            .eq('month', parseInt(selectedMonth))
+            .eq('year', parseInt(selectedYear))
+            .maybeSingle();
+
+          if (!publishedData) {
+            // Report not published, don't load data
+            setProfitLossData([]);
+            setIsPublished(false);
+            return;
+          }
+          setIsPublished(true);
+        }
+
         // Load P&L entries
         const { data, error } = await supabase
           .from('branch_profit_loss_entries')
@@ -225,7 +244,7 @@ const BranchProfitLoss = () => {
           .eq('branch_id', selectedBranch)
           .is('effective_to', null)
           .limit(1)
-          .single();
+          .maybeSingle();
         
         if (sharesData?.share_percentage) {
           setBranchDefaultShare(Number(sharesData.share_percentage));
@@ -239,7 +258,7 @@ const BranchProfitLoss = () => {
     };
 
     loadPLData();
-  }, [selectedBranch, selectedMonth, selectedYear]);
+  }, [selectedBranch, selectedMonth, selectedYear, userrole]);
 
   // Check if report is published
   useEffect(() => {
@@ -1565,7 +1584,7 @@ const BranchProfitLoss = () => {
           </CardContent>
         </Card>
 
-        {selectedBranch ? (
+        {selectedBranch && (isSuperadmin || isPublished) ? (
           <>
             {/* P&L Statement - Revenue first, then Expenses below */}
             <div className="space-y-6">
@@ -1720,6 +1739,19 @@ const BranchProfitLoss = () => {
             </Card>
 
           </>
+        ) : selectedBranch && !isSuperadmin && !isPublished ? (
+          <Card className="shadow-lg border-2 border-amber-200 bg-amber-50">
+            <CardContent className="p-12 text-center">
+              <Calendar className="w-16 h-16 mx-auto text-amber-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Report Not Yet Published</h3>
+              <p className="text-gray-500">
+                The Profit & Loss report for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear} has not been published yet.
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                Please check back later or contact your administrator.
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <Card className="shadow-lg">
             <CardContent className="p-12 text-center">
