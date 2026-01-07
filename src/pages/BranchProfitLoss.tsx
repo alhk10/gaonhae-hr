@@ -49,8 +49,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const DEFAULT_REVENUE_CATEGORIES = ['Sales', 'Training Fees', 'Equipment Sales', 'Membership Fees', 'Event Revenue', 'Other Revenue'];
-const DEFAULT_EXPENSE_CATEGORIES = ['Rent', 'Utilities', 'Salaries', 'Equipment', 'Marketing', 'Insurance', 'Supplies', 'Maintenance', 'Partner Claim', 'Transport', 'Other Expenses'];
+const DEFAULT_REVENUE_CATEGORIES: string[] = [];
+const DEFAULT_EXPENSE_CATEGORIES: string[] = [];
 
 const BranchProfitLoss = () => {
   const { user, userrole } = useAuth();
