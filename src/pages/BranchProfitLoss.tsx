@@ -1194,65 +1194,6 @@ const BranchProfitLoss = () => {
 
         {selectedBranch ? (
           <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-emerald-700 font-medium">Total Revenue</p>
-                      <p className="text-2xl font-bold text-emerald-800">
-                        S${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <TrendingUp className="w-8 h-8 text-emerald-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-red-700 font-medium">Total Expenses</p>
-                      <p className="text-2xl font-bold text-red-800">
-                        S${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <TrendingDown className="w-8 h-8 text-red-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className={`bg-gradient-to-br ${netProfit >= 0 ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-orange-50 to-orange-100 border-orange-200'}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className={`text-sm font-medium ${netProfit >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
-                        Net {netProfit >= 0 ? 'Profit' : 'Loss'}
-                      </p>
-                      <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
-                        S${Math.abs(netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <DollarSign className={`w-8 h-8 ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-purple-700 font-medium">Profit Margin</p>
-                      <p className="text-2xl font-bold text-purple-800">{profitMargin}%</p>
-                    </div>
-                    <TrendingUp className="w-8 h-8 text-purple-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* P&L Statement - Revenue first, then Expenses below */}
             <div className="space-y-6">
               {/* Revenue */}
@@ -1387,7 +1328,7 @@ const BranchProfitLoss = () => {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Net {netProfit >= 0 ? 'Profit' : 'Loss'} for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear}
+                      Partner's share of Net {netProfit >= 0 ? 'Profit' : 'Loss'} for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear}
                     </h3>
                     <p className="text-sm text-gray-600">
                       {branches.find(b => b.id === selectedBranch)?.name || 'Selected Branch'}
