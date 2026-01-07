@@ -109,6 +109,8 @@ const BranchProfitLoss = () => {
     share_percentage: '100'
   });
 
+  const [publishedReports, setPublishedReports] = useState<{ branch_id: string; month: number; year: number }[]>([]);
+
   const isSuperadmin = userrole === 'superadmin';
 
   useEffect(() => {
@@ -159,9 +161,23 @@ const BranchProfitLoss = () => {
               }));
               setPartnerShares(sharesWithBranches);
               
-              // Auto-select first branch if partner has shares
-              if (sharesData.length > 0 && !selectedBranch) {
-                setSelectedBranch(sharesData[0].branch_id);
+              // Load published reports for partner's branches
+              const branchIds = sharesData.map(s => s.branch_id);
+              const { data: publishedData } = await supabase
+                .from('published_pl_reports')
+                .select('branch_id, month, year')
+                .in('branch_id', branchIds);
+              
+              if (publishedData) {
+                setPublishedReports(publishedData);
+                
+                // Auto-select first published report if available
+                if (publishedData.length > 0) {
+                  const firstPublished = publishedData[0];
+                  setSelectedBranch(firstPublished.branch_id);
+                  setSelectedMonth(firstPublished.month.toString());
+                  setSelectedYear(firstPublished.year.toString());
+                }
               }
             }
           }
@@ -1001,6 +1017,41 @@ const BranchProfitLoss = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+  // Get available months for non-superadmins (only published months for selected branch and year)
+  const getAvailableMonths = () => {
+    if (isSuperadmin) {
+      return MONTHS.map((month, idx) => ({ value: (idx + 1).toString(), label: month }));
+    }
+    
+    if (!selectedBranch) return [];
+    
+    const publishedForBranchAndYear = publishedReports.filter(
+      r => r.branch_id === selectedBranch && r.year === parseInt(selectedYear)
+    );
+    
+    return publishedForBranchAndYear.map(r => ({
+      value: r.month.toString(),
+      label: MONTHS[r.month - 1]
+    })).sort((a, b) => parseInt(a.value) - parseInt(b.value));
+  };
+
+  // Get available years for non-superadmins (only years with published reports for selected branch)
+  const getAvailableYears = () => {
+    if (isSuperadmin) {
+      return years;
+    }
+    
+    if (!selectedBranch) return [];
+    
+    const yearsWithPublished = [...new Set(
+      publishedReports
+        .filter(r => r.branch_id === selectedBranch)
+        .map(r => r.year.toString())
+    )].sort((a, b) => parseInt(b) - parseInt(a));
+    
+    return yearsWithPublished;
+  };
+
   // Render editable row for revenue
   const renderRevenueEditableRow = (item: ProfitLossData) => {
     const isEditing = editingId === item.id;
@@ -1554,14 +1605,14 @@ const BranchProfitLoss = () => {
                   <Calendar className="inline w-4 h-4 mr-1" />
                   Month
                 </label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={getAvailableMonths().length === 0}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder={getAvailableMonths().length === 0 ? "No reports" : undefined} />
                   </SelectTrigger>
                   <SelectContent>
-                    {MONTHS.map((month, idx) => (
-                      <SelectItem key={idx + 1} value={(idx + 1).toString()}>
-                        {month}
+                    {getAvailableMonths().map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1569,12 +1620,12 @@ const BranchProfitLoss = () => {
               </div>
               <div className="w-full sm:w-32">
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Year</label>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <Select value={selectedYear} onValueChange={setSelectedYear} disabled={getAvailableYears().length === 0}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder={getAvailableYears().length === 0 ? "No reports" : undefined} />
                   </SelectTrigger>
                   <SelectContent>
-                    {years.map(year => (
+                    {getAvailableYears().map(year => (
                       <SelectItem key={year} value={year}>{year}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1739,30 +1790,21 @@ const BranchProfitLoss = () => {
             </Card>
 
           </>
-        ) : selectedBranch && !isSuperadmin && !isPublished ? (
-          <Card className="shadow-lg border-2 border-amber-200 bg-amber-50">
-            <CardContent className="p-12 text-center">
-              <Calendar className="w-16 h-16 mx-auto text-amber-400 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Report Not Yet Published</h3>
-              <p className="text-gray-500">
-                The Profit & Loss report for {MONTHS[parseInt(selectedMonth) - 1]} {selectedYear} has not been published yet.
-              </p>
-              <p className="text-sm text-gray-400 mt-2">
-                Please check back later or contact your administrator.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
+        ) : !selectedBranch || (!isSuperadmin && getAvailableMonths().length === 0) ? (
           <Card className="shadow-lg">
             <CardContent className="p-12 text-center">
               <Building2 className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Select a Branch</h3>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                {!selectedBranch ? 'Select a Branch' : 'No Published Reports'}
+              </h3>
               <p className="text-gray-500">
-                Please select a branch to view its profit and loss statement.
+                {!selectedBranch 
+                  ? 'Please select a branch to view its profit and loss statement.'
+                  : 'No published reports available for the selected branch.'}
               </p>
             </CardContent>
           </Card>
-        )}
+        ) : null}
         
         {/* Add Category Dialog */}
         <Dialog open={showAddCategoryDialog !== null} onOpenChange={(open) => !open && setShowAddCategoryDialog(null)}>
