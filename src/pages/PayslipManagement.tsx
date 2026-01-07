@@ -140,7 +140,10 @@ const PayslipManagement = () => {
     .sort((a, b) => {
       // Sort by year descending, then by month descending
       if (b.year !== a.year) return b.year - a.year;
-      return (monthOrder[b.month] || 0) - (monthOrder[a.month] || 0);
+      // Extract just the month name (e.g., "December 2025" -> "December")
+      const aMonthName = a.month.split(' ')[0];
+      const bMonthName = b.month.split(' ')[0];
+      return (monthOrder[bMonthName] || 0) - (monthOrder[aMonthName] || 0);
     });
 
   const handleSelectAll = () => {
