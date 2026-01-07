@@ -69,7 +69,7 @@ const BranchProfitLoss = () => {
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [showAddCategoryDialog, setShowAddCategoryDialog] = useState<'revenue' | 'expense' | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  
+  const [branchDefaultShare, setBranchDefaultShare] = useState<number | null>(null);
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<InlineEditData | null>(null);
@@ -145,10 +145,12 @@ const BranchProfitLoss = () => {
     const loadPLData = async () => {
       if (!selectedBranch) {
         setProfitLossData([]);
+        setBranchDefaultShare(null);
         return;
       }
 
       try {
+        // Load P&L entries
         const { data, error } = await supabase
           .from('branch_profit_loss_entries')
           .select('*')
@@ -188,6 +190,21 @@ const BranchProfitLoss = () => {
           setRevenueCategories(Array.from(uniqueRevenueCategories).sort());
           setExpenseCategories(Array.from(uniqueExpenseCategories).sort());
         }
+        
+        // Load default share percentage for this branch
+        const { data: sharesData } = await supabase
+          .from('partner_branch_shares')
+          .select('share_percentage')
+          .eq('branch_id', selectedBranch)
+          .is('effective_to', null)
+          .limit(1)
+          .single();
+        
+        if (sharesData?.share_percentage) {
+          setBranchDefaultShare(Number(sharesData.share_percentage));
+        } else {
+          setBranchDefaultShare(100); // Default to 100% if no share configured
+        }
       } catch (error) {
         console.error('Error loading P&L data:', error);
         setProfitLossData([]);
@@ -197,8 +214,11 @@ const BranchProfitLoss = () => {
     loadPLData();
   }, [selectedBranch, selectedMonth, selectedYear]);
   
-  // Get default share percentage from partner's branch share
+  // Get default share percentage from branch share config
   const getDefaultSharePercentage = () => {
+    if (branchDefaultShare !== null) {
+      return branchDefaultShare.toString();
+    }
     const partnerShare = partnerShares.find(s => s.branch_id === selectedBranch);
     return partnerShare?.share_percentage?.toString() || '100';
   };
