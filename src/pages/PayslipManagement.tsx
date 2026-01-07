@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Download, Mail, Search, Users, Filter } from 'lucide-react';
+import { FileText, Download, Mail, Search, Users, Filter, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -350,6 +350,58 @@ const PayslipManagement = () => {
     }
   };
 
+  const handleDeletePayslip = async (payslip: PayslipRecord) => {
+    if (!confirm(`Are you sure you want to delete the payslip for ${payslip.employeeName} (${payslip.month} ${payslip.year})?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('payroll_records')
+        .delete()
+        .eq('id', payslip.id);
+
+      if (error) throw error;
+
+      setPayslips(prev => prev.filter(p => p.id !== payslip.id));
+      setSelectedPayslips(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(payslip.id);
+        return newSet;
+      });
+      toast.success(`Deleted payslip for ${payslip.employeeName}`);
+    } catch (error) {
+      console.error('Error deleting payslip:', error);
+      toast.error('Failed to delete payslip');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedRecords = filteredPayslips.filter(p => selectedPayslips.has(p.id));
+    
+    if (!confirm(`Are you sure you want to delete ${selectedRecords.length} payslip(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const idsToDelete = selectedRecords.map(p => p.id);
+      
+      const { error } = await supabase
+        .from('payroll_records')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (error) throw error;
+
+      setPayslips(prev => prev.filter(p => !idsToDelete.includes(p.id)));
+      setSelectedPayslips(new Set());
+      toast.success(`Deleted ${selectedRecords.length} payslip(s)`);
+    } catch (error) {
+      console.error('Error deleting payslips:', error);
+      toast.error('Failed to delete payslips');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -455,6 +507,14 @@ const PayslipManagement = () => {
                         <Mail className="h-4 w-4 mr-2" />
                         {sendingEmails ? 'Sending...' : 'Send via Email'}
                       </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Selected
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -528,6 +588,15 @@ const PayslipManagement = () => {
                             title={payslip.employeeEmail ? 'Send via email' : 'No email address'}
                           >
                             <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeletePayslip(payslip)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete payslip"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
