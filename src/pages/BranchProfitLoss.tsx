@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, ChevronUp, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, ChevronUp, ChevronDown, Send, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,6 +95,8 @@ const BranchProfitLoss = () => {
   const [editData, setEditData] = useState<InlineEditData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isAdding, setIsAdding] = useState<'revenue' | 'expense' | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [newEntryData, setNewEntryData] = useState({
     category: '',
     subcategory: '',
@@ -238,6 +240,78 @@ const BranchProfitLoss = () => {
 
     loadPLData();
   }, [selectedBranch, selectedMonth, selectedYear]);
+
+  // Check if report is published
+  useEffect(() => {
+    const checkPublishStatus = async () => {
+      if (!selectedBranch || !selectedMonth || !selectedYear) {
+        setIsPublished(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('published_pl_reports')
+          .select('id')
+          .eq('branch_id', selectedBranch)
+          .eq('month', parseInt(selectedMonth))
+          .eq('year', parseInt(selectedYear))
+          .maybeSingle();
+
+        if (error) throw error;
+        setIsPublished(!!data);
+      } catch (error) {
+        console.error('Error checking publish status:', error);
+        setIsPublished(false);
+      }
+    };
+
+    checkPublishStatus();
+  }, [selectedBranch, selectedMonth, selectedYear]);
+
+  // Handle publish/unpublish report
+  const handlePublishToggle = async () => {
+    if (!selectedBranch) {
+      toast.error('Please select a branch first');
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      if (isPublished) {
+        // Unpublish
+        const { error } = await supabase
+          .from('published_pl_reports')
+          .delete()
+          .eq('branch_id', selectedBranch)
+          .eq('month', parseInt(selectedMonth))
+          .eq('year', parseInt(selectedYear));
+
+        if (error) throw error;
+        setIsPublished(false);
+        toast.success('Report unpublished successfully');
+      } else {
+        // Publish
+        const { error } = await supabase
+          .from('published_pl_reports')
+          .insert({
+            branch_id: selectedBranch,
+            month: parseInt(selectedMonth),
+            year: parseInt(selectedYear),
+            published_by: user?.email
+          });
+
+        if (error) throw error;
+        setIsPublished(true);
+        toast.success('Report published! Partners can now view this report.');
+      }
+    } catch (error: any) {
+      console.error('Error toggling publish status:', error);
+      toast.error(error.message || 'Failed to update publish status');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
   
   // Get default share percentage from branch share config
   const getDefaultSharePercentage = () => {
@@ -1400,10 +1474,38 @@ const BranchProfitLoss = () => {
               Monthly financial overview by branch
             </p>
           </div>
-          <Button onClick={handleExport} variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
+          <div className="flex gap-2">
+            {isSuperadmin && selectedBranch && (
+              <Button 
+                onClick={handlePublishToggle} 
+                variant={isPublished ? "default" : "outline"}
+                className={`gap-2 ${isPublished ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                disabled={isPublishing}
+              >
+                {isPublished ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Published
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Publish
+                  </>
+                )}
+              </Button>
+            )}
+            {!isSuperadmin && isPublished && (
+              <Badge variant="secondary" className="gap-1 px-3 py-2">
+                <CheckCircle className="w-3 h-3 text-emerald-600" />
+                Published
+              </Badge>
+            )}
+            <Button onClick={handleExport} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
