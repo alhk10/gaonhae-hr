@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,37 +34,18 @@ interface ProfitLossData {
   type: 'revenue' | 'expense';
 }
 
-interface EditFormData {
-  id?: string;
+interface InlineEditData {
+  id: string;
   category: string;
   subcategory: string;
   description: string;
   amount: string;
   share_percentage: string;
-  type: 'revenue' | 'expense';
 }
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const DEFAULT_ENTRIES: ProfitLossData[] = [
-  // Revenue
-  { category: 'Revenue', subcategory: 'Class Fees', description: 'Monthly class fees from students', amount: 15000, share_percentage: 100, type: 'revenue' },
-  { category: 'Revenue', subcategory: 'Equipment Sales', description: 'Sale of training equipment and uniforms', amount: 2500, share_percentage: 100, type: 'revenue' },
-  { category: 'Revenue', subcategory: 'Grading Fees', description: 'Belt grading examination fees', amount: 1800, share_percentage: 100, type: 'revenue' },
-  { category: 'Revenue', subcategory: 'Competition Registration', description: 'Competition entry fees', amount: 500, share_percentage: 100, type: 'revenue' },
-  // Expenses
-  { category: 'Operating Expenses', subcategory: 'Rent', description: 'Monthly rental for premises', amount: 4500, share_percentage: 100, type: 'expense' },
-  { category: 'Operating Expenses', subcategory: 'Utilities', description: 'Electricity, water, internet', amount: 800, share_percentage: 100, type: 'expense' },
-  { category: 'Operating Expenses', subcategory: 'Insurance', description: 'Business liability insurance', amount: 350, share_percentage: 100, type: 'expense' },
-  { category: 'Staff Costs', subcategory: 'Instructor Salaries', description: 'Salaries for instructors', amount: 6000, share_percentage: 100, type: 'expense' },
-  { category: 'Staff Costs', subcategory: 'CPF Contributions', description: 'Employer CPF contributions', amount: 1020, share_percentage: 100, type: 'expense' },
-  { category: 'Marketing', subcategory: 'Advertising', description: 'Online and offline advertising', amount: 400, share_percentage: 100, type: 'expense' },
-  { category: 'Marketing', subcategory: 'Promotions', description: 'Promotional events and offers', amount: 200, share_percentage: 100, type: 'expense' },
-  { category: 'Equipment', subcategory: 'Training Equipment', description: 'Mats, pads, and training gear', amount: 500, share_percentage: 100, type: 'expense' },
-  { category: 'Equipment', subcategory: 'Maintenance', description: 'Equipment repair and maintenance', amount: 150, share_percentage: 100, type: 'expense' },
 ];
 
 const BranchProfitLoss = () => {
@@ -80,18 +60,18 @@ const BranchProfitLoss = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [profitLossData, setProfitLossData] = useState<ProfitLossData[]>([]);
   
-  // Edit state
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState<EditFormData>({
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<InlineEditData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState<'revenue' | 'expense' | null>(null);
+  const [newEntryData, setNewEntryData] = useState({
     category: '',
     subcategory: '',
     description: '',
     amount: '',
-    share_percentage: '100',
-    type: 'revenue'
+    share_percentage: '100'
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
 
@@ -168,12 +148,11 @@ const BranchProfitLoss = () => {
 
         if (error) {
           console.error('Error loading P&L data:', error);
-          // Use default entries if no data exists
-          setProfitLossData(DEFAULT_ENTRIES);
+          setProfitLossData([]);
           return;
         }
 
-        if (data && data.length > 0) {
+        if (data) {
           setProfitLossData(data.map(item => ({
             id: item.id,
             category: item.category,
@@ -183,13 +162,10 @@ const BranchProfitLoss = () => {
             share_percentage: Number(item.share_percentage) || 100,
             type: item.type as 'revenue' | 'expense'
           })));
-        } else {
-          // Use default entries if no data exists
-          setProfitLossData(DEFAULT_ENTRIES);
         }
       } catch (error) {
         console.error('Error loading P&L data:', error);
-        setProfitLossData(DEFAULT_ENTRIES);
+        setProfitLossData([]);
       }
     };
 
@@ -242,93 +218,63 @@ const BranchProfitLoss = () => {
     toast.info("Export functionality coming soon");
   };
 
-  const openAddDialog = (type: 'revenue' | 'expense') => {
-    setEditForm({
-      category: type === 'revenue' ? 'Revenue' : '',
-      subcategory: '',
-      description: '',
-      amount: '',
-      share_percentage: '100',
-      type
-    });
-    setIsEditing(false);
-    setEditDialogOpen(true);
-  };
-
-  const openEditDialog = (item: ProfitLossData) => {
-    setEditForm({
+  // Start inline editing
+  const startEdit = (item: ProfitLossData) => {
+    if (!item.id) return;
+    setEditingId(item.id);
+    setEditData({
       id: item.id,
       category: item.category,
       subcategory: item.subcategory,
       description: item.description,
       amount: item.amount.toString(),
-      share_percentage: item.share_percentage.toString(),
-      type: item.type
+      share_percentage: item.share_percentage.toString()
     });
-    setIsEditing(true);
-    setEditDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!editForm.category || !editForm.subcategory || !editForm.amount) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+  // Cancel inline editing
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData(null);
+  };
+
+  // Save inline edit
+  const saveEdit = async () => {
+    if (!editData || !editData.id) return;
 
     setIsSaving(true);
-
     try {
-      const entryData = {
-        branch_id: selectedBranch,
-        month: parseInt(selectedMonth),
-        year: parseInt(selectedYear),
-        category: editForm.category,
-        subcategory: editForm.subcategory,
-        description: editForm.description,
-        amount: parseFloat(editForm.amount),
-        share_percentage: parseFloat(editForm.share_percentage) || 100,
-        type: editForm.type,
-        updated_by: user?.email
-      };
-
-      if (isEditing && editForm.id) {
-        const { error } = await supabase
-          .from('branch_profit_loss_entries')
-          .update(entryData)
-          .eq('id', editForm.id);
-
-        if (error) throw error;
-        toast.success("Entry updated successfully");
-      } else {
-        const { error } = await supabase
-          .from('branch_profit_loss_entries')
-          .insert({ ...entryData, created_by: user?.email });
-
-        if (error) throw error;
-        toast.success("Entry added successfully");
-      }
-
-      // Reload data
-      const { data } = await supabase
+      const { error } = await supabase
         .from('branch_profit_loss_entries')
-        .select('*')
-        .eq('branch_id', selectedBranch)
-        .eq('month', parseInt(selectedMonth))
-        .eq('year', parseInt(selectedYear));
+        .update({
+          category: editData.category,
+          subcategory: editData.subcategory,
+          description: editData.description,
+          amount: parseFloat(editData.amount) || 0,
+          share_percentage: parseFloat(editData.share_percentage) || 100,
+          updated_by: user?.email
+        })
+        .eq('id', editData.id);
 
-      if (data) {
-        setProfitLossData(data.map(item => ({
-          id: item.id,
-          category: item.category,
-          subcategory: item.subcategory,
-          description: item.description || '',
-          amount: Number(item.amount),
-          share_percentage: Number(item.share_percentage) || 100,
-          type: item.type as 'revenue' | 'expense'
-        })));
-      }
+      if (error) throw error;
 
-      setEditDialogOpen(false);
+      // Update local state
+      setProfitLossData(prev => prev.map(item => 
+        item.id === editData.id 
+          ? {
+              ...item,
+              category: editData.category,
+              subcategory: editData.subcategory,
+              description: editData.description,
+              amount: parseFloat(editData.amount) || 0,
+              share_percentage: parseFloat(editData.share_percentage) || 100
+            }
+          : item
+      ));
+
+      setEditingId(null);
+      setEditData(null);
+      toast.success("Entry updated successfully");
     } catch (error: any) {
       console.error('Error saving entry:', error);
       toast.error(error.message || "Error saving entry");
@@ -337,10 +283,63 @@ const BranchProfitLoss = () => {
     }
   };
 
-  const handleDelete = async (item: ProfitLossData) => {
-    if (!item.id) return;
+  // Add new entry
+  const handleAddEntry = async (type: 'revenue' | 'expense') => {
+    if (!newEntryData.subcategory || !newEntryData.amount) {
+      toast.error("Please fill in category and amount");
+      return;
+    }
 
-    if (!confirm(`Are you sure you want to delete "${item.subcategory}"?`)) return;
+    setIsSaving(true);
+    try {
+      const entryData = {
+        branch_id: selectedBranch,
+        month: parseInt(selectedMonth),
+        year: parseInt(selectedYear),
+        category: newEntryData.category || (type === 'revenue' ? 'Revenue' : 'Other'),
+        subcategory: newEntryData.subcategory,
+        description: newEntryData.description,
+        amount: parseFloat(newEntryData.amount) || 0,
+        share_percentage: parseFloat(newEntryData.share_percentage) || 100,
+        type,
+        created_by: user?.email
+      };
+
+      const { data, error } = await supabase
+        .from('branch_profit_loss_entries')
+        .insert(entryData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to local state
+      setProfitLossData(prev => [...prev, {
+        id: data.id,
+        category: data.category,
+        subcategory: data.subcategory,
+        description: data.description || '',
+        amount: Number(data.amount),
+        share_percentage: Number(data.share_percentage) || 100,
+        type: data.type as 'revenue' | 'expense'
+      }]);
+
+      setIsAdding(null);
+      setNewEntryData({ category: '', subcategory: '', description: '', amount: '', share_percentage: '100' });
+      toast.success("Entry added successfully");
+    } catch (error: any) {
+      console.error('Error adding entry:', error);
+      toast.error(error.message || "Error adding entry");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (item: ProfitLossData) => {
+    if (!item.id) {
+      toast.error("Cannot delete unsaved entry");
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -359,6 +358,155 @@ const BranchProfitLoss = () => {
   };
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
+
+  // Render editable row
+  const renderEditableRow = (item: ProfitLossData, isExpense: boolean = false) => {
+    const isEditing = editingId === item.id;
+    
+    if (isEditing && editData) {
+      return (
+        <TableRow key={item.id} className="bg-blue-50">
+          <TableCell className={isExpense ? "pl-6" : ""}>
+            <Input
+              value={editData.subcategory}
+              onChange={(e) => setEditData({ ...editData, subcategory: e.target.value })}
+              className="h-8 text-sm"
+              placeholder="Category"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              value={editData.description}
+              onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+              className="h-8 text-sm"
+              placeholder="Description"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.share_percentage}
+              onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
+              className="h-8 text-sm w-20"
+              min="0"
+              max="100"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.amount}
+              onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+              className="h-8 text-sm w-28"
+              step="0.01"
+            />
+          </TableCell>
+          <TableCell className={`text-right font-medium ${isExpense ? 'text-red-600' : 'text-emerald-700'}`}>
+            S${((parseFloat(editData.amount) || 0) * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </TableCell>
+          {isSuperadmin && (
+            <TableCell>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={saveEdit} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </TableCell>
+          )}
+        </TableRow>
+      );
+    }
+
+    return (
+      <TableRow key={item.id || `temp-${item.subcategory}`}>
+        <TableCell className={`font-medium ${isExpense ? "pl-6" : ""}`}>{item.subcategory}</TableCell>
+        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
+        <TableCell className="text-right">
+          <Badge variant="secondary">{item.share_percentage}%</Badge>
+        </TableCell>
+        <TableCell className="text-right font-medium">
+          S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell className={`text-right font-medium ${isExpense ? 'text-red-600' : 'text-emerald-700'}`}>
+          S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        {isSuperadmin && (
+          <TableCell>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-7 w-7" disabled={!item.id}>
+                <Edit2 className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700" disabled={!item.id}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  };
+
+  // Render add new row
+  const renderAddRow = (type: 'revenue' | 'expense') => {
+    if (isAdding !== type) return null;
+    
+    return (
+      <TableRow className="bg-green-50">
+        <TableCell className={type === 'expense' ? "pl-6" : ""}>
+          <Input
+            value={newEntryData.subcategory}
+            onChange={(e) => setNewEntryData({ ...newEntryData, subcategory: e.target.value })}
+            className="h-8 text-sm"
+            placeholder="Category name"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            value={newEntryData.description}
+            onChange={(e) => setNewEntryData({ ...newEntryData, description: e.target.value })}
+            className="h-8 text-sm"
+            placeholder="Description"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.share_percentage}
+            onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
+            className="h-8 text-sm w-20"
+            min="0"
+            max="100"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.amount}
+            onChange={(e) => setNewEntryData({ ...newEntryData, amount: e.target.value })}
+            className="h-8 text-sm w-28"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </TableCell>
+        <TableCell className={`text-right font-medium ${type === 'expense' ? 'text-red-600' : 'text-emerald-700'}`}>
+          S${((parseFloat(newEntryData.amount) || 0) * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => handleAddEntry(type)} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -523,7 +671,7 @@ const BranchProfitLoss = () => {
                       Revenue
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => openAddDialog('revenue')} className="gap-1">
+                      <Button size="sm" variant="outline" onClick={() => setIsAdding('revenue')} className="gap-1" disabled={isAdding !== null}>
                         <Plus className="w-4 h-4" />
                         Add
                       </Button>
@@ -543,33 +691,8 @@ const BranchProfitLoss = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {profitLossData.filter(item => item.type === 'revenue').map((item, idx) => (
-                        <TableRow key={item.id || idx}>
-                          <TableCell className="font-medium">{item.subcategory}</TableCell>
-                          <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="secondary">{item.share_percentage}%</Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-emerald-700">
-                            S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </TableCell>
-                          {isSuperadmin && (
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button size="icon" variant="ghost" onClick={() => openEditDialog(item)} className="h-7 w-7">
-                                  <Edit2 className="w-3 h-3" />
-                                </Button>
-                                <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700">
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
+                      {profitLossData.filter(item => item.type === 'revenue').map((item) => renderEditableRow(item, false))}
+                      {renderAddRow('revenue')}
                       <TableRow className="bg-emerald-50 font-bold">
                         <TableCell>Total Revenue</TableCell>
                         <TableCell></TableCell>
@@ -596,7 +719,7 @@ const BranchProfitLoss = () => {
                       Expenses
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => openAddDialog('expense')} className="gap-1">
+                      <Button size="sm" variant="outline" onClick={() => setIsAdding('expense')} className="gap-1" disabled={isAdding !== null}>
                         <Plus className="w-4 h-4" />
                         Add
                       </Button>
@@ -623,35 +746,10 @@ const BranchProfitLoss = () => {
                               {category}
                             </TableCell>
                           </TableRow>
-                          {items.map((item, idx) => (
-                            <TableRow key={item.id || idx}>
-                              <TableCell className="pl-6">{item.subcategory}</TableCell>
-                              <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant="secondary">{item.share_percentage}%</Badge>
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </TableCell>
-                              <TableCell className="text-right font-medium text-red-600">
-                                S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </TableCell>
-                              {isSuperadmin && (
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    <Button size="icon" variant="ghost" onClick={() => openEditDialog(item)} className="h-7 w-7">
-                                      <Edit2 className="w-3 h-3" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700">
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          ))}
+                          {items.map((item) => renderEditableRow(item, true))}
                         </React.Fragment>
                       ))}
+                      {renderAddRow('expense')}
                       <TableRow className="bg-red-50 font-bold">
                         <TableCell>Total Expenses</TableCell>
                         <TableCell></TableCell>
@@ -742,86 +840,6 @@ const BranchProfitLoss = () => {
           </Card>
         )}
       </div>
-
-      {/* Edit/Add Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{isEditing ? 'Edit Entry' : `Add ${editForm.type === 'revenue' ? 'Revenue' : 'Expense'}`}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Category *</label>
-              <Input
-                value={editForm.category}
-                onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
-                placeholder="e.g., Revenue, Operating Expenses"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Subcategory *</label>
-              <Input
-                value={editForm.subcategory}
-                onChange={(e) => setEditForm(prev => ({ ...prev, subcategory: e.target.value }))}
-                placeholder="e.g., Class Fees, Rent"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Description</label>
-              <Input
-                value={editForm.description}
-                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Optional description"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Amount (S$) *</label>
-              <Input
-                type="number"
-                value={editForm.amount}
-                onChange={(e) => setEditForm(prev => ({ ...prev, amount: e.target.value }))}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Share Percentage (%)</label>
-              <Input
-                type="number"
-                value={editForm.share_percentage}
-                onChange={(e) => setEditForm(prev => ({ ...prev, share_percentage: e.target.value }))}
-                placeholder="100"
-                min="0"
-                max="100"
-                step="0.01"
-              />
-              <p className="text-xs text-gray-500 mt-1">Percentage of this amount attributed to this branch</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Type</label>
-              <Select 
-                value={editForm.type} 
-                onValueChange={(value: 'revenue' | 'expense') => setEditForm(prev => ({ ...prev, type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="revenue">Revenue</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ResponsiveLayout>
   );
 };
