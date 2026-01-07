@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,6 +76,8 @@ const BranchProfitLoss = () => {
   const [revenueCategories, setRevenueCategories] = useState<string[]>(DEFAULT_REVENUE_CATEGORIES);
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [showAddCategoryDialog, setShowAddCategoryDialog] = useState<'revenue' | 'expense' | null>(null);
+  const [showManageCategoriesDialog, setShowManageCategoriesDialog] = useState<'revenue' | 'expense' | null>(null);
+  const [editingCategory, setEditingCategory] = useState<{ original: string; edited: string } | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [branchDefaultShare, setBranchDefaultShare] = useState<number | null>(null);
   // Inline edit state
@@ -246,13 +248,15 @@ const BranchProfitLoss = () => {
       return;
     }
     
-    if (showAddCategoryDialog === 'revenue') {
+    const type = showAddCategoryDialog || showManageCategoriesDialog;
+    
+    if (type === 'revenue') {
       if (revenueCategories.includes(newCategoryName.trim())) {
         toast.error("Category already exists");
         return;
       }
       setRevenueCategories(prev => [...prev, newCategoryName.trim()].sort());
-    } else if (showAddCategoryDialog === 'expense') {
+    } else if (type === 'expense') {
       if (expenseCategories.includes(newCategoryName.trim())) {
         toast.error("Category already exists");
         return;
@@ -261,8 +265,47 @@ const BranchProfitLoss = () => {
     }
     
     setNewCategoryName('');
-    setShowAddCategoryDialog(null);
+    if (showAddCategoryDialog) {
+      setShowAddCategoryDialog(null);
+    }
     toast.success("Category added");
+  };
+  
+  // Handle deleting category
+  const handleDeleteCategory = (category: string, type: 'revenue' | 'expense') => {
+    if (type === 'revenue') {
+      setRevenueCategories(prev => prev.filter(c => c !== category));
+    } else {
+      setExpenseCategories(prev => prev.filter(c => c !== category));
+    }
+    toast.success("Category deleted");
+  };
+  
+  // Handle editing category
+  const handleSaveEditCategory = (type: 'revenue' | 'expense') => {
+    if (!editingCategory || !editingCategory.edited.trim()) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    
+    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    if (editingCategory.original !== editingCategory.edited && categories.includes(editingCategory.edited.trim())) {
+      toast.error("Category already exists");
+      return;
+    }
+    
+    if (type === 'revenue') {
+      setRevenueCategories(prev => 
+        prev.map(c => c === editingCategory.original ? editingCategory.edited.trim() : c).sort()
+      );
+    } else {
+      setExpenseCategories(prev => 
+        prev.map(c => c === editingCategory.original ? editingCategory.edited.trim() : c).sort()
+      );
+    }
+    
+    setEditingCategory(null);
+    toast.success("Category updated");
   };
   
   // Start adding with default share percentage
@@ -1138,10 +1181,16 @@ const BranchProfitLoss = () => {
                       Revenue
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => startAddingEntry('revenue')} className="gap-1" disabled={isAdding !== null}>
-                        <Plus className="w-4 h-4" />
-                        Add
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setShowManageCategoriesDialog('revenue')} className="gap-1">
+                          <Settings className="w-4 h-4" />
+                          Categories
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => startAddingEntry('revenue')} className="gap-1" disabled={isAdding !== null}>
+                          <Plus className="w-4 h-4" />
+                          Add
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardHeader>
@@ -1194,10 +1243,16 @@ const BranchProfitLoss = () => {
                       Expenses
                     </CardTitle>
                     {isSuperadmin && (
-                      <Button size="sm" variant="outline" onClick={() => startAddingEntry('expense')} className="gap-1" disabled={isAdding !== null}>
-                        <Plus className="w-4 h-4" />
-                        Add
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setShowManageCategoriesDialog('expense')} className="gap-1">
+                          <Settings className="w-4 h-4" />
+                          Categories
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => startAddingEntry('expense')} className="gap-1" disabled={isAdding !== null}>
+                          <Plus className="w-4 h-4" />
+                          Add
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardHeader>
@@ -1335,6 +1390,98 @@ const BranchProfitLoss = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddCategoryDialog(null)}>Cancel</Button>
               <Button onClick={handleAddCategory}>Add Category</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Manage Categories Dialog */}
+        <Dialog open={showManageCategoriesDialog !== null} onOpenChange={(open) => { 
+          if (!open) {
+            setShowManageCategoriesDialog(null);
+            setEditingCategory(null);
+            setNewCategoryName('');
+          }
+        }}>
+          <DialogContent className="sm:max-w-lg bg-background">
+            <DialogHeader>
+              <DialogTitle>Manage {showManageCategoriesDialog === 'revenue' ? 'Revenue' : 'Expense'} Categories</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Add new category */}
+              <div className="flex gap-2">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Enter new category name"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                  className="flex-1"
+                />
+                <Button onClick={handleAddCategory} size="sm">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+              
+              {/* Categories list */}
+              <div className="border rounded-md max-h-64 overflow-y-auto">
+                {((showManageCategoriesDialog === 'revenue' ? revenueCategories : expenseCategories) || []).length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    No categories added yet
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {(showManageCategoriesDialog === 'revenue' ? revenueCategories : expenseCategories).map((category) => (
+                      <div key={category} className="flex items-center justify-between p-3 hover:bg-gray-50">
+                        {editingCategory?.original === category ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              value={editingCategory.edited}
+                              onChange={(e) => setEditingCategory({ ...editingCategory, edited: e.target.value })}
+                              className="h-8 flex-1"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEditCategory(showManageCategoriesDialog!);
+                                if (e.key === 'Escape') setEditingCategory(null);
+                              }}
+                            />
+                            <Button size="icon" variant="ghost" onClick={() => handleSaveEditCategory(showManageCategoriesDialog!)} className="h-8 w-8 text-green-600">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setEditingCategory(null)} className="h-8 w-8">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-sm">{category}</span>
+                            <div className="flex gap-1">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                onClick={() => setEditingCategory({ original: category, edited: category })}
+                                className="h-8 w-8"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                onClick={() => handleDeleteCategory(category, showManageCategoriesDialog!)}
+                                className="h-8 w-8 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowManageCategoriesDialog(null)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
