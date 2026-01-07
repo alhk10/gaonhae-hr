@@ -601,33 +601,30 @@ const BranchProfitLoss = () => {
 
     // Revenue entries
     doc.setFont('helvetica', 'normal');
-    const sortedRevenueCategories = [...revenueCategories].sort((a, b) => a.sort_order - b.sort_order);
+    const revenueEntries = profitLossData.filter(item => item.type === 'revenue');
     
-    sortedRevenueCategories.forEach(category => {
-      const entries = groupedRevenue[category.name] || [];
-      entries.forEach(item => {
-        if (yPos > pageHeight - 30) {
-          doc.addPage();
-          yPos = 20;
-        }
-        xPos = margin;
-        doc.text(item.subcategory.substring(0, 18), xPos, yPos);
-        xPos += revColWidths[0];
-        doc.text((item.description || '-').substring(0, 20), xPos, yPos);
-        xPos += revColWidths[1];
-        doc.text(item.cost_price ? formatCurrency(item.cost_price) : '-', xPos, yPos);
-        xPos += revColWidths[2];
-        doc.text(item.quantity.toString(), xPos, yPos);
-        xPos += revColWidths[3];
-        doc.text(item.sales_amount ? formatCurrency(item.sales_amount) : '-', xPos, yPos);
-        xPos += revColWidths[4];
-        doc.text(item.discount_percentage ? `${item.discount_percentage}%` : '-', xPos, yPos);
-        xPos += revColWidths[5];
-        doc.text(formatCurrency(item.amount), xPos, yPos);
-        xPos += revColWidths[6];
-        doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
-        yPos += 4;
-      });
+    revenueEntries.forEach(item => {
+      if (yPos > pageHeight - 30) {
+        doc.addPage();
+        yPos = 20;
+      }
+      xPos = margin;
+      doc.text(item.subcategory.substring(0, 18), xPos, yPos);
+      xPos += revColWidths[0];
+      doc.text((item.description || '-').substring(0, 20), xPos, yPos);
+      xPos += revColWidths[1];
+      doc.text(item.cost_price ? formatCurrency(item.cost_price) : '-', xPos, yPos);
+      xPos += revColWidths[2];
+      doc.text(item.quantity.toString(), xPos, yPos);
+      xPos += revColWidths[3];
+      doc.text(item.sales_amount ? formatCurrency(item.sales_amount) : '-', xPos, yPos);
+      xPos += revColWidths[4];
+      doc.text(item.discount_percentage ? `${item.discount_percentage}%` : '-', xPos, yPos);
+      xPos += revColWidths[5];
+      doc.text(formatCurrency(item.amount), xPos, yPos);
+      xPos += revColWidths[6];
+      doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
+      yPos += 4;
     });
 
     // Revenue total
@@ -667,25 +664,22 @@ const BranchProfitLoss = () => {
 
     // Expense entries
     doc.setFont('helvetica', 'normal');
-    const sortedExpenseCategories = [...expenseCategories].sort((a, b) => a.sort_order - b.sort_order);
+    const expenseEntries = profitLossData.filter(item => item.type === 'expense');
     
-    sortedExpenseCategories.forEach(category => {
-      const entries = groupedExpenses[category.name] || [];
-      entries.forEach(item => {
-        if (yPos > pageHeight - 30) {
-          doc.addPage();
-          yPos = 20;
-        }
-        xPos = margin;
-        doc.text(item.subcategory.substring(0, 25), xPos, yPos);
-        xPos += expColWidths[0];
-        doc.text((item.description || '-').substring(0, 30), xPos, yPos);
-        xPos += expColWidths[1];
-        doc.text(formatCurrency(item.amount), xPos, yPos);
-        xPos += expColWidths[2];
-        doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
-        yPos += 4;
-      });
+    expenseEntries.forEach(item => {
+      if (yPos > pageHeight - 30) {
+        doc.addPage();
+        yPos = 20;
+      }
+      xPos = margin;
+      doc.text(item.subcategory.substring(0, 25), xPos, yPos);
+      xPos += expColWidths[0];
+      doc.text((item.description || '-').substring(0, 30), xPos, yPos);
+      xPos += expColWidths[1];
+      doc.text(formatCurrency(item.amount), xPos, yPos);
+      xPos += expColWidths[2];
+      doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
+      yPos += 4;
     });
 
     // Expenses total
