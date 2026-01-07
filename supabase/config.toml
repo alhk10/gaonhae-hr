@@ -1,7 +1,7 @@
 project_id = "qwdcbfnuywgubumlgscy"
 
 [functions.auth-admin]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-payslip-email]
-verify_jwt = true
+verify_jwt = false
