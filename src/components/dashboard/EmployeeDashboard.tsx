@@ -338,8 +338,10 @@ const EmployeeDashboard = () => {
   };
 
   const handleSubmitClaim = () => {
-    console.log('Navigating to submit claim page');
-    navigate('/submit-claim');
+    const isPartner = employeeData?.position?.toLowerCase() === 'partner' || 
+                      employeeData?.position?.toLowerCase() === 'senior partner';
+    console.log('Navigating to claim page, isPartner:', isPartner);
+    navigate(isPartner ? '/submit-partners-claim' : '/submit-claim');
   };
 
   const handleViewPayslip = () => {
@@ -515,7 +517,10 @@ const EmployeeDashboard = () => {
                 </div>
               </Button>
               
-              {employeeData?.type !== 'Casual' && (
+              {/* Hide Apply Leave for partners */}
+              {employeeData?.type !== 'Casual' && 
+               employeeData?.position?.toLowerCase() !== 'partner' && 
+               employeeData?.position?.toLowerCase() !== 'senior partner' && (
                 <Button 
                   className={`justify-start h-auto p-3 md:p-4`} 
                   variant="outline"
@@ -535,7 +540,12 @@ const EmployeeDashboard = () => {
               >
                 <FileText className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <div className="text-left">
-                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Submit Claim</p>
+                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
+                    {employeeData?.position?.toLowerCase() === 'partner' || 
+                     employeeData?.position?.toLowerCase() === 'senior partner' 
+                      ? 'Submit Partners Claim' 
+                      : 'Submit Claim'}
+                  </p>
                 </div>
               </Button>
               

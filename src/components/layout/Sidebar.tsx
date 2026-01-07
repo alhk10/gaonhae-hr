@@ -241,17 +241,26 @@ const Sidebar = () => {
 
     // Add regular employee page access items - prioritize authData.pageAccess as it's more reliable
     const employeePageAccess = authData.pageAccess || currentEmployee?.pageAccess;
+    const employeePosition = currentEmployee?.position?.toLowerCase() || '';
+    const isPartnerPosition = employeePosition === 'partner' || employeePosition === 'senior partner';
+    
     if (employeePageAccess) {
       const pageAccess = employeePageAccess;
       
       if (pageAccess.profile) {
         menuItems.push({ icon: UserCheck, label: 'Profile', path: '/profile' });
       }
-      if (pageAccess.applyLeave) {
+      // Hide Apply Leave for partners
+      if (pageAccess.applyLeave && !isPartnerPosition) {
         menuItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
       }
+      // Change Submit Claim to Submit Partners Claim for partners
       if (pageAccess.submitClaim) {
-        menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
+        if (isPartnerPosition) {
+          menuItems.push({ icon: Briefcase, label: 'Submit Partners Claim', path: '/submit-partners-claim' });
+        } else {
+          menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
+        }
       }
       if (pageAccess.payslips) {
         menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
@@ -264,11 +273,9 @@ const Sidebar = () => {
       }
     }
 
-    // Add partner-specific pages based on position
-    const employeePosition = currentEmployee?.position?.toLowerCase() || '';
-    if (employeePosition === 'partner' || employeePosition === 'senior partner') {
+    // Add partner-specific pages based on position (Branch P&L only - Partners Claim is handled above)
+    if (isPartnerPosition) {
       menuItems.push(
-        { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
         { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' }
       );
     }
