@@ -385,7 +385,7 @@ const BranchProfitLoss = () => {
   
   // Reorder category up or down
   const handleReorderCategory = async (categoryId: string, direction: 'up' | 'down', type: 'revenue' | 'expense') => {
-    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    const categories = type === 'revenue' ? [...revenueCategories] : [...expenseCategories];
     const currentIndex = categories.findIndex(c => c.id === categoryId);
     
     if (currentIndex === -1) return;
@@ -393,32 +393,43 @@ const BranchProfitLoss = () => {
     if (direction === 'down' && currentIndex === categories.length - 1) return;
     
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const newCategories = [...categories];
-    [newCategories[currentIndex], newCategories[newIndex]] = [newCategories[newIndex], newCategories[currentIndex]];
     
-    // Update sort_order for affected categories
-    const updates = newCategories.map((cat, index) => ({
-      id: cat.id,
-      sort_order: index
-    }));
+    // Swap the categories
+    const currentCat = categories[currentIndex];
+    const swapCat = categories[newIndex];
+    
+    // Swap sort_order values
+    const currentSortOrder = currentCat.sort_order;
+    const swapSortOrder = swapCat.sort_order;
     
     try {
       // Update both affected categories in the database
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('pl_categories')
-          .update({ sort_order: update.sort_order, updated_by: user?.email })
-          .eq('id', update.id);
-        
-        if (error) throw error;
-      }
+      const { error: error1 } = await supabase
+        .from('pl_categories')
+        .update({ sort_order: swapSortOrder, updated_by: user?.email })
+        .eq('id', currentCat.id);
       
-      // Update local state with new sort_order values
-      const updatedCategories = newCategories.map((cat, index) => ({ ...cat, sort_order: index }));
+      if (error1) throw error1;
+      
+      const { error: error2 } = await supabase
+        .from('pl_categories')
+        .update({ sort_order: currentSortOrder, updated_by: user?.email })
+        .eq('id', swapCat.id);
+      
+      if (error2) throw error2;
+      
+      // Update local state - swap positions
+      const newCategories = [...categories];
+      newCategories[currentIndex] = { ...swapCat, sort_order: currentSortOrder };
+      newCategories[newIndex] = { ...currentCat, sort_order: swapSortOrder };
+      
+      // Sort by sort_order to ensure correct order
+      newCategories.sort((a, b) => a.sort_order - b.sort_order);
+      
       if (type === 'revenue') {
-        setRevenueCategories(updatedCategories);
+        setRevenueCategories(newCategories);
       } else {
-        setExpenseCategories(updatedCategories);
+        setExpenseCategories(newCategories);
       }
     } catch (error: any) {
       console.error('Error reordering category:', error);
