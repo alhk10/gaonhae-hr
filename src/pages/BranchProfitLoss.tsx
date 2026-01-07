@@ -512,8 +512,8 @@ const BranchProfitLoss = () => {
               </Card>
             </div>
 
-            {/* P&L Statement */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* P&L Statement - Revenue first, then Expenses below */}
+            <div className="space-y-6">
               {/* Revenue */}
               <Card className="shadow-lg border-0">
                 <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b">
@@ -538,6 +538,7 @@ const BranchProfitLoss = () => {
                         <TableHead>Description</TableHead>
                         <TableHead className="text-right">Share %</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -548,6 +549,9 @@ const BranchProfitLoss = () => {
                           <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
                           <TableCell className="text-right">
                             <Badge variant="secondary">{item.share_percentage}%</Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-right font-medium text-emerald-700">
                             S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -570,6 +574,9 @@ const BranchProfitLoss = () => {
                         <TableCell>Total Revenue</TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
+                        <TableCell className="text-right">
+                          S${profitLossData.filter(item => item.type === 'revenue').reduce((sum, item) => sum + item.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
                         <TableCell className="text-right text-emerald-800">
                           S${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
@@ -604,6 +611,7 @@ const BranchProfitLoss = () => {
                         <TableHead>Description</TableHead>
                         <TableHead className="text-right">Share %</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -611,7 +619,7 @@ const BranchProfitLoss = () => {
                       {Object.entries(groupedExpenses).map(([category, items]) => (
                         <React.Fragment key={category}>
                           <TableRow className="bg-gray-50">
-                            <TableCell colSpan={isSuperadmin ? 5 : 4} className="font-semibold text-gray-700">
+                            <TableCell colSpan={isSuperadmin ? 6 : 5} className="font-semibold text-gray-700">
                               {category}
                             </TableCell>
                           </TableRow>
@@ -621,6 +629,9 @@ const BranchProfitLoss = () => {
                               <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
                               <TableCell className="text-right">
                                 <Badge variant="secondary">{item.share_percentage}%</Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </TableCell>
                               <TableCell className="text-right font-medium text-red-600">
                                 S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -645,6 +656,9 @@ const BranchProfitLoss = () => {
                         <TableCell>Total Expenses</TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
+                        <TableCell className="text-right">
+                          S${profitLossData.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
                         <TableCell className="text-right text-red-800">
                           S${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
