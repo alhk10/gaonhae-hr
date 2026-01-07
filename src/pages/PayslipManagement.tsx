@@ -121,14 +121,27 @@ const PayslipManagement = () => {
   // Get unique months for filter
   const uniqueMonths = [...new Set(payslips.map(p => p.month))];
 
-  // Filter payslips
-  const filteredPayslips = payslips.filter(payslip => {
-    const matchesSearch = payslip.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payslip.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesMonth = selectedMonth === 'all' || payslip.month === selectedMonth;
-    const matchesType = selectedType === 'all' || payslip.employeeType === selectedType;
-    return matchesSearch && matchesMonth && matchesType;
-  });
+  // Month name to number mapping for sorting
+  const monthOrder: Record<string, number> = {
+    'January': 1, 'February': 2, 'March': 3, 'April': 4,
+    'May': 5, 'June': 6, 'July': 7, 'August': 8,
+    'September': 9, 'October': 10, 'November': 11, 'December': 12
+  };
+
+  // Filter and sort payslips in reverse chronological order
+  const filteredPayslips = payslips
+    .filter(payslip => {
+      const matchesSearch = payslip.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           payslip.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesMonth = selectedMonth === 'all' || payslip.month === selectedMonth;
+      const matchesType = selectedType === 'all' || payslip.employeeType === selectedType;
+      return matchesSearch && matchesMonth && matchesType;
+    })
+    .sort((a, b) => {
+      // Sort by year descending, then by month descending
+      if (b.year !== a.year) return b.year - a.year;
+      return (monthOrder[b.month] || 0) - (monthOrder[a.month] || 0);
+    });
 
   const handleSelectAll = () => {
     if (selectedPayslips.size === filteredPayslips.length) {
