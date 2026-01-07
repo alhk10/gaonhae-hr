@@ -166,8 +166,19 @@ const PayslipManagement = () => {
           clockIn: slot.checkIn || null,
           clockOut: slot.checkOut || null,
           hoursWorked: slot.hoursWorked || 0,
-          pay: slot.pay
+          pay: slot.pay || 0
         }));
+
+        // Ensure all numeric fields have defaults to prevent toFixed errors
+        const totalSlotPay = payslip.payrollData.slotBookingPay || slots.reduce((sum, s) => sum + (s.pay || 0), 0);
+        const totalAllowances = payslip.payrollData.totalAllowances || 0;
+        const totalDeductions = payslip.payrollData.totalDeductions || 0;
+        const approvedClaims = payslip.payrollData.approvedClaims || 0;
+        const grossSalary = payslip.payrollData.grossSalary || (totalSlotPay + totalAllowances + approvedClaims);
+        const employeeCPF = payslip.payrollData.employeeCPF || 0;
+        const employerCPF = payslip.payrollData.employerCPF || 0;
+        const totalCPF = payslip.payrollData.totalCPF || (employeeCPF + employerCPF);
+        const netSalary = payslip.payrollData.netSalary || (grossSalary - employeeCPF - totalDeductions);
 
         await generateCasualPayslipPDF({
           employee: {
@@ -181,17 +192,17 @@ const PayslipManagement = () => {
           },
           month: payslip.month,
           slots,
-          totalSlotPay: payslip.payrollData.slotBookingPay || slots.reduce((sum, s) => sum + s.pay, 0),
-          totalAllowances: payslip.payrollData.totalAllowances,
-          totalDeductions: payslip.payrollData.totalDeductions,
-          approvedClaims: payslip.payrollData.approvedClaims,
-          grossSalary: payslip.payrollData.grossSalary,
-          employeeCPF: payslip.payrollData.employeeCPF,
-          employerCPF: payslip.payrollData.employerCPF,
-          totalCPF: payslip.payrollData.totalCPF,
-          netSalary: payslip.payrollData.netSalary,
-          allowances: payslip.payrollData.allowances,
-          deductions: payslip.payrollData.deductions
+          totalSlotPay,
+          totalAllowances,
+          totalDeductions,
+          approvedClaims,
+          grossSalary,
+          employeeCPF,
+          employerCPF,
+          totalCPF,
+          netSalary,
+          allowances: payslip.payrollData.allowances || [],
+          deductions: payslip.payrollData.deductions || []
         });
       } else {
         await generatePayslipPDF({
