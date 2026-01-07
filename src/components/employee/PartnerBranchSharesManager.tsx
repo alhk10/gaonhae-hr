@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { Building2, Plus, Trash2, Percent, AlertCircle } from 'lucide-react';
+import { Building2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
@@ -167,11 +167,6 @@ const PartnerBranchSharesManager: React.FC<PartnerBranchSharesManagerProps> = ({
     return branches.filter(b => !assignedBranchIds.includes(b.id));
   };
 
-  // Calculate total share percentage
-  const totalSharePercentage = shares
-    .filter(s => !s.effective_to)
-    .reduce((sum, s) => sum + (s.share_percentage || 0), 0);
-
   if (!isPartner) {
     return null;
   }
@@ -204,21 +199,6 @@ const PartnerBranchSharesManager: React.FC<PartnerBranchSharesManagerProps> = ({
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Summary */}
-            <div className="flex items-center gap-4 p-4 bg-indigo-50 rounded-lg">
-              <Percent className="w-8 h-8 text-indigo-600" />
-              <div>
-                <p className="text-sm text-indigo-700 font-medium">Total Share Allocation</p>
-                <p className="text-2xl font-bold text-indigo-800">{totalSharePercentage.toFixed(1)}%</p>
-              </div>
-              {totalSharePercentage > 100 && (
-                <div className="ml-auto flex items-center text-amber-600">
-                  <AlertCircle className="w-5 h-5 mr-1" />
-                  <span className="text-sm">Exceeds 100%</span>
-                </div>
-              )}
-            </div>
-
             {/* Add new share form */}
             {isAdding && (
               <div className="p-4 border rounded-lg bg-gray-50 space-y-4">
