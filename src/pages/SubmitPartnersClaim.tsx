@@ -43,6 +43,7 @@ const PARTNER_CLAIM_TYPES = [
   { id: 'partnership_expense', name: 'Partnership Expense', icon: '🤝' },
   { id: 'branch_operations', name: 'Branch Operations', icon: '🏢' },
   { id: 'training_development', name: 'Training & Development', icon: '📚' },
+  { id: 'transport', name: 'Transport', icon: '🚗' },
   { id: 'other', name: 'Other Business Expense', icon: '📋' },
 ];
 
@@ -135,18 +136,72 @@ const SubmitPartnersClaim = () => {
     try {
       setIsSubmitting(true);
 
-      const { error } = await supabase.from('claims').insert({
+      const claimAmount = parseFloat(formData.amount);
+      const claimDescription = `${formData.vendor ? `Vendor: ${formData.vendor} - ` : ''}${formData.description}`;
+
+      // Insert claim as auto-approved
+      const { data: insertedClaim, error } = await supabase.from('claims').insert({
         employee_id: currentEmployee.id,
         type: formData.type,
-        amount: parseFloat(formData.amount),
-        description: `${formData.vendor ? `Vendor: ${formData.vendor} - ` : ''}${formData.description}`,
-        status: 'Pending',
+        amount: claimAmount,
+        description: claimDescription,
+        status: 'Approved',
         submitted_date: formData.date,
+        reviewed_date: new Date().toISOString(),
         receipt_url: receiptUrl,
         branch_id: formData.branch_id
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Sync to Branch P&L as expense
+      if (insertedClaim) {
+        const submittedDate = new Date(formData.date);
+        const month = submittedDate.getMonth() + 1;
+        const year = submittedDate.getFullYear();
+
+        // Check if entry exists
+        const { data: existingEntry } = await supabase
+          .from('branch_profit_loss_entries')
+          .select('id, amount, description')
+          .eq('branch_id', formData.branch_id)
+          .eq('month', month)
+          .eq('year', year)
+          .eq('category', 'Partner Claims')
+          .eq('subcategory', formData.type)
+          .single();
+
+        if (existingEntry) {
+          // Update existing entry
+          const newAmount = Number(existingEntry.amount) + claimAmount;
+          const newDescription = `${existingEntry.description || ''} | Claim #${insertedClaim.id}`.trim();
+          
+          await supabase
+            .from('branch_profit_loss_entries')
+            .update({
+              amount: newAmount,
+              description: newDescription.substring(0, 500),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingEntry.id);
+        } else {
+          // Create new entry
+          await supabase
+            .from('branch_profit_loss_entries')
+            .insert({
+              branch_id: formData.branch_id,
+              month,
+              year,
+              category: 'Partner Claims',
+              subcategory: formData.type,
+              description: `Partner claim #${insertedClaim.id}: ${claimDescription.substring(0, 200)}`,
+              amount: claimAmount,
+              share_percentage: 100,
+              type: 'expense',
+              created_by: 'system'
+            });
+        }
+      }
       
       // Reload claims
       const { data: claimsData } = await supabase
@@ -160,7 +215,7 @@ const SubmitPartnersClaim = () => {
       
       setFormData({ type: formData.type, amount: '', date: '', vendor: '', description: '', branch_id: '' });
       setReceiptUrl(null);
-      toast.success("Partner claim submitted successfully!");
+      toast.success("Partner claim approved and added to expenses!");
     } catch (error) {
       console.error('Error submitting claim:', error);
       toast.error("Error submitting claim. Please try again.");

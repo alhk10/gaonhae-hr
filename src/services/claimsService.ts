@@ -22,6 +22,7 @@ const PARTNER_CLAIM_TYPES = [
   'Partnership Expense',
   'Branch Operations',
   'Training & Development',
+  'Transport',
   'Other Business Expense',
 ];
 
