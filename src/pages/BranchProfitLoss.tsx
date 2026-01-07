@@ -1719,41 +1719,6 @@ const BranchProfitLoss = () => {
               </CardContent>
             </Card>
 
-            {/* Partner Share Section - Only show for partners with assigned shares */}
-            {selectedShare && (
-              <Card className="shadow-lg border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-full bg-indigo-100">
-                        <User className="w-6 h-6 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Your Partner Share</h3>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
-                            <Percent className="w-3 h-3 mr-1" />
-                            {selectedShare}% Share
-                          </Badge>
-                          of {branches.find(b => b.id === selectedBranch)?.name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-indigo-700 font-medium">
-                        Your Share of {netProfit >= 0 ? 'Profit' : 'Loss'}
-                      </p>
-                      <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
-                        S${Math.abs(netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Partner's share already applied per entry
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </>
         ) : (
           <Card className="shadow-lg">
