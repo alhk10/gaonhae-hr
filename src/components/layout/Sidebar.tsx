@@ -265,7 +265,8 @@ const Sidebar = () => {
       if (pageAccess.payslips) {
         menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });
       }
-      if (pageAccess.myAttendance) {
+      // Hide My Attendance for partners
+      if (pageAccess.myAttendance && !isPartnerPosition) {
         menuItems.push({ icon: Clock, label: 'My Attendance', path: '/my-attendance' });
       }
       if (pageAccess.slotBookingEmployee) {

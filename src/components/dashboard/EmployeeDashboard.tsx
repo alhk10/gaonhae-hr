@@ -252,13 +252,18 @@ const EmployeeDashboard = () => {
     return diffDays;
   };
 
+  const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
+                            employeeData?.position?.toLowerCase() === 'senior partner';
+
   const personalStats = [
-    ...(employeeData?.type !== 'Casual' ? [
+    ...(employeeData?.type !== 'Casual' && !isPartnerPosition ? [
       { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' }
     ] : []),
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
-    { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
-    { title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' },
+    ...(!isPartnerPosition ? [
+      { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
+      { title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' },
+    ] : []),
   ];
 
   const handleClockInOut = async () => {
@@ -402,7 +407,7 @@ const EmployeeDashboard = () => {
         </Card>
       )}
 
-      {(!locationCheckPassed || locationError) && (
+      {(!locationCheckPassed || locationError) && !isPartnerPosition && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
             <div className="flex items-center justify-between">
@@ -473,49 +478,51 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
             <div className={`grid grid-cols-1 gap-2 md:gap-3`}>
-              <Button 
-                className={`justify-start h-auto p-3 md:p-4 ${
-                  isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
-                  canClockIn ? 'bg-green-600 hover:bg-green-700' : 
-                  'bg-gray-400 cursor-not-allowed'
-                }`}
-                onClick={handleClockInOut}
-                disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn) || !user?.employeeId}
-              >
-                <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                <div className="text-left flex-1">
-                  <p className={`font-medium text-white ${isMobile ? 'text-sm' : ''}`}>
-                    {isClockingInOut ? 'Processing...' : 
-                     isCheckingLocation ? 'Checking location...' :
-                     !user?.employeeId ? 'Employee ID Required' :
-                     (isClockedIn ? 'Clock Out' : 'Clock In')}
-                  </p>
-                  <div className={`text-white/80 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    {isClockedIn && clockStatus?.clockIn ? (
-                      <>
-                        Clocked in at {clockStatus.clockIn}
-                        {clockStatus.location && (
-                          <>
-                            <MapPin className={`mx-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
-                            {clockStatus.location}
-                          </>
-                        )}
-                      </>
-                    ) : !user?.employeeId ? (
-                      'Contact administrator'
-                    ) : !canClockIn ? (
-                      !locationCheckPassed ? 'Location required' : 'Slot booking required'
-                    ) : nearestBranch ? (
-                      <>
-                        <MapPin className={`mr-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
-                        {nearestBranch}
-                      </>
-                    ) : (
-                      'Within 100m of branch'
-                    )}
+              {!isPartnerPosition && (
+                <Button 
+                  className={`justify-start h-auto p-3 md:p-4 ${
+                    isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
+                    canClockIn ? 'bg-green-600 hover:bg-green-700' : 
+                    'bg-gray-400 cursor-not-allowed'
+                  }`}
+                  onClick={handleClockInOut}
+                  disabled={isClockingInOut || isCheckingLocation || (!canClockIn && !isClockedIn) || !user?.employeeId}
+                >
+                  <Clock className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left flex-1">
+                    <p className={`font-medium text-white ${isMobile ? 'text-sm' : ''}`}>
+                      {isClockingInOut ? 'Processing...' : 
+                       isCheckingLocation ? 'Checking location...' :
+                       !user?.employeeId ? 'Employee ID Required' :
+                       (isClockedIn ? 'Clock Out' : 'Clock In')}
+                    </p>
+                    <div className={`text-white/80 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {isClockedIn && clockStatus?.clockIn ? (
+                        <>
+                          Clocked in at {clockStatus.clockIn}
+                          {clockStatus.location && (
+                            <>
+                              <MapPin className={`mx-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
+                              {clockStatus.location}
+                            </>
+                          )}
+                        </>
+                      ) : !user?.employeeId ? (
+                        'Contact administrator'
+                      ) : !canClockIn ? (
+                        !locationCheckPassed ? 'Location required' : 'Slot booking required'
+                      ) : nearestBranch ? (
+                        <>
+                          <MapPin className={`mr-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
+                          {nearestBranch}
+                        </>
+                      ) : (
+                        'Within 100m of branch'
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Button>
+                </Button>
+              )}
               
               {/* Hide Apply Leave for partners */}
               {employeeData?.type !== 'Casual' && 
