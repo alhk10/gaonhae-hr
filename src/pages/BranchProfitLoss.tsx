@@ -754,37 +754,37 @@ const BranchProfitLoss = () => {
     }
 
     return (
-      <TableRow key={item.id || `temp-${item.subcategory}`}>
-        <TableCell className="text-right">
-          <Badge variant="secondary">{item.share_percentage}%</Badge>
+      <TableRow key={item.id || `temp-${item.subcategory}`} className="h-7">
+        <TableCell className="text-right py-1">
+          <Badge variant="secondary" className="text-[0.65rem] px-1.5 py-0">{item.share_percentage}%</Badge>
         </TableCell>
-        <TableCell className="font-medium">{item.subcategory}</TableCell>
-        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
+        <TableCell className="font-medium py-1">{item.subcategory}</TableCell>
+        <TableCell className="text-gray-600 py-1">{item.description}</TableCell>
+        <TableCell className="text-right text-gray-600 py-1">
           {item.cost_price ? `S$${item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
         </TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
+        <TableCell className="text-right text-gray-600 py-1">
           {item.quantity}
         </TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
+        <TableCell className="text-right text-gray-600 py-1">
           {item.sales_amount ? `S$${item.sales_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
         </TableCell>
-        <TableCell className="text-right text-gray-600 text-sm">
+        <TableCell className="text-right text-gray-600 py-1">
           {item.discount_percentage ? `${item.discount_percentage}%` : '-'}
         </TableCell>
-        <TableCell className="text-right font-medium">
+        <TableCell className="text-right font-medium py-1">
           S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell className="text-right font-medium text-emerald-700">
+        <TableCell className="text-right font-medium text-emerald-700 py-1">
           S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
         {isSuperadmin && (
-          <TableCell>
+          <TableCell className="py-1">
             <div className="flex gap-1">
-              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-7 w-7" disabled={!item.id}>
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-6 w-6" disabled={!item.id}>
                 <Edit2 className="w-3 h-3" />
               </Button>
-              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700" disabled={!item.id}>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-6 w-6 text-red-600 hover:text-red-700" disabled={!item.id}>
                 <Trash2 className="w-3 h-3" />
               </Button>
             </div>
@@ -875,25 +875,25 @@ const BranchProfitLoss = () => {
     }
 
     return (
-      <TableRow key={item.id || `temp-${item.subcategory}`}>
-        <TableCell className="text-right">
-          <Badge variant="secondary">{item.share_percentage}%</Badge>
+      <TableRow key={item.id || `temp-${item.subcategory}`} className="h-7">
+        <TableCell className="text-right py-1">
+          <Badge variant="secondary" className="text-[0.65rem] px-1.5 py-0">{item.share_percentage}%</Badge>
         </TableCell>
-        <TableCell className="font-medium pl-6">{item.subcategory}</TableCell>
-        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
-        <TableCell className="text-right font-medium">
+        <TableCell className="font-medium py-1">{item.subcategory}</TableCell>
+        <TableCell className="text-gray-600 py-1">{item.description}</TableCell>
+        <TableCell className="text-right font-medium py-1">
           S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell className="text-right font-medium text-red-600">
+        <TableCell className="text-right font-medium text-red-600 py-1">
           S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
         {isSuperadmin && (
-          <TableCell>
+          <TableCell className="py-1">
             <div className="flex gap-1">
-              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-7 w-7" disabled={!item.id}>
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-6 w-6" disabled={!item.id}>
                 <Edit2 className="w-3 h-3" />
               </Button>
-              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-7 w-7 text-red-600 hover:text-red-700" disabled={!item.id}>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item)} className="h-6 w-6 text-red-600 hover:text-red-700" disabled={!item.id}>
                 <Trash2 className="w-3 h-3" />
               </Button>
             </div>
@@ -1219,19 +1219,19 @@ const BranchProfitLoss = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table>
+                  <Table className="text-[0.7rem]">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right w-16">Share %</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Cost Price</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Sales Amount</TableHead>
-                        <TableHead className="text-right">Discount %</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">Partner's Share</TableHead>
-                        {isSuperadmin && <TableHead className="w-20"></TableHead>}
+                      <TableRow className="h-8">
+                        <TableHead className="text-right w-14 py-1">Share %</TableHead>
+                        <TableHead className="py-1">Category</TableHead>
+                        <TableHead className="py-1">Description</TableHead>
+                        <TableHead className="text-right py-1">Cost Price</TableHead>
+                        <TableHead className="text-right py-1">Qty</TableHead>
+                        <TableHead className="text-right py-1">Sales Amount</TableHead>
+                        <TableHead className="text-right py-1">Discount %</TableHead>
+                        <TableHead className="text-right py-1">Amount</TableHead>
+                        <TableHead className="text-right py-1">Partner's Share</TableHead>
+                        {isSuperadmin && <TableHead className="w-16 py-1"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1281,28 +1281,21 @@ const BranchProfitLoss = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table>
+                  <Table className="text-[0.7rem]">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right w-16">Share %</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">Partner's Share</TableHead>
-                        {isSuperadmin && <TableHead className="w-20"></TableHead>}
+                      <TableRow className="h-8">
+                        <TableHead className="text-right w-14 py-1">Share %</TableHead>
+                        <TableHead className="py-1">Category</TableHead>
+                        <TableHead className="py-1">Description</TableHead>
+                        <TableHead className="text-right py-1">Amount</TableHead>
+                        <TableHead className="text-right py-1">Partner's Share</TableHead>
+                        {isSuperadmin && <TableHead className="w-16 py-1"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Object.entries(groupedExpenses).map(([category, items]) => (
-                        <React.Fragment key={category}>
-                          <TableRow className="bg-gray-50">
-                            <TableCell colSpan={isSuperadmin ? 6 : 5} className="font-semibold text-gray-700">
-                              {category}
-                            </TableCell>
-                          </TableRow>
-                          {items.map((item) => renderExpenseEditableRow(item))}
-                        </React.Fragment>
-                      ))}
+                      {Object.entries(groupedExpenses).flatMap(([category, items]) => 
+                        items.map((item) => renderExpenseEditableRow(item))
+                      )}
                       {renderExpenseAddRow()}
                       <TableRow className="bg-red-50 font-bold">
                         <TableCell></TableCell>
