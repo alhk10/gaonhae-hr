@@ -218,6 +218,28 @@ const PayslipManagement = () => {
           deductions: payslip.payrollData.deductions || []
         });
       } else {
+        // Check if payroll data is empty or incomplete
+        const hasValidData = payslip.payrollData && 
+          (payslip.payrollData.baseSalary !== undefined || 
+           payslip.payrollData.grossSalary !== undefined ||
+           payslip.payrollData.netSalary !== undefined);
+        
+        if (!hasValidData) {
+          toast.error(`Payroll data not found for ${payslip.employeeName} - ${payslip.month}. Please process payroll first.`);
+          return;
+        }
+
+        // Ensure all numeric fields have defaults to prevent toFixed errors
+        const baseSalary = payslip.payrollData.baseSalary || 0;
+        const totalAllowances = payslip.payrollData.totalAllowances || 0;
+        const totalDeductions = payslip.payrollData.totalDeductions || 0;
+        const approvedClaims = payslip.payrollData.approvedClaims || 0;
+        const grossSalary = payslip.payrollData.grossSalary || (baseSalary + totalAllowances);
+        const employeeCPF = payslip.payrollData.employeeCPF || 0;
+        const employerCPF = payslip.payrollData.employerCPF || 0;
+        const totalCPF = payslip.payrollData.totalCPF || (employeeCPF + employerCPF);
+        const netSalary = payslip.payrollData.netSalary || (grossSalary + approvedClaims - employeeCPF - totalDeductions);
+
         await generatePayslipPDF({
           employee: {
             id: employee.id,
@@ -229,17 +251,17 @@ const PayslipManagement = () => {
             bankAccount: employee.bankAccount
           },
           month: payslip.month,
-          baseSalary: payslip.payrollData.baseSalary,
-          totalAllowances: payslip.payrollData.totalAllowances,
-          totalDeductions: payslip.payrollData.totalDeductions,
-          grossSalary: payslip.payrollData.grossSalary,
-          employeeCPF: payslip.payrollData.employeeCPF,
-          employerCPF: payslip.payrollData.employerCPF,
-          totalCPF: payslip.payrollData.totalCPF,
-          approvedClaims: payslip.payrollData.approvedClaims,
-          netSalary: payslip.payrollData.netSalary,
-          allowances: payslip.payrollData.allowances,
-          deductions: payslip.payrollData.deductions
+          baseSalary,
+          totalAllowances,
+          totalDeductions,
+          grossSalary,
+          employeeCPF,
+          employerCPF,
+          totalCPF,
+          approvedClaims,
+          netSalary,
+          allowances: payslip.payrollData.allowances || [],
+          deductions: payslip.payrollData.deductions || []
         });
       }
 
