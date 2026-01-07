@@ -754,22 +754,22 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // Track processed IDs locally to prevent duplicates within this batch
+    // Note: We don't check against payrollState here because it uses stale closure data
+    // The de-duplication inside addFullTimeEmployee/addCasualEmployee uses prevState which is accurate
     const processedIdsInBatch = new Set<string>();
     
     for (const employee of employeesToAdd) {
       console.log(`\n  → Processing: ${employee.name} (${employee.type})`);
       
-      // Check for duplicates - both from existing state AND within this batch
-      const existsInFullTime = payrollState.fullTimeEmployees.some(emp => emp.employeeId === employee.id);
-      const existsInCasual = payrollState.casualEmployees.some(emp => emp.employeeId === employee.id);
-      const processedInBatch = processedIdsInBatch.has(employee.id);
-      
-      if (existsInFullTime || existsInCasual || processedInBatch) {
-        console.log(`    ⊗ Already in payroll or batch, skipping...`);
+      // Only check within this batch to prevent duplicate processing
+      // The actual state de-duplication happens inside the setter functions with prevState
+      if (processedIdsInBatch.has(employee.id)) {
+        console.log(`    ⊗ Already processed in this batch, skipping...`);
         continue;
       }
       
       // Mark as processed for this batch
+      processedIdsInBatch.add(employee.id);
       processedIdsInBatch.add(employee.id);
 
       // Get claims for this employee
