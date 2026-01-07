@@ -512,6 +512,7 @@ export type Database = {
       claims: {
         Row: {
           amount: number
+          branch_id: string | null
           created_at: string | null
           description: string
           employee_id: string | null
@@ -525,6 +526,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          branch_id?: string | null
           created_at?: string | null
           description: string
           employee_id?: string | null
@@ -538,6 +540,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          branch_id?: string | null
           created_at?: string | null
           description?: string
           employee_id?: string | null

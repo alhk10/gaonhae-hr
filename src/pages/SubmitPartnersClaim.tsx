@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase, Building2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +16,11 @@ import { getEmployees } from '@/services/employeeService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+
+interface Branch {
+  id: string;
+  name: string;
+}
 
 interface PartnerClaim {
   id: number;
@@ -27,6 +33,7 @@ interface PartnerClaim {
   receipt_url: string | null;
   reviewed_by: string | null;
   reviewed_date: string | null;
+  branch_id: string | null;
 }
 
 const PARTNER_CLAIM_TYPES = [
@@ -44,6 +51,7 @@ const SubmitPartnersClaim = () => {
   const isMobile = useIsMobile();
   const [claims, setClaims] = useState<PartnerClaim[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
@@ -54,10 +62,11 @@ const SubmitPartnersClaim = () => {
     amount: '',
     date: '',
     vendor: '',
-    description: ''
+    description: '',
+    branch_id: ''
   });
 
-  // Load current employee and their partner claims
+  // Load current employee, branches, and their partner claims
   useEffect(() => {
     const loadEmployeeAndClaims = async () => {
       if (!user?.email) return;
@@ -65,6 +74,16 @@ const SubmitPartnersClaim = () => {
       try {
         setIsLoading(true);
         setEmployeeLoadError(null);
+        
+        // Load branches
+        const { data: branchData, error: branchError } = await supabase
+          .from('branches')
+          .select('id, name')
+          .order('name');
+        
+        if (!branchError && branchData) {
+          setBranches(branchData);
+        }
         
         const employees = await getEmployees();
         const employee = employees.find(emp => emp.email === user.email);
@@ -89,7 +108,7 @@ const SubmitPartnersClaim = () => {
       } catch (error) {
         console.error('Error loading employee data:', error);
         setEmployeeLoadError('Failed to load employee information');
-        toast("Error loading employee data");
+        toast.error("Error loading employee data");
       } finally {
         setIsLoading(false);
       }
@@ -103,13 +122,13 @@ const SubmitPartnersClaim = () => {
   };
 
   const handleSubmitClaim = async () => {
-    if (!currentEmployee || !formData.type || !formData.amount || !formData.date || !formData.description) {
-      toast("Please fill in all required fields");
+    if (!currentEmployee || !formData.type || !formData.amount || !formData.date || !formData.description || !formData.branch_id) {
+      toast.error("Please fill in all required fields including branch");
       return;
     }
 
     if (!receiptUrl) {
-      toast("Please upload a receipt before submitting");
+      toast.error("Please upload a receipt before submitting");
       return;
     }
 
@@ -123,7 +142,8 @@ const SubmitPartnersClaim = () => {
         description: `${formData.vendor ? `Vendor: ${formData.vendor} - ` : ''}${formData.description}`,
         status: 'Pending',
         submitted_date: formData.date,
-        receipt_url: receiptUrl
+        receipt_url: receiptUrl,
+        branch_id: formData.branch_id
       });
 
       if (error) throw error;
@@ -138,12 +158,12 @@ const SubmitPartnersClaim = () => {
       
       if (claimsData) setClaims(claimsData as PartnerClaim[]);
       
-      setFormData({ type: formData.type, amount: '', date: '', vendor: '', description: '' });
+      setFormData({ type: formData.type, amount: '', date: '', vendor: '', description: '', branch_id: '' });
       setReceiptUrl(null);
-      toast("Partner claim submitted successfully!");
+      toast.success("Partner claim submitted successfully!");
     } catch (error) {
       console.error('Error submitting claim:', error);
-      toast("Error submitting claim. Please try again.");
+      toast.error("Error submitting claim. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +201,11 @@ const SubmitPartnersClaim = () => {
 
   const getClaimTypeIcon = (typeName: string) => {
     return PARTNER_CLAIM_TYPES.find(t => t.name === typeName)?.icon || '📋';
+  };
+
+  const getBranchName = (branchId: string | null) => {
+    if (!branchId) return '-';
+    return branches.find(b => b.id === branchId)?.name || branchId;
   };
 
   if (isLoading) {
@@ -256,7 +281,7 @@ const SubmitPartnersClaim = () => {
                     {currentEmployee.department && (
                       <>
                         <span className="mx-2">|</span>
-                        <span className="font-medium text-indigo-700">Branch:</span> {currentEmployee.department}
+                        <span className="font-medium text-indigo-700">Department:</span> {currentEmployee.department}
                       </>
                     )}
                   </div>
@@ -298,6 +323,25 @@ const SubmitPartnersClaim = () => {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="font-semibold text-gray-700 flex items-center gap-2">
+                      <Building2 className="w-4 h-4" />
+                      Branch *
+                    </Label>
+                    <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
+                      <SelectTrigger className="p-3">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="font-semibold text-gray-700 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Date of Expense *
                     </Label>
@@ -308,20 +352,20 @@ const SubmitPartnersClaim = () => {
                       onChange={(e) => handleInputChange('date', e.target.value)}
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="font-semibold text-gray-700 flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      Vendor/Merchant
-                    </Label>
-                    <Input 
-                      type="text" 
-                      className="p-3"
-                      placeholder="Enter vendor name"
-                      value={formData.vendor}
-                      onChange={(e) => handleInputChange('vendor', e.target.value)}
-                    />
-                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-semibold text-gray-700 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Vendor/Merchant
+                  </Label>
+                  <Input 
+                    type="text" 
+                    className="p-3"
+                    placeholder="Enter vendor name"
+                    value={formData.vendor}
+                    onChange={(e) => handleInputChange('vendor', e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -360,6 +404,7 @@ const SubmitPartnersClaim = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Type</TableHead>
+                          <TableHead>Branch</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>
@@ -372,6 +417,9 @@ const SubmitPartnersClaim = () => {
                             <TableCell>
                               <span className="mr-2">{getClaimTypeIcon(claim.type)}</span>
                               {claim.type}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{getBranchName(claim.branch_id)}</Badge>
                             </TableCell>
                             <TableCell>{claim.submitted_date}</TableCell>
                             <TableCell className="font-medium">{formatAmount(claim.amount)}</TableCell>
