@@ -25,6 +25,13 @@ interface PartnerBranchShare {
   branch?: Branch;
 }
 
+interface PLCategory {
+  id: string;
+  name: string;
+  type: 'revenue' | 'expense';
+  default_cost_price: number | null;
+}
+
 interface ProfitLossData {
   id?: string;
   category: string;
@@ -57,8 +64,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const DEFAULT_REVENUE_CATEGORIES: string[] = [];
-const DEFAULT_EXPENSE_CATEGORIES: string[] = [];
+const DEFAULT_REVENUE_CATEGORIES: PLCategory[] = [];
+const DEFAULT_EXPENSE_CATEGORIES: PLCategory[] = [];
 
 const BranchProfitLoss = () => {
   const { user, userrole } = useAuth();
@@ -73,12 +80,13 @@ const BranchProfitLoss = () => {
   const [profitLossData, setProfitLossData] = useState<ProfitLossData[]>([]);
   
   // Categories state
-  const [revenueCategories, setRevenueCategories] = useState<string[]>(DEFAULT_REVENUE_CATEGORIES);
-  const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
+  const [revenueCategories, setRevenueCategories] = useState<PLCategory[]>(DEFAULT_REVENUE_CATEGORIES);
+  const [expenseCategories, setExpenseCategories] = useState<PLCategory[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [showAddCategoryDialog, setShowAddCategoryDialog] = useState<'revenue' | 'expense' | null>(null);
   const [showManageCategoriesDialog, setShowManageCategoriesDialog] = useState<'revenue' | 'expense' | null>(null);
-  const [editingCategory, setEditingCategory] = useState<{ original: string; edited: string } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<{ id: string; name: string; cost_price: string } | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryCostPrice, setNewCategoryCostPrice] = useState('');
   const [branchDefaultShare, setBranchDefaultShare] = useState<number | null>(null);
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -112,6 +120,17 @@ const BranchProfitLoss = () => {
         
         if (!branchError && branchData) {
           setBranches(branchData);
+        }
+        
+        // Load global categories
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from('pl_categories')
+          .select('*')
+          .order('name');
+        
+        if (!categoriesError && categoriesData) {
+          setRevenueCategories(categoriesData.filter(c => c.type === 'revenue') as PLCategory[]);
+          setExpenseCategories(categoriesData.filter(c => c.type === 'expense') as PLCategory[]);
         }
         
         // Load current employee and their branch shares for non-superadmin users
@@ -192,21 +211,6 @@ const BranchProfitLoss = () => {
             share_percentage: Number(item.share_percentage) || 100,
             type: item.type as 'revenue' | 'expense'
           })));
-          
-          // Extract unique categories from existing data
-          const uniqueRevenueCategories = new Set([...DEFAULT_REVENUE_CATEGORIES]);
-          const uniqueExpenseCategories = new Set([...DEFAULT_EXPENSE_CATEGORIES]);
-          
-          data.forEach(item => {
-            if (item.type === 'revenue' && item.subcategory) {
-              uniqueRevenueCategories.add(item.subcategory);
-            } else if (item.type === 'expense' && item.subcategory) {
-              uniqueExpenseCategories.add(item.subcategory);
-            }
-          });
-          
-          setRevenueCategories(Array.from(uniqueRevenueCategories).sort());
-          setExpenseCategories(Array.from(uniqueExpenseCategories).sort());
         }
         
         // Load default share percentage for this branch
@@ -241,71 +245,139 @@ const BranchProfitLoss = () => {
     return partnerShare?.share_percentage?.toString() || '100';
   };
   
+  // Get default cost price for a category
+  const getDefaultCostPrice = (categoryName: string, type: 'revenue' | 'expense') => {
+    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    const category = categories.find(c => c.name === categoryName);
+    return category?.default_cost_price?.toString() || '';
+  };
+  
   // Handle adding new category
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast.error("Please enter a category name");
       return;
     }
     
     const type = showAddCategoryDialog || showManageCategoriesDialog;
+    if (!type) return;
     
-    if (type === 'revenue') {
-      if (revenueCategories.includes(newCategoryName.trim())) {
-        toast.error("Category already exists");
-        return;
-      }
-      setRevenueCategories(prev => [...prev, newCategoryName.trim()].sort());
-    } else if (type === 'expense') {
-      if (expenseCategories.includes(newCategoryName.trim())) {
-        toast.error("Category already exists");
-        return;
-      }
-      setExpenseCategories(prev => [...prev, newCategoryName.trim()].sort());
+    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    if (categories.some(c => c.name === newCategoryName.trim())) {
+      toast.error("Category already exists");
+      return;
     }
     
-    setNewCategoryName('');
-    if (showAddCategoryDialog) {
-      setShowAddCategoryDialog(null);
+    try {
+      const costPrice = newCategoryCostPrice ? parseFloat(newCategoryCostPrice) : null;
+      
+      const { data, error } = await supabase
+        .from('pl_categories')
+        .insert({
+          name: newCategoryName.trim(),
+          type,
+          default_cost_price: costPrice,
+          created_by: user?.email
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const newCategory: PLCategory = {
+        id: data.id,
+        name: data.name,
+        type: data.type as 'revenue' | 'expense',
+        default_cost_price: data.default_cost_price ? Number(data.default_cost_price) : null
+      };
+      
+      if (type === 'revenue') {
+        setRevenueCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+      } else {
+        setExpenseCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      
+      setNewCategoryName('');
+      setNewCategoryCostPrice('');
+      if (showAddCategoryDialog) {
+        setShowAddCategoryDialog(null);
+      }
+      toast.success("Category added");
+    } catch (error: any) {
+      console.error('Error adding category:', error);
+      toast.error(error.message || "Error adding category");
     }
-    toast.success("Category added");
   };
   
   // Handle deleting category
-  const handleDeleteCategory = (category: string, type: 'revenue' | 'expense') => {
-    if (type === 'revenue') {
-      setRevenueCategories(prev => prev.filter(c => c !== category));
-    } else {
-      setExpenseCategories(prev => prev.filter(c => c !== category));
+  const handleDeleteCategory = async (categoryId: string, type: 'revenue' | 'expense') => {
+    try {
+      const { error } = await supabase
+        .from('pl_categories')
+        .delete()
+        .eq('id', categoryId);
+      
+      if (error) throw error;
+      
+      if (type === 'revenue') {
+        setRevenueCategories(prev => prev.filter(c => c.id !== categoryId));
+      } else {
+        setExpenseCategories(prev => prev.filter(c => c.id !== categoryId));
+      }
+      toast.success("Category deleted");
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      toast.error(error.message || "Error deleting category");
     }
-    toast.success("Category deleted");
   };
   
   // Handle editing category
-  const handleSaveEditCategory = (type: 'revenue' | 'expense') => {
-    if (!editingCategory || !editingCategory.edited.trim()) {
+  const handleSaveEditCategory = async (type: 'revenue' | 'expense') => {
+    if (!editingCategory || !editingCategory.name.trim()) {
       toast.error("Please enter a category name");
       return;
     }
     
     const categories = type === 'revenue' ? revenueCategories : expenseCategories;
-    if (editingCategory.original !== editingCategory.edited && categories.includes(editingCategory.edited.trim())) {
+    const originalCategory = categories.find(c => c.id === editingCategory.id);
+    
+    if (originalCategory?.name !== editingCategory.name && categories.some(c => c.name === editingCategory.name.trim())) {
       toast.error("Category already exists");
       return;
     }
     
-    if (type === 'revenue') {
-      setRevenueCategories(prev => 
-        prev.map(c => c === editingCategory.original ? editingCategory.edited.trim() : c).sort()
-      );
-    } else {
-      setExpenseCategories(prev => 
-        prev.map(c => c === editingCategory.original ? editingCategory.edited.trim() : c).sort()
-      );
+    try {
+      const costPrice = editingCategory.cost_price ? parseFloat(editingCategory.cost_price) : null;
+      
+      const { error } = await supabase
+        .from('pl_categories')
+        .update({
+          name: editingCategory.name.trim(),
+          default_cost_price: costPrice,
+          updated_by: user?.email
+        })
+        .eq('id', editingCategory.id);
+      
+      if (error) throw error;
+      
+      const updateFn = (prev: PLCategory[]) => 
+        prev.map(c => c.id === editingCategory.id 
+          ? { ...c, name: editingCategory.name.trim(), default_cost_price: costPrice } 
+          : c
+        ).sort((a, b) => a.name.localeCompare(b.name));
+      
+      if (type === 'revenue') {
+        setRevenueCategories(updateFn);
+      } else {
+        setExpenseCategories(updateFn);
+      }
+      
+      setEditingCategory(null);
+      toast.success("Category updated");
+    } catch (error: any) {
+      console.error('Error updating category:', error);
+      toast.error(error.message || "Error updating category");
     }
-    
-    setEditingCategory(null);
-    toast.success("Category updated");
   };
   
   // Start adding with default share percentage
@@ -590,7 +662,7 @@ const BranchProfitLoss = () => {
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
                 {revenueCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
                   <span className="flex items-center gap-1">
@@ -746,7 +818,7 @@ const BranchProfitLoss = () => {
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
                 {expenseCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
                   <span className="flex items-center gap-1">
@@ -848,7 +920,9 @@ const BranchProfitLoss = () => {
                 if (value === '__add_new__') {
                   setShowAddCategoryDialog('revenue');
                 } else {
-                  setNewEntryData({ ...newEntryData, subcategory: value });
+                  // Auto-populate cost price from category default
+                  const defaultCostPrice = getDefaultCostPrice(value, 'revenue');
+                  setNewEntryData({ ...newEntryData, subcategory: value, cost_price: defaultCostPrice });
                 }
               }}
             >
@@ -857,7 +931,7 @@ const BranchProfitLoss = () => {
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
                 {revenueCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
                   <span className="flex items-center gap-1">
@@ -971,7 +1045,7 @@ const BranchProfitLoss = () => {
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
                 {expenseCategories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
                 <SelectItem value="__add_new__" className="text-primary">
                   <span className="flex items-center gap-1">
@@ -1408,19 +1482,39 @@ const BranchProfitLoss = () => {
             </DialogHeader>
             <div className="space-y-4 py-4">
               {/* Add new category */}
-              <div className="flex gap-2">
-                <Input
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Enter new category name"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                  className="flex-1"
-                />
-                <Button onClick={handleAddCategory} size="sm">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Enter new category name"
+                    className="flex-1"
+                  />
+                  {showManageCategoriesDialog === 'revenue' && (
+                    <Input
+                      type="number"
+                      value={newCategoryCostPrice}
+                      onChange={(e) => setNewCategoryCostPrice(e.target.value)}
+                      placeholder="Cost Price"
+                      className="w-28"
+                      step="0.01"
+                    />
+                  )}
+                  <Button onClick={handleAddCategory} size="sm">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
               </div>
+              
+              {/* Categories list header */}
+              {showManageCategoriesDialog === 'revenue' && (
+                <div className="flex gap-2 px-3 py-2 text-sm font-medium text-gray-600 border-b">
+                  <span className="flex-1">Category Name</span>
+                  <span className="w-28 text-right">Cost Price</span>
+                  <span className="w-20"></span>
+                </div>
+              )}
               
               {/* Categories list */}
               <div className="border rounded-md max-h-64 overflow-y-auto">
@@ -1431,12 +1525,12 @@ const BranchProfitLoss = () => {
                 ) : (
                   <div className="divide-y">
                     {(showManageCategoriesDialog === 'revenue' ? revenueCategories : expenseCategories).map((category) => (
-                      <div key={category} className="flex items-center justify-between p-3 hover:bg-gray-50">
-                        {editingCategory?.original === category ? (
+                      <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50">
+                        {editingCategory?.id === category.id ? (
                           <div className="flex items-center gap-2 flex-1">
                             <Input
-                              value={editingCategory.edited}
-                              onChange={(e) => setEditingCategory({ ...editingCategory, edited: e.target.value })}
+                              value={editingCategory.name}
+                              onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
                               className="h-8 flex-1"
                               autoFocus
                               onKeyDown={(e) => {
@@ -1444,6 +1538,16 @@ const BranchProfitLoss = () => {
                                 if (e.key === 'Escape') setEditingCategory(null);
                               }}
                             />
+                            {showManageCategoriesDialog === 'revenue' && (
+                              <Input
+                                type="number"
+                                value={editingCategory.cost_price}
+                                onChange={(e) => setEditingCategory({ ...editingCategory, cost_price: e.target.value })}
+                                className="h-8 w-28"
+                                step="0.01"
+                                placeholder="Cost Price"
+                              />
+                            )}
                             <Button size="icon" variant="ghost" onClick={() => handleSaveEditCategory(showManageCategoriesDialog!)} className="h-8 w-8 text-green-600">
                               <Check className="w-4 h-4" />
                             </Button>
@@ -1453,12 +1557,21 @@ const BranchProfitLoss = () => {
                           </div>
                         ) : (
                           <>
-                            <span className="text-sm">{category}</span>
-                            <div className="flex gap-1">
+                            <span className="text-sm flex-1">{category.name}</span>
+                            {showManageCategoriesDialog === 'revenue' && (
+                              <span className="text-sm text-gray-600 w-28 text-right">
+                                {category.default_cost_price ? `S$${category.default_cost_price.toFixed(2)}` : '-'}
+                              </span>
+                            )}
+                            <div className="flex gap-1 w-20 justify-end">
                               <Button 
                                 size="icon" 
                                 variant="ghost" 
-                                onClick={() => setEditingCategory({ original: category, edited: category })}
+                                onClick={() => setEditingCategory({ 
+                                  id: category.id, 
+                                  name: category.name, 
+                                  cost_price: category.default_cost_price?.toString() || '' 
+                                })}
                                 className="h-8 w-8"
                               >
                                 <Edit2 className="w-3 h-3" />
@@ -1466,7 +1579,7 @@ const BranchProfitLoss = () => {
                               <Button 
                                 size="icon" 
                                 variant="ghost" 
-                                onClick={() => handleDeleteCategory(category, showManageCategoriesDialog!)}
+                                onClick={() => handleDeleteCategory(category.id, showManageCategoriesDialog!)}
                                 className="h-8 w-8 text-red-600 hover:text-red-700"
                               >
                                 <Trash2 className="w-3 h-3" />

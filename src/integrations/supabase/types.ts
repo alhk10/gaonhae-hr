@@ -1863,6 +1863,39 @@ export type Database = {
           },
         ]
       }
+      pl_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_cost_price: number | null
+          id: string
+          name: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_cost_price?: number | null
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_cost_price?: number | null
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       price_rules: {
         Row: {
           belt_max: string | null
