@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -497,6 +498,14 @@ const BranchProfitLoss = () => {
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
 
+  const groupedRevenue = profitLossData
+    .filter(item => item.type === 'revenue')
+    .reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, ProfitLossData[]>);
+
   const groupedExpenses = profitLossData
     .filter(item => item.type === 'expense')
     .reduce((acc, item) => {
@@ -505,8 +514,208 @@ const BranchProfitLoss = () => {
       return acc;
     }, {} as Record<string, ProfitLossData[]>);
 
-  const handleExport = () => {
-    toast.info("Export functionality coming soon");
+  const handleExport = async () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 15;
+    let yPos = 15;
+
+    // Helper function for currency formatting
+    const formatCurrency = (amount: number) => 
+      `S$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Add logo and header
+    try {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        logoImg.onload = () => resolve();
+        logoImg.onerror = () => reject(new Error('Failed to load logo'));
+        logoImg.src = '/images/company-logo.jpg';
+      });
+      const logoWidth = 25;
+      const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+      doc.addImage(logoImg, 'JPEG', margin, yPos, logoWidth, Math.min(logoHeight, 15));
+    } catch (error) {
+      console.warn('Could not load logo for PDF:', error);
+    }
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Branch Profit & Loss Report', margin + 30, yPos + 8);
+    
+    yPos += 20;
+
+    // Branch and Period info
+    const branchName = branches.find(b => b.id === selectedBranch)?.name || 'All Branches';
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Branch: ${branchName}`, margin, yPos);
+    doc.text(`Period: ${MONTHS[parseInt(selectedMonth) - 1]} ${selectedYear}`, margin + 80, yPos);
+    
+    yPos += 10;
+
+    // Summary section
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Summary', margin, yPos);
+    yPos += 6;
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
+    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, margin + 60, yPos);
+    
+    const netProfit = totalRevenue - totalExpenses;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, margin + 120, yPos);
+    
+    yPos += 10;
+
+    // Revenue Section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129); // Emerald color
+    doc.text('Revenue', margin, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 6;
+
+    // Revenue table header
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    const revenueHeaders = ['Category', 'Description', 'Cost', 'Qty', 'Sales', 'Disc%', 'Amount', "Partner's Share"];
+    const revColWidths = [35, 40, 18, 12, 22, 15, 22, 26];
+    let xPos = margin;
+    revenueHeaders.forEach((header, i) => {
+      doc.text(header, xPos, yPos);
+      xPos += revColWidths[i];
+    });
+    yPos += 4;
+
+    // Draw line under header
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 3;
+
+    // Revenue entries
+    doc.setFont('helvetica', 'normal');
+    const sortedRevenueCategories = [...revenueCategories].sort((a, b) => a.sort_order - b.sort_order);
+    
+    sortedRevenueCategories.forEach(category => {
+      const entries = groupedRevenue[category.name] || [];
+      entries.forEach(item => {
+        if (yPos > pageHeight - 30) {
+          doc.addPage();
+          yPos = 20;
+        }
+        xPos = margin;
+        doc.text(item.subcategory.substring(0, 18), xPos, yPos);
+        xPos += revColWidths[0];
+        doc.text((item.description || '-').substring(0, 20), xPos, yPos);
+        xPos += revColWidths[1];
+        doc.text(item.cost_price ? formatCurrency(item.cost_price) : '-', xPos, yPos);
+        xPos += revColWidths[2];
+        doc.text(item.quantity.toString(), xPos, yPos);
+        xPos += revColWidths[3];
+        doc.text(item.sales_amount ? formatCurrency(item.sales_amount) : '-', xPos, yPos);
+        xPos += revColWidths[4];
+        doc.text(item.discount_percentage ? `${item.discount_percentage}%` : '-', xPos, yPos);
+        xPos += revColWidths[5];
+        doc.text(formatCurrency(item.amount), xPos, yPos);
+        xPos += revColWidths[6];
+        doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
+        yPos += 4;
+      });
+    });
+
+    // Revenue total
+    yPos += 2;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Revenue: ${formatCurrency(totalRevenue)}`, margin, yPos);
+    yPos += 10;
+
+    // Expenses Section
+    if (yPos > pageHeight - 50) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(239, 68, 68); // Red color
+    doc.text('Expenses', margin, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 6;
+
+    // Expense table header
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    const expenseHeaders = ['Category', 'Description', 'Amount', "Partner's Share"];
+    const expColWidths = [50, 60, 35, 35];
+    xPos = margin;
+    expenseHeaders.forEach((header, i) => {
+      doc.text(header, xPos, yPos);
+      xPos += expColWidths[i];
+    });
+    yPos += 4;
+
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 3;
+
+    // Expense entries
+    doc.setFont('helvetica', 'normal');
+    const sortedExpenseCategories = [...expenseCategories].sort((a, b) => a.sort_order - b.sort_order);
+    
+    sortedExpenseCategories.forEach(category => {
+      const entries = groupedExpenses[category.name] || [];
+      entries.forEach(item => {
+        if (yPos > pageHeight - 30) {
+          doc.addPage();
+          yPos = 20;
+        }
+        xPos = margin;
+        doc.text(item.subcategory.substring(0, 25), xPos, yPos);
+        xPos += expColWidths[0];
+        doc.text((item.description || '-').substring(0, 30), xPos, yPos);
+        xPos += expColWidths[1];
+        doc.text(formatCurrency(item.amount), xPos, yPos);
+        xPos += expColWidths[2];
+        doc.text(formatCurrency(item.amount * item.share_percentage / 100), xPos, yPos);
+        yPos += 4;
+      });
+    });
+
+    // Expenses total
+    yPos += 2;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, margin, yPos);
+    yPos += 10;
+
+    // Net Profit Summary
+    if (yPos > pageHeight - 30) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    const profitColor = netProfit >= 0 ? [16, 185, 129] : [239, 68, 68];
+    doc.setTextColor(profitColor[0], profitColor[1], profitColor[2]);
+    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, margin, yPos);
+    doc.setTextColor(0, 0, 0);
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, pageHeight - 10);
+
+    // Save PDF
+    const filename = `PL_${branchName.replace(/\s+/g, '_')}_${MONTHS[parseInt(selectedMonth) - 1]}_${selectedYear}.pdf`;
+    doc.save(filename);
+    toast.success('PDF exported successfully');
   };
 
   // Start inline editing
