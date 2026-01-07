@@ -147,7 +147,7 @@ const EnhancedLeaveSummary = () => {
         .from('allowances')
         .insert({
           employee_id: employeeId,
-          name: `Leave Encashment (${selectedYear})`,
+          name: `Leave Encashment - ${unusedDays} days (${selectedYear})`,
           amount: encashmentAmount,
           type: 'Adhoc'
         });
