@@ -30,6 +30,8 @@ interface ProfitLossData {
   category: string;
   subcategory: string;
   description: string;
+  cost_price: number | null;
+  quantity: number;
   amount: number;
   share_percentage: number;
   type: 'revenue' | 'expense';
@@ -40,6 +42,8 @@ interface InlineEditData {
   category: string;
   subcategory: string;
   description: string;
+  cost_price: string;
+  quantity: string;
   amount: string;
   share_percentage: string;
 }
@@ -78,6 +82,8 @@ const BranchProfitLoss = () => {
   const [newEntryData, setNewEntryData] = useState({
     category: '',
     subcategory: '',
+    cost_price: '',
+    quantity: '1',
     description: '',
     amount: '',
     share_percentage: '100'
@@ -170,6 +176,8 @@ const BranchProfitLoss = () => {
             category: item.category,
             subcategory: item.subcategory,
             description: item.description || '',
+            cost_price: item.cost_price ? Number(item.cost_price) : null,
+            quantity: Number(item.quantity) || 1,
             amount: Number(item.amount),
             share_percentage: Number(item.share_percentage) || 100,
             type: item.type as 'revenue' | 'expense'
@@ -255,6 +263,8 @@ const BranchProfitLoss = () => {
     setNewEntryData({
       category: '',
       subcategory: '',
+      cost_price: '',
+      quantity: '1',
       description: '',
       amount: '',
       share_percentage: getDefaultSharePercentage()
@@ -316,6 +326,8 @@ const BranchProfitLoss = () => {
       category: item.category,
       subcategory: item.subcategory,
       description: item.description,
+      cost_price: item.cost_price?.toString() || '',
+      quantity: item.quantity.toString(),
       amount: item.amount.toString(),
       share_percentage: item.share_percentage.toString()
     });
@@ -339,6 +351,8 @@ const BranchProfitLoss = () => {
           category: editData.category,
           subcategory: editData.subcategory,
           description: editData.description,
+          cost_price: editData.cost_price ? parseFloat(editData.cost_price) : null,
+          quantity: parseFloat(editData.quantity) || 1,
           amount: parseFloat(editData.amount) || 0,
           share_percentage: parseFloat(editData.share_percentage) || 100,
           updated_by: user?.email
@@ -355,6 +369,8 @@ const BranchProfitLoss = () => {
               category: editData.category,
               subcategory: editData.subcategory,
               description: editData.description,
+              cost_price: editData.cost_price ? parseFloat(editData.cost_price) : null,
+              quantity: parseFloat(editData.quantity) || 1,
               amount: parseFloat(editData.amount) || 0,
               share_percentage: parseFloat(editData.share_percentage) || 100
             }
@@ -388,6 +404,8 @@ const BranchProfitLoss = () => {
         category: newEntryData.category || (type === 'revenue' ? 'Revenue' : 'Other'),
         subcategory: newEntryData.subcategory,
         description: newEntryData.description,
+        cost_price: newEntryData.cost_price ? parseFloat(newEntryData.cost_price) : null,
+        quantity: parseFloat(newEntryData.quantity) || 1,
         amount: parseFloat(newEntryData.amount) || 0,
         share_percentage: parseFloat(newEntryData.share_percentage) || 100,
         type,
@@ -408,13 +426,15 @@ const BranchProfitLoss = () => {
         category: data.category,
         subcategory: data.subcategory,
         description: data.description || '',
+        cost_price: data.cost_price ? Number(data.cost_price) : null,
+        quantity: Number(data.quantity) || 1,
         amount: Number(data.amount),
         share_percentage: Number(data.share_percentage) || 100,
         type: data.type as 'revenue' | 'expense'
       }]);
 
       setIsAdding(null);
-      setNewEntryData({ category: '', subcategory: '', description: '', amount: '', share_percentage: '100' });
+      setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', description: '', amount: '', share_percentage: '100' });
       toast.success("Entry added successfully");
     } catch (error: any) {
       console.error('Error adding entry:', error);
@@ -456,6 +476,16 @@ const BranchProfitLoss = () => {
     if (isEditing && editData) {
       return (
         <TableRow key={item.id} className="bg-blue-50">
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.share_percentage}
+              onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
+              className="h-8 text-sm w-16"
+              min="0"
+              max="100"
+            />
+          </TableCell>
           <TableCell className={isExpense ? "pl-6" : ""}>
             <Select
               value={editData.subcategory}
@@ -494,11 +524,21 @@ const BranchProfitLoss = () => {
           <TableCell>
             <Input
               type="number"
-              value={editData.share_percentage}
-              onChange={(e) => setEditData({ ...editData, share_percentage: e.target.value })}
-              className="h-8 text-sm w-20"
-              min="0"
-              max="100"
+              value={editData.cost_price}
+              onChange={(e) => setEditData({ ...editData, cost_price: e.target.value })}
+              className="h-8 text-sm w-24"
+              step="0.01"
+              placeholder="0.00"
+            />
+          </TableCell>
+          <TableCell>
+            <Input
+              type="number"
+              value={editData.quantity}
+              onChange={(e) => setEditData({ ...editData, quantity: e.target.value })}
+              className="h-8 text-sm w-16"
+              min="1"
+              placeholder="1"
             />
           </TableCell>
           <TableCell>
@@ -531,10 +571,16 @@ const BranchProfitLoss = () => {
 
     return (
       <TableRow key={item.id || `temp-${item.subcategory}`}>
-        <TableCell className={`font-medium ${isExpense ? "pl-6" : ""}`}>{item.subcategory}</TableCell>
-        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
         <TableCell className="text-right">
           <Badge variant="secondary">{item.share_percentage}%</Badge>
+        </TableCell>
+        <TableCell className={`font-medium ${isExpense ? "pl-6" : ""}`}>{item.subcategory}</TableCell>
+        <TableCell className="text-gray-600 text-sm">{item.description}</TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.cost_price ? `S$${item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+        </TableCell>
+        <TableCell className="text-right text-gray-600 text-sm">
+          {item.quantity}
         </TableCell>
         <TableCell className="text-right font-medium">
           S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -566,6 +612,16 @@ const BranchProfitLoss = () => {
     
     return (
       <TableRow className="bg-green-50">
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.share_percentage}
+            onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
+            className="h-8 text-sm w-16"
+            min="0"
+            max="100"
+          />
+        </TableCell>
         <TableCell className={type === 'expense' ? "pl-6" : ""}>
           <div className="flex gap-1 items-center">
             <Select
@@ -606,11 +662,21 @@ const BranchProfitLoss = () => {
         <TableCell>
           <Input
             type="number"
-            value={newEntryData.share_percentage}
-            onChange={(e) => setNewEntryData({ ...newEntryData, share_percentage: e.target.value })}
-            className="h-8 text-sm w-20"
-            min="0"
-            max="100"
+            value={newEntryData.cost_price}
+            onChange={(e) => setNewEntryData({ ...newEntryData, cost_price: e.target.value })}
+            className="h-8 text-sm w-24"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            value={newEntryData.quantity}
+            onChange={(e) => setNewEntryData({ ...newEntryData, quantity: e.target.value })}
+            className="h-8 text-sm w-16"
+            min="1"
+            placeholder="1"
           />
         </TableCell>
         <TableCell>
@@ -631,7 +697,7 @@ const BranchProfitLoss = () => {
             <Button size="icon" variant="ghost" onClick={() => handleAddEntry(type)} disabled={isSaving} className="h-7 w-7 text-green-600 hover:text-green-700">
               <Check className="w-4 h-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
+            <Button size="icon" variant="ghost" onClick={() => { setIsAdding(null); setNewEntryData({ category: '', subcategory: '', cost_price: '', quantity: '1', description: '', amount: '', share_percentage: '100' }); }} className="h-7 w-7 text-gray-600 hover:text-gray-700">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -814,9 +880,11 @@ const BranchProfitLoss = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-right w-16">Share %</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Share %</TableHead>
+                        <TableHead className="text-right">Cost Price</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
@@ -826,7 +894,9 @@ const BranchProfitLoss = () => {
                       {profitLossData.filter(item => item.type === 'revenue').map((item) => renderEditableRow(item, false))}
                       {renderAddRow('revenue')}
                       <TableRow className="bg-emerald-50 font-bold">
+                        <TableCell></TableCell>
                         <TableCell>Total Revenue</TableCell>
+                        <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell className="text-right">
@@ -862,9 +932,11 @@ const BranchProfitLoss = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-right w-16">Share %</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Share %</TableHead>
+                        <TableHead className="text-right">Cost Price</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Partner's Share</TableHead>
                         {isSuperadmin && <TableHead className="w-20"></TableHead>}
@@ -874,7 +946,7 @@ const BranchProfitLoss = () => {
                       {Object.entries(groupedExpenses).map(([category, items]) => (
                         <React.Fragment key={category}>
                           <TableRow className="bg-gray-50">
-                            <TableCell colSpan={isSuperadmin ? 6 : 5} className="font-semibold text-gray-700">
+                            <TableCell colSpan={isSuperadmin ? 8 : 7} className="font-semibold text-gray-700">
                               {category}
                             </TableCell>
                           </TableRow>
@@ -883,7 +955,9 @@ const BranchProfitLoss = () => {
                       ))}
                       {renderAddRow('expense')}
                       <TableRow className="bg-red-50 font-bold">
+                        <TableCell></TableCell>
                         <TableCell>Total Expenses</TableCell>
+                        <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell className="text-right">

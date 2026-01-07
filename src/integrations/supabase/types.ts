@@ -304,11 +304,13 @@ export type Database = {
           amount: number
           branch_id: string
           category: string
+          cost_price: number | null
           created_at: string
           created_by: string | null
           description: string | null
           id: string
           month: number
+          quantity: number | null
           share_percentage: number | null
           subcategory: string
           type: string
@@ -320,11 +322,13 @@ export type Database = {
           amount?: number
           branch_id: string
           category: string
+          cost_price?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           month: number
+          quantity?: number | null
           share_percentage?: number | null
           subcategory: string
           type: string
@@ -336,11 +340,13 @@ export type Database = {
           amount?: number
           branch_id?: string
           category?: string
+          cost_price?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           month?: number
+          quantity?: number | null
           share_percentage?: number | null
           subcategory?: string
           type?: string
