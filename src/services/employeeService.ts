@@ -12,6 +12,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       .from('employees')
       .select(`
         id, name, nric, type, email, join_date, resign_date, position, department,
+        bank_name, bank_account, base_salary, hourly_rate, payment_type, residency_status,
         admin_access (*)
       `)
       .order('name')
@@ -49,13 +50,13 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         name: emp.name,
         nric: emp.nric || '',
         dateOfBirth: '', // Load on demand
-        residencyStatus: '', // Load on demand
+        residencyStatus: emp.residency_status || '',
         type: emp.type as 'Full-Time' | 'Casual',
-        baseSalary: 0, // Load on demand
-        hourlyRate: 0, // Load on demand
-        paymentType: 'Monthly' as 'Monthly' | 'Hourly' | 'Daily', // Load on demand
-        bankName: '', // Load on demand
-        bankAccount: '', // Load on demand
+        baseSalary: emp.base_salary || 0,
+        hourlyRate: emp.hourly_rate || 0,
+        paymentType: (emp.payment_type || 'Monthly') as 'Monthly' | 'Hourly' | 'Daily',
+        bankName: emp.bank_name || '',
+        bankAccount: emp.bank_account || '',
         branch: '', // Load on demand
         department: emp.department || '',
         position: emp.position || '',
