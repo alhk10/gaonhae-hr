@@ -588,7 +588,7 @@ const BranchProfitLoss = () => {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     const revenueHeaders = ['Category', 'Description', 'Cost', 'Qty', 'Sales', 'Disc%', 'Amount', "Partner's Share"];
-    const revColWidths = [35, 40, 18, 12, 22, 15, 22, 26];
+    const revColWidths = [45, 30, 18, 12, 22, 15, 22, 26];
     let xPos = margin;
     revenueHeaders.forEach((header, i) => {
       doc.text(header, xPos, yPos);
@@ -620,9 +620,9 @@ const BranchProfitLoss = () => {
         yPos = 20;
       }
       xPos = margin;
-      doc.text(item.subcategory.substring(0, 18), xPos, yPos);
+      doc.text(item.subcategory.substring(0, 28), xPos, yPos);
       xPos += revColWidths[0];
-      doc.text((item.description || '-').substring(0, 20), xPos, yPos);
+      doc.text((item.description || '-').substring(0, 15), xPos, yPos);
       xPos += revColWidths[1];
       doc.text(item.cost_price ? formatCurrency(item.cost_price) : '-', xPos, yPos);
       xPos += revColWidths[2];
