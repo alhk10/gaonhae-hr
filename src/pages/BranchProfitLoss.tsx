@@ -1744,10 +1744,10 @@ const BranchProfitLoss = () => {
                         Your Share of {netProfit >= 0 ? 'Profit' : 'Loss'}
                       </p>
                       <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
-                        S${Math.abs(netProfit * (selectedShare / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        S${Math.abs(netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Based on {selectedShare}% of S${Math.abs(netProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Partner's share already applied per entry
                       </p>
                     </div>
                   </div>
