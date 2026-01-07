@@ -299,6 +299,57 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_profit_loss_entries: {
+        Row: {
+          amount: number
+          branch_id: string
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          month: number
+          share_percentage: number | null
+          subcategory: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          amount?: number
+          branch_id: string
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          month: number
+          share_percentage?: number | null
+          subcategory: string
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          month?: number
+          share_percentage?: number | null
+          subcategory?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       branch_timetables: {
         Row: {
           belt_range_max: string | null
