@@ -1870,6 +1870,7 @@ export type Database = {
           default_cost_price: number | null
           id: string
           name: string
+          sort_order: number | null
           type: string
           updated_at: string
           updated_by: string | null
@@ -1880,6 +1881,7 @@ export type Database = {
           default_cost_price?: number | null
           id?: string
           name: string
+          sort_order?: number | null
           type: string
           updated_at?: string
           updated_by?: string | null
@@ -1890,6 +1892,7 @@ export type Database = {
           default_cost_price?: number | null
           id?: string
           name?: string
+          sort_order?: number | null
           type?: string
           updated_at?: string
           updated_by?: string | null

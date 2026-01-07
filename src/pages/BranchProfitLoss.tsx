@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +30,7 @@ interface PLCategory {
   name: string;
   type: 'revenue' | 'expense';
   default_cost_price: number | null;
+  sort_order: number;
 }
 
 interface ProfitLossData {
@@ -122,10 +123,11 @@ const BranchProfitLoss = () => {
           setBranches(branchData);
         }
         
-        // Load global categories
+        // Load global categories ordered by sort_order
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('pl_categories')
           .select('*')
+          .order('sort_order')
           .order('name');
         
         if (!categoriesError && categoriesData) {
@@ -288,13 +290,14 @@ const BranchProfitLoss = () => {
         id: data.id,
         name: data.name,
         type: data.type as 'revenue' | 'expense',
-        default_cost_price: data.default_cost_price ? Number(data.default_cost_price) : null
+        default_cost_price: data.default_cost_price ? Number(data.default_cost_price) : null,
+        sort_order: data.sort_order || 0
       };
       
       if (type === 'revenue') {
-        setRevenueCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+        setRevenueCategories(prev => [...prev, newCategory].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
       } else {
-        setExpenseCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+        setExpenseCategories(prev => [...prev, newCategory].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
       }
       
       setNewCategoryName('');
@@ -377,6 +380,49 @@ const BranchProfitLoss = () => {
     } catch (error: any) {
       console.error('Error updating category:', error);
       toast.error(error.message || "Error updating category");
+    }
+  };
+  
+  // Reorder category up or down
+  const handleReorderCategory = async (categoryId: string, direction: 'up' | 'down', type: 'revenue' | 'expense') => {
+    const categories = type === 'revenue' ? revenueCategories : expenseCategories;
+    const currentIndex = categories.findIndex(c => c.id === categoryId);
+    
+    if (currentIndex === -1) return;
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === categories.length - 1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const newCategories = [...categories];
+    [newCategories[currentIndex], newCategories[newIndex]] = [newCategories[newIndex], newCategories[currentIndex]];
+    
+    // Update sort_order for affected categories
+    const updates = newCategories.map((cat, index) => ({
+      id: cat.id,
+      sort_order: index
+    }));
+    
+    try {
+      // Update both affected categories in the database
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('pl_categories')
+          .update({ sort_order: update.sort_order, updated_by: user?.email })
+          .eq('id', update.id);
+        
+        if (error) throw error;
+      }
+      
+      // Update local state with new sort_order values
+      const updatedCategories = newCategories.map((cat, index) => ({ ...cat, sort_order: index }));
+      if (type === 'revenue') {
+        setRevenueCategories(updatedCategories);
+      } else {
+        setExpenseCategories(updatedCategories);
+      }
+    } catch (error: any) {
+      console.error('Error reordering category:', error);
+      toast.error(error.message || "Error reordering category");
     }
   };
   
@@ -1235,7 +1281,14 @@ const BranchProfitLoss = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {profitLossData.filter(item => item.type === 'revenue').map((item) => renderRevenueEditableRow(item))}
+                      {profitLossData
+                        .filter(item => item.type === 'revenue')
+                        .sort((a, b) => {
+                          const aIndex = revenueCategories.findIndex(c => c.name === a.subcategory);
+                          const bIndex = revenueCategories.findIndex(c => c.name === b.subcategory);
+                          return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+                        })
+                        .map((item) => renderRevenueEditableRow(item))}
                       {renderRevenueAddRow()}
                       <TableRow className="bg-emerald-50 font-bold">
                         <TableCell></TableCell>
@@ -1467,7 +1520,7 @@ const BranchProfitLoss = () => {
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {(showManageCategoriesDialog === 'revenue' ? revenueCategories : expenseCategories).map((category) => (
+                    {(showManageCategoriesDialog === 'revenue' ? revenueCategories : expenseCategories).map((category, index, arr) => (
                       <div key={category.id} className="flex items-center justify-between p-3 hover:bg-gray-50">
                         {editingCategory?.id === category.id ? (
                           <div className="flex items-center gap-2 flex-1">
@@ -1506,7 +1559,28 @@ const BranchProfitLoss = () => {
                                 {category.default_cost_price ? `S$${category.default_cost_price.toFixed(2)}` : '-'}
                               </span>
                             )}
-                            <div className="flex gap-1 w-20 justify-end">
+                            <div className="flex gap-0.5 items-center">
+                              {/* Reorder buttons */}
+                              <div className="flex flex-col">
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => handleReorderCategory(category.id, 'up', showManageCategoriesDialog!)}
+                                  disabled={index === 0}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => handleReorderCategory(category.id, 'down', showManageCategoriesDialog!)}
+                                  disabled={index === arr.length - 1}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </Button>
+                              </div>
                               <Button 
                                 size="icon" 
                                 variant="ghost" 
