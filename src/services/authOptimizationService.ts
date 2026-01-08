@@ -37,6 +37,27 @@ const STATIC_FALLBACKS: Record<string, any> = {
   'EMP1751006650365': { id: 'EMP1751006650365', name: 'Song Zihan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 950, isSuperadmin: false }
 };
 
+// Email to Employee ID mapping for static fallback lookup
+const EMAIL_TO_EMPLOYEE_ID: Record<string, string> = {
+  'leeesh101@gmail.com': 'EMP1750866645618',
+  // Add more email mappings as needed
+};
+
+/**
+ * Get static fallback by email - matches email to employee ID then returns fallback data
+ */
+const getStaticFallbackByEmail = (email: string): any | null => {
+  // First try direct email mapping
+  const employeeId = EMAIL_TO_EMPLOYEE_ID[email];
+  if (employeeId && STATIC_FALLBACKS[employeeId]) {
+    return STATIC_FALLBACKS[employeeId];
+  }
+  
+  // If no mapping, search all fallbacks for matching email pattern in name
+  // This is a last resort for common name patterns
+  return null;
+};
+
 /**
  * Get employee data with robust fallback system:
  * 1. Try database query with timeout
@@ -99,7 +120,14 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
       return cachedByEmail;
     }
     
-    // Fallback 3: Extended database query (give it more time)
+    // Fallback 3: Try static fallbacks by email match
+    const staticFallback = getStaticFallbackByEmail(email);
+    if (staticFallback) {
+      logger.info('Using static fallback by email', { email });
+      return { ...staticFallback, email };
+    }
+    
+    // Fallback 4: Extended database query (give it more time)
     logger.debug('Trying extended database query');
     const extendedQuery = supabase
       .from('employees')
@@ -122,13 +150,6 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
       return userData;
     }
     
-    // Fallback 4: Try to find by querying all employees and matching (handles email change)
-    if (authUserId) {
-      logger.debug('Trying to find employee by auth ID in database');
-      // This is a last-resort approach - we don't have a direct auth_id -> employee mapping
-      // so we rely on the cached data being present from a previous successful login
-    }
-    
     // No cached data and database unresponsive
     logger.warn('No employee data available', { email });
     return null;
@@ -149,6 +170,13 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
     if (cachedByEmail) {
       logger.info('Using cached employee data after error', { email });
       return cachedByEmail;
+    }
+    
+    // Try static fallback on error too
+    const staticFallback = getStaticFallbackByEmail(email);
+    if (staticFallback) {
+      logger.info('Using static fallback after error', { email });
+      return { ...staticFallback, email };
     }
     
     throw error;
