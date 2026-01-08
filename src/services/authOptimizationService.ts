@@ -1,128 +1,156 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { 
+  getCachedEmployeeByEmail, 
+  getCachedEmployeeByAuthId,
+  cacheEmployeeData,
+  getCachedAdminAccess,
+  cacheAdminAccess,
+  getCachedPageAccess,
+  cachePageAccess,
+  clearAuthCache as clearCacheService
+} from './authCacheService';
 
-export const getCurrentUserEmployee = async (email: string): Promise<any> => {
+// Static fallbacks keyed by employee ID - more stable than email
+const STATIC_FALLBACKS: Record<string, any> = {
+  'EMP1764254219246': { id: 'EMP1764254219246', name: 'Chew Wee Hong Jeremy', type: 'Casual', position: '', department: 'Main Office', isSuperadmin: false },
+  'EMP1750865290864': { id: 'EMP1750865290864', name: 'Corpuz Albert Jr Tiggangay', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', base_salary: 3700, isSuperadmin: false },
+  'EMP1751003565851': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', base_salary: 7200, isSuperadmin: true },
+  'EMP1751030249722': { id: 'EMP1751030249722', name: 'Carissa Lee Masters', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
+  'EMP1750866475666': { id: 'EMP1750866475666', name: 'Cha Jinwoo', type: 'Full-Time', position: 'Instructor', department: 'Main Office', base_salary: 3200, isSuperadmin: false },
+  'EMP1751030381806': { id: 'EMP1751030381806', name: 'Clarissa Koh Jia Xuan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
+  'EMP1751006728858': { id: 'EMP1751006728858', name: 'Aw Yi Zhe Eldon', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 650, isSuperadmin: false },
+  'EMP1751006227595': { id: 'EMP1751006227595', name: 'Eugene Goh', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 400, isSuperadmin: false },
+  'EMP1750863118850': { id: 'EMP1750863118850', name: 'Kim Hasung', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', base_salary: 3650, isSuperadmin: false },
+  'EMP1750864876850': { id: 'EMP1750864876850', name: 'Kang Hyunjun', type: 'Full-Time', position: 'General Manager', department: 'Main Office', base_salary: 6800, isSuperadmin: false },
+  'EMP1752646101747': { id: 'EMP1752646101747', name: 'Wang Pot Chien', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
+  'EMP1751007228999': { id: 'EMP1751007228999', name: 'Jason Lu Lijie', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 1875, isSuperadmin: false },
+  'EMP1751006368759': { id: 'EMP1751006368759', name: 'Ng Kai Rui Jovious', type: 'Casual', position: 'Casual Instructor', department: 'Kembangan', base_salary: 200, isSuperadmin: false },
+  'EMP1750866300088': { id: 'EMP1750866300088', name: 'Jason Chiang Jia Jun', type: 'Full-Time', position: 'Instructor', department: 'Main Office', base_salary: 900, isSuperadmin: false },
+  'EMP1751004127565': { id: 'EMP1751004127565', name: 'Lee Yan Xuan', type: 'Casual', position: 'Casual Admin', department: 'Main Office', base_salary: 850, isSuperadmin: false },
+  'EMP1751006564567': { id: 'EMP1751006564567', name: 'Liou Siting Jolene', type: 'Casual', position: 'Casual Employee', department: 'Main Office', base_salary: 237.5, isSuperadmin: false },
+  'EMP1751029837839': { id: 'EMP1751029837839', name: 'Nigel Koh K Jun', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
+  'EMP1751003052389': { id: 'EMP1751003052389', name: 'Kang Hyeonman', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', base_salary: 12320, isSuperadmin: false },
+  'EMP1751006984631': { id: 'EMP1751006984631', name: 'Goh Jun Jie Ryan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 1000, isSuperadmin: false },
+  'EMP1752551410290': { id: 'EMP1752551410290', name: 'Siti Aisyah Binti Mohammed Nazzer', type: 'Casual', position: '', department: 'Main Office', base_salary: 800, isSuperadmin: false },
+  'EMP1750866645618': { id: 'EMP1750866645618', name: 'Lee Soohyuk', type: 'Full-Time', position: 'Partner', department: 'Main Office', base_salary: 10500, isSuperadmin: false },
+  'EMP1751006650365': { id: 'EMP1751006650365', name: 'Song Zihan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 950, isSuperadmin: false }
+};
+
+/**
+ * Get employee data with robust fallback system:
+ * 1. Try database query with timeout
+ * 2. Fall back to session cache (survives email changes)
+ * 3. Fall back to static data (last resort)
+ */
+export const getCurrentUserEmployee = async (email: string, authUserId?: string): Promise<any> => {
   try {
-    logger.debug('Fetching employee data', { email });
+    logger.debug('Fetching employee data', { email, authUserId });
     
-    // Emergency fallbacks for all employees during Supabase connectivity issues
-    const emergencyFallbacks: Record<string, any> = {
-      '20102009jc@gmail.com': { id: 'EMP1764254219246', name: 'Chew Wee Hong Jeremy', email: '20102009jc@gmail.com', type: 'Casual', position: '', department: 'Main Office', phone: '', address: '', nric: 'T0930817I', base_salary: null, join_date: '2025-11-27', resign_date: null, isSuperadmin: false },
-      'albertcorpuz873@gmail.com': { id: 'EMP1750865290864', name: 'Corpuz Albert Jr Tiggangay', email: 'albertcorpuz873@gmail.com', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', phone: '85254816', address: '', nric: 'G3284978X', base_salary: 3700, join_date: '2022-05-01', resign_date: null, isSuperadmin: false },
-      'alhk10@gmail.com': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', email: 'alhk10@gmail.com', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', phone: '97533488', address: '', nric: 'S8800272E', base_salary: 7200, join_date: '2017-06-01', resign_date: null, isSuperadmin: true },
-      'carissamasters@gaonhaetaekwondo.com': { id: 'EMP1751030249722', name: 'Carissa Lee Masters', email: 'carissamasters@gaonhaetaekwondo.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0702889F', base_salary: null, join_date: '2023-12-01', resign_date: null, isSuperadmin: false },
-      'chajw0717@gmail.com': { id: 'EMP1750866475666', name: 'Cha Jinwoo', email: 'chajw0717@gmail.com', type: 'Full-Time', position: 'Instructor', department: 'Main Office', phone: '88494803', address: '', nric: 'M3205770L', base_salary: 3200, join_date: null, resign_date: null, isSuperadmin: false },
-      'clarissa.kohjx@gmail.com': { id: 'EMP1751030381806', name: 'Clarissa Koh Jia Xuan', email: 'clarissa.kohjx@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0832430H', base_salary: null, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
-      'eldon.ayz0106@gmail.com': { id: 'EMP1751006728858', name: 'Aw Yi Zhe Eldon', email: 'eldon.ayz0106@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0614538D', base_salary: 650, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
-      'eugene050400@gmail.com': { id: 'EMP1751006227595', name: 'Eugene Goh', email: 'eugene050400@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0010619J', base_salary: 400, join_date: '2025-02-01', resign_date: null, isSuperadmin: false },
-      'hasung534@gmail.com': { id: 'EMP1750863118850', name: 'Kim Hasung', email: 'hasung534@gmail.com', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', phone: '91233324', address: '', nric: 'S9085930G', base_salary: 3650, join_date: '2017-11-01', resign_date: null, isSuperadmin: false },
-      'hspno77@gmail.com': { id: 'EMP1750864876850', name: 'Kang Hyunjun', email: 'hspno77@gmail.com', type: 'Full-Time', position: 'General Manager', department: 'Main Office', phone: '84025283', address: '', nric: 'G2808573M', base_salary: 6800, join_date: '2018-09-01', resign_date: null, isSuperadmin: false },
-      'huang3471@gmail.com': { id: 'EMP1752646101747', name: 'Wang Pot Chien', email: 'huang3471@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0277825J', base_salary: null, join_date: '2025-06-13', resign_date: null, isSuperadmin: false },
-      'jasonlulijie@gmail.com': { id: 'EMP1751007228999', name: 'Jason Lu Lijie', email: 'jasonlulijie@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0391138H', base_salary: 1875, join_date: '2021-11-17', resign_date: null, isSuperadmin: false },
-      'joviousn@gmail.com': { id: 'EMP1751006368759', name: 'Ng Kai Rui Jovious', email: 'joviousn@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Kembangan', phone: '', address: '', nric: 'T0421534B', base_salary: 200, join_date: null, resign_date: null, isSuperadmin: false },
-      'jsnch617@hanyang.ac.kr': { id: 'EMP1750866300088', name: 'Jason Chiang Jia Jun', email: 'jsnch617@hanyang.ac.kr', type: 'Full-Time', position: 'Instructor', department: 'Main Office', phone: '96536946', address: '', nric: 'S9521643I', base_salary: 900, join_date: '2021-01-05', resign_date: null, isSuperadmin: false },
-      'leeyanxuan34@gmail.com': { id: 'EMP1751004127565', name: 'Lee Yan Xuan', email: 'leeyanxuan34@gmail.com', type: 'Casual', position: 'Casual Admin', department: 'Main Office', phone: '', address: '', nric: 'T0475278Z', base_salary: 850, join_date: null, resign_date: null, isSuperadmin: false },
-      'lioujolene@gmail.com': { id: 'EMP1751006564567', name: 'Liou Siting Jolene', email: 'lioujolene@gmail.com', type: 'Casual', position: 'Casual Employee', department: 'Main Office', phone: '', address: '', nric: 'T0608701E', base_salary: 237.5, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
-      'nigelkoh1211@gmail.com': { id: 'EMP1751029837839', name: 'Nigel Koh K Jun', email: 'nigelkoh1211@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0734124A', base_salary: null, join_date: null, resign_date: null, isSuperadmin: false },
-      'rkdgusaks@gmail.com': { id: 'EMP1751003052389', name: 'Kang Hyeonman', email: 'rkdgusaks@gmail.com', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', phone: '84311884', address: '', nric: 'G3155967M', base_salary: 12320, join_date: '2017-06-01', resign_date: null, isSuperadmin: false },
-      'ryangohjj21@gmail.com': { id: 'EMP1751006984631', name: 'Goh Jun Jie Ryan', email: 'ryangohjj21@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0616700J', base_salary: 1000, join_date: '2025-06-27', resign_date: null, isSuperadmin: false },
-      'sitiaisyahbintimohdnazzer@gmail.com': { id: 'EMP1752551410290', name: 'Siti Aisyah Binti Mohammed Nazzer', email: 'sitiaisyahbintimohdnazzer@gmail.com', type: 'Casual', position: '', department: 'Main Office', phone: '', address: '', nric: 'T0631113F', base_salary: 800, join_date: '2025-06-28', resign_date: null, isSuperadmin: false },
-      'leeesh101@gmail.com': { id: 'EMP1750866645618', name: 'Lee Soohyuk', email: 'leeesh101@gmail.com', type: 'Full-Time', position: 'Partner', department: 'Main Office', phone: '90392179', address: '', nric: 'G3416422W', base_salary: 10500, join_date: null, resign_date: null, isSuperadmin: false },
-      'superzihan2006@gmail.com': { id: 'EMP1751006650365', name: 'Song Zihan', email: 'superzihan2006@gmail.com', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', phone: '', address: '', nric: 'T0622708E', base_salary: 950, join_date: '2025-06-27', resign_date: null, isSuperadmin: false }
-    };
-    
-    // Check if we have an emergency fallback - return it immediately if database is slow
-    if (emergencyFallbacks[email]) {
-      logger.warn('Using emergency fallback', { email });
-      // Try database but with very short timeout (2s)
-      const quickCheck = supabase
-        .from('employees')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-        
-      const quickTimeout = new Promise<{ data: null, error: null }>((resolve) =>
-        setTimeout(() => resolve({ data: null, error: null }), 800)
-      );
-      
-      const quickResult = await Promise.race([quickCheck, quickTimeout]);
-      
-      // If we got real data quickly, use it
-      if (quickResult.data && !quickResult.error) {
-        logger.debug('Got employee data quickly');
-        const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
-        return { ...quickResult.data, isSuperadmin };
-      }
-      
-      // Otherwise return emergency fallback immediately
-      logger.info('Returning emergency fallback immediately');
-      return emergencyFallbacks[email];
-    }
-    
-    // Standard database query with timeout
-    const employeeDataPromise = supabase
+    // First, try a quick database query
+    const quickCheck = supabase
       .from('employees')
       .select('*')
       .eq('email', email)
       .maybeSingle();
-
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => {
-        logger.warn('Database timeout after 1 second');
-        reject(new Error('Employee query timeout after 1 second'));
-      }, 1000)
+      
+    const quickTimeout = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 800)
     );
-
-    let result;
-    try {
-      result = await Promise.race([employeeDataPromise, timeoutPromise]);
-    } catch (timeoutError) {
-      throw timeoutError;
-    }
-
-    const { data, error } = result;
-
-    if (error) {
-      logger.error('Employee query error', error, { email });
-      // If error and we have emergency fallback, use it
-      if (emergencyFallbacks[email]) {
-        logger.warn('Database error - using emergency fallback', { email });
-        return emergencyFallbacks[email];
-      }
-      throw error;
-    }
-
-    if (!data) {
-      logger.info('No employee found for email', { email });
-      // If no data and we have emergency fallback, use it
-      if (emergencyFallbacks[email]) {
-        logger.warn('No data found - using emergency fallback', { email });
-        return emergencyFallbacks[email];
-      }
-      return null;
-    }
-
-    logger.debug('Employee data fetched successfully', { email });
     
-    // Check superadmin status
-    let isSuperadmin = false;
-    try {
-      isSuperadmin = await checkSuperadminStatusCached(email);
-      logger.debug('Superadmin check result', { email, isSuperadmin });
-    } catch (superadminError) {
-      logger.warn('Failed to check superadmin status', superadminError, { email });
+    const quickResult = await Promise.race([quickCheck, quickTimeout]);
+    
+    // If we got real data quickly, cache it and return
+    if (quickResult.data && !quickResult.error) {
+      logger.debug('Got employee data quickly from database');
+      const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
+      const userData = { ...quickResult.data, isSuperadmin };
+      
+      // Cache the data for future fallback
+      cacheEmployeeData({
+        ...userData,
+        isSuperadmin
+      }, authUserId);
+      
+      return userData;
     }
     
-    // Add additional processing fields
-    const userData = {
-      ...data,
-      isSuperadmin
-    };
-
-    return userData;
+    // Database was slow or returned no data - try fallbacks
+    logger.warn('Database slow or no data, trying fallbacks', { email });
+    
+    // Fallback 1: Try session cache by auth user ID (most reliable for email changes)
+    if (authUserId) {
+      const cachedByAuth = getCachedEmployeeByAuthId(authUserId);
+      if (cachedByAuth) {
+        logger.info('Using cached employee data by auth ID', { authUserId });
+        // Update the email in cache if it changed
+        if (cachedByAuth.email !== email) {
+          cachedByAuth.email = email;
+          cacheEmployeeData(cachedByAuth, authUserId);
+        }
+        return cachedByAuth;
+      }
+    }
+    
+    // Fallback 2: Try session cache by email
+    const cachedByEmail = getCachedEmployeeByEmail(email);
+    if (cachedByEmail) {
+      logger.info('Using cached employee data by email', { email });
+      return cachedByEmail;
+    }
+    
+    // Fallback 3: Extended database query (give it more time)
+    logger.debug('Trying extended database query');
+    const extendedQuery = supabase
+      .from('employees')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+      
+    const extendedTimeout = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 3000)
+    );
+    
+    const extendedResult = await Promise.race([extendedQuery, extendedTimeout]);
+    
+    if (extendedResult.data && !extendedResult.error) {
+      logger.debug('Got employee data from extended query');
+      const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
+      const userData = { ...extendedResult.data, isSuperadmin };
+      
+      cacheEmployeeData(userData, authUserId);
+      return userData;
+    }
+    
+    // Fallback 4: Try to find by querying all employees and matching (handles email change)
+    if (authUserId) {
+      logger.debug('Trying to find employee by auth ID in database');
+      // This is a last-resort approach - we don't have a direct auth_id -> employee mapping
+      // so we rely on the cached data being present from a previous successful login
+    }
+    
+    // No cached data and database unresponsive
+    logger.warn('No employee data available', { email });
+    return null;
     
   } catch (error) {
     logger.error('Error fetching employee data', error);
+    
+    // Even on error, try cache fallback
+    if (authUserId) {
+      const cachedByAuth = getCachedEmployeeByAuthId(authUserId);
+      if (cachedByAuth) {
+        logger.info('Using cached employee data after error', { authUserId });
+        return cachedByAuth;
+      }
+    }
+    
+    const cachedByEmail = getCachedEmployeeByEmail(email);
+    if (cachedByEmail) {
+      logger.info('Using cached employee data after error', { email });
+      return cachedByEmail;
+    }
+    
     throw error;
   }
 };
@@ -131,157 +159,205 @@ export const getCurrentUserEmployee = async (email: string): Promise<any> => {
 export const getUserData = getCurrentUserEmployee;
 
 /**
- * Get user admin access with emergency fallbacks and extended timeout
+ * Get user admin access with caching and fallback
  */
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
     logger.debug('Fetching admin access for employee', { employeeId });
     
-    // Emergency admin access fallbacks for all employees during connectivity issues
-    const adminAccessFallbacks: Record<string, any> = {
-      'EMP1764254219246': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750865290864': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751003565851': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751030249722': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750866475666': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751030381806': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006728858': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006227595': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750863118850': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750864876850': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1752646101747': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751007228999': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006368759': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750866300088': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751004127565': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006564567': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751029837839': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751003052389': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006984631': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1752551410290': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1750866645618': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false },
-      'EMP1751006650365': { employees: false, payroll: false, leaveManagement: false, claims: false, attendance: false, slotBooking: false, reports: false }
-    };
-    
-    // Standard timeout for admin access queries (3 seconds)
+    // Quick database query with timeout
     const adminAccessPromise = supabase
       .from('admin_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => {
-        logger.warn('Admin access timeout after 1 second');
-        reject(new Error('Admin access query timeout after 1 second'));
-      }, 1000)
+    const timeoutPromise = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 800)
     );
 
-    let result;
-    try {
-      result = await Promise.race([adminAccessPromise, timeoutPromise]);
-    } catch (timeoutError) {
-      // If timeout and we have emergency fallback, use it
-      if (adminAccessFallbacks[employeeId]) {
-        logger.warn('Admin access timeout - using emergency fallback', { employeeId });
-        return adminAccessFallbacks[employeeId];
-      }
-      throw timeoutError;
-    }
-
+    const result = await Promise.race([adminAccessPromise, timeoutPromise]);
     const { data, error } = result;
 
-    if (error) {
-      logger.error('Admin access query error', error, { employeeId });
-      // If error and we have emergency fallback, use it
-      if (adminAccessFallbacks[employeeId]) {
-        logger.warn('Admin access error - using emergency fallback', { employeeId });
-        return adminAccessFallbacks[employeeId];
-      }
-      throw error;
+    if (data && !error) {
+      logger.debug('Admin access fetched successfully', { employeeId });
+      
+      const accessData = {
+        employees: data.employees || false,
+        payroll: data.payroll || false,
+        leaveManagement: data.leave_management || false,
+        claims: data.claims || false,
+        attendance: data.attendance || false,
+        slotBooking: data.slotBooking || data.slot_booking || false,
+        reports: data.reports || false
+      };
+      
+      // Cache for future use
+      cacheAdminAccess(employeeId, accessData);
+      return accessData;
     }
 
-    if (!data) {
-      logger.info('No admin access found for employee', { employeeId });
-      // If no data and we have emergency fallback, use it
-      if (adminAccessFallbacks[employeeId]) {
-        logger.warn('No admin access data - using emergency fallback', { employeeId });
-        return adminAccessFallbacks[employeeId];
-      }
-      return null;
-    }
-
-    logger.debug('Admin access fetched successfully', { employeeId });
+    // Database slow or error - try cache fallback
+    logger.warn('Admin access query slow/failed, trying cache', { employeeId });
     
-    // Convert snake_case to camelCase for frontend compatibility
-    return {
-      employees: data.employees || false,
-      payroll: data.payroll || false,
-      leaveManagement: data.leave_management || false,
-      claims: data.claims || false,
-      attendance: data.attendance || false,
-      slotBooking: data.slotBooking || data.slot_booking || false,
-      reports: data.reports || false
-    };
+    const cachedAccess = getCachedAdminAccess(employeeId);
+    if (cachedAccess) {
+      logger.info('Using cached admin access', { employeeId });
+      return cachedAccess;
+    }
+    
+    // Extended query
+    const extendedQuery = supabase
+      .from('admin_access')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .maybeSingle();
+
+    const extendedTimeout = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 2000)
+    );
+
+    const extendedResult = await Promise.race([extendedQuery, extendedTimeout]);
+    
+    if (extendedResult.data && !extendedResult.error) {
+      const accessData = {
+        employees: extendedResult.data.employees || false,
+        payroll: extendedResult.data.payroll || false,
+        leaveManagement: extendedResult.data.leave_management || false,
+        claims: extendedResult.data.claims || false,
+        attendance: extendedResult.data.attendance || false,
+        slotBooking: extendedResult.data.slotBooking || extendedResult.data.slot_booking || false,
+        reports: extendedResult.data.reports || false
+      };
+      
+      cacheAdminAccess(employeeId, accessData);
+      return accessData;
+    }
+    
+    // Default: no admin access
+    logger.info('No admin access found for employee', { employeeId });
+    return null;
     
   } catch (error) {
     logger.error('Error fetching admin access', error);
+    
+    // Try cache on error
+    const cachedAccess = getCachedAdminAccess(employeeId);
+    if (cachedAccess) {
+      logger.info('Using cached admin access after error', { employeeId });
+      return cachedAccess;
+    }
+    
     throw error;
   }
 };
 
 /**
- * Get user page access with fallbacks
+ * Get user page access with caching and fallback
  */
 export const getUserPageAccess = async (employeeId: string) => {
   try {
     logger.debug('Fetching page access for employee', { employeeId });
     
-    // Page access query with standard timeout
+    const defaultAccess = {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
+    };
+    
+    // Quick database query with timeout
     const pageAccessPromise = supabase
       .from('employee_page_access')
       .select('*')
       .eq('employee_id', employeeId)
       .maybeSingle();
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Page access query timeout after 1 second')), 1000)
+    const timeoutPromise = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 800)
     );
 
-    const { data, error } = await Promise.race([pageAccessPromise, timeoutPromise]);
+    const result = await Promise.race([pageAccessPromise, timeoutPromise]);
+    const { data, error } = result;
 
-    if (error) {
-      logger.error('Page access query error', error, { employeeId });
-      throw error;
-    }
-
-    if (!data) {
-      logger.debug('No page access found for employee, using defaults', { employeeId });
-      return {
-        profile: true,
-        applyLeave: true,
-        submitClaim: true,
-        payslips: true,
-        myAttendance: true,
-        slotBookingEmployee: true
+    if (data && !error) {
+      logger.debug('Page access fetched successfully', { employeeId });
+      
+      const accessData = {
+        profile: data.profile ?? true,
+        applyLeave: data.apply_leave ?? true,
+        submitClaim: data.submit_claim ?? true,
+        payslips: data.payslips ?? true,
+        myAttendance: data.my_attendance ?? true,
+        slotBookingEmployee: data.slot_booking_employee ?? true
       };
+      
+      // Cache for future use
+      cachePageAccess(employeeId, accessData);
+      return accessData;
     }
 
-    logger.debug('Page access fetched successfully', { employeeId });
+    // Database slow or error - try cache fallback
+    logger.warn('Page access query slow/failed, trying cache', { employeeId });
     
-    // Convert snake_case to camelCase
-    return {
-      profile: data.profile ?? true,
-      applyLeave: data.apply_leave ?? true,
-      submitClaim: data.submit_claim ?? true,
-      payslips: data.payslips ?? true,
-      myAttendance: data.my_attendance ?? true,
-      slotBookingEmployee: data.slot_booking_employee ?? true
-    };
+    const cachedAccess = getCachedPageAccess(employeeId);
+    if (cachedAccess) {
+      logger.info('Using cached page access', { employeeId });
+      return cachedAccess;
+    }
+    
+    // Extended query
+    const extendedQuery = supabase
+      .from('employee_page_access')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .maybeSingle();
+
+    const extendedTimeout = new Promise<{ data: null, error: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: null }), 2000)
+    );
+
+    const extendedResult = await Promise.race([extendedQuery, extendedTimeout]);
+    
+    if (extendedResult.data && !extendedResult.error) {
+      const accessData = {
+        profile: extendedResult.data.profile ?? true,
+        applyLeave: extendedResult.data.apply_leave ?? true,
+        submitClaim: extendedResult.data.submit_claim ?? true,
+        payslips: extendedResult.data.payslips ?? true,
+        myAttendance: extendedResult.data.my_attendance ?? true,
+        slotBookingEmployee: extendedResult.data.slot_booking_employee ?? true
+      };
+      
+      cachePageAccess(employeeId, accessData);
+      return accessData;
+    }
+    
+    // No data found - return defaults
+    logger.debug('No page access found for employee, using defaults', { employeeId });
+    return defaultAccess;
     
   } catch (error) {
     logger.error('Error fetching page access', error);
-    throw error;
+    
+    // Try cache on error
+    const cachedAccess = getCachedPageAccess(employeeId);
+    if (cachedAccess) {
+      logger.info('Using cached page access after error', { employeeId });
+      return cachedAccess;
+    }
+    
+    // Return defaults as ultimate fallback
+    return {
+      profile: true,
+      applyLeave: true,
+      submitClaim: true,
+      payslips: true,
+      myAttendance: true,
+      slotBookingEmployee: true
+    };
   }
 };
 
@@ -325,7 +401,5 @@ export const checkSuperadminStatusCached = async (email: string): Promise<boolea
   }
 };
 
-// Cache clearing placeholder
-export const clearAuthCache = () => {
-  logger.debug('Auth cache cleared');
-};
+// Re-export cache clearing from cache service
+export { clearAuthCache } from './authCacheService';

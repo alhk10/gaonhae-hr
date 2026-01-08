@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { processUserSession } from '@/services/authSessionService';
 import { AuthContextType } from '@/types/auth';
 import { logger } from '@/utils/logger';
+import { clearAuthCache } from '@/services/authCacheService';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -109,6 +110,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async (): Promise<void> => {
     try {
+      // Clear auth cache on logout
+      clearAuthCache();
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         logger.error('Logout error', error);
