@@ -28,23 +28,26 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     return null;
   }
 
-  logger.debug('Processing user session', { email: session.user.email });
+  const authUserId = session.user.id;
+  const email = session.user.email!;
+  
+  logger.debug('Processing user session', { email, authUserId });
 
   try {
-    // Step 1: Get employee data
-    const userData = await getUserData(session.user.email!).catch(() => null);
+    // Step 1: Get employee data (passing auth user ID for caching)
+    const userData = await getUserData(email, authUserId).catch(() => null);
 
     if (!userData) {
       // Check if user is a superadmin
-      const isSuperadmin = await checkSuperadminStatus(session.user.email!);
+      const isSuperadmin = await checkSuperadminStatus(email);
       
       if (isSuperadmin) {
-        logger.info('User is superadmin', { email: session.user.email });
+        logger.info('User is superadmin', { email });
         return {
           user: {
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.email!,
+            id: authUserId,
+            email: email,
+            name: email,
             role: 'superadmin',
           },
           userrole: 'superadmin',
@@ -56,13 +59,13 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       }
 
       // Try quick employee lookup
-      const employeeData = await getEmployeeBasicData(session.user.email!);
+      const employeeData = await getEmployeeBasicData(email);
       
       return {
         user: {
-          id: session.user.id,
-          email: session.user.email!,
-          name: employeeData?.name || session.user.email!.split('@')[0],
+          id: authUserId,
+          email: email,
+          name: employeeData?.name || email.split('@')[0],
           employeeId: employeeData?.id
         },
         userrole: 'employee',
@@ -85,8 +88,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       logger.info('User identified as superadmin');
       return {
         user: {
-          id: session.user.id,
-          email: session.user.email!,
+          id: authUserId,
+          email: email,
           name: userData.name,
           employeeId: userData.id,
           department: userData.department,
@@ -120,8 +123,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     // Regular employee
     return {
       user: {
-        id: session.user.id,
-        email: session.user.email!,
+        id: authUserId,
+        email: email,
         name: userData.name,
         employeeId: userData.id,
         department: userData.department,
@@ -137,15 +140,18 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   } catch (error) {
     logger.error('Session processing error', error);
     
+    const authUserId = session.user.id;
+    const email = session.user.email!;
+    
     // Emergency fallback
-    const isSuperadmin = await checkSuperadminStatus(session.user.email!).catch(() => false);
+    const isSuperadmin = await checkSuperadminStatus(email).catch(() => false);
     
     if (isSuperadmin) {
       return {
         user: {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.email!,
+          id: authUserId,
+          email: email,
+          name: email,
         },
         userrole: 'superadmin',
         userDetails: null,
@@ -155,17 +161,17 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       };
     }
 
-    const employeeData = await getEmployeeBasicData(session.user.email!);
+    const employeeData = await getEmployeeBasicData(email);
     
     return {
       user: {
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.email!.split('@')[0],
+        id: authUserId,
+        email: email,
+        name: employeeData?.name || email.split('@')[0],
         employeeId: employeeData?.id
       },
       userrole: 'employee',
-      userDetails: null,
+      userDetails: employeeData || null,
       adminAccess: null,
       pageAccess: {
         profile: true,
