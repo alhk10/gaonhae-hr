@@ -1,8 +1,14 @@
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getUserData, checkSuperadminStatus, getUserAdminAccess, getUserPageAccess } from './authOptimizationService';
-import { EMERGENCY_FALLBACKS } from '@/config/constants';
 import { logger } from '@/utils/logger';
+
+// Static fallback mapping - matches authOptimizationService
+const STATIC_EMPLOYEE_FALLBACKS: Record<string, any> = {
+  'leeesh101@gmail.com': { id: 'EMP1750866645618', name: 'Lee Soohyuk', type: 'Full-Time', position: 'Partner', department: 'Main Office' },
+  'alhk10@gmail.com': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office' },
+  // Add more as needed
+};
 
 export interface SessionUserData {
   id: string;
@@ -35,11 +41,20 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
 
   try {
     // Step 1: Get employee data (passing auth user ID for caching)
-    const userData = await getUserData(email, authUserId).catch(() => null);
+    let userData = await getUserData(email, authUserId).catch(() => null);
+
+    // If no userData from service, try local static fallback
+    if (!userData) {
+      const staticFallback = STATIC_EMPLOYEE_FALLBACKS[email];
+      if (staticFallback) {
+        logger.info('Using static employee fallback in session service', { email });
+        userData = { ...staticFallback, email, isSuperadmin: false };
+      }
+    }
 
     if (!userData) {
       // Check if user is a superadmin
-      const isSuperadmin = await checkSuperadminStatus(email);
+      const isSuperadmin = await checkSuperadminStatus(email).catch(() => false);
       
       if (isSuperadmin) {
         logger.info('User is superadmin', { email });
@@ -58,7 +73,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         };
       }
 
-      // Try quick employee lookup
+      // Try quick employee lookup with static fallback
       const employeeData = await getEmployeeBasicData(email);
       
       return {
@@ -140,10 +155,34 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   } catch (error) {
     logger.error('Session processing error', error);
     
-    const authUserId = session.user.id;
-    const email = session.user.email!;
+    // Emergency fallback - try static data
+    const staticFallback = STATIC_EMPLOYEE_FALLBACKS[email];
+    if (staticFallback) {
+      logger.info('Using static fallback after session error', { email });
+      return {
+        user: {
+          id: authUserId,
+          email: email,
+          name: staticFallback.name,
+          employeeId: staticFallback.id,
+          department: staticFallback.department,
+          position: staticFallback.position
+        },
+        userrole: 'employee',
+        userDetails: { ...staticFallback, email },
+        adminAccess: null,
+        pageAccess: {
+          profile: true,
+          applyLeave: true,
+          submitClaim: true,
+          payslips: true,
+          myAttendance: true,
+          slotBookingEmployee: true
+        },
+        isSuperadmin: false
+      };
+    }
     
-    // Emergency fallback
     const isSuperadmin = await checkSuperadminStatus(email).catch(() => false);
     
     if (isSuperadmin) {
@@ -188,6 +227,12 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
 
 const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: string; type: string } | null> => {
   try {
+    // First check static fallback
+    const staticFallback = STATIC_EMPLOYEE_FALLBACKS[email];
+    if (staticFallback) {
+      return staticFallback;
+    }
+    
     const lookupPromise = supabase
       .from('employees')
       .select('id, name, type')
@@ -202,6 +247,7 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
     return data;
   } catch (error) {
     logger.error('Employee basic data lookup failed', error);
-    return null;
+    // Return static fallback on error
+    return STATIC_EMPLOYEE_FALLBACKS[email] || null;
   }
 };
