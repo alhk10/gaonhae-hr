@@ -3,11 +3,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { getUserData, checkSuperadminStatus, getUserAdminAccess, getUserPageAccess } from './authOptimizationService';
 import { logger } from '@/utils/logger';
 
-// Static fallback mapping - matches authOptimizationService
+// Static fallback mapping - comprehensive employee fallbacks for login resilience
+// IMPORTANT: Email addresses must match exactly what's in the database
 const STATIC_EMPLOYEE_FALLBACKS: Record<string, any> = {
   'leeesh101@gmail.com': { id: 'EMP1750866645618', name: 'Lee Soohyuk', type: 'Full-Time', position: 'Partner', department: 'Main Office' },
   'alhk10@gmail.com': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office' },
-  // Add more as needed
+  'ryangohjj21@gmail.com': { id: 'EMP1751006984631', name: 'Goh Jun Jie Ryan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  '20102009jc@gmail.com': { id: 'EMP1764254219246', name: 'Chew Wee Hong Jeremy', type: 'Casual', position: '', department: 'Main Office' },
+  'eldon.ayz0106@gmail.com': { id: 'EMP1751006728858', name: 'Aw Yi Zhe Eldon', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'carissamasters@gaonhaetaekwondo.com': { id: 'EMP1751030249722', name: 'Carissa Lee Masters', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'chajw0717@gmail.com': { id: 'EMP1750866475666', name: 'Cha Jinwoo', type: 'Full-Time', position: 'Instructor', department: 'Main Office' },
+  'clarissa.kohjx@gmail.com': { id: 'EMP1751030381806', name: 'Clarissa Koh Jia Xuan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'albertcorpuz873@gmail.com': { id: 'EMP1750865290864', name: 'Corpuz Albert Jr Tiggangay', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office' },
+  'jsnch617@hanyang.ac.kr': { id: 'EMP1750866300088', name: 'Jason Chiang Jia Jun', type: 'Full-Time', position: 'Instructor', department: 'Main Office' },
+  'jasonlulijie@gmail.com': { id: 'EMP1751007228999', name: 'Jason Lu Lijie', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'rkdgusaks@gmail.com': { id: 'EMP1751003052389', name: 'Kang Hyeonman', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office' },
+  'hspno77@gmail.com': { id: 'EMP1750864876850', name: 'Kang Hyunjun', type: 'Full-Time', position: 'General Manager', department: 'Main Office' },
+  'leeyanxuan34@gmail.com': { id: 'EMP1751004127565', name: 'Lee Yan Xuan', type: 'Casual', position: 'Casual Admin', department: 'Main Office' },
+  'szenian1007@gmail.com': { id: 'EMP1750865428602', name: 'Lim Sze Nian', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office' },
+  'superzihan2006@gmail.com': { id: 'EMP1751006650365', name: 'Lim Zi Han', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'lioujolene@gmail.com': { id: 'EMP1751006564567', name: 'Liou Siting Jolene', type: 'Casual', position: 'Casual Employee', department: 'Main Office' },
+  'nigelkoh1211@gmail.com': { id: 'EMP1751029837839', name: 'Nigel Koh K Jun', type: 'Casual', position: 'Casual Instructor', department: 'Main Office' },
+  'sitiaisyahbintimohdnazzer@gmail.com': { id: 'EMP1752551410290', name: 'Siti Aisyah Binti Mohammed Nazzer', type: 'Casual', position: '', department: 'Main Office' },
+  'taysk1210@gmail.com': { id: 'EMP1763042329199', name: 'Tay Sai Kok', type: 'Casual', position: '', department: 'Main Office' },
 };
 
 export interface SessionUserData {

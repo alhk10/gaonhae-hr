@@ -37,10 +37,28 @@ const STATIC_FALLBACKS: Record<string, any> = {
   'EMP1751006650365': { id: 'EMP1751006650365', name: 'Song Zihan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 950, isSuperadmin: false }
 };
 
-// Email to Employee ID mapping for static fallback lookup
+// Email to Employee ID mapping for static fallback lookup - must match database emails exactly
 const EMAIL_TO_EMPLOYEE_ID: Record<string, string> = {
   'leeesh101@gmail.com': 'EMP1750866645618',
-  // Add more email mappings as needed
+  'alhk10@gmail.com': 'EMP1751003565851',
+  'ryangohjj21@gmail.com': 'EMP1751006984631',
+  '20102009jc@gmail.com': 'EMP1764254219246',
+  'eldon.ayz0106@gmail.com': 'EMP1751006728858',
+  'carissamasters@gaonhaetaekwondo.com': 'EMP1751030249722',
+  'chajw0717@gmail.com': 'EMP1750866475666',
+  'clarissa.kohjx@gmail.com': 'EMP1751030381806',
+  'albertcorpuz873@gmail.com': 'EMP1750865290864',
+  'jsnch617@hanyang.ac.kr': 'EMP1750866300088',
+  'jasonlulijie@gmail.com': 'EMP1751007228999',
+  'rkdgusaks@gmail.com': 'EMP1751003052389',
+  'hspno77@gmail.com': 'EMP1750864876850',
+  'leeyanxuan34@gmail.com': 'EMP1751004127565',
+  'szenian1007@gmail.com': 'EMP1750865428602',
+  'superzihan2006@gmail.com': 'EMP1751006650365',
+  'lioujolene@gmail.com': 'EMP1751006564567',
+  'nigelkoh1211@gmail.com': 'EMP1751029837839',
+  'sitiaisyahbintimohdnazzer@gmail.com': 'EMP1752551410290',
+  'taysk1210@gmail.com': 'EMP1763042329199',
 };
 
 /**
