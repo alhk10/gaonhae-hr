@@ -1,0 +1,26 @@
+{
+  "name": "Gaonhae HR",
+  "short_name": "Gaonhae HR",
+  "description": "Singapore MOM & CPF Compliant HR System",
+  "theme_color": "#1e40af",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
