@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// VAPID public key - this will be set in the edge function secrets
-// Generate using: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+// VAPID public key - must match the VAPID_PUBLIC_KEY secret in Supabase
+// This is a publishable key and safe to include in client code
+const VAPID_PUBLIC_KEY = 'BBTNSFPKoWdq0Q_PVNwkTSKfMR0IFJHkVSYnW1oDPR8UVo9IVzJDBFJFMCYvuVg_n7r5c0qQ0WFHThvB1nZxQ8E';
 
 export interface PushSubscriptionData {
   endpoint: string;
