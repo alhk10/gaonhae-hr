@@ -9,6 +9,7 @@ import SystemAllowanceDeductionManagement from '@/components/settings/SystemAllo
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
 import BranchManagement from '@/components/settings/BranchManagement';
 import EducationResourcesManagement from '@/components/settings/EducationResourcesManagement';
+import { NotificationSettingsManagement } from '@/components/settings/NotificationSettingsManagement';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
@@ -19,7 +20,6 @@ const Settings = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
 
-  // Handle employees update - defined before useEffect
   const handleEmployeesUpdate = async () => {
     try {
       const employeeData = await getEmployees();
@@ -29,25 +29,20 @@ const Settings = () => {
     }
   };
 
-  // All hooks must be called before any conditional returns
   useEffect(() => {
     handleEmployeesUpdate();
   }, []);
 
-  // Show loading while auth is being resolved
   if (isLoading) {
     return (
       <ResponsiveLayout>
         <div className="p-6">
-          <div className="text-center text-gray-500">
-            Loading...
-          </div>
+          <div className="text-center text-gray-500">Loading...</div>
         </div>
       </ResponsiveLayout>
     );
   }
 
-  // Only superadmins can access settings
   if (userrole !== 'superadmin') {
     return (
       <ResponsiveLayout>
@@ -69,14 +64,15 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="auth-users" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
-            <TabsTrigger value="user-management">User Management</TabsTrigger>
-            <TabsTrigger value="employee-modules">Employee Modules</TabsTrigger>
-            <TabsTrigger value="system-allowances">System Allowances</TabsTrigger>
-            <TabsTrigger value="holidays">Public Holidays</TabsTrigger>
-            <TabsTrigger value="branch-management">Branch Management</TabsTrigger>
-            <TabsTrigger value="education">Education & Refs</TabsTrigger>
+            <TabsTrigger value="user-management">User Mgmt</TabsTrigger>
+            <TabsTrigger value="employee-modules">Emp Modules</TabsTrigger>
+            <TabsTrigger value="system-allowances">Allowances</TabsTrigger>
+            <TabsTrigger value="holidays">Holidays</TabsTrigger>
+            <TabsTrigger value="branch-management">Branches</TabsTrigger>
+            <TabsTrigger value="education">Education</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
           </TabsList>
 
           <TabsContent value="auth-users" className="mt-6">
@@ -110,6 +106,10 @@ const Settings = () => {
 
           <TabsContent value="education" className="mt-6">
             <EducationResourcesManagement />
+          </TabsContent>
+
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationSettingsManagement />
           </TabsContent>
         </Tabs>
       </div>

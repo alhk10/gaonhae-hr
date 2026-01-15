@@ -1617,6 +1617,123 @@ export type Database = {
           },
         ]
       }
+      notification_logs: {
+        Row: {
+          employee_id: string
+          id: string
+          metadata: Json | null
+          sent_at: string
+          template_key: string
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          template_key: string
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          employee_id: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          employee_id: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          employee_id?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_subscriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_subscriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_templates: {
+        Row: {
+          body: string
+          created_at: string
+          enabled: boolean
+          id: string
+          template_key: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          template_key: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          template_key?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partner_branch_shares: {
         Row: {
           branch_id: string
