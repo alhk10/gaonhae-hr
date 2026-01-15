@@ -15,6 +15,7 @@ import { getEmployeeById } from '@/services/employeeService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 import { isWithinBranchRange } from '@/services/geolocationService';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { NotificationOptIn } from '@/components/notifications/NotificationOptIn';
 
 interface AttendanceRecord {
   id: number;
@@ -430,6 +431,11 @@ const MyAttendance = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Push Notification Opt-In for Casual Employees */}
+        {employeeType === 'Casual' && (
+          <NotificationOptIn />
         )}
 
         {/* Statistics Cards */}
