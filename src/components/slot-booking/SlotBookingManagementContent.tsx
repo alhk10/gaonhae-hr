@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Calendar as CalendarIcon, Settings, Check, X, Edit, Filter, UserCheck, UserX, Plus, Users, MapPin, Clock, DollarSign } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -279,6 +280,128 @@ const SlotBookingManagementContent = () => {
     }
   };
 
+  const handleCancelBookingFromApprovalDialog = async () => {
+    if (!selectedBookingForApproval) return;
+    
+    try {
+      const success = await cancelSlotBooking(selectedBookingForApproval.id, 'Admin');
+      if (success) {
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        toast.success('Booking cancelled successfully');
+      } else {
+        toast.error('Failed to cancel booking');
+      }
+    } catch (error) {
+      console.error('SlotBookingManagement: Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
+
+  const handleSwapInDialog = async () => {
+    if (!selectedBookingForApproval || !swapEmployeeId) return;
+    
+    const selectedEmployee = casualEmployees.find(emp => emp.id === swapEmployeeId);
+    if (!selectedEmployee) return;
+
+    try {
+      setIsSwappingInDialog(true);
+      const success = await updateSlotBookingEmployee(
+        selectedBookingForApproval.id,
+        swapEmployeeId,
+        selectedEmployee.name,
+        `Swapped from ${selectedBookingForApproval.employeeName} to ${selectedEmployee.name} by Admin`
+      );
+
+      if (success) {
+        toast.success(`Successfully swapped employee to ${selectedEmployee.name}`);
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        setSwapEmployeeId('');
+      } else {
+        toast.error('Failed to swap employee');
+      }
+    } catch (error) {
+      console.error('SlotBookingManagement: Error swapping employee:', error);
+      toast.error('Failed to swap employee');
+    } finally {
+      setIsSwappingInDialog(false);
+    }
+  };
+
+  const handleBranchUpdate = async () => {
+    if (!selectedBookingForApproval || !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval.branchId) {
+      return;
+    }
+
+    const targetBranch = branches.find(b => b.id === selectedBranchForUpdate);
+    if (!targetBranch) {
+      toast.error('Selected branch not found');
+      return;
+    }
+
+    try {
+      setIsUpdatingBranch(true);
+      
+      const bookingDate = selectedBookingForApproval.date;
+      const dayOfWeek = new Date(bookingDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
+      const totalSlots = currentWeeklySlots[selectedBranchForUpdate]?.[dayOfWeek] || 0;
+      const existingBookings = allBookings.filter(b => 
+        b.date === bookingDate && 
+        b.branchId === selectedBranchForUpdate && 
+        b.status !== 'cancelled' && 
+        b.status !== 'rejected' &&
+        b.id !== selectedBookingForApproval.id
+      );
+
+      if (existingBookings.length >= totalSlots) {
+        toast.error(`Target branch "${targetBranch.name}" is at full capacity for ${format(new Date(bookingDate), 'MMM dd, yyyy')}`);
+        return;
+      }
+
+      const success = await updateSlotBookingBranch(
+        selectedBookingForApproval.id,
+        selectedBranchForUpdate,
+        targetBranch.name,
+        `Branch changed from ${selectedBookingForApproval.branchName} to ${targetBranch.name} by Admin`
+      );
+
+      if (success) {
+        toast.success(`Successfully moved booking to ${targetBranch.name}`);
+        await refreshData();
+        setIsApprovalDialogOpen(false);
+        setSelectedBookingForApproval(null);
+        setSelectedBranchForUpdate('');
+      } else {
+        toast.error('Failed to update branch');
+      }
+    } catch (error) {
+      console.error('SlotBookingManagement: Error updating branch:', error);
+      toast.error('Failed to update branch');
+    } finally {
+      setIsUpdatingBranch(false);
+    }
+  };
+
+  const getEmployeeQualifications = async (employeeId: string): Promise<EmployeeQualifications | null> => {
+    if (employeeQualificationsCache.has(employeeId)) {
+      return employeeQualificationsCache.get(employeeId) || null;
+    }
+
+    try {
+      const employee = await getEmployeeById(employeeId);
+      const qualifications = employee?.qualifications || null;
+      setEmployeeQualificationsCache(prev => new Map(prev).set(employeeId, qualifications));
+      return qualifications;
+    } catch (error) {
+      console.error('SlotBookingManagement: Error fetching employee qualifications:', error);
+      setEmployeeQualificationsCache(prev => new Map(prev).set(employeeId, null));
+      return null;
+    }
+  };
+
   const getSlotSummary = () => {
     const currentMonth = selectedDate;
     const monthStart = startOfMonth(currentMonth);
@@ -319,6 +442,15 @@ const SlotBookingManagementContent = () => {
       b.status === 'pending' && 
       (selectedBranch === 'all' || b.branchId === selectedBranch)
     );
+  };
+
+  const getBranchUpdateButtonState = () => {
+    const isSameBranch = !selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId;
+    return {
+      disabled: isSameBranch,
+      text: isSameBranch ? 'Select Different Branch' : 'Update Branch',
+      variant: isSameBranch ? 'outline' as const : 'secondary' as const
+    };
   };
 
   const summary = getSlotSummary();
@@ -423,61 +555,175 @@ const SlotBookingManagementContent = () => {
       )}
 
       {/* Calendar View */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Booking Calendar</CardTitle>
-          <CardDescription>Click on a date to add bookings</CardDescription>
+          <div className={`flex items-center ${isMobile ? 'flex-col gap-4' : 'justify-between'}`}>
+            <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-lg' : ''}`}>
+              <CalendarIcon className="w-5 h-5" />
+              <span>Monthly Calendar</span>
+            </CardTitle>
+            <div className={`flex items-center space-x-2 ${isMobile ? 'w-full' : ''}`}>
+              <Filter className="w-4 h-4" />
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger className={isMobile ? 'flex-1' : 'w-48'}>
+                  <SelectValue placeholder="Filter by branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
+                        ></div>
+                        <span>{branch.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
-            onDayClick={handleDateClick}
-            className="rounded-md border"
-          />
+        <CardContent className="p-0 w-full overflow-hidden">
+          <div className="w-full max-w-full">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              className="w-full max-w-full border-0"
+              classNames={{
+                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full max-w-full",
+                month: "space-y-4 w-full max-w-full",
+                caption: "flex justify-center pt-1 relative items-center",
+                caption_label: isMobile ? "text-sm font-medium" : "text-lg font-medium",
+                nav: "space-x-1 flex items-center",
+                table: "w-full max-w-full border-collapse space-y-1",
+                head_row: "flex w-full max-w-full",
+                head_cell: `text-muted-foreground rounded-md w-full font-normal flex-1 text-center ${isMobile ? 'text-xs p-1' : 'text-sm p-2'}`,
+                row: "flex w-full max-w-full mt-2",
+                cell: `text-center relative flex-1 border-r border-b focus-within:relative focus-within:z-20 ${isMobile ? 'h-48 p-0.5' : 'h-60 p-1'}`,
+                day: `w-full h-full font-normal aria-selected:opacity-100 hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${isMobile ? 'p-0.5' : 'p-1'}`,
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                day_today: "bg-accent text-accent-foreground font-semibold",
+                day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                day_disabled: "text-muted-foreground opacity-50",
+                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                day_hidden: "invisible",
+              }}
+              components={{
+                Day: ({ date, ...props }) => {
+                  const dayBookings = getBookingsForDate(date);
+                  const hasBookings = dayBookings.length > 0;
+                  const maxVisible = isMobile ? 6 : 10;
+                  
+                  return (
+                    <div className="relative w-full h-full overflow-hidden">
+                      <div
+                        className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
+                          isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
+                        } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
+                        onClick={() => handleDateClick(date)}
+                      >
+                        <div className="w-full h-full flex flex-col overflow-hidden">
+                          <span className={`font-medium text-left mb-0.5 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-sm'}`}>{date.getDate()}</span>
+                          {hasBookings && (
+                            <div className="flex flex-col gap-0.5 w-full flex-1 overflow-hidden">
+                              {dayBookings.slice(0, maxVisible).map((booking, idx) => {
+                                const branch = branches.find(b => b.id === booking.branchId);
+                                const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, date);
+                                
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApprovalClick(booking, e);
+                                    }}
+                                    className={`px-0.5 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-xs leading-tight' : 'text-xs'}`}
+                                     style={{ 
+                                       backgroundColor: convertTailwindColorToHex(branch?.color || '#6b7280'),
+                                       ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
+                                       ...(booking.status === 'approved' && { border: '1px solid #10b981' })
+                                     }}
+                                     title={`${booking.employeeName} - ${branch?.name} (${booking.status})${hasClockedIn ? ' - Clocked In' : ''} - Click to manage booking`}
+                                   >
+                                     <span className="truncate">
+                                       {isMobile ? 
+                                         booking.employeeName.slice(0, 10) : 
+                                         booking.employeeName
+                                       }
+                                       {booking.status === 'pending' && ' ⏳'}
+                                       {booking.status === 'approved' && !hasClockedIn && ' ✅'}
+                                       {booking.status === 'approved' && hasClockedIn && ' ✅✅'}
+                                     </span>
+                                  </div>
+                                );
+                              })}
+                              {dayBookings.length > maxVisible && (
+                                <span className={`text-gray-600 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-xs'}`}>+{dayBookings.length - maxVisible}</span>
+                              )}
+                            </div>
+                          )}
+                          {!hasBookings && (
+                            <div className="flex items-center justify-center flex-1">
+                              <Plus className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Bookings for Selected Date */}
+      {/* Selected Date Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Bookings for {format(selectedDate, 'MMMM dd, yyyy')}</CardTitle>
+          <CardTitle className={isMobile ? 'text-lg' : ''}>
+            {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+          </CardTitle>
+          <CardDescription>
+            {getBookingsForDate(selectedDate).length} booking(s) scheduled
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {getBookingsForDate(selectedDate).length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No bookings for this date</p>
-          ) : (
-            <div className="space-y-2">
-              {getBookingsForDate(selectedDate).map(booking => (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium">{booking.employeeName}</p>
-                      <p className="text-sm text-muted-foreground">{booking.branchName}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={
-                      booking.status === 'approved' ? 'default' :
-                      booking.status === 'pending' ? 'secondary' : 'destructive'
-                    }>
-                      {booking.status}
-                    </Badge>
-                    {hasEmployeeClockedIn(booking.employeeId, selectedDate) && (
-                      <Badge variant="outline" className="text-green-600 border-green-600">
-                        <UserCheck className="w-3 h-3 mr-1" />
-                        Clocked In
-                      </Badge>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={(e) => handleCancelClick(booking, e)}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+          <TooltipProvider>
+            <div className="space-y-3">
+              {getBookingsForDate(selectedDate).map((booking) => {
+                const branch = branches.find(b => b.id === booking.branchId);
+                const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, selectedDate);
+                const showPay = isFromNovember2024(booking.date);
+                
+                return (
+                  <BookingCardWithPay
+                    key={booking.id}
+                    booking={booking}
+                    branch={branch}
+                    hasClockedIn={hasClockedIn}
+                    showPay={showPay}
+                    isMobile={isMobile}
+                    getEmployeeQualifications={getEmployeeQualifications}
+                    handleApproval={handleApproval}
+                    handleSwapClick={handleSwapClick}
+                    handleCancelClick={handleCancelClick}
+                    handleApprovalClick={handleApprovalClick}
+                  />
+                );
+              })}
+
+              {getBookingsForDate(selectedDate).length === 0 && (
+                <p className={`text-gray-500 text-center ${isMobile ? 'py-3 text-sm' : 'py-4 text-sm'}`}>
+                  No bookings for this date. Click on a date to add bulk bookings.
+                </p>
+              )}
             </div>
-          )}
+          </TooltipProvider>
         </CardContent>
       </Card>
 
@@ -534,6 +780,169 @@ const SlotBookingManagementContent = () => {
               <UserX className="w-4 h-4 mr-2" />
               Cancel Booking
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog with Branch Edit and Swap functionality */}
+      <Dialog open={isApprovalDialogOpen} onOpenChange={(open) => {
+        setIsApprovalDialogOpen(open);
+        if (!open) {
+          setSelectedBookingForApproval(null);
+          setSwapEmployeeId('');
+          setSelectedBranchForUpdate('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Users className="w-5 h-5" />
+              <span>Manage Booking</span>
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBookingForApproval && 
+                `Review booking for ${selectedBookingForApproval.employeeName} on ${format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="font-medium">Employee:</span>
+                <span>{selectedBookingForApproval?.employeeName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Current Branch:</span>
+                <span>{selectedBookingForApproval?.branchName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Date:</span>
+                <span>{selectedBookingForApproval && format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Status:</span>
+                <Badge variant="secondary">{selectedBookingForApproval?.status}</Badge>
+              </div>
+              {selectedBookingForApproval && hasEmployeeClockedIn(selectedBookingForApproval.employeeId, new Date(selectedBookingForApproval.date)) && (
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Clock-in Status:</span>
+                  <span className="text-green-600 text-sm">✅ Clocked In</span>
+                </div>
+              )}
+            </div>
+
+            {/* Branch Selection Section */}
+            <div className="border-t pt-4 space-y-3">
+              <Label htmlFor="branch-select" className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Change Branch
+              </Label>
+              <Select value={selectedBranchForUpdate} onValueChange={setSelectedBranchForUpdate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch to move booking" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem 
+                      key={branch.id} 
+                      value={branch.id}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: convertTailwindColorToHex(branch.color || '#6b7280') }}
+                        ></div>
+                        <span>{branch.name}</span>
+                        {branch.id === selectedBookingForApproval?.branchId && (
+                          <span className="text-gray-500 text-xs">(Current)</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId ? (
+                <p className="text-xs text-gray-500">Select a different branch to enable the update button</p>
+              ) : (
+                <p className="text-xs text-blue-600">Ready to move booking to selected branch</p>
+              )}
+            </div>
+
+            {/* Swap Employee Section */}
+            <div className="border-t pt-4 space-y-3">
+              <Label htmlFor="swap-employee" className="text-sm font-medium">Swap Employee (Optional)</Label>
+              <Select value={swapEmployeeId} onValueChange={setSwapEmployeeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new employee to swap" />
+                </SelectTrigger>
+                <SelectContent>
+                  {casualEmployees
+                    .filter(emp => emp.id !== selectedBookingForApproval?.employeeId)
+                    .map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name} ({employee.id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+            <div className="flex flex-wrap gap-2 justify-start">
+              <Button 
+                type="button" 
+                variant="destructive" 
+                size="sm"
+                onClick={handleCancelBookingFromApprovalDialog}
+              >
+                <UserX className="w-4 h-4 mr-1" />
+                Cancel
+              </Button>
+              {selectedBookingForApproval?.status === 'pending' && (
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'rejected', 'Admin')}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Reject
+                </Button>
+              )}
+              {swapEmployeeId && (
+                <Button 
+                  type="button" 
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSwapInDialog}
+                  disabled={isSwappingInDialog}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  {isSwappingInDialog ? 'Swapping...' : 'Swap'}
+                </Button>
+              )}
+              <Button 
+                type="button" 
+                variant={getBranchUpdateButtonState().variant}
+                size="sm"
+                onClick={handleBranchUpdate}
+                disabled={getBranchUpdateButtonState().disabled || isUpdatingBranch}
+              >
+                <MapPin className="w-4 h-4 mr-1" />
+                {isUpdatingBranch ? 'Updating...' : getBranchUpdateButtonState().text}
+              </Button>
+              {selectedBookingForApproval?.status === 'pending' && (
+                <Button 
+                  type="button"
+                  size="sm"
+                  onClick={() => selectedBookingForApproval && handleApproval(selectedBookingForApproval.id, 'approved', 'Admin')}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Approve
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
