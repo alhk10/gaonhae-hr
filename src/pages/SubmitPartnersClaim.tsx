@@ -48,13 +48,9 @@ interface PartnerClaim {
 }
 
 const PARTNER_CLAIM_TYPES = [
-  { id: 'business_development', name: 'Business Development', icon: '💼' },
-  { id: 'client_entertainment', name: 'Client Entertainment', icon: '🍽️' },
-  { id: 'marketing', name: 'Marketing & Promotion', icon: '📢' },
-  { id: 'partnership_expense', name: 'Partnership Expense', icon: '🤝' },
-  { id: 'branch_operations', name: 'Branch Operations', icon: '🏢' },
-  { id: 'training_development', name: 'Training & Development', icon: '📚' },
   { id: 'transport', name: 'Transport', icon: '🚗' },
+  { id: 'office_stationeries', name: 'Office Stationeries', icon: '📎' },
+  { id: 'training_equipment', name: 'Training Equipment', icon: '🥋' },
   { id: 'other', name: 'Other Business Expense', icon: '📋' },
 ];
 
