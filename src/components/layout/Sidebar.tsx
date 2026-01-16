@@ -108,19 +108,14 @@ const Sidebar = () => {
         { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Party Management', path: '/parties' },
         { icon: DollarSign, label: 'Payroll Processing', path: '/payroll' },
-        { icon: Calendar, label: 'Leave Management', path: '/leave-management' },
-        { icon: FileText, label: 'Claims Management', path: '/claims' },
-        { icon: UserCheck, label: 'Attendance Management', path: '/attendance' },
         { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
-        // Employee self-service pages for superadmins
+        // Employee self-service pages for superadmins (management tabs integrated within)
         { icon: UserCheck, label: 'Profile', path: '/profile' },
         { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
         { icon: FileText, label: 'Submit Claim', path: '/submit-claim' },
         { icon: DollarSign, label: 'Payslips', path: '/payslips' },
         { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
         { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
-        // Admin payslip management
-        { icon: FileText, label: 'Payslip Management', path: '/payslip-management' },
       ];
 
       // Add Sales Module items if user has access
@@ -169,15 +164,6 @@ const Sidebar = () => {
       if (adminAccess.payroll) {
         menuItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
       }
-      if (adminAccess.leaveManagement) {
-        menuItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
-      }
-      if (adminAccess.claims) {
-        menuItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
-      }
-      if (adminAccess.attendance) {
-        menuItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
-      }
       if (adminAccess.slotBooking) {
         menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
@@ -223,15 +209,6 @@ const Sidebar = () => {
       }
       if (adminAccess.payroll) {
         menuItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
-      }
-      if (adminAccess.leaveManagement) {
-        menuItems.push({ icon: Calendar, label: 'Leave Management', path: '/leave-management' });
-      }
-      if (adminAccess.claims) {
-        menuItems.push({ icon: FileText, label: 'Claims Management', path: '/claims' });
-      }
-      if (adminAccess.attendance) {
-        menuItems.push({ icon: UserCheck, label: 'Attendance Management', path: '/attendance' });
       }
       if (adminAccess.slotBooking) {
         console.log('Sidebar: ✅ Adding Admin Slot Booking for employee with slotBooking permission');
