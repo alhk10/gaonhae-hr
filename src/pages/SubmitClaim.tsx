@@ -7,19 +7,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User, AlertCircle, RefreshCw } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeClaims, createClaim, type Claim } from '@/services/claimsService';
-import { getEmployees } from '@/services/employeeService';
+import { getEmployees, getEmployeeById } from '@/services/employeeService';
 import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ClaimsManagementContent from '@/components/claim/ClaimsManagementContent';
 
 
 const SubmitClaim = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const isMobile = useIsMobile();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
@@ -37,6 +38,10 @@ const SubmitClaim = () => {
     vendor: '',
     description: ''
   });
+
+  // Check if user can manage claims (Senior Partner or Superadmin)
+  const isSeniorPartner = currentEmployee?.position?.toLowerCase() === 'senior partner';
+  const canManageClaims = userrole === 'superadmin' || isSeniorPartner;
 
   console.log('SubmitClaim: Component rendered with user:', user?.email);
 
@@ -307,9 +312,15 @@ const SubmitClaim = () => {
         </div>
 
         <Tabs defaultValue="submit" className="w-full">
-          <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'mb-4' : 'mb-6'}`}>
+          <TabsList className={`grid w-full ${canManageClaims ? 'grid-cols-3' : 'grid-cols-2'} ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <TabsTrigger value="submit" className={isMobile ? 'text-sm' : ''}>Submit Claim</TabsTrigger>
             <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Claim History</TabsTrigger>
+            {canManageClaims && (
+              <TabsTrigger value="manage" className={isMobile ? 'text-sm' : ''}>
+                <Settings className="w-4 h-4 mr-1" />
+                Manage Claims
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="submit" className={`space-y-4 md:space-y-6`}>
@@ -451,79 +462,53 @@ const SubmitClaim = () => {
                         <div className={`text-red-600 font-medium ${isMobile ? 'text-xs' : 'text-xs'}`}>Rejected</div>
                       </div>
                     </div>
-                    
-                    {/* Recent Claims */}
-                    {isMobile ? (
-                      // Mobile: Card-based layout
-                      <div className="space-y-3">
-                        {claims.slice(0, 8).map((claim) => (
-                          <div key={claim.id} className="bg-gray-50 rounded-lg p-3 border">
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="font-medium text-sm">{claim.type}</span>
-                              <Badge 
-                                variant={getStatusBadgeVariant(claim.status)}
-                                className="text-xs"
-                              >
-                                {claim.status}
-                              </Badge>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {formatAmount(claim.amount)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      // Desktop: Table layout
-                      <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-100">
-                        <Table>
-                          <TableHeader className="bg-gray-50">
-                            <TableRow>
-                              <TableHead className="text-xs font-semibold">Type</TableHead>
-                              <TableHead className="text-xs font-semibold">Amount</TableHead>
-                              <TableHead className="text-xs font-semibold">Status</TableHead>
+
+                    {/* Claims Table */}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className={isMobile ? 'text-xs' : ''}>Date</TableHead>
+                            <TableHead className={isMobile ? 'text-xs' : ''}>Type</TableHead>
+                            <TableHead className={isMobile ? 'text-xs' : ''}>Amount</TableHead>
+                            <TableHead className={isMobile ? 'text-xs' : ''}>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {claims.map((claim) => (
+                            <TableRow key={claim.id}>
+                              <TableCell className={isMobile ? 'text-xs' : ''}>
+                                {new Date(claim.date).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </TableCell>
+                              <TableCell className={isMobile ? 'text-xs' : ''}>{claim.type}</TableCell>
+                              <TableCell className={isMobile ? 'text-xs' : ''}>{formatAmount(claim.amount)}</TableCell>
+                              <TableCell>
+                                <Badge variant={getStatusBadgeVariant(claim.status)} className={isMobile ? 'text-xs' : ''}>
+                                  {claim.status}
+                                </Badge>
+                              </TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {claims.slice(0, 8).map((claim) => (
-                              <TableRow key={claim.id} className="hover:bg-gray-50">
-                                <TableCell className="font-medium text-sm">{claim.type}</TableCell>
-                                <TableCell className="text-sm">{formatAmount(claim.amount)}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={getStatusBadgeVariant(claim.status)}
-                                    className="text-xs"
-                                  >
-                                    {claim.status}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                    
-                    {claims.length > 8 && (
-                      <div className="text-center">
-                        <Button variant="outline" size="sm" className="text-blue-600">
-                          View All Claims
-                        </Button>
-                      </div>
-                    )}
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 ) : (
-                  <div className={`text-center text-gray-500 ${isMobile ? 'py-8' : 'py-12'}`}>
-                    <div className={`mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center ${isMobile ? 'w-12 h-12' : 'w-16 h-16'}`}>
-                      <FileText className={`text-gray-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
-                    </div>
-                    <p className={`font-medium mb-1 ${isMobile ? 'text-sm' : ''}`}>No claims submitted yet</p>
-                    <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>Your claim history will appear here</p>
+                  <div className="text-center py-8 text-gray-500">
+                    <History className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No claims found</p>
+                    <p className="text-sm mt-2">Submit your first claim to see it here</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canManageClaims && (
+            <TabsContent value="manage" className="space-y-6">
+              <ClaimsManagementContent />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </ResponsiveLayout>

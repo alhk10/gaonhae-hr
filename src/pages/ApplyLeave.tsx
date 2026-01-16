@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Calendar, AlertTriangle, Info, CheckCircle, FileText } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, AlertTriangle, Info, CheckCircle, FileText, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
 import { calculateLeaveBalance } from '@/utils/leaveCalculations';
@@ -19,9 +20,10 @@ import { validateLeaveRequest } from '@/services/leaveValidationService';
 import { applyForLeaveWithValidation, calculateEmployeeLeaveEntitlement } from '@/services/enhancedLeaveService';
 import EmployeeLeaveInfo from '@/components/leave/EmployeeLeaveInfo';
 import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
+import LeaveManagementContent from '@/components/leave/LeaveManagementContent';
 
 const ApplyLeave = () => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
@@ -38,6 +40,10 @@ const ApplyLeave = () => {
   const [calculatedDays, setCalculatedDays] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+
+  // Check if user can manage leave (Senior Partner or Superadmin)
+  const isSeniorPartner = employee?.position?.toLowerCase() === 'senior partner';
+  const canManageLeave = userrole === 'superadmin' || isSeniorPartner;
 
   useEffect(() => {
     if (user?.employeeId) {
@@ -314,217 +320,242 @@ const ApplyLeave = () => {
       <div className="flex h-[calc(100vh-73px)]">
         <Sidebar />
         <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Apply for Leave</h1>
               <p className="text-gray-600 mt-2">Submit your leave application</p>
             </div>
 
-            {/* Employee Information */}
-            <EmployeeLeaveInfo employee={employee} showDetailedInfo={true} />
+            <Tabs defaultValue="apply" className="w-full">
+              <TabsList className={`grid w-full ${canManageLeave ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <TabsTrigger value="apply">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Apply Leave
+                </TabsTrigger>
+                {canManageLeave && (
+                  <TabsTrigger value="manage">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Leave Management
+                  </TabsTrigger>
+                )}
+              </TabsList>
 
-            {/* Leave Balance Information */}
-            {(leaveBalance || enhancedEntitlement) && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-blue-800 mb-2">Your Leave Entitlement ({new Date().getFullYear()})</h3>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        {enhancedEntitlement ? (
-                          <>
-                            <div>
-                              <p className="text-blue-600">Annual Leave (Base): <span className="font-medium">{enhancedEntitlement.baseAnnualLeave} days</span></p>
-                              <p className="text-green-600">Service Bonus: <span className="font-medium">+{enhancedEntitlement.serviceBonusDays} days</span></p>
-                              <p className="text-purple-600">Monday Holiday Bonus: <span className="font-medium">+{enhancedEntitlement.mondayHolidayBonus} days</span></p>
-                              <p className="text-blue-800 font-medium">Total Annual Leave: {enhancedEntitlement.finalAnnualLeave} days</p>
+              <TabsContent value="apply" className="space-y-6">
+                <div className="max-w-2xl mx-auto space-y-6">
+                  {/* Employee Information */}
+                  <EmployeeLeaveInfo employee={employee} showDetailedInfo={true} />
+
+                  {/* Leave Balance Information */}
+                  {(leaveBalance || enhancedEntitlement) && (
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="font-medium text-blue-800 mb-2">Your Leave Entitlement ({new Date().getFullYear()})</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              {enhancedEntitlement ? (
+                                <>
+                                  <div>
+                                    <p className="text-blue-600">Annual Leave (Base): <span className="font-medium">{enhancedEntitlement.baseAnnualLeave} days</span></p>
+                                    <p className="text-green-600">Service Bonus: <span className="font-medium">+{enhancedEntitlement.serviceBonusDays} days</span></p>
+                                    <p className="text-purple-600">Monday Holiday Bonus: <span className="font-medium">+{enhancedEntitlement.mondayHolidayBonus} days</span></p>
+                                    <p className="text-blue-800 font-medium">Total Annual Leave: {enhancedEntitlement.finalAnnualLeave} days</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-green-600">Medical Leave: <span className="font-medium">{enhancedEntitlement.medicalLeave} days</span></p>
+                                    <p className="text-gray-600">Years of Service: <span className="font-medium">{enhancedEntitlement.yearsOfService} years</span></p>
+                                  </div>
+                                </>
+                              ) : leaveBalance ? (
+                                <>
+                                  <div>
+                                    <p className="text-blue-600">Annual Leave: <span className="font-medium">{leaveBalance.annualLeave.remaining}/{leaveBalance.annualLeave.total} remaining</span></p>
+                                  </div>
+                                  <div>
+                                    <p className="text-green-600">Medical Leave: <span className="font-medium">{leaveBalance.medicalLeave.remaining}/{leaveBalance.medicalLeave.total} remaining</span></p>
+                                  </div>
+                                </>
+                              ) : null}
                             </div>
-                            <div>
-                              <p className="text-green-600">Medical Leave: <span className="font-medium">{enhancedEntitlement.medicalLeave} days</span></p>
-                              <p className="text-gray-600">Years of Service: <span className="font-medium">{enhancedEntitlement.yearsOfService} years</span></p>
-                            </div>
-                          </>
-                        ) : leaveBalance ? (
-                          <>
-                            <div>
-                              <p className="text-blue-600">Annual Leave: <span className="font-medium">{leaveBalance.annualLeave.remaining}/{leaveBalance.annualLeave.total} remaining</span></p>
-                            </div>
-                            <div>
-                              <p className="text-green-600">Medical Leave: <span className="font-medium">{leaveBalance.medicalLeave.remaining}/{leaveBalance.medicalLeave.total} remaining</span></p>
-                            </div>
-                          </>
-                        ) : null}
-                      </div>
-                      {entitlementSummary && (
-                        <p className="text-xs text-blue-600 mt-2">
-                          {entitlementSummary}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Validation Errors */}
-            {validationErrors.length > 0 && (
-              <Card className="border-red-200 bg-red-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-                    <div>
-                      <h3 className="font-medium text-red-800">Validation Errors</h3>
-                      <ul className="text-sm text-red-700 mt-1 list-disc list-inside">
-                        {validationErrors.map((error, index) => (
-                          <li key={index}>{error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Validation Warnings */}
-            {validationWarnings.length > 0 && (
-              <Card className="border-yellow-200 bg-yellow-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Info className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <h3 className="font-medium text-yellow-800">Please Note</h3>
-                      <ul className="text-sm text-yellow-700 mt-1 list-disc list-inside">
-                        {validationWarnings.map((warning, index) => (
-                          <li key={index}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Application Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Application Form</CardTitle>
-                <CardDescription>
-                  Please fill in all the required information for your leave request
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="type">Leave Type *</Label>
-                    <Select 
-                      value={formData.type} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select leave type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Annual Leave">Annual Leave</SelectItem>
-                        <SelectItem value="Medical Leave">Medical Leave</SelectItem>
-                        <SelectItem value="Emergency Leave">Emergency Leave</SelectItem>
-                        <SelectItem value="Maternity Leave">Maternity Leave</SelectItem>
-                        <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="startDate">Start Date *</Label>
-                      <Input
-                        id="startDate"
-                        type="date"
-                        value={formData.startDate}
-                        onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="endDate">End Date *</Label>
-                      <Input
-                        id="endDate"
-                        type="date"
-                        value={formData.endDate}
-                        onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {calculatedDays > 0 && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-700">
-                        <Calendar className="w-4 h-4 inline mr-2" />
-                        Total days requested: <span className="font-medium">{calculatedDays} day{calculatedDays !== 1 ? 's' : ''}</span>
-                      </p>
-                    </div>
-                  )}
-
-                  <div>
-                    <Label htmlFor="reason">Reason for Leave *</Label>
-                    <Textarea
-                      id="reason"
-                      placeholder="Please provide the reason for your leave request"
-                      value={formData.reason}
-                      onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                      required
-                      rows={3}
-                    />
-                  </div>
-
-                  {formData.type === 'Medical Leave' && (
-                    <div>
-                      <Label>Medical Certificate</Label>
-                      <MedicalCertificateUpload
-                        onUploadComplete={handleMedicalCertificateUpload}
-                        currentCertificateUrl={formData.medicalCertificate}
-                      />
-                      {formData.medicalCertificate && (
-                        <div className="mt-2 flex items-center text-sm text-green-600">
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Medical certificate uploaded
+                            {entitlementSummary && (
+                              <p className="text-xs text-blue-600 mt-2">
+                                {entitlementSummary}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </CardContent>
+                    </Card>
                   )}
 
-                  <div className="flex space-x-4 pt-4">
-                    <Button 
-                      type="submit" 
-                      disabled={loading || validationErrors.length > 0}
-                      className="flex-1"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Submit Application
-                        </>
-                      )}
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => navigate('/')}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+                  {/* Validation Errors */}
+                  {validationErrors.length > 0 && (
+                    <Card className="border-red-200 bg-red-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                          <div>
+                            <h3 className="font-medium text-red-800">Validation Errors</h3>
+                            <ul className="text-sm text-red-700 mt-1 list-disc list-inside">
+                              {validationErrors.map((error, index) => (
+                                <li key={index}>{error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Validation Warnings */}
+                  {validationWarnings.length > 0 && (
+                    <Card className="border-yellow-200 bg-yellow-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <Info className="w-5 h-5 text-yellow-600 mt-0.5" />
+                          <div>
+                            <h3 className="font-medium text-yellow-800">Please Note</h3>
+                            <ul className="text-sm text-yellow-700 mt-1 list-disc list-inside">
+                              {validationWarnings.map((warning, index) => (
+                                <li key={index}>{warning}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Application Form */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Leave Application Form</CardTitle>
+                      <CardDescription>
+                        Please fill in all the required information for your leave request
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                          <Label htmlFor="type">Leave Type *</Label>
+                          <Select 
+                            value={formData.type} 
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+                            required
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select leave type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Annual Leave">Annual Leave</SelectItem>
+                              <SelectItem value="Medical Leave">Medical Leave</SelectItem>
+                              <SelectItem value="Emergency Leave">Emergency Leave</SelectItem>
+                              <SelectItem value="Maternity Leave">Maternity Leave</SelectItem>
+                              <SelectItem value="Paternity Leave">Paternity Leave</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="startDate">Start Date *</Label>
+                            <Input
+                              id="startDate"
+                              type="date"
+                              value={formData.startDate}
+                              onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="endDate">End Date *</Label>
+                            <Input
+                              id="endDate"
+                              type="date"
+                              value={formData.endDate}
+                              onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {calculatedDays > 0 && (
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-sm text-gray-700">
+                              <Calendar className="w-4 h-4 inline mr-2" />
+                              Total days requested: <span className="font-medium">{calculatedDays} day{calculatedDays !== 1 ? 's' : ''}</span>
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label htmlFor="reason">Reason for Leave *</Label>
+                          <Textarea
+                            id="reason"
+                            placeholder="Please provide the reason for your leave request"
+                            value={formData.reason}
+                            onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+                            required
+                            rows={3}
+                          />
+                        </div>
+
+                        {formData.type === 'Medical Leave' && (
+                          <div>
+                            <Label>Medical Certificate</Label>
+                            <MedicalCertificateUpload
+                              onUploadComplete={handleMedicalCertificateUpload}
+                              currentCertificateUrl={formData.medicalCertificate}
+                            />
+                            {formData.medicalCertificate && (
+                              <div className="mt-2 flex items-center text-sm text-green-600">
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Medical certificate uploaded
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex space-x-4 pt-4">
+                          <Button 
+                            type="submit" 
+                            disabled={loading || validationErrors.length > 0}
+                            className="flex-1"
+                          >
+                            {loading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Submitting...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="w-4 h-4 mr-2" />
+                                Submit Application
+                              </>
+                            )}
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => navigate('/')}
+                            disabled={loading}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {canManageLeave && (
+                <TabsContent value="manage" className="space-y-6">
+                  <LeaveManagementContent />
+                </TabsContent>
+              )}
+            </Tabs>
           </div>
         </main>
       </div>
