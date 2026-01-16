@@ -89,7 +89,7 @@ const LeaveManagementContent = () => {
 
   const handleApproveRequest = async (requestId: number) => {
     try {
-      await updateLeaveRequest(requestId, { status: 'Approved' });
+      await updateLeaveRequest(requestId, 'Approved');
       toast.success('Leave request approved');
       loadData();
     } catch (error) {
@@ -100,7 +100,7 @@ const LeaveManagementContent = () => {
 
   const handleRejectRequest = async (requestId: number) => {
     try {
-      await updateLeaveRequest(requestId, { status: 'Rejected' });
+      await updateLeaveRequest(requestId, 'Rejected');
       toast.success('Leave request rejected');
       loadData();
     } catch (error) {
