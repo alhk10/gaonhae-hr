@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase, Building2, Settings, Check, X, Edit2, Trash2, Save } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Briefcase, Building2, Settings, Check, X, Edit2, Trash2, Save, Eye } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +69,7 @@ const SubmitPartnersClaim = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingClaim, setEditingClaim] = useState<PartnerClaim | null>(null);
   const [deleteClaimId, setDeleteClaimId] = useState<number | null>(null);
+  const [viewingReceiptUrl, setViewingReceiptUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     type: '',
@@ -678,6 +679,7 @@ const SubmitPartnersClaim = () => {
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Description</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -698,6 +700,20 @@ const SubmitPartnersClaim = () => {
                               </Badge>
                             </TableCell>
                             <TableCell className="max-w-xs truncate">{claim.description}</TableCell>
+                            <TableCell>
+                              {claim.receipt_url ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setViewingReceiptUrl(claim.receipt_url)}
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Receipt
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No receipt</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -823,6 +839,16 @@ const SubmitPartnersClaim = () => {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex gap-1">
+                                      {claim.receipt_url && (
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline"
+                                          onClick={() => setViewingReceiptUrl(claim.receipt_url)}
+                                          title="View Receipt"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </Button>
+                                      )}
                                       {claim.status === 'Pending' && (
                                         <>
                                           <Button 
@@ -891,6 +917,37 @@ const SubmitPartnersClaim = () => {
               <AlertDialogAction onClick={handleDeleteClaim} className="bg-red-600 hover:bg-red-700">
                 Delete
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* View Receipt Dialog */}
+        <AlertDialog open={viewingReceiptUrl !== null} onOpenChange={() => setViewingReceiptUrl(null)}>
+          <AlertDialogContent className="max-w-3xl max-h-[90vh]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Receipt
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+            <div className="flex justify-center items-center overflow-auto max-h-[70vh]">
+              {viewingReceiptUrl && (
+                <img 
+                  src={viewingReceiptUrl} 
+                  alt="Receipt" 
+                  className="max-w-full h-auto object-contain rounded-lg"
+                />
+              )}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+              {viewingReceiptUrl && (
+                <AlertDialogAction asChild>
+                  <a href={viewingReceiptUrl} target="_blank" rel="noopener noreferrer">
+                    Open in New Tab
+                  </a>
+                </AlertDialogAction>
+              )}
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
