@@ -277,8 +277,11 @@ const ApplyLeave = () => {
     );
   }
 
-  // Show eligibility message if employee is not eligible
-  if (!isEligibleForLeave(employee)) {
+  // Show eligibility message if employee is not eligible (but allow Senior Partners/Superadmins to access management tab)
+  const isNotEligible = !isEligibleForLeave(employee);
+  const showManagementOnly = isNotEligible && canManageLeave;
+
+  if (isNotEligible && !canManageLeave) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -322,16 +325,18 @@ const ApplyLeave = () => {
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Apply for Leave</h1>
-              <p className="text-gray-600 mt-2">Submit your leave application</p>
+              <h1 className="text-3xl font-bold text-gray-900">{showManagementOnly ? 'Leave Management' : 'Apply for Leave'}</h1>
+              <p className="text-gray-600 mt-2">{showManagementOnly ? 'Manage employee leave requests' : 'Submit your leave application'}</p>
             </div>
 
-            <Tabs defaultValue="apply" className="w-full">
-              <TabsList className={`grid w-full ${canManageLeave ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <TabsTrigger value="apply">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Apply Leave
-                </TabsTrigger>
+            <Tabs defaultValue={showManagementOnly ? "manage" : "apply"} className="w-full">
+              <TabsList className={`grid w-full ${showManagementOnly ? 'grid-cols-1' : canManageLeave ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {!showManagementOnly && (
+                  <TabsTrigger value="apply">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Apply Leave
+                  </TabsTrigger>
+                )}
                 {canManageLeave && (
                   <TabsTrigger value="manage">
                     <Settings className="w-4 h-4 mr-2" />
