@@ -621,13 +621,84 @@ const CasualEmployeeDetails = () => {
             <TabsContent value="attendance" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Attendance History</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Attendance History
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground text-center py-8">
-                    Casual employee attendance is derived from approved slot bookings with clock-in/out records.
-                  </p>
-                  {/* The slot booking history with attendance info shows in the Slot Booking tab */}
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Casual employee attendance is tracked through slot bookings. Clock-in/out records are captured for each approved slot.
+                    </p>
+                    
+                    {slotBookingsLoading ? (
+                      <div className="animate-pulse space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="h-12 bg-muted rounded"></div>
+                        ))}
+                      </div>
+                    ) : slotBookings.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No attendance records found</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Clock In</TableHead>
+                            <TableHead>Clock Out</TableHead>
+                            <TableHead>Hours Worked</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {slotBookings
+                            .filter((b: any) => b.clock_in || b.clock_out)
+                            .slice(0, 20)
+                            .map((booking: any) => {
+                              const clockIn = booking.clock_in ? new Date(booking.clock_in) : null;
+                              const clockOut = booking.clock_out ? new Date(booking.clock_out) : null;
+                              const hoursWorked = clockIn && clockOut 
+                                ? ((clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60)).toFixed(1)
+                                : '-';
+                              
+                              return (
+                                <TableRow key={booking.id}>
+                                  <TableCell className="font-medium">
+                                    {new Date(booking.date).toLocaleDateString('en-SG', { 
+                                      day: '2-digit', 
+                                      month: 'short', 
+                                      year: 'numeric' 
+                                    })}
+                                  </TableCell>
+                                  <TableCell>
+                                    {clockIn ? clockIn.toLocaleTimeString('en-SG', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {clockOut ? clockOut.toLocaleTimeString('en-SG', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : '-'}
+                                  </TableCell>
+                                  <TableCell>{hoursWorked} hrs</TableCell>
+                                  <TableCell>
+                                    <Badge variant={booking.status === 'approved' ? 'default' : 'secondary'}>
+                                      {clockIn && clockOut ? 'Completed' : clockIn ? 'In Progress' : 'Pending'}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
