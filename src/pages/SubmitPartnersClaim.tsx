@@ -336,6 +336,17 @@ const SubmitPartnersClaim = () => {
 
   const formatAmount = (amount: number) => `S$${amount.toFixed(2)}`;
 
+  const formatDateSGT = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-SG', { 
+      timeZone: 'Asia/Singapore',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   const getClaimTypeIcon = (typeName: string) => {
     return PARTNER_CLAIM_TYPES.find(t => t.name === typeName)?.icon || '📋';
   };
@@ -696,7 +707,7 @@ const SubmitPartnersClaim = () => {
                             <TableCell>
                               <Badge variant="outline">{getBranchName(claim.branch_id)}</Badge>
                             </TableCell>
-                            <TableCell>{claim.submitted_date}</TableCell>
+                            <TableCell>{formatDateSGT(claim.submitted_date)}</TableCell>
                             <TableCell className="font-medium">{formatAmount(claim.amount)}</TableCell>
                             <TableCell>
                               <Badge variant={getStatusBadgeVariant(claim.status)}>
@@ -798,7 +809,7 @@ const SubmitPartnersClaim = () => {
                                       </SelectContent>
                                     </Select>
                                   </TableCell>
-                                  <TableCell>{claim.submitted_date}</TableCell>
+                                  <TableCell>{formatDateSGT(claim.submitted_date)}</TableCell>
                                   <TableCell>
                                     <Input 
                                       type="number"
@@ -834,7 +845,7 @@ const SubmitPartnersClaim = () => {
                                   <TableCell>
                                     <Badge variant="outline">{getBranchName(claim.branch_id)}</Badge>
                                   </TableCell>
-                                  <TableCell>{claim.submitted_date}</TableCell>
+                                  <TableCell>{formatDateSGT(claim.submitted_date)}</TableCell>
                                   <TableCell className="font-medium">{formatAmount(claim.amount)}</TableCell>
                                   <TableCell>
                                     <Badge variant={getStatusBadgeVariant(claim.status)}>
