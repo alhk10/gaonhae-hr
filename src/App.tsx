@@ -14,6 +14,10 @@ import './App.css';
 const Index = lazy(() => import('./pages/Index'));
 const Employees = lazy(() => import('./pages/Employees'));
 const EmployeeDetails = lazy(() => import('./pages/EmployeeDetails'));
+const PartyManagement = lazy(() => import('./pages/PartyManagement'));
+const StudentDetails = lazy(() => import('./pages/parties/StudentDetails'));
+const FulltimeEmployeeDetails = lazy(() => import('./pages/parties/FulltimeEmployeeDetails'));
+const CasualEmployeeDetails = lazy(() => import('./pages/parties/CasualEmployeeDetails'));
 const PayrollProcessing = lazy(() => import('./pages/PayrollProcessing'));
 const PaymentSummary = lazy(() => import('./pages/PaymentSummary'));
 const IncrementPlanning = lazy(() => import('./pages/IncrementPlanning'));
@@ -153,6 +157,48 @@ function App() {
                         <AuthGuard>
                           <PageAccessGuard requiredPermission="employees">
                             <EmployeeDetails />
+                          </PageAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    
+                    {/* Party Management Routes */}
+                    <Route 
+                      path="/parties" 
+                      element={
+                        <AuthGuard>
+                          <PageAccessGuard requiredPermission="employees">
+                            <PartyManagement />
+                          </PageAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/parties/student/:id" 
+                      element={
+                        <AuthGuard>
+                          <SalesAccessGuard>
+                            <StudentDetails />
+                          </SalesAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/parties/fulltime/:id" 
+                      element={
+                        <AuthGuard>
+                          <PageAccessGuard requiredPermission="employees">
+                            <FulltimeEmployeeDetails />
+                          </PageAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/parties/casual/:id" 
+                      element={
+                        <AuthGuard>
+                          <PageAccessGuard requiredPermission="employees">
+                            <CasualEmployeeDetails />
                           </PageAccessGuard>
                         </AuthGuard>
                       } 
