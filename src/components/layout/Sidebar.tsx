@@ -108,7 +108,6 @@ const Sidebar = () => {
         { icon: BarChart3, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Party Management', path: '/parties' },
         { icon: DollarSign, label: 'Payroll Processing', path: '/payroll' },
-        { icon: CalendarClock, label: 'Slot Booking Management', path: '/admin-slot-booking' },
         // Employee self-service pages for superadmins (management tabs integrated within)
         { icon: UserCheck, label: 'Profile', path: '/profile' },
         { icon: Calendar, label: 'Apply Leave', path: '/apply-leave' },
@@ -164,9 +163,6 @@ const Sidebar = () => {
       if (adminAccess.payroll) {
         menuItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
       }
-      if (adminAccess.slotBooking) {
-        menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
-      }
 
       // Add employee page access items
       if (pageAccess?.profile) {
@@ -209,10 +205,6 @@ const Sidebar = () => {
       }
       if (adminAccess.payroll) {
         menuItems.push({ icon: DollarSign, label: 'Payroll', path: '/payroll' });
-      }
-      if (adminAccess.slotBooking) {
-        console.log('Sidebar: ✅ Adding Admin Slot Booking for employee with slotBooking permission');
-        menuItems.push({ icon: CalendarClock, label: 'Admin Slot Booking', path: '/admin-slot-booking' });
       }
     }
 

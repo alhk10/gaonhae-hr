@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, AlertCircle, Plus, DollarSign } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus, DollarSign, Settings } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,11 +32,13 @@ import EnhancedCalendar from '@/components/slot-booking/EnhancedCalendar';
 import EnhancedBranchSelector from '@/components/slot-booking/EnhancedBranchSelector';
 import SelectedDatesManager from '@/components/slot-booking/SelectedDatesManager';
 import BookingActions from '@/components/slot-booking/BookingActions';
+import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const SlotBooking = () => {
-  const { user, userDetails } = useAuth();
+  const { user, userDetails, userrole } = useAuth();
   const isMobile = useIsMobile();
+  const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedBranch, setSelectedBranch] = useState('headquarters');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -66,6 +68,10 @@ const SlotBooking = () => {
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
 
+  // Check if user can manage slot bookings (Senior Partner or Superadmin)
+  const isSeniorPartner = currentEmployee?.position?.toLowerCase() === 'senior partner';
+  const canManageSlotBooking = userrole === 'superadmin' || isSeniorPartner;
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -75,8 +81,19 @@ const SlotBooking = () => {
       loadEmployeeBookings();
       verifyCurrentEmployee();
       loadEmployeeQualifications();
+      loadCurrentEmployee();
     }
   }, [user?.employeeId]);
+
+  const loadCurrentEmployee = async () => {
+    if (!user?.employeeId) return;
+    try {
+      const employee = await getEmployeeById(user.employeeId);
+      setCurrentEmployee(employee);
+    } catch (error) {
+      console.error('Error loading current employee:', error);
+    }
+  };
 
   useEffect(() => {
     calculatePayForSelectedDates();
@@ -659,11 +676,17 @@ const SlotBooking = () => {
         )}
 
         {/* Tabs - Only show for casual employees and admins */}
-        {(user?.role !== 'employee' || userDetails?.type === 'Casual' || userDetails === null) && (
+        {(user?.role !== 'employee' || userDetails?.type === 'Casual' || userDetails === null || canManageSlotBooking) && (
           <Tabs defaultValue="booking" className="w-full">
-            <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : ''}`}>
+            <TabsList className={`grid w-full ${canManageSlotBooking ? 'grid-cols-3' : 'grid-cols-2'} ${isMobile ? 'h-12' : ''}`}>
               <TabsTrigger value="booking" className={isMobile ? 'text-sm' : ''}>Select Date & Branch</TabsTrigger>
               <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Booking History</TabsTrigger>
+              {canManageSlotBooking && (
+                <TabsTrigger value="manage" className={isMobile ? 'text-sm' : ''}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage Bookings
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="booking" className="mt-6">
@@ -806,6 +829,13 @@ const SlotBooking = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Management Tab - Senior Partners and Superadmins only */}
+          {canManageSlotBooking && (
+            <TabsContent value="manage" className="mt-6">
+              <SlotBookingManagementContent />
+            </TabsContent>
+          )}
           </Tabs>
         )}
       </div>
