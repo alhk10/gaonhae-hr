@@ -474,7 +474,7 @@ const StudentManagementList: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/sales/student/${student.id}`)}
+                            onClick={() => navigate(`/parties/student/${student.id}`)}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
