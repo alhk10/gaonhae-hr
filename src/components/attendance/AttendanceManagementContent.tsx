@@ -427,22 +427,24 @@ const AttendanceManagementContent = () => {
       </Tabs>
 
       <BulkAttendanceDialog 
-        open={isBulkDialogOpen} 
-        onOpenChange={setIsBulkDialogOpen}
+        isOpen={isBulkDialogOpen} 
+        onClose={() => setIsBulkDialogOpen(false)}
         employees={employees}
+        selectedDate={new Date()}
         onSuccess={loadData}
       />
       
       <EditAttendanceDialog 
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
         record={selectedRecord}
         onSuccess={loadData}
       />
 
-      {isSettingsOpen && (
-        <AttendanceSettings />
-      )}
+      <AttendanceSettings 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };
