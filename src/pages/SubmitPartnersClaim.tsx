@@ -147,6 +147,10 @@ const SubmitPartnersClaim = () => {
             
             if (!branchError && branchData) {
               setBranches(branchData);
+              // Auto-select if only one branch
+              if (branchData.length === 1) {
+                setFormData(prev => ({ ...prev, branch_id: branchData[0].id }));
+              }
             }
           } else {
             // No tagged branches
@@ -548,7 +552,7 @@ const SubmitPartnersClaim = () => {
                     <span className="font-medium text-indigo-700">Partner:</span> {currentEmployee.name} 
                     <span className="mx-2">|</span>
                     <span className="font-medium text-indigo-700">Position:</span> {currentEmployee.position}
-                    {currentEmployee.department && (
+                    {currentEmployee.department && currentEmployee.department !== 'Main Office' && (
                       <>
                         <span className="mx-2">|</span>
                         <span className="font-medium text-indigo-700">Department:</span> {currentEmployee.department}
