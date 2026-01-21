@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Building2, DollarSign, Globe, Loader2, Percent, Save, X } from 'lucide-react';
 import { 
@@ -26,11 +27,16 @@ import {
   type BranchPrice 
 } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
-import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import { COUNTRY_TAX_RATES, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_RATE, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 
 // Get default tax rate for a country
 const getCountryDefaultTax = (country: string): number => {
   return COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE;
+};
+
+// Get default tax inclusion for a country
+const getCountryDefaultTaxIncluded = (country: string): boolean => {
+  return COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED;
 };
 
 interface BranchPricingManagerProps {
@@ -105,11 +111,24 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     setHasChanges(true);
   };
 
+  const handleTaxIncludedChange = (branchId: string, value: string) => {
+    const boolValue = value === 'default' ? null : value === 'include';
+    
+    setBranchPrices(prev =>
+      prev.map(bp =>
+        bp.branch_id === branchId
+          ? { ...bp, tax_included: boolValue }
+          : bp
+      )
+    );
+    setHasChanges(true);
+  };
+
   const handleClearBranch = (branchId: string) => {
     setBranchPrices(prev =>
       prev.map(bp =>
         bp.branch_id === branchId
-          ? { ...bp, price: null, tax_rate: null }
+          ? { ...bp, price: null, tax_rate: null, tax_included: null }
           : bp
       )
     );
@@ -158,7 +177,12 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     return acc;
   }, {} as Record<string, BranchPrice[]>);
 
-  const hasCustomValue = (bp: BranchPrice) => bp.price !== null || bp.tax_rate !== null;
+  const hasCustomValue = (bp: BranchPrice) => bp.price !== null || bp.tax_rate !== null || bp.tax_included !== null;
+
+  // Get the effective tax inclusion status for display
+  const getEffectiveTaxIncluded = (bp: BranchPrice): boolean => {
+    return bp.tax_included ?? getCountryDefaultTaxIncluded(bp.branch_country);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,7 +242,27 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                               <span className="font-medium truncate">{bp.branch_name}</span>
                             </div>
                             
-                            <div className="flex items-center gap-3 flex-1">
+                            <div className="flex items-center gap-2 flex-1">
+                              {/* Tax Inclusion Select */}
+                              <div className="w-24">
+                                <Label className="text-xs text-muted-foreground">Tax</Label>
+                                <Select 
+                                  value={bp.tax_included === null ? 'default' : bp.tax_included ? 'include' : 'exclude'}
+                                  onValueChange={(value) => handleTaxIncludedChange(bp.branch_id, value)}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="default">
+                                      Default ({getCountryDefaultTaxIncluded(bp.branch_country) ? 'Incl' : 'Excl'})
+                                    </SelectItem>
+                                    <SelectItem value="exclude">Exclude</SelectItem>
+                                    <SelectItem value="include">Include</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
                               {/* Price Input */}
                               <div className="flex-1">
                                 <Label className="text-xs text-muted-foreground">Price</Label>
@@ -239,7 +283,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                               </div>
                               
                               {/* Tax Rate Input */}
-                              <div className="w-24">
+                              <div className="w-20">
                                 <Label className="text-xs text-muted-foreground">Tax %</Label>
                                 <div className="relative">
                                   <Input
@@ -287,7 +331,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                           
                           {!hasCustomValue(bp) && (
                             <p className="text-xs text-muted-foreground mt-1 ml-6">
-                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {getCountryDefaultTax(bp.branch_country)}% tax ({bp.branch_country})
+                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {getCountryDefaultTax(bp.branch_country)}% tax {getCountryDefaultTaxIncluded(bp.branch_country) ? '(incl)' : '(excl)'} - {bp.branch_country}
                             </p>
                           )}
                         </CardContent>
