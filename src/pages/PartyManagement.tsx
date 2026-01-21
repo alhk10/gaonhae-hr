@@ -19,6 +19,7 @@ import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
 import EmployeeListView from '@/components/employee/EmployeeListView';
 import EmployeeLoadingSkeleton from '@/components/employee/EmployeeLoadingSkeleton';
 import StudentManagementList from '@/components/sales/StudentManagementList';
+import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSalesModuleAccess } from '@/hooks/useSalesModuleAccess';
@@ -39,6 +40,7 @@ const PartyManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showModuleSettings, setShowModuleSettings] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
   
   // Form States
@@ -279,7 +281,7 @@ const PartyManagement = () => {
 
   const handleAddParty = (type: 'student' | 'fulltime' | 'casual') => {
     if (type === 'student') {
-      navigate('/sales/students?add=true');
+      setShowAddStudentDialog(true);
     } else {
       setEmployeeType(type === 'fulltime' ? 'Full-Time' : 'Casual');
       setPaymentType(type === 'casual' ? 'Daily' : 'Monthly');
@@ -700,6 +702,16 @@ const PartyManagement = () => {
             </div>
           </div>
         )}
+
+        {/* Add Student Dialog */}
+        <AddStudentDialog
+          open={showAddStudentDialog}
+          onOpenChange={setShowAddStudentDialog}
+          onStudentAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['students'] });
+            setShowAddStudentDialog(false);
+          }}
+        />
       </ResponsiveLayout>
     </AuthGuard>
   );
