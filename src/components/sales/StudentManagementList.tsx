@@ -37,7 +37,7 @@ const StudentManagementList: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
