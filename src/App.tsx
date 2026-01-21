@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PayrollProvider } from './contexts/PayrollContext';
+import { ScreenLockProvider } from './contexts/ScreenLockContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
 import AuthGuard from './components/auth/AuthGuard';
@@ -72,8 +73,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <Router>
           <AuthProvider>
-            <PayrollProvider>
-              <div className="min-h-screen bg-background">
+            <ScreenLockProvider>
+              <PayrollProvider>
+                <div className="min-h-screen bg-background">
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public route - Login page */}
@@ -444,7 +446,8 @@ function App() {
                 <Toaster />
               </div>
             </PayrollProvider>
-          </AuthProvider>
+          </ScreenLockProvider>
+        </AuthProvider>
         </Router>
       </QueryClientProvider>
     </ErrorBoundary>

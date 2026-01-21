@@ -910,6 +910,7 @@ export type Database = {
           qualifications: Json | null
           residency_status: string
           resign_date: string | null
+          security_pin: string | null
           type: string
           updated_at: string | null
         }
@@ -934,6 +935,7 @@ export type Database = {
           qualifications?: Json | null
           residency_status: string
           resign_date?: string | null
+          security_pin?: string | null
           type: string
           updated_at?: string | null
         }
@@ -958,6 +960,7 @@ export type Database = {
           qualifications?: Json | null
           residency_status?: string
           resign_date?: string | null
+          security_pin?: string | null
           type?: string
           updated_at?: string | null
         }
