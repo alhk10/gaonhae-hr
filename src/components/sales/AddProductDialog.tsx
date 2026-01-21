@@ -10,10 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings, Plus, X } from 'lucide-react';
+import { SizeVariantManager } from './SizeVariantManager';
 
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -23,7 +25,7 @@ const BELT_LEVELS = [
   'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
 ];
 
-const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+
 
 interface AddProductDialogProps {
   trigger: React.ReactNode;
@@ -34,6 +36,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [showSizeManager, setShowSizeManager] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -368,9 +371,41 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
               <Label htmlFor="requires_size" className="text-xs">Product has size variants</Label>
             </div>
             {formData.requires_size && (
-              <p className="text-xs text-muted-foreground">
-                Size management will be available in the product details page
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Available Sizes ({formData.available_sizes.length})</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSizeManager(true)}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Manage Sizes
+                  </Button>
+                </div>
+                
+                {formData.available_sizes.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-background/50 border">
+                    {formData.available_sizes.map((size, index) => (
+                      <Badge key={`${size}-${index}`} variant="secondary" className="flex items-center gap-1">
+                        {size}
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange('available_sizes', formData.available_sizes.filter(s => s !== size))}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground p-3 rounded-lg bg-background/50 border text-center">
+                    No sizes configured. Click "Manage Sizes" to add.
+                  </div>
+                )}
+              </div>
             )}
           </section>
 
@@ -407,6 +442,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Size Variant Manager Dialog */}
+      <SizeVariantManager
+        sizes={formData.available_sizes}
+        onSizesChange={(sizes) => handleInputChange('available_sizes', sizes)}
+        open={showSizeManager}
+        onOpenChange={setShowSizeManager}
+      />
     </Dialog>
   );
 };

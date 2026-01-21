@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product } from '@/services/productService';
+import { SizeVariantManager } from './SizeVariantManager';
 
 interface EditProductDialogProps {
   product: Product;
@@ -26,8 +27,6 @@ const BELT_LEVELS = [
   'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
 ];
 
-const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-
 export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   product,
   open,
@@ -36,6 +35,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [showSizeManager, setShowSizeManager] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -56,9 +56,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   });
 
   useEffect(() => {
-    if (open) {
+    if (open && product) {
       loadCategories();
-      // Pre-populate form with product data
       setFormData({
         name: product.name || '',
         sku: product.sku || '',
@@ -97,16 +96,19 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     try {
       if (!formData.name.trim()) {
         toast.error('Product name is required');
+        setLoading(false);
         return;
       }
 
       if (!formData.sku.trim()) {
         toast.error('SKU is required');
+        setLoading(false);
         return;
       }
 
       if (formData.base_price <= 0) {
         toast.error('Base price must be greater than 0');
+        setLoading(false);
         return;
       }
 
@@ -114,8 +116,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         ...formData,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
-        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
-        updated_by: 'current_user' // This should be replaced with actual user context
+        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined
       });
 
       toast.success('Product updated successfully');
@@ -130,82 +131,89 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   };
 
   const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleRemoveSize = (sizeToRemove: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      available_sizes: prev.available_sizes.filter(s => s !== sizeToRemove)
     }));
   };
 
-  const handleSizeToggle = (size: string) => {
-    setFormData(prev => ({
-      ...prev,
-      available_sizes: prev.available_sizes.includes(size)
-        ? prev.available_sizes.filter(s => s !== size)
-        : [...prev.available_sizes, size]
-    }));
-  };
+  if (!product) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Product</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Product Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter product name"
-                    required
-                  />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Basic Information Section */}
+            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Package className="w-4 h-4" />
+                Basic Information
+              </h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-name" className="text-xs">Product Name *</Label>
+                    <Input
+                      id="edit-name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      placeholder="Enter product name"
+                      className="h-9"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-sku" className="text-xs">SKU *</Label>
+                    <Input
+                      id="edit-sku"
+                      value={formData.sku}
+                      onChange={(e) => handleInputChange('sku', e.target.value)}
+                      placeholder="Enter product SKU"
+                      className="h-9"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sku">SKU *</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                    placeholder="Enter SKU"
-                    required
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-description" className="text-xs">Description</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Enter product description"
+                    rows={2}
+                    className="resize-none"
                   />
                 </div>
               </div>
+            </section>
 
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Enter product description"
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => handleInputChange('category_id', value)}
-                  >
-                    <SelectTrigger>
+            {/* Pricing & Category Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Tag className="w-4 h-4" />
+                Pricing & Category
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-category" className="text-xs">Category</Label>
+                  <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
+                    <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="none">No Category</SelectItem>
-                       {categories.map((category) => (
+                    <SelectContent>
+                      <SelectItem value="none">No Category</SelectItem>
+                      {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
@@ -213,63 +221,66 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="base_price">Base Price *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-base_price" className="text-xs">Base Price *</Label>
                   <Input
-                    id="base_price"
+                    id="edit-base_price"
                     type="number"
-                    step="0.01"
                     min="0"
+                    step="0.01"
                     value={formData.base_price}
                     onChange={(e) => handleInputChange('base_price', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="h-9"
                     required
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-tax_rate" className="text-xs">Tax Rate (%)</Label>
+                  <Input
+                    id="edit-tax_rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.tax_rate}
+                    onChange={(e) => handleInputChange('tax_rate', parseFloat(e.target.value) || 0)}
+                    placeholder="8.00"
+                    className="h-9"
+                  />
+                </div>
               </div>
+            </section>
 
-              <div>
-                <Label htmlFor="tax_rate">Tax Rate (%)</Label>
-                <Input
-                  id="tax_rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={formData.tax_rate}
-                  onChange={(e) => handleInputChange('tax_rate', parseFloat(e.target.value) || 0)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Belt Level Requirements */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Belt Level Requirements</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Belt Level Requirements Section */}
+            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Award className="w-4 h-4" />
+                Belt Level Requirements
+              </h3>
               <div className="flex items-center space-x-2">
                 <Switch
+                  id="edit-requires_belt_level"
                   checked={formData.requires_belt_level}
                   onCheckedChange={(checked) => handleInputChange('requires_belt_level', checked)}
                 />
-                <Label>Requires specific belt level</Label>
+                <Label htmlFor="edit-requires_belt_level" className="text-xs">Requires specific belt level</Label>
               </div>
 
               {formData.requires_belt_level && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="min_belt_level">Minimum Belt Level</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-min_belt_level" className="text-xs">Minimum Belt Level</Label>
                     <Select
                       value={formData.min_belt_level}
                       onValueChange={(value) => handleInputChange('min_belt_level', value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select minimum belt level" />
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select minimum" />
                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="none">No Minimum</SelectItem>
-                         {BELT_LEVELS.map((level) => (
+                      <SelectContent>
+                        <SelectItem value="none">No Minimum</SelectItem>
+                        {BELT_LEVELS.map((level) => (
                           <SelectItem key={level} value={level}>
                             {level}
                           </SelectItem>
@@ -277,18 +288,18 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="max_belt_level">Maximum Belt Level</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-max_belt_level" className="text-xs">Maximum Belt Level</Label>
                     <Select
                       value={formData.max_belt_level}
                       onValueChange={(value) => handleInputChange('max_belt_level', value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select maximum belt level" />
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select maximum" />
                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="none">No Maximum</SelectItem>
-                         {BELT_LEVELS.map((level) => (
+                      <SelectContent>
+                        <SelectItem value="none">No Maximum</SelectItem>
+                        {BELT_LEVELS.map((level) => (
                           <SelectItem key={level} value={level}>
                             {level}
                           </SelectItem>
@@ -298,113 +309,148 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </section>
 
-          {/* Sessions & Validity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sessions & Validity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="session_count">Session Count</Label>
+            {/* Sessions & Validity Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Calendar className="w-4 h-4" />
+                Sessions & Validity
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-session_count" className="text-xs">Session Count</Label>
                   <Input
-                    id="session_count"
+                    id="edit-session_count"
                     type="number"
                     min="0"
                     value={formData.session_count}
                     onChange={(e) => handleInputChange('session_count', parseInt(e.target.value) || 0)}
+                    placeholder="10"
+                    className="h-9"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="validity_months">Validity (Months)</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-validity_months" className="text-xs">Validity (months)</Label>
                   <Input
-                    id="validity_months"
+                    id="edit-validity_months"
                     type="number"
                     min="0"
                     value={formData.validity_months}
                     onChange={(e) => handleInputChange('validity_months', parseInt(e.target.value) || 0)}
+                    placeholder="12"
+                    className="h-9"
                   />
                 </div>
-                <div className="flex items-center space-x-2 pt-8">
-                  <Switch
-                    checked={formData.is_recurring}
-                    onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
-                  />
-                  <Label>Recurring Product</Label>
+                <div className="flex items-end pb-1">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="edit-is_recurring"
+                      checked={formData.is_recurring}
+                      onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
+                    />
+                    <Label htmlFor="edit-is_recurring" className="text-xs">Recurring</Label>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </section>
 
-          {/* Size Options */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Size Options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Size Options Section */}
+            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Ruler className="w-4 h-4" />
+                Size Options
+              </h3>
               <div className="flex items-center space-x-2">
                 <Switch
+                  id="edit-requires_size"
                   checked={formData.requires_size}
                   onCheckedChange={(checked) => handleInputChange('requires_size', checked)}
                 />
-                <Label>Requires size selection</Label>
+                <Label htmlFor="edit-requires_size" className="text-xs">Product has size variants</Label>
               </div>
 
               {formData.requires_size && (
-                <div>
-                  <Label>Available Sizes</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {SIZE_OPTIONS.map((size) => (
-                      <Button
-                        key={size}
-                        type="button"
-                        variant={formData.available_sizes.includes(size) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleSizeToggle(size)}
-                      >
-                        {size}
-                      </Button>
-                    ))}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Available Sizes ({formData.available_sizes.length})</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSizeManager(true)}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Manage Sizes
+                    </Button>
                   </div>
+                  
+                  {formData.available_sizes.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-background/50 border">
+                      {formData.available_sizes.map((size, index) => (
+                        <Badge key={`${size}-${index}`} variant="secondary" className="flex items-center gap-1">
+                          {size}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSize(size)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground p-3 rounded-lg bg-background/50 border text-center">
+                      No sizes configured. Click "Manage Sizes" to add.
+                    </div>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </section>
 
-          {/* Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Status</CardTitle>
-            </CardHeader>
-            <CardContent>
+            {/* Status Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Settings className="w-4 h-4" />
+                Status
+              </h3>
               <div className="flex items-center space-x-2">
                 <Switch
+                  id="edit-is_active"
                   checked={formData.is_active}
                   onCheckedChange={(checked) => handleInputChange('is_active', checked)}
                 />
-                <Label>Active Product</Label>
+                <Label htmlFor="edit-is_active" className="text-xs">Active Product</Label>
               </div>
-            </CardContent>
-          </Card>
+            </section>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Update Product
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={loading}>
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Update Product
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Size Variant Manager Dialog */}
+      <SizeVariantManager
+        sizes={formData.available_sizes}
+        onSizesChange={(sizes) => handleInputChange('available_sizes', sizes)}
+        open={showSizeManager}
+        onOpenChange={setShowSizeManager}
+      />
+    </>
   );
 };
