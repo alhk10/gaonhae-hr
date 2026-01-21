@@ -32,6 +32,7 @@ export interface BranchPrice {
   price: number | null;
   tax_rate: number | null;
   tax_included: boolean | null;
+  is_hidden: boolean;
   rule_id?: string;
 }
 
@@ -107,13 +108,12 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
     throw branchError;
   }
 
-  // Get branch-specific price rules for this product
+  // Get branch-specific price rules for this product (including hidden/inactive)
   const { data: rules, error: rulesError } = await supabase
     .from('price_rules')
     .select('*')
     .eq('product_id', productId)
-    .not('branch_id', 'is', null)
-    .eq('is_active', true);
+    .not('branch_id', 'is', null);
 
   if (rulesError) {
     console.error('Error fetching price rules:', rulesError);
@@ -122,16 +122,20 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
 
   const ruleMap = new Map(rules?.map(r => [r.branch_id, r]) || []);
 
-  return (branches || []).map(branch => ({
-    branch_id: branch.id,
-    branch_name: branch.name,
-    branch_currency: branch.currency || 'SGD',
-    branch_country: branch.country || 'Singapore',
-    price: ruleMap.get(branch.id)?.price_override ?? null,
-    tax_rate: ruleMap.get(branch.id)?.tax_rate ?? null,
-    tax_included: ruleMap.get(branch.id)?.tax_included ?? null,
-    rule_id: ruleMap.get(branch.id)?.id,
-  }));
+  return (branches || []).map(branch => {
+    const rule = ruleMap.get(branch.id);
+    return {
+      branch_id: branch.id,
+      branch_name: branch.name,
+      branch_currency: branch.currency || 'SGD',
+      branch_country: branch.country || 'Singapore',
+      price: rule?.price_override ?? null,
+      tax_rate: rule?.tax_rate ?? null,
+      tax_included: rule?.tax_included ?? null,
+      is_hidden: rule?.is_active === false,
+      rule_id: rule?.id,
+    };
+  });
 }
 
 /**
@@ -215,10 +219,11 @@ export async function upsertBranchPrice(
   price: number | null,
   taxRate: number | null,
   taxIncluded: boolean | null,
+  isHidden: boolean,
   existingRuleId?: string
 ): Promise<void> {
-  // If all values are null and rule exists, delete the rule
-  if (price === null && taxRate === null && taxIncluded === null) {
+  // If all values are null, not hidden, and rule exists, delete the rule
+  if (price === null && taxRate === null && taxIncluded === null && !isHidden) {
     if (existingRuleId) {
       await deletePriceRule(existingRuleId);
     }
@@ -231,6 +236,7 @@ export async function upsertBranchPrice(
       price_override: price,
       tax_rate: taxRate,
       tax_included: taxIncluded,
+      is_active: !isHidden,
     });
   } else {
     // Create new rule
@@ -241,7 +247,7 @@ export async function upsertBranchPrice(
       price_override: price,
       tax_rate: taxRate,
       tax_included: taxIncluded,
-      is_active: true,
+      is_active: !isHidden,
     });
   }
 }
@@ -261,6 +267,7 @@ export async function bulkUpdateBranchPrices(
       bp.price,
       bp.tax_rate,
       bp.tax_included,
+      bp.is_hidden,
       bp.rule_id
     );
   }

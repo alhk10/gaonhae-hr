@@ -20,11 +20,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, DollarSign, Globe, Loader2, Percent, Save, X } from 'lucide-react';
+import { Building2, DollarSign, Eye, EyeOff, Globe, Loader2, Percent, Save, X } from 'lucide-react';
 import { 
   getProductBranchPrices, 
   bulkUpdateBranchPrices, 
-  type BranchPrice 
+  type BranchPrice,
+  upsertBranchPrice,
 } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { COUNTRY_TAX_RATES, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_RATE, DEFAULT_TAX_INCLUDED } from '@/config/constants';
@@ -128,7 +129,18 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     setBranchPrices(prev =>
       prev.map(bp =>
         bp.branch_id === branchId
-          ? { ...bp, price: null, tax_rate: null, tax_included: null }
+          ? { ...bp, price: null, tax_rate: null, tax_included: null, is_hidden: false }
+          : bp
+      )
+    );
+    setHasChanges(true);
+  };
+
+  const handleToggleHidden = (branchId: string) => {
+    setBranchPrices(prev =>
+      prev.map(bp =>
+        bp.branch_id === branchId
+          ? { ...bp, is_hidden: !bp.is_hidden }
           : bp
       )
     );
@@ -177,7 +189,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     return acc;
   }, {} as Record<string, BranchPrice[]>);
 
-  const hasCustomValue = (bp: BranchPrice) => bp.price !== null || bp.tax_rate !== null || bp.tax_included !== null;
+  const hasCustomValue = (bp: BranchPrice) => bp.price !== null || bp.tax_rate !== null || bp.tax_included !== null || bp.is_hidden;
 
   // Get the effective tax inclusion status for display
   const getEffectiveTaxIncluded = (bp: BranchPrice): boolean => {
@@ -234,12 +246,17 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                   
                   <div className="space-y-3">
                     {branches.map((bp) => (
-                      <Card key={bp.branch_id} className={`overflow-hidden ${hasCustomValue(bp) ? 'border-primary/50' : ''}`}>
+                      <Card key={bp.branch_id} className={`overflow-hidden transition-opacity ${hasCustomValue(bp) ? 'border-primary/50' : ''} ${bp.is_hidden ? 'opacity-50' : ''}`}>
                         <CardContent className="p-3">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2 min-w-0 w-40">
                               <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                              <span className="font-medium truncate">{bp.branch_name}</span>
+                              <span className={`font-medium truncate ${bp.is_hidden ? 'line-through text-muted-foreground' : ''}`}>
+                                {bp.branch_name}
+                              </span>
+                              {bp.is_hidden && (
+                                <Badge variant="secondary" className="text-xs">Hidden</Badge>
+                              )}
                             </div>
                             
                             <div className="flex items-center gap-2 flex-1">
@@ -258,6 +275,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                     value={bp.price ?? ''}
                                     onChange={(e) => handlePriceChange(bp.branch_id, e.target.value)}
                                     className="h-8 pl-7 pr-2 text-right text-sm"
+                                    disabled={bp.is_hidden}
                                   />
                                 </div>
                               </div>
@@ -268,6 +286,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                 <Select 
                                   value={bp.tax_included === null ? 'default' : bp.tax_included ? 'include' : 'exclude'}
                                   onValueChange={(value) => handleTaxIncludedChange(bp.branch_id, value)}
+                                  disabled={bp.is_hidden}
                                 >
                                   <SelectTrigger className="h-8 text-xs">
                                     <SelectValue />
@@ -295,6 +314,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                     value={bp.tax_rate ?? ''}
                                     onChange={(e) => handleTaxRateChange(bp.branch_id, e.target.value)}
                                     className="h-8 pr-6 text-right text-sm"
+                                    disabled={bp.is_hidden}
                                   />
                                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                                     %
@@ -304,7 +324,16 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                               
                               {/* Actions */}
                               <div className="flex items-end gap-1 pb-0.5">
-                                {hasCustomValue(bp) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleHidden(bp.branch_id)}
+                                  title={bp.is_hidden ? 'Show (enable for this branch)' : 'Hide (not sold at this branch)'}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  {bp.is_hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                                </Button>
+                                {hasCustomValue(bp) && !bp.is_hidden && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
