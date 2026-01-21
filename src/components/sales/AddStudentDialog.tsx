@@ -18,15 +18,23 @@ import { UserPlus, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucid
 import { useBranches } from '@/hooks/useBranches';
 
 interface AddStudentDialogProps {
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onStudentAdded?: () => void;
 }
 
 const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   onStudentAdded
 }) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Support both controlled and uncontrolled modes
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const { branches, loading: branchesLoading } = useBranches();
   
@@ -108,7 +116,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       await createStudent(formData);
       
       toast.success('Student added successfully');
-      setOpen(false);
+      setIsOpen(false);
       setFormData({
         first_name: '',
         last_name: '',
@@ -146,10 +154,12 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {trigger && (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -490,7 +500,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => setIsOpen(false)}
               disabled={loading}
             >
               Cancel

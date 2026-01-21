@@ -122,7 +122,6 @@ const Sidebar = () => {
         console.log('Sidebar: ✅ SALES MODULE ACCESS GRANTED - Adding sales menu items');
         adminItems.push(
           { icon: ShoppingCart, label: 'Sales Dashboard', path: '/sales' },
-          { icon: Users, label: 'Student Management', path: '/sales/students' },
           { icon: Package, label: 'Products & Inventory', path: '/sales/products' },
           { icon: Receipt, label: 'Invoices & Payments', path: '/sales/invoices' },
           { icon: TrendingUp, label: 'Sales Reports', path: '/sales/reports' }

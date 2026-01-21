@@ -46,7 +46,7 @@ const SalesAccessGuard = lazy(() => import('./components/sales/SalesAccessGuard'
 const SalesDashboard = lazy(() => import('./pages/sales/SalesDashboard'));
 const SalesSettings = lazy(() => import('./pages/sales/SalesSettings'));
 const StudentProfile = lazy(() => import('./pages/sales/StudentProfile'));
-const StudentManagement = lazy(() => import('./pages/sales/StudentManagement'));
+
 const ProductManagement = lazy(() => import('./pages/sales/ProductManagement'));
 const InvoiceManagement = lazy(() => import('./pages/sales/InvoiceManagement'));
 const PaymentManagement = lazy(() => import('./pages/sales/PaymentManagement'));
@@ -371,16 +371,6 @@ function App() {
                         <AuthGuard>
                           <SalesAccessGuard>
                             <StudentProfile />
-                          </SalesAccessGuard>
-                        </AuthGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/sales/students" 
-                      element={
-                        <AuthGuard>
-                          <SalesAccessGuard>
-                            <StudentManagement />
                           </SalesAccessGuard>
                         </AuthGuard>
                       } 
