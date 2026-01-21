@@ -1,6 +1,6 @@
 /**
  * Add Product Dialog Component
- * Form for creating new products in the sales module
+ * Form for creating new products in the sales module with multi-variant support
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,9 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { createProduct, getProductCategories } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings, Plus, X } from 'lucide-react';
-import { SizeVariantManager } from './SizeVariantManager';
+import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
+import { Loader2, Package, Tag, Award, Calendar, Layers, Settings } from 'lucide-react';
+import { ProductVariantManager } from './ProductVariantManager';
 
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -24,8 +24,6 @@ const BELT_LEVELS = [
   'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
   'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
 ];
-
-
 
 interface AddProductDialogProps {
   trigger: React.ReactNode;
@@ -36,7 +34,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
-  const [showSizeManager, setShowSizeManager] = useState(false);
+  const [showVariantManager, setShowVariantManager] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -44,8 +43,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     category_id: '',
     base_price: '',
     tax_rate: '',
-    available_sizes: [] as string[],
-    requires_size: false,
+    available_variants: { sizes: [], colors: [], belt_ranks: [] } as ProductVariants,
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
@@ -53,6 +51,12 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     validity_months: '',
     is_recurring: false,
     is_active: true
+  });
+  
+  const [enabledVariantTypes, setEnabledVariantTypes] = useState({
+    size: false,
+    color: false,
+    belt_rank: false
   });
 
   useEffect(() => {
@@ -93,8 +97,10 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         base_price: formData.base_price ? parseFloat(formData.base_price) : 0,
         tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : undefined,
-        available_sizes: formData.available_sizes.length > 0 ? formData.available_sizes : undefined,
-        requires_size: formData.requires_size,
+        available_variants: formData.available_variants,
+        requires_size: enabledVariantTypes.size,
+        requires_color: enabledVariantTypes.color,
+        requires_belt_rank: enabledVariantTypes.belt_rank,
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
         max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
         requires_belt_level: formData.requires_belt_level,
@@ -126,8 +132,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       category_id: '',
       base_price: '',
       tax_rate: '',
-      available_sizes: [],
-      requires_size: false,
+      available_variants: { sizes: [], colors: [], belt_ranks: [] },
       min_belt_level: '',
       max_belt_level: '',
       requires_belt_level: false,
@@ -136,11 +141,20 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       is_recurring: false,
       is_active: true
     });
+    setEnabledVariantTypes({ size: false, color: false, belt_rank: false });
   };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Count total variants configured
+  const totalVariants = 
+    (formData.available_variants.sizes?.length || 0) +
+    (formData.available_variants.colors?.length || 0) +
+    (formData.available_variants.belt_ranks?.length || 0);
+
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.belt_rank;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -253,8 +267,50 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
             </div>
           </section>
 
-          {/* Belt Level Requirements Section */}
+          {/* Product Variants Section */}
           <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Layers className="w-4 h-4" />
+              Product Variants
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Configure Size, Color, and Belt Rank variants for this product
+            </p>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                {enabledVariantTypes.size && (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                    Sizes: {formData.available_variants.sizes?.length || 0}
+                  </Badge>
+                )}
+                {enabledVariantTypes.color && (
+                  <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+                    Colors: {formData.available_variants.colors?.length || 0}
+                  </Badge>
+                )}
+                {enabledVariantTypes.belt_rank && (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
+                    Belt Ranks: {formData.available_variants.belt_ranks?.length || 0}
+                  </Badge>
+                )}
+                {!hasAnyVariants && (
+                  <span className="text-xs text-muted-foreground">No variants configured</span>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVariantManager(true)}
+              >
+                Manage Variants
+              </Button>
+            </div>
+          </section>
+
+          {/* Belt Level Requirements Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Award className="w-4 h-4" />
               Belt Level Requirements
@@ -271,7 +327,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
             {formData.requires_belt_level && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="min_belt_level" className="text-xs">Minimum Belt Level</Label>
+                  <Label className="text-xs">Minimum Belt Level</Label>
                   <Select
                     value={formData.min_belt_level}
                     onValueChange={(value) => handleInputChange('min_belt_level', value)}
@@ -282,15 +338,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                     <SelectContent>
                       <SelectItem value="none">No Minimum</SelectItem>
                       {BELT_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="max_belt_level" className="text-xs">Maximum Belt Level</Label>
+                  <Label className="text-xs">Maximum Belt Level</Label>
                   <Select
                     value={formData.max_belt_level}
                     onValueChange={(value) => handleInputChange('max_belt_level', value)}
@@ -301,9 +355,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                     <SelectContent>
                       <SelectItem value="none">No Maximum</SelectItem>
                       {BELT_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -313,16 +365,15 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
           </section>
 
           {/* Sessions & Validity Section */}
-          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Calendar className="w-4 h-4" />
               Sessions & Validity
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="session_count" className="text-xs">Session Count</Label>
+                <Label className="text-xs">Session Count</Label>
                 <Input
-                  id="session_count"
                   type="number"
                   min="1"
                   value={formData.session_count}
@@ -332,9 +383,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="validity_months" className="text-xs">Validity (months)</Label>
+                <Label className="text-xs">Validity (months)</Label>
                 <Input
-                  id="validity_months"
                   type="number"
                   min="1"
                   value={formData.validity_months}
@@ -356,59 +406,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
             </div>
           </section>
 
-          {/* Size Options Section */}
-          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Ruler className="w-4 h-4" />
-              Size Options
-            </h3>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="requires_size"
-                checked={formData.requires_size}
-                onCheckedChange={(checked) => handleInputChange('requires_size', checked)}
-              />
-              <Label htmlFor="requires_size" className="text-xs">Product has size variants</Label>
-            </div>
-            {formData.requires_size && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Available Sizes ({formData.available_sizes.length})</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSizeManager(true)}
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Manage Sizes
-                  </Button>
-                </div>
-                
-                {formData.available_sizes.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-background/50 border">
-                    {formData.available_sizes.map((size, index) => (
-                      <Badge key={`${size}-${index}`} variant="secondary" className="flex items-center gap-1">
-                        {size}
-                        <button
-                          type="button"
-                          onClick={() => handleInputChange('available_sizes', formData.available_sizes.filter(s => s !== size))}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground p-3 rounded-lg bg-background/50 border text-center">
-                    No sizes configured. Click "Manage Sizes" to add.
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
           {/* Status Section */}
           <section className="rounded-lg bg-accent/30 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -426,13 +423,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
           </section>
 
           <DialogFooter className="pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
@@ -443,12 +434,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         </form>
       </DialogContent>
 
-      {/* Size Variant Manager Dialog */}
-      <SizeVariantManager
-        sizes={formData.available_sizes}
-        onSizesChange={(sizes) => handleInputChange('available_sizes', sizes)}
-        open={showSizeManager}
-        onOpenChange={setShowSizeManager}
+      {/* Product Variant Manager Dialog */}
+      <ProductVariantManager
+        variants={formData.available_variants}
+        onVariantsChange={(variants) => handleInputChange('available_variants', variants)}
+        enabledTypes={enabledVariantTypes}
+        onEnabledTypesChange={setEnabledVariantTypes}
+        open={showVariantManager}
+        onOpenChange={setShowVariantManager}
       />
     </Dialog>
   );

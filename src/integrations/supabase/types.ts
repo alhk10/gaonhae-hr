@@ -1032,6 +1032,7 @@ export type Database = {
           size_variant: string | null
           updated_at: string
           updated_by: string | null
+          variant_combination: Json | null
         }
         Insert: {
           cost_per_unit?: number | null
@@ -1047,6 +1048,7 @@ export type Database = {
           size_variant?: string | null
           updated_at?: string
           updated_by?: string | null
+          variant_combination?: Json | null
         }
         Update: {
           cost_per_unit?: number | null
@@ -1062,6 +1064,7 @@ export type Database = {
           size_variant?: string | null
           updated_at?: string
           updated_by?: string | null
+          variant_combination?: Json | null
         }
         Relationships: [
           {
@@ -2123,9 +2126,43 @@ export type Database = {
         }
         Relationships: []
       }
+      product_variant_types: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          presets: Json | null
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          presets?: Json | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          presets?: Json | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           available_sizes: string[] | null
+          available_variants: Json | null
           base_price: number
           category_id: string | null
           created_at: string
@@ -2139,6 +2176,8 @@ export type Database = {
           min_belt_level: string | null
           name: string
           requires_belt_level: boolean | null
+          requires_belt_rank: boolean | null
+          requires_color: boolean | null
           requires_size: boolean | null
           session_count: number | null
           sku: string
@@ -2149,6 +2188,7 @@ export type Database = {
         }
         Insert: {
           available_sizes?: string[] | null
+          available_variants?: Json | null
           base_price?: number
           category_id?: string | null
           created_at?: string
@@ -2162,6 +2202,8 @@ export type Database = {
           min_belt_level?: string | null
           name: string
           requires_belt_level?: boolean | null
+          requires_belt_rank?: boolean | null
+          requires_color?: boolean | null
           requires_size?: boolean | null
           session_count?: number | null
           sku: string
@@ -2172,6 +2214,7 @@ export type Database = {
         }
         Update: {
           available_sizes?: string[] | null
+          available_variants?: Json | null
           base_price?: number
           category_id?: string | null
           created_at?: string
@@ -2185,6 +2228,8 @@ export type Database = {
           min_belt_level?: string | null
           name?: string
           requires_belt_level?: boolean | null
+          requires_belt_rank?: boolean | null
+          requires_color?: boolean | null
           requires_size?: boolean | null
           session_count?: number | null
           sku?: string

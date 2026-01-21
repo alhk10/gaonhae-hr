@@ -7,10 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings, X, Plus } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Layers, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { updateProduct, getProductCategories, Product } from '@/services/productService';
-import { SizeVariantManager } from './SizeVariantManager';
+import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
+import { ProductVariantManager } from './ProductVariantManager';
 
 interface EditProductDialogProps {
   product: Product;
@@ -35,7 +35,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
-  const [showSizeManager, setShowSizeManager] = useState(false);
+  const [showVariantManager, setShowVariantManager] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -43,8 +43,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     category_id: '',
     base_price: 0,
     tax_rate: 8,
-    available_sizes: [] as string[],
-    requires_size: false,
+    available_variants: { sizes: [], colors: [], belt_ranks: [] } as ProductVariants,
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
@@ -54,10 +53,16 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     is_active: true,
     metadata: {}
   });
+  const [enabledVariantTypes, setEnabledVariantTypes] = useState({
+    size: false,
+    color: false,
+    belt_rank: false
+  });
 
   useEffect(() => {
     if (open && product) {
       loadCategories();
+      const variants = product.available_variants || { sizes: [], colors: [], belt_ranks: [] };
       setFormData({
         name: product.name || '',
         sku: product.sku || '',
@@ -65,8 +70,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         category_id: product.category_id || 'none',
         base_price: Number(product.base_price) || 0,
         tax_rate: Number(product.tax_rate) || 8,
-        available_sizes: product.available_sizes || [],
-        requires_size: product.requires_size || false,
+        available_variants: variants,
         min_belt_level: product.min_belt_level || 'none',
         max_belt_level: product.max_belt_level || 'none',
         requires_belt_level: product.requires_belt_level || false,
@@ -75,6 +79,11 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         is_recurring: product.is_recurring || false,
         is_active: product.is_active,
         metadata: product.metadata || {}
+      });
+      setEnabledVariantTypes({
+        size: product.requires_size || (variants.sizes?.length || 0) > 0,
+        color: product.requires_color || (variants.colors?.length || 0) > 0,
+        belt_rank: product.requires_belt_rank || (variants.belt_ranks?.length || 0) > 0
       });
     }
   }, [open, product]);
@@ -114,6 +123,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
       await updateProduct(product.id, {
         ...formData,
+        requires_size: enabledVariantTypes.size,
+        requires_color: enabledVariantTypes.color,
+        requires_belt_rank: enabledVariantTypes.belt_rank,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
         max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined
@@ -134,14 +146,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleRemoveSize = (sizeToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      available_sizes: prev.available_sizes.filter(s => s !== sizeToRemove)
-    }));
-  };
-
   if (!product) return null;
+
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.belt_rank;
 
   return (
     <>
@@ -158,43 +165,34 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 <Package className="w-4 h-4" />
                 Basic Information
               </h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-name" className="text-xs">Product Name *</Label>
-                    <Input
-                      id="edit-name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      placeholder="Enter product name"
-                      className="h-9"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-sku" className="text-xs">SKU *</Label>
-                    <Input
-                      id="edit-sku"
-                      value={formData.sku}
-                      onChange={(e) => handleInputChange('sku', e.target.value)}
-                      placeholder="Enter product SKU"
-                      className="h-9"
-                      required
-                    />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-description" className="text-xs">Description</Label>
-                  <Textarea
-                    id="edit-description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Enter product description"
-                    rows={2}
-                    className="resize-none"
+                  <Label className="text-xs">Product Name *</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="h-9"
+                    required
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">SKU *</Label>
+                  <Input
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    className="h-9"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Description</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={2}
+                  className="resize-none"
+                />
               </div>
             </section>
 
@@ -206,7 +204,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               </h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-category" className="text-xs">Category</Label>
+                  <Label className="text-xs">Category</Label>
                   <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select category" />
@@ -214,96 +212,103 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     <SelectContent>
                       <SelectItem value="none">No Category</SelectItem>
                       {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
+                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-base_price" className="text-xs">Base Price *</Label>
+                  <Label className="text-xs">Base Price *</Label>
                   <Input
-                    id="edit-base_price"
                     type="number"
                     min="0"
                     step="0.01"
                     value={formData.base_price}
                     onChange={(e) => handleInputChange('base_price', parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
                     className="h-9"
                     required
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-tax_rate" className="text-xs">Tax Rate (%)</Label>
+                  <Label className="text-xs">Tax Rate (%)</Label>
                   <Input
-                    id="edit-tax_rate"
                     type="number"
                     min="0"
                     max="100"
                     step="0.01"
                     value={formData.tax_rate}
                     onChange={(e) => handleInputChange('tax_rate', parseFloat(e.target.value) || 0)}
-                    placeholder="8.00"
                     className="h-9"
                   />
                 </div>
               </div>
             </section>
 
-            {/* Belt Level Requirements Section */}
+            {/* Product Variants Section */}
             <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Layers className="w-4 h-4" />
+                Product Variants
+              </h3>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  {enabledVariantTypes.size && (
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                      Sizes: {formData.available_variants.sizes?.length || 0}
+                    </Badge>
+                  )}
+                  {enabledVariantTypes.color && (
+                    <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+                      Colors: {formData.available_variants.colors?.length || 0}
+                    </Badge>
+                  )}
+                  {enabledVariantTypes.belt_rank && (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
+                      Belt Ranks: {formData.available_variants.belt_ranks?.length || 0}
+                    </Badge>
+                  )}
+                  {!hasAnyVariants && (
+                    <span className="text-xs text-muted-foreground">No variants configured</span>
+                  )}
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowVariantManager(true)}>
+                  Manage Variants
+                </Button>
+              </div>
+            </section>
+
+            {/* Belt Level Requirements Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <Award className="w-4 h-4" />
                 Belt Level Requirements
               </h3>
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="edit-requires_belt_level"
                   checked={formData.requires_belt_level}
                   onCheckedChange={(checked) => handleInputChange('requires_belt_level', checked)}
                 />
-                <Label htmlFor="edit-requires_belt_level" className="text-xs">Requires specific belt level</Label>
+                <Label className="text-xs">Requires specific belt level</Label>
               </div>
-
               {formData.requires_belt_level && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="edit-min_belt_level" className="text-xs">Minimum Belt Level</Label>
-                    <Select
-                      value={formData.min_belt_level}
-                      onValueChange={(value) => handleInputChange('min_belt_level', value)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select minimum" />
-                      </SelectTrigger>
+                    <Label className="text-xs">Minimum Belt Level</Label>
+                    <Select value={formData.min_belt_level} onValueChange={(value) => handleInputChange('min_belt_level', value)}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select minimum" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No Minimum</SelectItem>
-                        {BELT_LEVELS.map((level) => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
+                        {BELT_LEVELS.map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="edit-max_belt_level" className="text-xs">Maximum Belt Level</Label>
-                    <Select
-                      value={formData.max_belt_level}
-                      onValueChange={(value) => handleInputChange('max_belt_level', value)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select maximum" />
-                      </SelectTrigger>
+                    <Label className="text-xs">Maximum Belt Level</Label>
+                    <Select value={formData.max_belt_level} onValueChange={(value) => handleInputChange('max_belt_level', value)}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select maximum" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No Maximum</SelectItem>
-                        {BELT_LEVELS.map((level) => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
+                        {BELT_LEVELS.map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -312,101 +317,27 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             </section>
 
             {/* Sessions & Validity Section */}
-            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <Calendar className="w-4 h-4" />
                 Sessions & Validity
               </h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-session_count" className="text-xs">Session Count</Label>
-                  <Input
-                    id="edit-session_count"
-                    type="number"
-                    min="0"
-                    value={formData.session_count}
-                    onChange={(e) => handleInputChange('session_count', parseInt(e.target.value) || 0)}
-                    placeholder="10"
-                    className="h-9"
-                  />
+                  <Label className="text-xs">Session Count</Label>
+                  <Input type="number" min="0" value={formData.session_count} onChange={(e) => handleInputChange('session_count', parseInt(e.target.value) || 0)} className="h-9" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-validity_months" className="text-xs">Validity (months)</Label>
-                  <Input
-                    id="edit-validity_months"
-                    type="number"
-                    min="0"
-                    value={formData.validity_months}
-                    onChange={(e) => handleInputChange('validity_months', parseInt(e.target.value) || 0)}
-                    placeholder="12"
-                    className="h-9"
-                  />
+                  <Label className="text-xs">Validity (months)</Label>
+                  <Input type="number" min="0" value={formData.validity_months} onChange={(e) => handleInputChange('validity_months', parseInt(e.target.value) || 0)} className="h-9" />
                 </div>
                 <div className="flex items-end pb-1">
                   <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-is_recurring"
-                      checked={formData.is_recurring}
-                      onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
-                    />
-                    <Label htmlFor="edit-is_recurring" className="text-xs">Recurring</Label>
+                    <Switch checked={formData.is_recurring} onCheckedChange={(checked) => handleInputChange('is_recurring', checked)} />
+                    <Label className="text-xs">Recurring</Label>
                   </div>
                 </div>
               </div>
-            </section>
-
-            {/* Size Options Section */}
-            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
-              <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Ruler className="w-4 h-4" />
-                Size Options
-              </h3>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-requires_size"
-                  checked={formData.requires_size}
-                  onCheckedChange={(checked) => handleInputChange('requires_size', checked)}
-                />
-                <Label htmlFor="edit-requires_size" className="text-xs">Product has size variants</Label>
-              </div>
-
-              {formData.requires_size && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Available Sizes ({formData.available_sizes.length})</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSizeManager(true)}
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Manage Sizes
-                    </Button>
-                  </div>
-                  
-                  {formData.available_sizes.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-background/50 border">
-                      {formData.available_sizes.map((size, index) => (
-                        <Badge key={`${size}-${index}`} variant="secondary" className="flex items-center gap-1">
-                          {size}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSize(size)}
-                            className="ml-1 hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground p-3 rounded-lg bg-background/50 border text-center">
-                      No sizes configured. Click "Manage Sizes" to add.
-                    </div>
-                  )}
-                </div>
-              )}
             </section>
 
             {/* Status Section */}
@@ -416,25 +347,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 Status
               </h3>
               <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => handleInputChange('is_active', checked)}
-                />
-                <Label htmlFor="edit-is_active" className="text-xs">Active Product</Label>
+                <Switch checked={formData.is_active} onCheckedChange={(checked) => handleInputChange('is_active', checked)} />
+                <Label className="text-xs">Active Product</Label>
               </div>
             </section>
 
             <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
               <Button type="submit" size="sm" disabled={loading}>
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Update Product
@@ -444,12 +363,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Size Variant Manager Dialog */}
-      <SizeVariantManager
-        sizes={formData.available_sizes}
-        onSizesChange={(sizes) => handleInputChange('available_sizes', sizes)}
-        open={showSizeManager}
-        onOpenChange={setShowSizeManager}
+      <ProductVariantManager
+        variants={formData.available_variants}
+        onVariantsChange={(variants) => handleInputChange('available_variants', variants)}
+        enabledTypes={enabledVariantTypes}
+        onEnabledTypesChange={setEnabledVariantTypes}
+        open={showVariantManager}
+        onOpenChange={setShowVariantManager}
       />
     </>
   );

@@ -7,6 +7,52 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 
+export interface ProductVariants {
+  sizes?: string[];
+  colors?: string[];
+  belt_ranks?: string[];
+}
+
+// Helper to parse variants from database JSON
+const parseVariants = (data: unknown): ProductVariants | undefined => {
+  if (!data || typeof data !== 'object') return undefined;
+  const obj = data as Record<string, unknown>;
+  return {
+    sizes: Array.isArray(obj.sizes) ? obj.sizes : undefined,
+    colors: Array.isArray(obj.colors) ? obj.colors : undefined,
+    belt_ranks: Array.isArray(obj.belt_ranks) ? obj.belt_ranks : undefined
+  };
+};
+
+// Helper to transform raw product data to Product type
+const transformProduct = (raw: any): Product => ({
+  id: raw.id,
+  name: raw.name,
+  sku: raw.sku,
+  description: raw.description,
+  category_id: raw.category_id,
+  category_name: raw.product_categories?.name,
+  base_price: raw.base_price,
+  tax_rate: raw.tax_rate,
+  available_sizes: raw.available_sizes,
+  requires_size: raw.requires_size,
+  available_variants: parseVariants(raw.available_variants),
+  requires_color: raw.requires_color,
+  requires_belt_rank: raw.requires_belt_rank,
+  min_belt_level: raw.min_belt_level,
+  max_belt_level: raw.max_belt_level,
+  requires_belt_level: raw.requires_belt_level,
+  session_count: raw.session_count,
+  validity_months: raw.validity_months,
+  is_recurring: raw.is_recurring,
+  is_active: raw.is_active,
+  metadata: raw.metadata,
+  created_at: raw.created_at,
+  updated_at: raw.updated_at,
+  created_by: raw.created_by,
+  updated_by: raw.updated_by
+});
+
 export interface Product {
   id: string;
   name: string;
@@ -18,6 +64,11 @@ export interface Product {
   tax_rate?: number;
   available_sizes?: string[];
   requires_size?: boolean;
+  // New variant fields
+  available_variants?: ProductVariants;
+  requires_color?: boolean;
+  requires_belt_rank?: boolean;
+  // Belt level requirements
   min_belt_level?: string;
   max_belt_level?: string;
   requires_belt_level?: boolean;
@@ -79,11 +130,8 @@ export const getProducts = async (
       throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
-    // Transform the data to include category name
-    const transformedProducts = (data || []).map(product => ({
-      ...product,
-      category_name: product.product_categories?.name
-    }));
+    // Transform the data using helper
+    const transformedProducts = (data || []).map(transformProduct);
 
     return {
       products: transformedProducts,
@@ -157,10 +205,7 @@ export const getProductById = async (productId: string): Promise<Product | null>
       throw new Error(`Failed to fetch product: ${error.message}`);
     }
 
-    return {
-      ...data,
-      category_name: data.product_categories?.name
-    };
+    return transformProduct(data);
   } catch (error) {
     logger.error('Error in getProductById', error);
     throw error;
@@ -172,28 +217,34 @@ export const getProductById = async (productId: string): Promise<Product | null>
  */
 export const createProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> => {
   try {
+    // Prepare the insert data, converting ProductVariants to plain object for JSON storage
+    const insertData: Record<string, unknown> = {
+      name: productData.name,
+      sku: productData.sku,
+      description: productData.description,
+      category_id: productData.category_id,
+      base_price: productData.base_price,
+      tax_rate: productData.tax_rate,
+      available_sizes: productData.available_sizes,
+      requires_size: productData.requires_size,
+      available_variants: productData.available_variants ? { ...productData.available_variants } : null,
+      requires_color: productData.requires_color,
+      requires_belt_rank: productData.requires_belt_rank,
+      min_belt_level: productData.min_belt_level,
+      max_belt_level: productData.max_belt_level,
+      requires_belt_level: productData.requires_belt_level,
+      session_count: productData.session_count,
+      validity_months: productData.validity_months,
+      is_recurring: productData.is_recurring,
+      is_active: productData.is_active,
+      metadata: productData.metadata,
+      created_by: productData.created_by,
+      updated_by: productData.updated_by
+    };
+
     const { data, error } = await supabase
       .from('products')
-      .insert([{
-        name: productData.name,
-        sku: productData.sku,
-        description: productData.description,
-        category_id: productData.category_id,
-        base_price: productData.base_price,
-        tax_rate: productData.tax_rate,
-        available_sizes: productData.available_sizes,
-        requires_size: productData.requires_size,
-        min_belt_level: productData.min_belt_level,
-        max_belt_level: productData.max_belt_level,
-        requires_belt_level: productData.requires_belt_level,
-        session_count: productData.session_count,
-        validity_months: productData.validity_months,
-        is_recurring: productData.is_recurring,
-        is_active: productData.is_active,
-        metadata: productData.metadata,
-        created_by: productData.created_by,
-        updated_by: productData.updated_by
-      }])
+      .insert([insertData as any])
       .select(`
         *,
         product_categories(name)
@@ -205,10 +256,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       throw new Error(`Failed to create product: ${error.message}`);
     }
 
-    return {
-      ...data,
-      category_name: data.product_categories?.name
-    };
+    return transformProduct(data);
   } catch (error) {
     logger.error('Error in createProduct', error);
     throw error;
@@ -223,12 +271,20 @@ export const updateProduct = async (
   updates: Partial<Omit<Product, 'id' | 'created_at'>>
 ): Promise<Product> => {
   try {
+    // Convert ProductVariants to plain object for JSON storage
+    const updateData: Record<string, unknown> = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Handle available_variants conversion
+    if (updates.available_variants) {
+      updateData.available_variants = { ...updates.available_variants };
+    }
+
     const { data, error } = await supabase
       .from('products')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData as any)
       .eq('id', productId)
       .select(`
         *,
@@ -241,10 +297,7 @@ export const updateProduct = async (
       throw new Error(`Failed to update product: ${error.message}`);
     }
 
-    return {
-      ...data,
-      category_name: data.product_categories?.name
-    };
+    return transformProduct(data);
   } catch (error) {
     logger.error('Error in updateProduct', error);
     throw error;
