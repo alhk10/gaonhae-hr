@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { 
   Package, 
@@ -24,29 +25,39 @@ import {
   Upload,
   PackagePlus,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Boxes
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import { getProductInventory, ProductInventory } from '@/services/inventoryService';
+import { bulkUpdateProductStatus, bulkDeleteProducts } from '@/services/productStatsService';
 import AddProductDialog from './AddProductDialog';
 import { EditProductDialog } from './EditProductDialog';
 import { ProductDetailDialog } from './ProductDetailDialog';
 import { InventoryStatusBadge } from './InventoryStatusBadge';
+import { InventoryAdjustmentDialog } from './InventoryAdjustmentDialog';
 
-const ProductManagementList: React.FC = () => {
+interface ProductManagementListProps {
+  onDataChange?: () => void;
+}
+
+const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataChange }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [inventoryProduct, setInventoryProduct] = useState<Product | null>(null);
   const [inventory, setInventory] = useState<Record<string, ProductInventory>>({});
+  const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
   
   const itemsPerPage = 20;
 
@@ -108,19 +119,19 @@ const ProductManagementList: React.FC = () => {
     loadProducts();
   }, [currentPage]);
 
-  const handleSelectProduct = (productId: string) => {
+  const handleSelectProduct = (productId: string, checked: boolean) => {
     setSelectedProducts(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
+      checked 
+        ? [...prev, productId]
+        : prev.filter(id => id !== productId)
     );
   };
 
-  const handleSelectAll = () => {
-    if (selectedProducts.length === products.length) {
-      setSelectedProducts([]);
-    } else {
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
       setSelectedProducts(products.map(p => p.id));
+    } else {
+      setSelectedProducts([]);
     }
   };
 
@@ -136,11 +147,16 @@ const ProductManagementList: React.FC = () => {
     setViewingProduct(product);
   };
 
+  const handleInventoryAdjust = (product: Product) => {
+    setInventoryProduct(product);
+  };
+
   const handleDeleteProduct = async (product: Product) => {
     try {
       await deleteProduct(product.id);
       toast.success('Product deleted successfully');
       loadProducts();
+      onDataChange?.();
       setDeletingProduct(null);
     } catch (error) {
       console.error('Failed to delete product:', error);
@@ -148,16 +164,46 @@ const ProductManagementList: React.FC = () => {
     }
   };
 
-  const handleBulkActivate = async () => {
-    toast.info('Bulk activate functionality coming soon');
+  const handleBulkActivate = () => {
+    setBulkAction('activate');
   };
 
-  const handleBulkDeactivate = async () => {
-    toast.info('Bulk deactivate functionality coming soon');
+  const handleBulkDeactivate = () => {
+    setBulkAction('deactivate');
   };
 
-  const handleBulkDelete = async () => {
-    toast.info('Bulk delete functionality coming soon');
+  const handleBulkDelete = () => {
+    setBulkAction('delete');
+  };
+
+  const confirmBulkAction = async () => {
+    if (!bulkAction || selectedProducts.length === 0) return;
+    
+    setBulkLoading(true);
+    try {
+      let result: { success: number; failed: number };
+      
+      if (bulkAction === 'activate') {
+        result = await bulkUpdateProductStatus(selectedProducts, true);
+        toast.success(`Activated ${result.success} product(s)`);
+      } else if (bulkAction === 'deactivate') {
+        result = await bulkUpdateProductStatus(selectedProducts, false);
+        toast.success(`Deactivated ${result.success} product(s)`);
+      } else if (bulkAction === 'delete') {
+        result = await bulkDeleteProducts(selectedProducts);
+        toast.success(`Deleted ${result.success} product(s)`);
+      }
+      
+      setSelectedProducts([]);
+      loadProducts();
+      onDataChange?.();
+    } catch (error) {
+      console.error('Bulk action failed:', error);
+      toast.error('Bulk action failed');
+    } finally {
+      setBulkLoading(false);
+      setBulkAction(null);
+    }
   };
 
   const totalPages = Math.ceil(total / itemsPerPage);
@@ -196,16 +242,19 @@ const ProductManagementList: React.FC = () => {
                 Add Product
               </Button>
             }
-            onProductAdded={loadProducts}
+            onProductAdded={() => {
+              loadProducts();
+              onDataChange?.();
+            }}
           />
         </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Filter className="w-4 h-4" />
             Filters & Search
           </CardTitle>
         </CardHeader>
@@ -252,7 +301,7 @@ const ProductManagementList: React.FC = () => {
                 onClick={() => {
                   setSearchQuery('');
                   setCategoryFilter('all');
-                  setStatusFilter('all');
+                  setStatusFilter('active');
                 }}
               >
                 Clear
@@ -264,10 +313,10 @@ const ProductManagementList: React.FC = () => {
 
       {/* Bulk Actions */}
       {selectedProducts.length > 0 && (
-        <Card>
-          <CardContent className="pt-6">
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="py-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm font-medium">
                 {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
               </span>
               <div className="flex gap-2">
@@ -293,7 +342,7 @@ const ProductManagementList: React.FC = () => {
                   onClick={() => toast.info('Bulk export coming soon')}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Export Selected
+                  Export
                 </Button>
                 <Button
                   variant="destructive"
@@ -301,7 +350,7 @@ const ProductManagementList: React.FC = () => {
                   onClick={handleBulkDelete}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Selected
+                  Delete
                 </Button>
               </div>
             </div>
@@ -311,9 +360,9 @@ const ProductManagementList: React.FC = () => {
 
       {/* Product List */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Package className="w-4 h-4" />
             Products ({total})
           </CardTitle>
           <CardDescription>
@@ -337,7 +386,10 @@ const ProductManagementList: React.FC = () => {
                     Add First Product
                   </Button>
                 }
-                onProductAdded={loadProducts}
+                onProductAdded={() => {
+                  loadProducts();
+                  onDataChange?.();
+                }}
               />
             </div>
           ) : (
@@ -346,11 +398,9 @@ const ProductManagementList: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedProducts.length === products.length}
-                        onChange={handleSelectAll}
-                        className="rounded"
+                      <Checkbox
+                        checked={selectedProducts.length === products.length && products.length > 0}
+                        onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
                      <TableHead>Product</TableHead>
@@ -366,17 +416,15 @@ const ProductManagementList: React.FC = () => {
                    {products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedProducts.includes(product.id)}
-                            onChange={() => handleSelectProduct(product.id)}
-                            className="rounded"
+                            onCheckedChange={(checked) => handleSelectProduct(product.id, !!checked)}
                           />
                         </TableCell>
                         <TableCell>
                           <div>
                             <div className="font-medium">{product.name}</div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm text-muted-foreground truncate max-w-[200px]">
                               {product.description || 'No description'}
                             </div>
                           </div>
@@ -391,7 +439,7 @@ const ProductManagementList: React.FC = () => {
                         </TableCell>
                          <TableCell>
                            <div className="font-medium">
-                             ${product.base_price || '0.00'}
+                             ${product.base_price?.toFixed(2) || '0.00'}
                            </div>
                          </TableCell>
                          <TableCell>
@@ -402,7 +450,7 @@ const ProductManagementList: React.FC = () => {
                                reorderNeeded={inventory[product.id].reorder_needed}
                              />
                            ) : (
-                             <Badge variant="outline" className="bg-gray-100 text-gray-800">
+                             <Badge variant="outline" className="bg-muted text-muted-foreground">
                                No Inventory
                              </Badge>
                            )}
@@ -413,11 +461,12 @@ const ProductManagementList: React.FC = () => {
                            </Badge>
                          </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewProduct(product)}
+                              title="View"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -425,13 +474,23 @@ const ProductManagementList: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditProduct(product)}
+                              title="Edit"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleInventoryAdjust(product)}
+                              title="Adjust Inventory"
+                            >
+                              <Boxes className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setDeletingProduct(product)}
+                              title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -478,7 +537,10 @@ const ProductManagementList: React.FC = () => {
         product={editingProduct!}
         open={!!editingProduct}
         onOpenChange={(open) => !open && setEditingProduct(null)}
-        onProductUpdated={loadProducts}
+        onProductUpdated={() => {
+          loadProducts();
+          onDataChange?.();
+        }}
       />
 
       {/* Product Detail Dialog */}
@@ -486,6 +548,17 @@ const ProductManagementList: React.FC = () => {
         product={viewingProduct}
         open={!!viewingProduct}
         onOpenChange={(open) => !open && setViewingProduct(null)}
+      />
+
+      {/* Inventory Adjustment Dialog */}
+      <InventoryAdjustmentDialog
+        product={inventoryProduct}
+        open={!!inventoryProduct}
+        onOpenChange={(open) => !open && setInventoryProduct(null)}
+        onAdjustmentComplete={() => {
+          loadProducts();
+          onDataChange?.();
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -504,6 +577,34 @@ const ProductManagementList: React.FC = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <AlertDialog open={!!bulkAction} onOpenChange={(open) => !open && setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === 'activate' && 'Activate Products'}
+              {bulkAction === 'deactivate' && 'Deactivate Products'}
+              {bulkAction === 'delete' && 'Delete Products'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === 'activate' && `Are you sure you want to activate ${selectedProducts.length} product(s)?`}
+              {bulkAction === 'deactivate' && `Are you sure you want to deactivate ${selectedProducts.length} product(s)?`}
+              {bulkAction === 'delete' && `Are you sure you want to delete ${selectedProducts.length} product(s)? This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmBulkAction}
+              disabled={bulkLoading}
+              className={bulkAction === 'delete' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            >
+              {bulkLoading ? 'Processing...' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

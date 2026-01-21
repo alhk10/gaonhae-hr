@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories } from '@/services/productService';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Ruler, Settings } from 'lucide-react';
 
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -147,61 +147,71 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
-        <DialogDescription>
-          Create a new product for your catalog. This can be a training program, class, or physical item.
-        </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Basic Information</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Product Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Enter product name"
-                  required
-                />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Basic Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Package className="w-4 h-4" />
+              Basic Information
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="name" className="text-xs">Product Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter product name"
+                    className="h-9"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="sku" className="text-xs">SKU *</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    placeholder="Enter product SKU"
+                    className="h-9"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU *</Label>
-                <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => handleInputChange('sku', e.target.value)}
-                  placeholder="Enter product SKU"
-                  required
+              <div className="space-y-1">
+                <Label htmlFor="description" className="text-xs">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter product description"
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
             </div>
+          </section>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Enter product description"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category_id">Category</Label>
+          {/* Pricing & Category Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Tag className="w-4 h-4" />
+              Pricing & Category
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="category_id" className="text-xs">Category</Label>
                 <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="none">No Category</SelectItem>
-                     {categories.map((category) => (
+                  <SelectContent>
+                    <SelectItem value="none">No Category</SelectItem>
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
@@ -209,9 +219,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="base_price">Base Price *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="base_price" className="text-xs">Base Price *</Label>
                 <Input
                   id="base_price"
                   type="number"
@@ -220,12 +229,12 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   value={formData.base_price}
                   onChange={(e) => handleInputChange('base_price', e.target.value)}
                   placeholder="0.00"
+                  className="h-9"
                   required
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tax_rate">Tax Rate (%)</Label>
+              <div className="space-y-1">
+                <Label htmlFor="tax_rate" className="text-xs">Tax Rate (%)</Label>
                 <Input
                   id="tax_rate"
                   type="number"
@@ -235,38 +244,41 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   value={formData.tax_rate}
                   onChange={(e) => handleInputChange('tax_rate', e.target.value)}
                   placeholder="8.00"
+                  className="h-9"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Belt Level Requirements */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Belt Level Requirements</h3>
-            
+          {/* Belt Level Requirements Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Award className="w-4 h-4" />
+              Belt Level Requirements
+            </h3>
             <div className="flex items-center space-x-2">
               <Switch
                 id="requires_belt_level"
                 checked={formData.requires_belt_level}
                 onCheckedChange={(checked) => handleInputChange('requires_belt_level', checked)}
               />
-              <Label htmlFor="requires_belt_level">Requires specific belt level</Label>
+              <Label htmlFor="requires_belt_level" className="text-xs">Requires specific belt level</Label>
             </div>
 
             {formData.requires_belt_level && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="min_belt_level">Minimum Belt Level</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="min_belt_level" className="text-xs">Minimum Belt Level</Label>
                   <Select
                     value={formData.min_belt_level}
                     onValueChange={(value) => handleInputChange('min_belt_level', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select minimum belt level" />
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select minimum" />
                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="none">No Minimum</SelectItem>
-                       {BELT_LEVELS.map((level) => (
+                    <SelectContent>
+                      <SelectItem value="none">No Minimum</SelectItem>
+                      {BELT_LEVELS.map((level) => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
@@ -274,19 +286,18 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="max_belt_level">Maximum Belt Level</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="max_belt_level" className="text-xs">Maximum Belt Level</Label>
                   <Select
                     value={formData.max_belt_level}
                     onValueChange={(value) => handleInputChange('max_belt_level', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select maximum belt level" />
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select maximum" />
                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="none">No Maximum</SelectItem>
-                       {BELT_LEVELS.map((level) => (
+                    <SelectContent>
+                      <SelectItem value="none">No Maximum</SelectItem>
+                      {BELT_LEVELS.map((level) => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
@@ -296,15 +307,17 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Sessions & Validity */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Sessions & Validity</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="session_count">Session Count</Label>
+          {/* Sessions & Validity Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Calendar className="w-4 h-4" />
+              Sessions & Validity
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="session_count" className="text-xs">Session Count</Label>
                 <Input
                   id="session_count"
                   type="number"
@@ -312,11 +325,11 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   value={formData.session_count}
                   onChange={(e) => handleInputChange('session_count', e.target.value)}
                   placeholder="10"
+                  className="h-9"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="validity_months">Validity (months)</Label>
+              <div className="space-y-1">
+                <Label htmlFor="validity_months" className="text-xs">Validity (months)</Label>
                 <Input
                   id="validity_months"
                   type="number"
@@ -324,63 +337,70 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   value={formData.validity_months}
                   onChange={(e) => handleInputChange('validity_months', e.target.value)}
                   placeholder="12"
+                  className="h-9"
                 />
               </div>
-
-              <div className="flex items-center space-x-2 pt-6">
-                <Switch
-                  id="is_recurring"
-                  checked={formData.is_recurring}
-                  onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
-                />
-                <Label htmlFor="is_recurring">Recurring product</Label>
+              <div className="flex items-end pb-1">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is_recurring"
+                    checked={formData.is_recurring}
+                    onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
+                  />
+                  <Label htmlFor="is_recurring" className="text-xs">Recurring</Label>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Size Requirements */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Size Options</h3>
-            
+          {/* Size Options Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Ruler className="w-4 h-4" />
+              Size Options
+            </h3>
             <div className="flex items-center space-x-2">
               <Switch
                 id="requires_size"
                 checked={formData.requires_size}
                 onCheckedChange={(checked) => handleInputChange('requires_size', checked)}
               />
-              <Label htmlFor="requires_size">Product has size variants</Label>
+              <Label htmlFor="requires_size" className="text-xs">Product has size variants</Label>
             </div>
-
             {formData.requires_size && (
-              <div className="space-y-2">
-                <Label>Available Sizes</Label>
-                <div className="text-sm text-muted-foreground">
-                  Size management will be available in the product details page
-                </div>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Size management will be available in the product details page
+              </p>
             )}
-          </div>
+          </section>
 
-          {/* Status */}
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="is_active"
-              checked={formData.is_active}
-              onCheckedChange={(checked) => handleInputChange('is_active', checked)}
-            />
-            <Label htmlFor="is_active">Active Product</Label>
-          </div>
+          {/* Status Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Settings className="w-4 h-4" />
+              Status
+            </h3>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => handleInputChange('is_active', checked)}
+              />
+              <Label htmlFor="is_active" className="text-xs">Active Product</Label>
+            </div>
+          </section>
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => setOpen(false)}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" size="sm" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Product
             </Button>
