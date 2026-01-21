@@ -89,10 +89,7 @@ export async function getTerms(
   try {
     let query = supabase
       .from('term_calendars')
-      .select(`
-        *,
-        branches!inner(name)
-      `)
+      .select('*')
       .order('year', { ascending: false, nullsFirst: false })
       .order('term_number', { ascending: true, nullsFirst: false })
       .order('start_date', { ascending: false });
@@ -108,8 +105,26 @@ export async function getTerms(
 
     if (error) throw error;
 
+    const termData = data || [];
+    
+    // Fetch branch names separately
+    const branchIds = [...new Set(termData.map(t => t.branch_id))];
+    let branchMap: Record<string, string> = {};
+    
+    if (branchIds.length > 0) {
+      const { data: branchesData } = await supabase
+        .from('branches')
+        .select('id, name')
+        .in('id', branchIds);
+      
+      branchMap = (branchesData || []).reduce((acc, b) => {
+        acc[b.id] = b.name;
+        return acc;
+      }, {} as Record<string, string>);
+    }
+
     // Fetch breaks for all terms
-    const termIds = (data || []).map(t => t.id);
+    const termIds = termData.map(t => t.id);
     let breaks: TermBreak[] = [];
     
     if (termIds.length > 0) {
@@ -126,9 +141,9 @@ export async function getTerms(
       }
     }
 
-    return (data || []).map(term => ({
+    return termData.map(term => ({
       ...term,
-      branch_name: (term.branches as any)?.name,
+      branch_name: branchMap[term.branch_id] || term.branch_id,
       grace_days: term.grace_days ?? 7,
       breaks: breaks.filter(b => b.term_id === term.id)
     }));
@@ -143,15 +158,19 @@ export async function getTerm(termId: string): Promise<Term | null> {
   try {
     const { data, error } = await supabase
       .from('term_calendars')
-      .select(`
-        *,
-        branches!inner(name)
-      `)
+      .select('*')
       .eq('id', termId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     if (!data) return null;
+
+    // Fetch branch name
+    const { data: branchData } = await supabase
+      .from('branches')
+      .select('name')
+      .eq('id', data.branch_id)
+      .maybeSingle();
 
     // Fetch breaks
     const { data: breaks } = await supabase
@@ -162,7 +181,7 @@ export async function getTerm(termId: string): Promise<Term | null> {
 
     return {
       ...data,
-      branch_name: (data.branches as any)?.name,
+      branch_name: branchData?.name || data.branch_id,
       grace_days: data.grace_days ?? 7,
       breaks: breaks || []
     };
@@ -301,10 +320,7 @@ export async function getCurrentTerm(branchId: string): Promise<Term | null> {
     
     const { data, error } = await supabase
       .from('term_calendars')
-      .select(`
-        *,
-        branches!inner(name)
-      `)
+      .select('*')
       .eq('branch_id', branchId)
       .eq('is_active', true)
       .lte('start_date', today)
@@ -316,6 +332,13 @@ export async function getCurrentTerm(branchId: string): Promise<Term | null> {
     if (error) throw error;
     if (!data) return null;
 
+    // Fetch branch name
+    const { data: branchData } = await supabase
+      .from('branches')
+      .select('name')
+      .eq('id', data.branch_id)
+      .maybeSingle();
+
     const { data: breaks } = await supabase
       .from('term_breaks')
       .select('*')
@@ -324,7 +347,7 @@ export async function getCurrentTerm(branchId: string): Promise<Term | null> {
 
     return {
       ...data,
-      branch_name: (data.branches as any)?.name,
+      branch_name: branchData?.name || data.branch_id,
       grace_days: data.grace_days ?? 7,
       breaks: breaks || []
     };
@@ -341,10 +364,7 @@ export async function getActiveTermsForSelection(): Promise<Term[]> {
     
     const { data, error } = await supabase
       .from('term_calendars')
-      .select(`
-        *,
-        branches!inner(name)
-      `)
+      .select('*')
       .eq('is_active', true)
       .gte('end_date', today)
       .order('branch_id')
@@ -352,9 +372,27 @@ export async function getActiveTermsForSelection(): Promise<Term[]> {
 
     if (error) throw error;
 
-    return (data || []).map(term => ({
+    const termData = data || [];
+    
+    // Fetch branch names
+    const branchIds = [...new Set(termData.map(t => t.branch_id))];
+    let branchMap: Record<string, string> = {};
+    
+    if (branchIds.length > 0) {
+      const { data: branchesData } = await supabase
+        .from('branches')
+        .select('id, name')
+        .in('id', branchIds);
+      
+      branchMap = (branchesData || []).reduce((acc, b) => {
+        acc[b.id] = b.name;
+        return acc;
+      }, {} as Record<string, string>);
+    }
+
+    return termData.map(term => ({
       ...term,
-      branch_name: (term.branches as any)?.name,
+      branch_name: branchMap[term.branch_id] || term.branch_id,
       grace_days: term.grace_days ?? 7
     }));
   } catch (error) {
