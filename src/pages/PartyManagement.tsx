@@ -343,12 +343,7 @@ const PartyManagement = () => {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Party Management</h2>
-              <p className="text-muted-foreground">
-                Manage students, employees, and casual staff
-              </p>
-            </div>
+            <h2 className="text-2xl font-bold text-foreground">Party Management</h2>
             <div className="flex flex-col sm:flex-row gap-2">
               {canViewEmployeeTabs && (
                 <Button
