@@ -1,16 +1,20 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Menu, X, Key } from 'lucide-react';
+import { User, LogOut, Menu, X, Key, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserPasswordChangeDialog from '@/components/auth/UserPasswordChangeDialog';
+import { SetPinDialog } from '@/components/auth/SetPinDialog';
+import { useScreenLockContext } from '@/contexts/ScreenLockContext';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, userDetails } = useAuth();
+  const { refreshPinStatus } = useScreenLockContext();
   const isMobile = useIsMobile();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
 
   console.log('Navbar: Rendering with user:', user?.email);
 
@@ -28,6 +32,16 @@ const Navbar = () => {
     console.log('Navbar: Password change button clicked');
     setShowPasswordDialog(true);
     setShowMobileMenu(false);
+  };
+
+  const handleSetPin = () => {
+    console.log('Navbar: Set PIN button clicked');
+    setShowPinDialog(true);
+    setShowMobileMenu(false);
+  };
+
+  const handlePinSet = () => {
+    refreshPinStatus();
   };
 
   const toggleMobileMenu = () => {
@@ -61,6 +75,17 @@ const Navbar = () => {
                   <User className="w-4 h-4 text-gray-600" />
                   <span className="text-sm text-gray-700">{user.email}</span>
                 </div>
+                
+                {/* Set PIN Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSetPin}
+                  className="flex items-center space-x-1"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Set PIN</span>
+                </Button>
                 
                 {/* Password Change Button */}
                 <Button
@@ -113,6 +138,17 @@ const Navbar = () => {
                 <span>{user.email}</span>
               </div>
               
+              {/* Mobile Set PIN Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSetPin}
+                className="w-full flex items-center justify-center space-x-2"
+              >
+                <Shield className="w-4 h-4" />
+                <span>Set PIN</span>
+              </Button>
+              
               {/* Mobile Password Change Button */}
               <Button
                 variant="outline"
@@ -144,6 +180,16 @@ const Navbar = () => {
         open={showPasswordDialog} 
         onOpenChange={setShowPasswordDialog} 
       />
+
+      {/* Set PIN Dialog */}
+      {userDetails?.id && (
+        <SetPinDialog
+          open={showPinDialog}
+          onOpenChange={setShowPinDialog}
+          employeeId={userDetails.id}
+          onPinSet={handlePinSet}
+        />
+      )}
     </>
   );
 };
