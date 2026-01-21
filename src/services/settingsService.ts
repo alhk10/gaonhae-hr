@@ -97,6 +97,18 @@ export const deleteBranch = async (branchId: string): Promise<void> => {
   try {
     logger.info('Deleting branch from Supabase', { branchId });
     
+    // First, delete related weekly_slot_config records
+    const { error: slotConfigError } = await supabase
+      .from('weekly_slot_config')
+      .delete()
+      .eq('branch_id', branchId);
+    
+    if (slotConfigError) {
+      logger.warn('Error deleting weekly_slot_config for branch (may not exist)', slotConfigError);
+      // Continue anyway - table might not exist or have no records
+    }
+    
+    // Now delete the branch
     const { error } = await supabase
       .from('branches')
       .delete()
@@ -104,6 +116,12 @@ export const deleteBranch = async (branchId: string): Promise<void> => {
 
     if (error) {
       logger.error('Error deleting branch from Supabase', error);
+      
+      // Provide more helpful error messages
+      if (error.code === '23503') {
+        const tableName = error.details?.match(/table "([^"]+)"/)?.[1] || 'related records';
+        throw new Error(`Cannot delete branch: It still has ${tableName}. Please remove those first.`);
+      }
       throw error;
     }
 
