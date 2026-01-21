@@ -59,19 +59,28 @@ export const CLASS_TYPES = [
 ];
 
 export const BELT_LEVELS = [
+  'Foundation 1',
+  'Foundation 2',
+  'Foundation 3',
   'White',
+  'Yellow Tip',
   'Yellow',
-  'Orange',
+  'Green Tip',
   'Green',
+  'Blue Tip',
   'Blue',
-  'Purple',
-  'Brown',
+  'Red Tip',
   'Red',
-  'Black 1st Dan',
-  'Black 2nd Dan',
-  'Black 3rd Dan',
-  'Black 4th Dan',
-  'Black 5th Dan'
+  'Black Tip',
+  'Dan 1',
+  'Dan 2',
+  'Dan 3',
+  'Dan 4',
+  'Dan 5',
+  'Poom 1',
+  'Poom 2',
+  'Poom 3',
+  'Poom 4'
 ];
 
 export async function getClassSchedules(branchId?: string): Promise<ClassSchedule[]> {
