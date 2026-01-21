@@ -117,14 +117,24 @@ export function BranchClassScheduleManagement() {
     }
   };
 
-  const handleSaveClass = async (data: ClassScheduleInput) => {
+  const handleSaveClass = async (data: ClassScheduleInput | ClassScheduleInput[]) => {
     try {
       if (editingClass) {
-        await updateClassSchedule(editingClass.id, data);
+        // Edit mode: single record update
+        const singleData = Array.isArray(data) ? data[0] : data;
+        await updateClassSchedule(editingClass.id, singleData);
         toast.success('Class updated successfully');
       } else {
-        await createClassSchedule(data);
-        toast.success('Class added successfully');
+        // Add mode: may be single or multiple records
+        const dataArray = Array.isArray(data) ? data : [data];
+        for (const item of dataArray) {
+          await createClassSchedule(item);
+        }
+        toast.success(
+          dataArray.length > 1 
+            ? `${dataArray.length} class slots added successfully` 
+            : 'Class added successfully'
+        );
       }
       loadData();
     } catch (error) {
