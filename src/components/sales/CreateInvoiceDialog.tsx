@@ -16,7 +16,9 @@ import { toast } from 'sonner';
 import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import { getProducts } from '@/services/productService';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
 
 interface CreateInvoiceDialogProps {
   trigger: React.ReactNode;
@@ -36,8 +38,9 @@ interface InvoiceItem {
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string}>>([]);
   const [products, setProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number}>>([]);
+  const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
@@ -57,6 +60,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     if (open) {
       loadStudents();
       loadProducts();
+      loadBranches();
     }
   }, [open]);
 
@@ -66,11 +70,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       setStudents(response.students.map(s => ({ 
         id: s.id, 
         name: `${s.first_name} ${s.last_name}`, 
-        email: s.email || '' 
+        email: s.email || '',
+        branch_id: s.branch_id
       })));
     } catch (error) {
       console.error('Error loading students:', error);
       toast.error('Failed to load students');
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name, country')
+        .order('name');
+      
+      if (error) throw error;
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Error loading branches:', error);
     }
   };
 
@@ -94,6 +113,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     
     if (!formData.student_id) {
       toast.error('Please select a student');
+      return;
+    }
+
+    if (!formData.branch_id) {
+      toast.error('Please select a branch');
       return;
     }
 
@@ -219,15 +243,23 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setItems(updatedItems);
   };
 
-  const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const taxAmount = subtotal * 0.08; // 8% tax
-    const total = subtotal + taxAmount;
-    
-    return { subtotal, taxAmount, total };
+  // Get the tax rate based on selected branch country
+  const getSelectedBranchTaxRate = (): number => {
+    const selectedBranch = branches.find(b => b.id === formData.branch_id);
+    const country = selectedBranch?.country || null;
+    return country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
   };
 
-  const { subtotal, taxAmount, total } = calculateTotals();
+  const calculateTotals = () => {
+    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+    const taxRate = getSelectedBranchTaxRate() / 100;
+    const taxAmount = subtotal * taxRate;
+    const total = subtotal + taxAmount;
+    
+    return { subtotal, taxAmount, total, taxRate: getSelectedBranchTaxRate() };
+  };
+
+  const { subtotal, taxAmount, total, taxRate } = calculateTotals();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -247,10 +279,17 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Invoice Details</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="student_id">Student *</Label>
-                <Select value={formData.student_id} onValueChange={(value) => handleInputChange('student_id', value)}>
+                <Select value={formData.student_id} onValueChange={(value) => {
+                  handleInputChange('student_id', value);
+                  // Auto-select student's branch if available
+                  const student = students.find(s => s.id === value);
+                  if (student?.branch_id && !formData.branch_id) {
+                    handleInputChange('branch_id', student.branch_id);
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select student" />
                   </SelectTrigger>
@@ -258,6 +297,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     {students.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
                         {student.name} ({student.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch_id">Branch *</Label>
+                <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.filter(b => !['Competition', 'Headquarters'].includes(b.name)).map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name} {branch.country && `(${branch.country})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -433,8 +488,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Tax (8%):</span>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tax ({taxRate}%):</span>
                     <span>${taxAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg border-t pt-2">

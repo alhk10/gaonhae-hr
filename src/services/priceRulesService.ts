@@ -28,6 +28,7 @@ export interface BranchPrice {
   branch_id: string;
   branch_name: string;
   branch_currency: string;
+  branch_country: string;
   price: number | null;
   tax_rate: number | null;
   rule_id?: string;
@@ -92,10 +93,10 @@ export async function getProductPriceRules(productId: string): Promise<PriceRule
  * Get branch prices for a product (simplified view)
  */
 export async function getProductBranchPrices(productId: string): Promise<BranchPrice[]> {
-  // Get all branches with currency
+  // Get all branches with currency and country
   const { data: branches, error: branchError } = await supabase
     .from('branches')
-    .select('id, name, currency')
+    .select('id, name, currency, country')
     .not('name', 'in', '("Competition","Headquarters")')
     .order('name');
 
@@ -123,6 +124,7 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
     branch_id: branch.id,
     branch_name: branch.name,
     branch_currency: branch.currency || 'SGD',
+    branch_country: branch.country || 'Singapore',
     price: ruleMap.get(branch.id)?.price_override ?? null,
     tax_rate: ruleMap.get(branch.id)?.tax_rate ?? null,
     rule_id: ruleMap.get(branch.id)?.id,

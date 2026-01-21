@@ -127,6 +127,15 @@ export const PAGINATION_CONSTANTS = {
   MAX_PAGE_SIZE: 100,
 } as const;
 
+// Country Tax Rates
+export const COUNTRY_TAX_RATES: Record<string, number> = {
+  'Singapore': 9,
+  'Australia': 10,
+  'Malaysia': 0,
+} as const;
+
+export const DEFAULT_TAX_RATE = 0;
+
 // File Upload Constants
 export const FILE_UPLOAD_CONSTANTS = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
