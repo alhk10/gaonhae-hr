@@ -134,7 +134,15 @@ export const COUNTRY_TAX_RATES: Record<string, number> = {
   'Malaysia': 0,
 } as const;
 
+// Country Tax Inclusion Defaults (true = tax included in price, false = tax excluded/added on top)
+export const COUNTRY_TAX_INCLUDED: Record<string, boolean> = {
+  'Singapore': false,  // Price + tax
+  'Australia': true,   // Price includes tax
+  'Malaysia': false,
+} as const;
+
 export const DEFAULT_TAX_RATE = 0;
+export const DEFAULT_TAX_INCLUDED = false;
 
 // File Upload Constants
 export const FILE_UPLOAD_CONSTANTS = {

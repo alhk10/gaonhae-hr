@@ -31,6 +31,7 @@ export interface BranchPrice {
   branch_country: string;
   price: number | null;
   tax_rate: number | null;
+  tax_included: boolean | null;
   rule_id?: string;
 }
 
@@ -40,6 +41,7 @@ export interface CreatePriceRuleData {
   branch_id: string | null;
   price_override: number | null;
   tax_rate?: number | null;
+  tax_included?: boolean | null;
   discount_percentage?: number | null;
   belt_min?: string | null;
   belt_max?: string | null;
@@ -127,6 +129,7 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
     branch_country: branch.country || 'Singapore',
     price: ruleMap.get(branch.id)?.price_override ?? null,
     tax_rate: ruleMap.get(branch.id)?.tax_rate ?? null,
+    tax_included: ruleMap.get(branch.id)?.tax_included ?? null,
     rule_id: ruleMap.get(branch.id)?.id,
   }));
 }
@@ -142,7 +145,8 @@ export async function createPriceRule(data: CreatePriceRuleData): Promise<PriceR
       rule_name: data.rule_name,
       branch_id: data.branch_id,
       price_override: data.price_override,
-      tax_rate: data.tax_rate || null,
+      tax_rate: data.tax_rate ?? null,
+      tax_included: data.tax_included ?? null,
       discount_percentage: data.discount_percentage || null,
       belt_min: data.belt_min || null,
       belt_max: data.belt_max || null,
@@ -202,7 +206,7 @@ export async function deletePriceRule(ruleId: string): Promise<void> {
 }
 
 /**
- * Upsert branch price and tax rate (create or update)
+ * Upsert branch price, tax rate, and tax inclusion (create or update)
  */
 export async function upsertBranchPrice(
   productId: string,
@@ -210,10 +214,11 @@ export async function upsertBranchPrice(
   branchName: string,
   price: number | null,
   taxRate: number | null,
+  taxIncluded: boolean | null,
   existingRuleId?: string
 ): Promise<void> {
-  // If both price and tax are null and rule exists, delete the rule
-  if (price === null && taxRate === null) {
+  // If all values are null and rule exists, delete the rule
+  if (price === null && taxRate === null && taxIncluded === null) {
     if (existingRuleId) {
       await deletePriceRule(existingRuleId);
     }
@@ -225,6 +230,7 @@ export async function upsertBranchPrice(
     await updatePriceRule(existingRuleId, {
       price_override: price,
       tax_rate: taxRate,
+      tax_included: taxIncluded,
     });
   } else {
     // Create new rule
@@ -234,6 +240,7 @@ export async function upsertBranchPrice(
       branch_id: branchId,
       price_override: price,
       tax_rate: taxRate,
+      tax_included: taxIncluded,
       is_active: true,
     });
   }
@@ -253,6 +260,7 @@ export async function bulkUpdateBranchPrices(
       bp.branch_name,
       bp.price,
       bp.tax_rate,
+      bp.tax_included,
       bp.rule_id
     );
   }
