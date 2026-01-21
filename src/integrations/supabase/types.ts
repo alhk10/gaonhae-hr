@@ -2700,11 +2700,13 @@ export type Database = {
         Row: {
           address: string | null
           branch_id: string | null
+          certificate_name: string | null
           created_at: string
           created_by: string | null
           current_belt: string | null
           date_of_birth: string | null
           dietary_restrictions: string | null
+          display_name: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -2722,6 +2724,7 @@ export type Database = {
           postal_code: string | null
           preferred_name: string | null
           previous_experience: string | null
+          referral_source: string | null
           status: string | null
           student_number: string
           training_goals: string | null
@@ -2731,11 +2734,13 @@ export type Database = {
         Insert: {
           address?: string | null
           branch_id?: string | null
+          certificate_name?: string | null
           created_at?: string
           created_by?: string | null
           current_belt?: string | null
           date_of_birth?: string | null
           dietary_restrictions?: string | null
+          display_name?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -2753,6 +2758,7 @@ export type Database = {
           postal_code?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
+          referral_source?: string | null
           status?: string | null
           student_number: string
           training_goals?: string | null
@@ -2762,11 +2768,13 @@ export type Database = {
         Update: {
           address?: string | null
           branch_id?: string | null
+          certificate_name?: string | null
           created_at?: string
           created_by?: string | null
           current_belt?: string | null
           date_of_birth?: string | null
           dietary_restrictions?: string | null
+          display_name?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -2784,6 +2792,7 @@ export type Database = {
           postal_code?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
+          referral_source?: string | null
           status?: string | null
           student_number?: string
           training_goals?: string | null

@@ -54,11 +54,22 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
     'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
   ];
+  // Referral source options
+  const referralSourceOptions = [
+    { value: 'family_friends', label: 'Family & Friends' },
+    { value: 'social_media', label: 'Social Media' },
+    { value: 'pass_by', label: 'Pass By' },
+    { value: 'others', label: 'Others' }
+  ];
+
   const [formData, setFormData] = useState({
     // Personal Information
     first_name: '',
     last_name: '',
     preferred_name: '',
+    certificate_name: '',
+    display_name: '',
+    referral_source: '',
     date_of_birth: '',
     gender: '',
     nationality: '',
@@ -87,10 +98,27 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-update certificate_name and display_name when first/last name changes
+      if (field === 'first_name' || field === 'last_name') {
+        const firstName = field === 'first_name' ? value : prev.first_name;
+        const lastName = field === 'last_name' ? value : prev.last_name;
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        // Only auto-update if the field hasn't been manually edited (still matches the auto-generated pattern)
+        const currentAutoName = `${prev.first_name} ${prev.last_name}`.trim();
+        if (!prev.certificate_name || prev.certificate_name === currentAutoName) {
+          updated.certificate_name = fullName;
+        }
+        if (!prev.display_name || prev.display_name === currentAutoName) {
+          updated.display_name = fullName;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,6 +127,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     // Basic validation
     if (!formData.first_name || !formData.last_name) {
       toast.error('First name and last name are required');
+      return;
+    }
+    
+    if (!formData.certificate_name || !formData.display_name) {
+      toast.error('Certificate name and display name are required');
       return;
     }
     
@@ -121,6 +154,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         first_name: '',
         last_name: '',
         preferred_name: '',
+        certificate_name: '',
+        display_name: '',
+        referral_source: '',
         date_of_birth: '',
         gender: '',
         nationality: '',
@@ -210,6 +246,29 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="certificate_name">Certificate Name *</Label>
+                      <Input
+                        id="certificate_name"
+                        value={formData.certificate_name}
+                        onChange={(e) => handleInputChange('certificate_name', e.target.value)}
+                        placeholder="Name for printing on certificates"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="display_name">Display Name *</Label>
+                      <Input
+                        id="display_name"
+                        value={formData.display_name}
+                        onChange={(e) => handleInputChange('display_name', e.target.value)}
+                        placeholder="Name shown on UI"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <Label htmlFor="preferred_name">Preferred Name</Label>
                     <Input
@@ -218,6 +277,22 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       onChange={(e) => handleInputChange('preferred_name', e.target.value)}
                       placeholder="Name the student prefers to be called"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="referral_source">Where did you find out about us?</Label>
+                    <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {referralSourceOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

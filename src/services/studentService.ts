@@ -13,6 +13,9 @@ export interface Student {
   first_name: string;
   last_name: string;
   preferred_name?: string;
+  certificate_name?: string;
+  display_name?: string;
+  referral_source?: string;
   date_of_birth: string;
   gender?: string;
   nationality?: string;
@@ -315,6 +318,9 @@ export interface CreateStudentData {
   first_name: string;
   last_name: string;
   preferred_name?: string;
+  certificate_name: string;
+  display_name: string;
+  referral_source?: string;
   date_of_birth?: string;
   gender?: string;
   nationality?: string;
@@ -641,9 +647,15 @@ export const importStudentsFromCSV = async (csvContent: string): Promise<{ succe
           continue;
         }
 
+        const firstName = values[1] || '';
+        const lastName = values[2] || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+
         const student: CreateStudentData = {
-          first_name: values[1] || '',
-          last_name: values[2] || '',
+          first_name: firstName,
+          last_name: lastName,
+          certificate_name: fullName,
+          display_name: fullName,
           email: values[3] || undefined,
           phone: values[4] || undefined,
           date_of_birth: values[5] || undefined,
