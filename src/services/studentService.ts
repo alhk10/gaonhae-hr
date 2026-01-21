@@ -44,6 +44,9 @@ export interface Student {
   updated_at: string;
   created_by?: string;
   updated_by?: string;
+  // Trial-specific fields
+  trial_date?: string;
+  trial_time?: string;
 }
 
 export interface StudentEmergencyContact {
@@ -340,6 +343,9 @@ export interface CreateStudentData {
   branch_id?: string;
   status: string;
   notes?: string;
+  // Trial-specific fields
+  trial_date?: string;
+  trial_time?: string;
 }
 
 /**
@@ -699,3 +705,81 @@ export const importStudentsFromCSV = async (csvContent: string): Promise<{ succe
     throw error;
   }
 };
+
+/**
+ * Get all trial registrations (students with status = 'trial')
+ */
+export async function getTrials(
+  page: number = 1,
+  limit: number = 20,
+  search?: string,
+  branchId?: string
+): Promise<{ students: Student[]; total: number }> {
+  try {
+    let query = supabase
+      .from('students')
+      .select('*', { count: 'exact' })
+      .eq('status', 'trial')
+      .order('trial_date', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+
+    if (branchId) {
+      query = query.eq('branch_id', branchId);
+    }
+
+    const { data, error, count } = await query
+      .range((page - 1) * limit, page * limit - 1);
+
+    if (error) {
+      logger.error('Error fetching trials', error);
+      await logSalesModuleAccess('get_trials', false, { error: error.message });
+      throw error;
+    }
+
+    await logSalesModuleAccess('get_trials', true, { count: data?.length || 0 });
+    
+    return {
+      students: data || [],
+      total: count || 0
+    };
+  } catch (error) {
+    logger.error('Error fetching trials', error);
+    throw error;
+  }
+}
+
+/**
+ * Convert a trial to a registered student
+ */
+export async function convertTrialToStudent(studentId: string): Promise<Student> {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .update({ 
+        status: 'active',
+        enrollment_date: new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', studentId)
+      .eq('status', 'trial')
+      .select()
+      .single();
+
+    if (error) {
+      logger.error('Error converting trial to student', error);
+      await logSalesModuleAccess('convert_trial_to_student', false, { error: error.message, studentId });
+      throw error;
+    }
+
+    await logSalesModuleAccess('convert_trial_to_student', true, { studentId });
+    
+    return data;
+  } catch (error) {
+    logger.error('Error converting trial to student', error);
+    throw error;
+  }
+}

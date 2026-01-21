@@ -2731,6 +2731,8 @@ export type Database = {
           status: string | null
           student_number: string
           training_goals: string | null
+          trial_date: string | null
+          trial_time: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -2765,6 +2767,8 @@ export type Database = {
           status?: string | null
           student_number: string
           training_goals?: string | null
+          trial_date?: string | null
+          trial_time?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -2799,6 +2803,8 @@ export type Database = {
           status?: string | null
           student_number?: string
           training_goals?: string | null
+          trial_date?: string | null
+          trial_time?: string | null
           updated_at?: string
           updated_by?: string | null
         }
