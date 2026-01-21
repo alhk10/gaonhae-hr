@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useScreenLock } from '@/hooks/useScreenLock';
 import { ScreenLockOverlay } from '@/components/auth/ScreenLockOverlay';
+import { SetupPinPrompt } from '@/components/auth/SetupPinPrompt';
 
 interface ScreenLockContextType {
   isLocked: boolean;
@@ -44,6 +45,13 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
         onPasswordUnlock={handlePasswordUnlock}
         onPinReset={handlePinReset}
       />
+      {/* Prompt to set PIN on login if not already set */}
+      {user && !hasPin && (
+        <SetupPinPrompt
+          employeeId={employeeId}
+          onPinSet={refreshPinStatus}
+        />
+      )}
     </ScreenLockContext.Provider>
   );
 };
