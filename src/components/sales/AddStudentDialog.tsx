@@ -4,17 +4,15 @@
  */
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { toast } from 'sonner';
-import { UserPlus, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucide-react';
+import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 
 interface AddStudentDialogProps {
@@ -54,6 +52,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
     'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
   ];
+  
   // Referral source options
   const referralSourceOptions = [
     { value: 'family_friends', label: 'Family & Friends' },
@@ -202,374 +201,356 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
             <UserPlus className="w-5 h-5" />
             Add New Student
           </DialogTitle>
-          <DialogDescription>
-            Enter the student's information below. Required fields are marked with an asterisk (*).
-          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="personal">Personal</TabsTrigger>
-              <TabsTrigger value="contact">Contact</TabsTrigger>
-              <TabsTrigger value="training">Training</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-            </TabsList>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Personal Information Section */}
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
+              <User className="w-4 h-4" />
+              Personal Information
+            </h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => handleInputChange('first_name', e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => handleInputChange('last_name', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
 
-            <TabsContent value="personal" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Personal Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="first_name">First Name *</Label>
-                      <Input
-                        id="first_name"
-                        value={formData.first_name}
-                        onChange={(e) => handleInputChange('first_name', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="last_name">Last Name *</Label>
-                      <Input
-                        id="last_name"
-                        value={formData.last_name}
-                        onChange={(e) => handleInputChange('last_name', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="certificate_name">Certificate Name *</Label>
+                  <Input
+                    id="certificate_name"
+                    value={formData.certificate_name}
+                    onChange={(e) => handleInputChange('certificate_name', e.target.value)}
+                    placeholder="Name for printing on certificates"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="display_name">Display Name *</Label>
+                  <Input
+                    id="display_name"
+                    value={formData.display_name}
+                    onChange={(e) => handleInputChange('display_name', e.target.value)}
+                    placeholder="Name shown on UI"
+                    required
+                  />
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="certificate_name">Certificate Name *</Label>
-                      <Input
-                        id="certificate_name"
-                        value={formData.certificate_name}
-                        onChange={(e) => handleInputChange('certificate_name', e.target.value)}
-                        placeholder="Name for printing on certificates"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="display_name">Display Name *</Label>
-                      <Input
-                        id="display_name"
-                        value={formData.display_name}
-                        onChange={(e) => handleInputChange('display_name', e.target.value)}
-                        placeholder="Name shown on UI"
-                        required
-                      />
-                    </div>
-                  </div>
+              <div>
+                <Label htmlFor="preferred_name">Preferred Name</Label>
+                <Input
+                  id="preferred_name"
+                  value={formData.preferred_name}
+                  onChange={(e) => handleInputChange('preferred_name', e.target.value)}
+                  placeholder="Name the student prefers to be called"
+                />
+              </div>
 
+              <div>
+                <Label htmlFor="referral_source">Where did you find out about us?</Label>
+                <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {referralSourceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date_of_birth">Date of Birth</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nationality">Nationality</Label>
+                  <SearchableSelect
+                    value={formData.nationality}
+                    onValueChange={(value) => handleInputChange('nationality', value)}
+                    options={commonNationalities}
+                    placeholder="Select or type nationality"
+                    searchPlaceholder="Search nationalities..."
+                    allowAddNew={true}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nric_passport">NRIC/Passport</Label>
+                  <Input
+                    id="nric_passport"
+                    value={formData.nric_passport}
+                    onChange={(e) => handleInputChange('nric_passport', e.target.value)}
+                    placeholder="NRIC or Passport Number"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Contact Information Section */}
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
+              <Mail className="w-4 h-4" />
+              Contact Information
+            </h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="student@example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="+65 9123 4567"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="Full address"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="postal_code">Postal Code</Label>
+                <Input
+                  id="postal_code"
+                  value={formData.postal_code}
+                  onChange={(e) => handleInputChange('postal_code', e.target.value)}
+                  placeholder="123456"
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-4">Emergency Contact</h4>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="preferred_name">Preferred Name</Label>
+                    <Label htmlFor="emergency_contact_name">Name</Label>
                     <Input
-                      id="preferred_name"
-                      value={formData.preferred_name}
-                      onChange={(e) => handleInputChange('preferred_name', e.target.value)}
-                      placeholder="Name the student prefers to be called"
+                      id="emergency_contact_name"
+                      value={formData.emergency_contact_name}
+                      onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
+                      placeholder="Emergency contact name"
                     />
                   </div>
-
                   <div>
-                    <Label htmlFor="referral_source">Where did you find out about us?</Label>
-                    <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {referralSourceOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="date_of_birth">Date of Birth</Label>
-                      <Input
-                        id="date_of_birth"
-                        type="date"
-                        value={formData.date_of_birth}
-                        onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="nationality">Nationality</Label>
-                      <SearchableSelect
-                        value={formData.nationality}
-                        onValueChange={(value) => handleInputChange('nationality', value)}
-                        options={commonNationalities}
-                        placeholder="Select or type nationality"
-                        searchPlaceholder="Search nationalities..."
-                        allowAddNew={true}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="nric_passport">NRIC/Passport</Label>
-                      <Input
-                        id="nric_passport"
-                        value={formData.nric_passport}
-                        onChange={(e) => handleInputChange('nric_passport', e.target.value)}
-                        placeholder="NRIC or Passport Number"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="contact" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        placeholder="student@example.com"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        placeholder="+65 9123 4567"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      placeholder="Full address"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="postal_code">Postal Code</Label>
+                    <Label htmlFor="emergency_contact_phone">Phone</Label>
                     <Input
-                      id="postal_code"
-                      value={formData.postal_code}
-                      onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                      placeholder="123456"
+                      id="emergency_contact_phone"
+                      value={formData.emergency_contact_phone}
+                      onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
+                      placeholder="+65 9123 4567"
                     />
                   </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="emergency_contact_relationship">Relationship</Label>
+                  <Select 
+                    value={formData.emergency_contact_relationship} 
+                    onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select relationship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="guardian">Guardian</SelectItem>
+                      <SelectItem value="spouse">Spouse</SelectItem>
+                      <SelectItem value="sibling">Sibling</SelectItem>
+                      <SelectItem value="friend">Friend</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </section>
 
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-4">Emergency Contact</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="emergency_contact_name">Name</Label>
-                        <Input
-                          id="emergency_contact_name"
-                          value={formData.emergency_contact_name}
-                          onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
-                          placeholder="Emergency contact name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="emergency_contact_phone">Phone</Label>
-                        <Input
-                          id="emergency_contact_phone"
-                          value={formData.emergency_contact_phone}
-                          onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                          placeholder="+65 9123 4567"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <Label htmlFor="emergency_contact_relationship">Relationship</Label>
-                      <Select 
-                        value={formData.emergency_contact_relationship} 
-                        onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select relationship" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="parent">Parent</SelectItem>
-                          <SelectItem value="guardian">Guardian</SelectItem>
-                          <SelectItem value="spouse">Spouse</SelectItem>
-                          <SelectItem value="sibling">Sibling</SelectItem>
-                          <SelectItem value="friend">Friend</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+          {/* Training Information Section */}
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
+              <GraduationCap className="w-4 h-4" />
+              Training Information
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="current_belt">Current Belt Level</Label>
+                <Select value={formData.current_belt} onValueChange={(value) => handleInputChange('current_belt', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select belt level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {beltLevels.map((belt) => (
+                      <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
+                        {belt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <TabsContent value="training" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Training Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="current_belt">Current Belt Level</Label>
-                    <Select value={formData.current_belt} onValueChange={(value) => handleInputChange('current_belt', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select belt level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {beltLevels.map((belt) => (
-                          <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
-                            {belt}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div>
+                <Label htmlFor="previous_experience">Previous Martial Arts Experience</Label>
+                <Textarea
+                  id="previous_experience"
+                  value={formData.previous_experience}
+                  onChange={(e) => handleInputChange('previous_experience', e.target.value)}
+                  placeholder="Describe any previous martial arts training"
+                  rows={3}
+                />
+              </div>
 
-                  <div>
-                    <Label htmlFor="previous_experience">Previous Martial Arts Experience</Label>
-                    <Textarea
-                      id="previous_experience"
-                      value={formData.previous_experience}
-                      onChange={(e) => handleInputChange('previous_experience', e.target.value)}
-                      placeholder="Describe any previous martial arts training"
-                      rows={3}
-                    />
-                  </div>
+              <div>
+                <Label htmlFor="training_goals">Training Goals</Label>
+                <Textarea
+                  id="training_goals"
+                  value={formData.training_goals}
+                  onChange={(e) => handleInputChange('training_goals', e.target.value)}
+                  placeholder="What are the student's training goals?"
+                  rows={3}
+                />
+              </div>
 
-                  <div>
-                    <Label htmlFor="training_goals">Training Goals</Label>
-                    <Textarea
-                      id="training_goals"
-                      value={formData.training_goals}
-                      onChange={(e) => handleInputChange('training_goals', e.target.value)}
-                      placeholder="What are the student's training goals?"
-                      rows={3}
-                    />
-                  </div>
+              <div>
+                <Label htmlFor="medical_conditions">Medical Conditions</Label>
+                <Textarea
+                  id="medical_conditions"
+                  value={formData.medical_conditions}
+                  onChange={(e) => handleInputChange('medical_conditions', e.target.value)}
+                  placeholder="Any medical conditions we should be aware of"
+                  rows={2}
+                />
+              </div>
 
-                  <div>
-                    <Label htmlFor="medical_conditions">Medical Conditions</Label>
-                    <Textarea
-                      id="medical_conditions"
-                      value={formData.medical_conditions}
-                      onChange={(e) => handleInputChange('medical_conditions', e.target.value)}
-                      placeholder="Any medical conditions we should be aware of"
-                      rows={2}
-                    />
-                  </div>
+              <div>
+                <Label htmlFor="dietary_restrictions">Dietary Restrictions</Label>
+                <Textarea
+                  id="dietary_restrictions"
+                  value={formData.dietary_restrictions}
+                  onChange={(e) => handleInputChange('dietary_restrictions', e.target.value)}
+                  placeholder="Any dietary restrictions or allergies"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </section>
 
-                  <div>
-                    <Label htmlFor="dietary_restrictions">Dietary Restrictions</Label>
-                    <Textarea
-                      id="dietary_restrictions"
-                      value={formData.dietary_restrictions}
-                      onChange={(e) => handleInputChange('dietary_restrictions', e.target.value)}
-                      placeholder="Any dietary restrictions or allergies"
-                      rows={2}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+          {/* Administrative Section */}
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
+              <Settings className="w-4 h-4" />
+              Administrative
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="branch_id">Primary Branch</Label>
+                <Select 
+                  value={formData.branch_id} 
+                  onValueChange={(value) => handleInputChange('branch_id', value)}
+                  disabled={branchesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select primary branch"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <TabsContent value="admin" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Administrative Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="branch_id">Primary Branch</Label>
-                    <Select 
-                      value={formData.branch_id} 
-                      onValueChange={(value) => handleInputChange('branch_id', value)}
-                      disabled={branchesLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select primary branch"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                    <SelectItem value="medical-leave">Medical Leave</SelectItem>
+                    <SelectItem value="examination-leave">Examination Leave</SelectItem>
+                    <SelectItem value="on-holiday">On Holiday</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                        <SelectItem value="medical-leave">Medical Leave</SelectItem>
-                        <SelectItem value="examination-leave">Examination Leave</SelectItem>
-                        <SelectItem value="on-holiday">On Holiday</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                      placeholder="Any additional notes about the student"
-                      rows={4}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              <div>
+                <Label htmlFor="notes">Additional Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Any additional notes about the student"
+                  rows={4}
+                />
+              </div>
+            </div>
+          </section>
 
           <DialogFooter>
             <Button
