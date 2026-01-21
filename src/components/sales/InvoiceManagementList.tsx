@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 const InvoiceManagementList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -128,13 +129,6 @@ const InvoiceManagementList: React.FC = () => {
       case 'cancelled': return 'secondary';
       default: return 'outline';
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD'
-    }).format(amount);
   };
 
   const formatDate = (dateString?: string) => {
@@ -328,10 +322,10 @@ const InvoiceManagementList: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <div className="font-medium">{formatCurrency(invoice.total_amount)}</div>
+                          <div className="font-medium">{formatCurrency(invoice.total_amount, invoice.branch_currency || 'SGD')}</div>
                           {invoice.balance_due > 0 && (
                             <div className="text-sm text-muted-foreground">
-                              Balance: {formatCurrency(invoice.balance_due)}
+                              Balance: {formatCurrency(invoice.balance_due, invoice.branch_currency || 'SGD')}
                             </div>
                           )}
                         </div>

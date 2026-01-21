@@ -112,7 +112,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
     const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
     if (selectedInvoice && parseFloat(formData.amount) > selectedInvoice.balance_due) {
-      toast.error(`Payment amount cannot exceed balance due of ${formatCurrency(selectedInvoice.balance_due)}`);
+      toast.error(`Payment amount cannot exceed balance due of ${formatCurrencyValue(selectedInvoice.balance_due)}`);
       return;
     }
 
@@ -159,7 +159,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyValue = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
       style: 'currency',
       currency: 'SGD'
@@ -216,7 +216,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                           </span>
                         </div>
                         <span className="text-sm font-medium">
-                          Balance: {formatCurrency(invoice.balance_due)}
+                          Balance: {formatCurrencyValue(invoice.balance_due)}
                         </span>
                       </div>
                     </SelectItem>
@@ -246,12 +246,12 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Total Amount:</span>
-                      <div className="font-medium">{formatCurrency(selectedInvoice.total_amount)}</div>
+                      <div className="font-medium">{formatCurrencyValue(selectedInvoice.total_amount)}</div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Balance Due:</span>
                       <div className="font-bold text-lg text-red-600">
-                        {formatCurrency(selectedInvoice.balance_due)}
+                        {formatCurrencyValue(selectedInvoice.balance_due)}
                       </div>
                     </div>
                   </div>
@@ -284,7 +284,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                 </div>
                 {selectedInvoice && formData.amount && parseFloat(formData.amount) > selectedInvoice.balance_due && (
                   <p className="text-sm text-destructive">
-                    Amount exceeds balance due of {formatCurrency(selectedInvoice.balance_due)}
+                    Amount exceeds balance due of {formatCurrencyValue(selectedInvoice.balance_due)}
                   </p>
                 )}
               </div>

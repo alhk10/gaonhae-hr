@@ -27,10 +27,10 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrencyValue = (amount: number) => {
+    return new Intl.NumberFormat('en-SG', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'SGD'
     }).format(amount);
   };
 
@@ -88,7 +88,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Base Price</p>
-                  <p className="text-xl font-semibold">{formatCurrency(Number(product.base_price))}</p>
+                  <p className="text-xl font-semibold">{formatCurrencyValue(Number(product.base_price))}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Tax Rate</p>
