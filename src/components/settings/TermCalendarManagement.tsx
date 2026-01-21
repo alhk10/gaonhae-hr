@@ -57,7 +57,7 @@ const initialTermForm: TermFormData = {
   branch_id: '',
   year: new Date().getFullYear().toString(),
   term_number: '1',
-  name: '',
+  name: `Term 1 ${new Date().getFullYear()}`,
   start_date: '',
   end_date: '',
   grace_days: '7',
