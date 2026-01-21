@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Calendar, Layers, Settings } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe, Info } from 'lucide-react';
 import { ProductVariantManager } from './ProductVariantManager';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -265,6 +266,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 />
               </div>
             </div>
+            
+            {/* Branch Pricing Note */}
+            <Alert className="bg-muted/50 border-muted">
+              <Globe className="w-4 h-4" />
+              <AlertDescription className="text-xs">
+                Branch-specific pricing with multi-currency support can be configured after creating the product.
+              </AlertDescription>
+            </Alert>
           </section>
 
           {/* Product Variants Section */}
