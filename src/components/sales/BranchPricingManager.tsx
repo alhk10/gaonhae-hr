@@ -243,6 +243,25 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                             </div>
                             
                             <div className="flex items-center gap-2 flex-1">
+                              {/* Price Input */}
+                              <div className="flex-1">
+                                <Label className="text-xs text-muted-foreground">Price</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                                    {getCurrencySymbol(bp.branch_currency)}
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder={basePrice.toFixed(2)}
+                                    value={bp.price ?? ''}
+                                    onChange={(e) => handlePriceChange(bp.branch_id, e.target.value)}
+                                    className="h-8 pl-7 pr-2 text-right text-sm"
+                                  />
+                                </div>
+                              </div>
+
                               {/* Tax Inclusion Select */}
                               <div className="w-24">
                                 <Label className="text-xs text-muted-foreground">Tax</Label>
@@ -261,25 +280,6 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                     <SelectItem value="include">Include</SelectItem>
                                   </SelectContent>
                                 </Select>
-                              </div>
-
-                              {/* Price Input */}
-                              <div className="flex-1">
-                                <Label className="text-xs text-muted-foreground">Price</Label>
-                                <div className="relative">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                                    {getCurrencySymbol(bp.branch_currency)}
-                                  </span>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    placeholder={basePrice.toFixed(2)}
-                                    value={bp.price ?? ''}
-                                    onChange={(e) => handlePriceChange(bp.branch_id, e.target.value)}
-                                    className="h-8 pl-7 pr-2 text-right text-sm"
-                                  />
-                                </div>
                               </div>
                               
                               {/* Tax Rate Input */}
@@ -304,7 +304,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                               
                               {/* Actions */}
                               <div className="flex items-end gap-1 pb-0.5">
-                                {hasCustomValue(bp) ? (
+                                {hasCustomValue(bp) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -314,26 +314,10 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                   >
                                     <X className="w-4 h-4" />
                                   </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleCopyDefaults(bp.branch_id)}
-                                    title="Copy default values"
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <DollarSign className="w-4 h-4" />
-                                  </Button>
                                 )}
                               </div>
                             </div>
                           </div>
-                          
-                          {!hasCustomValue(bp) && (
-                            <p className="text-xs text-muted-foreground mt-1 ml-6">
-                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {getCountryDefaultTax(bp.branch_country)}% tax {getCountryDefaultTaxIncluded(bp.branch_country) ? '(incl)' : '(excl)'} - {bp.branch_country}
-                            </p>
-                          )}
                         </CardContent>
                       </Card>
                     ))}
