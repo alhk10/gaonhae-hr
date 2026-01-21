@@ -64,6 +64,12 @@ export const useScreenLock = ({ employeeId, timeout = 5 * 60 * 1000 }: UseScreen
     }
   }, [hasPin]);
 
+  // Force unlock without PIN (for password-based unlock)
+  const forceUnlock = useCallback(() => {
+    setIsLocked(false);
+    resetTimer();
+  }, [resetTimer]);
+
   // Refresh PIN status (call after setting a new PIN)
   const refreshPinStatus = useCallback(() => {
     checkPinStatus();
@@ -75,6 +81,7 @@ export const useScreenLock = ({ employeeId, timeout = 5 * 60 * 1000 }: UseScreen
     isCheckingPin,
     unlock,
     lock,
+    forceUnlock,
     refreshPinStatus,
     resetTimer,
   };
