@@ -49,10 +49,22 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
     'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
   ];
+
+  // Referral source options
+  const referralSourceOptions = [
+    { value: 'family_friends', label: 'Family & Friends' },
+    { value: 'social_media', label: 'Social Media' },
+    { value: 'pass_by', label: 'Pass By' },
+    { value: 'others', label: 'Others' }
+  ];
+
   const [formData, setFormData] = useState<CreateStudentData>({
     first_name: '',
     last_name: '',
     preferred_name: '',
+    certificate_name: '',
+    display_name: '',
+    referral_source: '',
     date_of_birth: '',
     gender: '',
     nationality: '',
@@ -77,10 +89,14 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
   // Initialize form data when student changes
   useEffect(() => {
     if (student) {
+      const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
       setFormData({
         first_name: student.first_name || '',
         last_name: student.last_name || '',
         preferred_name: student.preferred_name || '',
+        certificate_name: student.certificate_name || fullName,
+        display_name: student.display_name || fullName,
+        referral_source: student.referral_source || '',
         date_of_birth: student.date_of_birth || '',
         gender: student.gender || '',
         nationality: student.nationality || '',
@@ -117,6 +133,11 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     // Basic validation
     if (!formData.first_name || !formData.last_name) {
       toast.error('First name and last name are required');
+      return;
+    }
+    
+    if (!formData.certificate_name || !formData.display_name) {
+      toast.error('Certificate name and display name are required');
       return;
     }
     
@@ -199,6 +220,29 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="certificate_name">Certificate Name *</Label>
+                      <Input
+                        id="certificate_name"
+                        value={formData.certificate_name}
+                        onChange={(e) => handleInputChange('certificate_name', e.target.value)}
+                        placeholder="Name for printing on certificates"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="display_name">Display Name *</Label>
+                      <Input
+                        id="display_name"
+                        value={formData.display_name}
+                        onChange={(e) => handleInputChange('display_name', e.target.value)}
+                        placeholder="Name shown on UI"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <Label htmlFor="preferred_name">Preferred Name</Label>
                     <Input
@@ -207,6 +251,22 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                       onChange={(e) => handleInputChange('preferred_name', e.target.value)}
                       placeholder="Name the student prefers to be called"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="referral_source">Where did you find out about us?</Label>
+                    <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {referralSourceOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
