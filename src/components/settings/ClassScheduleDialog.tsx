@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   ClassSchedule,
   ClassScheduleInput,
@@ -33,13 +34,31 @@ interface Branch {
   name: string;
 }
 
+interface TimeSlot {
+  id: string;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+}
+
+interface ClassDetails {
+  branch_id: string;
+  class_type: string;
+  age_from: number | null;
+  age_to: number | null;
+  belt_levels: string[];
+  max_capacity: number | null;
+  instructor_name: string | null;
+  is_active: boolean;
+}
+
 interface ClassScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   branches: Branch[];
   classSchedule?: ClassSchedule | null;
   defaultBranchId?: string;
-  onSave: (data: ClassScheduleInput) => Promise<void>;
+  onSave: (data: ClassScheduleInput | ClassScheduleInput[]) => Promise<void>;
 }
 
 export function ClassScheduleDialog({
@@ -51,55 +70,58 @@ export function ClassScheduleDialog({
   onSave,
 }: ClassScheduleDialogProps) {
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<ClassScheduleInput>({
+  
+  const [classDetails, setClassDetails] = useState<ClassDetails>({
     branch_id: '',
-    weekday: 1,
-    start_time: '09:00',
-    end_time: '10:00',
     class_type: 'Little Gaonhae',
     age_from: null,
     age_to: null,
     belt_levels: [],
-    belt_range_min: null,
-    belt_range_max: null,
     max_capacity: null,
     instructor_name: null,
     is_active: true,
   });
 
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
+    { id: uuidv4(), weekday: 1, start_time: '09:00', end_time: '10:00' }
+  ]);
+
+  const isEditing = !!classSchedule;
+
   useEffect(() => {
     if (classSchedule) {
-      setFormData({
+      // Edit mode: load existing class data
+      setClassDetails({
         branch_id: classSchedule.branch_id,
-        weekday: classSchedule.weekday,
-        start_time: classSchedule.start_time,
-        end_time: classSchedule.end_time,
         class_type: classSchedule.class_type,
         age_from: classSchedule.age_from,
         age_to: classSchedule.age_to,
         belt_levels: classSchedule.belt_levels || [],
-        belt_range_min: classSchedule.belt_range_min,
-        belt_range_max: classSchedule.belt_range_max,
         max_capacity: classSchedule.max_capacity,
         instructor_name: classSchedule.instructor_name,
         is_active: classSchedule.is_active,
       });
+      setTimeSlots([{
+        id: uuidv4(),
+        weekday: classSchedule.weekday,
+        start_time: classSchedule.start_time,
+        end_time: classSchedule.end_time,
+      }]);
     } else {
-      setFormData({
+      // Add mode: reset to defaults
+      setClassDetails({
         branch_id: defaultBranchId || branches[0]?.id || '',
-        weekday: 1,
-        start_time: '09:00',
-        end_time: '10:00',
         class_type: 'Little Gaonhae',
         age_from: null,
         age_to: null,
         belt_levels: [],
-        belt_range_min: null,
-        belt_range_max: null,
         max_capacity: null,
         instructor_name: null,
         is_active: true,
       });
+      setTimeSlots([
+        { id: uuidv4(), weekday: 1, start_time: '09:00', end_time: '10:00' }
+      ]);
     }
   }, [classSchedule, defaultBranchId, branches, open]);
 
@@ -107,7 +129,29 @@ export function ClassScheduleDialog({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      if (isEditing) {
+        // Edit mode: update single record
+        const slot = timeSlots[0];
+        await onSave({
+          ...classDetails,
+          weekday: slot.weekday,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          belt_range_min: null,
+          belt_range_max: null,
+        });
+      } else {
+        // Add mode: create multiple records
+        const inputs: ClassScheduleInput[] = timeSlots.map(slot => ({
+          ...classDetails,
+          weekday: slot.weekday,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          belt_range_min: null,
+          belt_range_max: null,
+        }));
+        await onSave(inputs);
+      }
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -115,25 +159,42 @@ export function ClassScheduleDialog({
   };
 
   const handleBeltToggle = (belt: string, checked: boolean) => {
-    const currentBelts = formData.belt_levels || [];
+    const currentBelts = classDetails.belt_levels || [];
     if (checked) {
-      setFormData({ ...formData, belt_levels: [...currentBelts, belt] });
+      setClassDetails({ ...classDetails, belt_levels: [...currentBelts, belt] });
     } else {
-      setFormData({ ...formData, belt_levels: currentBelts.filter(b => b !== belt) });
+      setClassDetails({ ...classDetails, belt_levels: currentBelts.filter(b => b !== belt) });
     }
   };
 
-  const isEditing = !!classSchedule;
+  const addTimeSlot = () => {
+    setTimeSlots([
+      ...timeSlots,
+      { id: uuidv4(), weekday: 1, start_time: '09:00', end_time: '10:00' }
+    ]);
+  };
+
+  const removeTimeSlot = (id: string) => {
+    if (timeSlots.length > 1) {
+      setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+    }
+  };
+
+  const updateTimeSlot = (id: string, field: keyof Omit<TimeSlot, 'id'>, value: number | string) => {
+    setTimeSlots(timeSlots.map(slot =>
+      slot.id === id ? { ...slot, [field]: value } : slot
+    ));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Class' : 'Add Class'}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? 'Update the class schedule details.'
-              : 'Add a new class to the branch timetable.'}
+              : 'Add a new class to the branch timetable. You can add multiple time slots for different days.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,9 +203,9 @@ export function ClassScheduleDialog({
           <div className="space-y-2">
             <Label htmlFor="branch">Branch *</Label>
             <Select
-              value={formData.branch_id}
+              value={classDetails.branch_id}
               onValueChange={(value) =>
-                setFormData({ ...formData, branch_id: value })
+                setClassDetails({ ...classDetails, branch_id: value })
               }
               disabled={isEditing}
             >
@@ -161,63 +222,13 @@ export function ClassScheduleDialog({
             </Select>
           </div>
 
-          {/* Day Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="weekday">Day *</Label>
-            <Select
-              value={formData.weekday.toString()}
-              onValueChange={(value) =>
-                setFormData({ ...formData, weekday: parseInt(value, 10) })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select day" />
-              </SelectTrigger>
-              <SelectContent>
-                {WEEKDAYS.map((day) => (
-                  <SelectItem key={day.value} value={day.value.toString()}>
-                    {day.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Time Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="start_time">Start Time *</Label>
-              <Input
-                id="start_time"
-                type="time"
-                value={formData.start_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, start_time: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_time">End Time *</Label>
-              <Input
-                id="end_time"
-                type="time"
-                value={formData.end_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, end_time: e.target.value })
-                }
-                required
-              />
-            </div>
-          </div>
-
           {/* Class Type */}
           <div className="space-y-2">
             <Label htmlFor="class_type">Class Type *</Label>
             <Select
-              value={formData.class_type}
+              value={classDetails.class_type}
               onValueChange={(value) =>
-                setFormData({ ...formData, class_type: value })
+                setClassDetails({ ...classDetails, class_type: value })
               }
             >
               <SelectTrigger>
@@ -243,11 +254,11 @@ export function ClassScheduleDialog({
                 min="1"
                 max="100"
                 step="0.5"
-                value={formData.age_from || ''}
+                value={classDetails.age_from || ''}
                 onChange={(e) => {
                   const value = e.target.value ? parseFloat(e.target.value) : null;
                   const rounded = value !== null ? Math.round(value * 2) / 2 : null;
-                  setFormData({ ...formData, age_from: rounded });
+                  setClassDetails({ ...classDetails, age_from: rounded });
                 }}
                 placeholder="e.g., 4.5"
               />
@@ -260,14 +271,11 @@ export function ClassScheduleDialog({
                 min="1"
                 max="100"
                 step="0.5"
-                value={formData.age_to || ''}
+                value={classDetails.age_to || ''}
                 onChange={(e) => {
                   const value = e.target.value ? parseFloat(e.target.value) : null;
                   const rounded = value !== null ? Math.round(value * 2) / 2 : null;
-                  setFormData({
-                    ...formData,
-                    age_to: rounded,
-                  });
+                  setClassDetails({ ...classDetails, age_to: rounded });
                 }}
                 placeholder="e.g., 6.5"
               />
@@ -277,12 +285,12 @@ export function ClassScheduleDialog({
           {/* Belt Levels Multi-Select */}
           <div className="space-y-2">
             <Label>Belt Levels</Label>
-            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+            <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
               {BELT_LEVELS.map((belt) => (
                 <div key={belt} className="flex items-center space-x-2">
                   <Checkbox
                     id={`belt-${belt}`}
-                    checked={(formData.belt_levels || []).includes(belt)}
+                    checked={(classDetails.belt_levels || []).includes(belt)}
                     onCheckedChange={(checked) => handleBeltToggle(belt, !!checked)}
                   />
                   <label
@@ -294,9 +302,9 @@ export function ClassScheduleDialog({
                 </div>
               ))}
             </div>
-            {(formData.belt_levels || []).length > 0 && (
+            {(classDetails.belt_levels || []).length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Selected: {(formData.belt_levels || []).join(', ')}
+                Selected: {(classDetails.belt_levels || []).join(', ')}
               </p>
             )}
           </div>
@@ -309,10 +317,10 @@ export function ClassScheduleDialog({
                 id="max_capacity"
                 type="number"
                 min="1"
-                value={formData.max_capacity || ''}
+                value={classDetails.max_capacity || ''}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setClassDetails({
+                    ...classDetails,
                     max_capacity: e.target.value
                       ? parseInt(e.target.value, 10)
                       : null,
@@ -325,15 +333,98 @@ export function ClassScheduleDialog({
               <Label htmlFor="instructor">Instructor</Label>
               <Input
                 id="instructor"
-                value={formData.instructor_name || ''}
+                value={classDetails.instructor_name || ''}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setClassDetails({
+                    ...classDetails,
                     instructor_name: e.target.value || null,
                   })
                 }
                 placeholder="Instructor name"
               />
+            </div>
+          </div>
+
+          {/* Schedule Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Schedule *</Label>
+              {!isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addTimeSlot}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Slot
+                </Button>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              {timeSlots.map((slot, index) => (
+                <div
+                  key={slot.id}
+                  className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30"
+                >
+                  {/* Day */}
+                  <Select
+                    value={slot.weekday.toString()}
+                    onValueChange={(value) =>
+                      updateTimeSlot(slot.id, 'weekday', parseInt(value, 10))
+                    }
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Day" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WEEKDAYS.map((day) => (
+                        <SelectItem key={day.value} value={day.value.toString()}>
+                          {day.short}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Start Time */}
+                  <Input
+                    type="time"
+                    value={slot.start_time}
+                    onChange={(e) =>
+                      updateTimeSlot(slot.id, 'start_time', e.target.value)
+                    }
+                    className="w-[110px]"
+                    required
+                  />
+
+                  <span className="text-muted-foreground">-</span>
+
+                  {/* End Time */}
+                  <Input
+                    type="time"
+                    value={slot.end_time}
+                    onChange={(e) =>
+                      updateTimeSlot(slot.id, 'end_time', e.target.value)
+                    }
+                    className="w-[110px]"
+                    required
+                  />
+
+                  {/* Delete button (only show if more than 1 slot and not editing) */}
+                  {!isEditing && timeSlots.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeTimeSlot(slot.id)}
+                      className="text-destructive hover:text-destructive shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -346,9 +437,9 @@ export function ClassScheduleDialog({
               </p>
             </div>
             <Switch
-              checked={formData.is_active}
+              checked={classDetails.is_active}
               onCheckedChange={(checked) =>
-                setFormData({ ...formData, is_active: checked })
+                setClassDetails({ ...classDetails, is_active: checked })
               }
             />
           </div>
@@ -361,9 +452,13 @@ export function ClassScheduleDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !formData.branch_id}>
+            <Button type="submit" disabled={saving || !classDetails.branch_id}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isEditing ? 'Update Class' : 'Add Class'}
+              {isEditing 
+                ? 'Update Class' 
+                : timeSlots.length > 1 
+                  ? `Add Class (${timeSlots.length} slots)` 
+                  : 'Add Class'}
             </Button>
           </DialogFooter>
         </form>
