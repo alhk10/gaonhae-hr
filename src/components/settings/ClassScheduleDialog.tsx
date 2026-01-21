@@ -242,14 +242,14 @@ export function ClassScheduleDialog({
                 type="number"
                 min="1"
                 max="100"
+                step="0.5"
                 value={formData.age_from || ''}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    age_from: e.target.value ? parseInt(e.target.value, 10) : null,
-                  })
-                }
-                placeholder="e.g., 4"
+                onChange={(e) => {
+                  const value = e.target.value ? parseFloat(e.target.value) : null;
+                  const rounded = value !== null ? Math.round(value * 2) / 2 : null;
+                  setFormData({ ...formData, age_from: rounded });
+                }}
+                placeholder="e.g., 4.5"
               />
             </div>
             <div className="space-y-2">
@@ -259,14 +259,17 @@ export function ClassScheduleDialog({
                 type="number"
                 min="1"
                 max="100"
+                step="0.5"
                 value={formData.age_to || ''}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value ? parseFloat(e.target.value) : null;
+                  const rounded = value !== null ? Math.round(value * 2) / 2 : null;
                   setFormData({
                     ...formData,
-                    age_to: e.target.value ? parseInt(e.target.value, 10) : null,
-                  })
-                }
-                placeholder="e.g., 6"
+                    age_to: rounded,
+                  });
+                }}
+                placeholder="e.g., 6.5"
               />
             </div>
           </div>
