@@ -5,13 +5,13 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Settings, Users, Briefcase, Clock } from 'lucide-react';
+import { Plus, Settings, Users, Briefcase, Clock, Star } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/sonner';
 import { getEmployees, createEmployee, updateEmployeeAdminAccess, updateEmployeePageAccess, deleteEmployee } from '@/services/employeeService';
-import { getStudents, Student } from '@/services/studentService';
+import { getStudents, getTrials, Student } from '@/services/studentService';
 import { useNavigate } from 'react-router-dom';
 import EmployeeModuleSettings from '@/components/employee/EmployeeModuleSettings';
 import AdminAccessManager from '@/components/employee/AdminAccessManager';
@@ -19,7 +19,9 @@ import ResetPasswordDialog from '@/components/employee/ResetPasswordDialog';
 import EmployeeListView from '@/components/employee/EmployeeListView';
 import EmployeeLoadingSkeleton from '@/components/employee/EmployeeLoadingSkeleton';
 import StudentManagementList from '@/components/sales/StudentManagementList';
+import TrialManagementList from '@/components/sales/TrialManagementList';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
+import AddTrialDialog from '@/components/sales/AddTrialDialog';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSalesModuleAccess } from '@/hooks/useSalesModuleAccess';
@@ -41,6 +43,7 @@ const PartyManagement = () => {
   const [showModuleSettings, setShowModuleSettings] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
+  const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
   
   // Form States
@@ -94,6 +97,13 @@ const PartyManagement = () => {
   const { data: studentsData, isLoading: isStudentsLoading } = useQuery({
     queryKey: ['students', studentPage, studentSearch],
     queryFn: () => getStudents(studentPage, 20, studentSearch),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Load trials
+  const { data: trialsData } = useQuery({
+    queryKey: ['trials'],
+    queryFn: () => getTrials(1, 100),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -279,9 +289,11 @@ const PartyManagement = () => {
     setNewEmployeePageAccess(permissions);
   };
 
-  const handleAddParty = (type: 'student' | 'fulltime' | 'casual') => {
+  const handleAddParty = (type: 'student' | 'fulltime' | 'casual' | 'trial') => {
     if (type === 'student') {
       setShowAddStudentDialog(true);
+    } else if (type === 'trial') {
+      setShowAddTrialDialog(true);
     } else {
       setEmployeeType(type === 'fulltime' ? 'Full-Time' : 'Casual');
       setPaymentType(type === 'casual' ? 'Daily' : 'Monthly');
@@ -363,6 +375,10 @@ const PartyManagement = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAddParty('trial')}>
+                    <Star className="w-4 h-4 mr-2" />
+                    Add Trial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleAddParty('student')}>
                     <Users className="w-4 h-4 mr-2" />
                     Add Student
@@ -386,7 +402,14 @@ const PartyManagement = () => {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+              <TabsTrigger value="trials" className="flex items-center gap-2">
+                <Star className="w-4 h-4" />
+                <span>Trials</span>
+                <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                  {trialsData?.total || 0}
+                </span>
+              </TabsTrigger>
               <TabsTrigger value="students" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 <span>Students</span>
@@ -413,6 +436,11 @@ const PartyManagement = () => {
                 </>
               )}
             </TabsList>
+
+            {/* Trials Tab */}
+            <TabsContent value="trials" className="space-y-4">
+              <TrialManagementList />
+            </TabsContent>
 
             {/* Students Tab */}
             <TabsContent value="students" className="space-y-4">
@@ -705,6 +733,16 @@ const PartyManagement = () => {
           onStudentAdded={() => {
             queryClient.invalidateQueries({ queryKey: ['students'] });
             setShowAddStudentDialog(false);
+          }}
+        />
+
+        {/* Add Trial Dialog */}
+        <AddTrialDialog
+          open={showAddTrialDialog}
+          onOpenChange={setShowAddTrialDialog}
+          onTrialAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['trials'] });
+            setShowAddTrialDialog(false);
           }}
         />
       </ResponsiveLayout>

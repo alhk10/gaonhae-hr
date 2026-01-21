@@ -16,6 +16,7 @@ const Employees = lazy(() => import('./pages/Employees'));
 const EmployeeDetails = lazy(() => import('./pages/EmployeeDetails'));
 const PartyManagement = lazy(() => import('./pages/PartyManagement'));
 const StudentDetails = lazy(() => import('./pages/parties/StudentDetails'));
+const TrialDetails = lazy(() => import('./pages/parties/TrialDetails'));
 const FulltimeEmployeeDetails = lazy(() => import('./pages/parties/FulltimeEmployeeDetails'));
 const CasualEmployeeDetails = lazy(() => import('./pages/parties/CasualEmployeeDetails'));
 const PayrollProcessing = lazy(() => import('./pages/PayrollProcessing'));
@@ -179,6 +180,16 @@ function App() {
                         <AuthGuard>
                           <SalesAccessGuard>
                             <StudentDetails />
+                          </SalesAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/parties/trial/:id" 
+                      element={
+                        <AuthGuard>
+                          <SalesAccessGuard>
+                            <TrialDetails />
                           </SalesAccessGuard>
                         </AuthGuard>
                       } 
