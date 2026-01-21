@@ -20,10 +20,18 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
   const { user, userDetails } = useAuth();
   const employeeId = userDetails?.id || null;
 
-  const { isLocked, hasPin, unlock, lock, refreshPinStatus } = useScreenLock({
+  const { isLocked, hasPin, unlock, lock, forceUnlock, refreshPinStatus } = useScreenLock({
     employeeId,
     timeout: 5 * 60 * 1000, // 5 minutes
   });
+
+  const handlePasswordUnlock = () => {
+    forceUnlock();
+  };
+
+  const handlePinReset = () => {
+    refreshPinStatus();
+  };
 
   return (
     <ScreenLockContext.Provider value={{ isLocked, hasPin, refreshPinStatus, lock }}>
@@ -31,7 +39,10 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
       <ScreenLockOverlay
         isLocked={isLocked}
         userEmail={user?.email}
+        employeeId={employeeId || undefined}
         onUnlock={unlock}
+        onPasswordUnlock={handlePasswordUnlock}
+        onPinReset={handlePinReset}
       />
     </ScreenLockContext.Provider>
   );
