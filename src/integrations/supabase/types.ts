@@ -420,7 +420,9 @@ export type Database = {
         Row: {
           address: string
           color: string
+          country: string | null
           created_at: string | null
+          currency: string | null
           id: string
           name: string
           updated_at: string | null
@@ -428,7 +430,9 @@ export type Database = {
         Insert: {
           address: string
           color?: string
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
           id: string
           name: string
           updated_at?: string | null
@@ -436,7 +440,9 @@ export type Database = {
         Update: {
           address?: string
           color?: string
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
           id?: string
           name?: string
           updated_at?: string | null

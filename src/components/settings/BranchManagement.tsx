@@ -38,8 +38,40 @@ const BranchManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    country: 'Singapore',
+    currency: 'SGD'
   });
+
+  const countryOptions = [
+    { value: 'Singapore', label: 'Singapore', currency: 'SGD' },
+    { value: 'Malaysia', label: 'Malaysia', currency: 'MYR' },
+    { value: 'Indonesia', label: 'Indonesia', currency: 'IDR' },
+    { value: 'Thailand', label: 'Thailand', currency: 'THB' },
+    { value: 'Philippines', label: 'Philippines', currency: 'PHP' },
+    { value: 'Vietnam', label: 'Vietnam', currency: 'VND' },
+    { value: 'United States', label: 'United States', currency: 'USD' },
+    { value: 'United Kingdom', label: 'United Kingdom', currency: 'GBP' },
+    { value: 'Australia', label: 'Australia', currency: 'AUD' },
+    { value: 'Japan', label: 'Japan', currency: 'JPY' },
+    { value: 'China', label: 'China', currency: 'CNY' },
+    { value: 'India', label: 'India', currency: 'INR' },
+  ];
+
+  const currencyOptions = [
+    { value: 'SGD', label: 'SGD - Singapore Dollar' },
+    { value: 'MYR', label: 'MYR - Malaysian Ringgit' },
+    { value: 'IDR', label: 'IDR - Indonesian Rupiah' },
+    { value: 'THB', label: 'THB - Thai Baht' },
+    { value: 'PHP', label: 'PHP - Philippine Peso' },
+    { value: 'VND', label: 'VND - Vietnamese Dong' },
+    { value: 'USD', label: 'USD - US Dollar' },
+    { value: 'GBP', label: 'GBP - British Pound' },
+    { value: 'AUD', label: 'AUD - Australian Dollar' },
+    { value: 'JPY', label: 'JPY - Japanese Yen' },
+    { value: 'CNY', label: 'CNY - Chinese Yuan' },
+    { value: 'INR', label: 'INR - Indian Rupee' },
+  ];
 
   const colorOptions = [
     { value: 'bg-blue-500', label: 'Blue', color: '#3b82f6' },
@@ -73,7 +105,9 @@ const BranchManagement: React.FC = () => {
     setFormData({
       name: '',
       address: '',
-      color: 'bg-blue-500'
+      color: 'bg-blue-500',
+      country: 'Singapore',
+      currency: 'SGD'
     });
   };
 
@@ -87,7 +121,9 @@ const BranchManagement: React.FC = () => {
       await saveBranch({
         name: formData.name.trim(),
         address: formData.address.trim(),
-        color: formData.color
+        color: formData.color,
+        country: formData.country,
+        currency: formData.currency
       });
       
       toast.success('Branch created successfully');
@@ -105,7 +141,9 @@ const BranchManagement: React.FC = () => {
     setFormData({
       name: branch.name,
       address: branch.address,
-      color: branch.color || 'bg-blue-500'
+      color: branch.color || 'bg-blue-500',
+      country: branch.country || 'Singapore',
+      currency: branch.currency || 'SGD'
     });
     setIsEditDialogOpen(true);
   };
@@ -121,7 +159,9 @@ const BranchManagement: React.FC = () => {
         ...editingBranch,
         name: formData.name.trim(),
         address: formData.address.trim(),
-        color: formData.color
+        color: formData.color,
+        country: formData.country,
+        currency: formData.currency
       });
       
       toast.success('Branch updated successfully');
@@ -229,9 +269,51 @@ const BranchManagement: React.FC = () => {
                             </div>
                           </SelectItem>
                         ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="add-country">Country</Label>
+                      <Select 
+                        value={formData.country} 
+                        onValueChange={(value) => {
+                          const country = countryOptions.find(c => c.value === value);
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            country: value,
+                            currency: country?.currency || prev.currency
+                          }));
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countryOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="add-currency">Currency</Label>
+                      <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => {
@@ -301,6 +383,8 @@ const BranchManagement: React.FC = () => {
                   <TableRow>
                     <TableHead>Branch</TableHead>
                     <TableHead>Address</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Currency</TableHead>
                     <TableHead>Color</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -319,6 +403,12 @@ const BranchManagement: React.FC = () => {
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">{branch.address}</span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{branch.country || 'Singapore'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{branch.currency || 'SGD'}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -423,6 +513,48 @@ const BranchManagement: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-country">Country</Label>
+                <Select 
+                  value={formData.country} 
+                  onValueChange={(value) => {
+                    const country = countryOptions.find(c => c.value === value);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      country: value,
+                      currency: country?.currency || prev.currency
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-currency">Currency</Label>
+                <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
