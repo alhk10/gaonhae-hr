@@ -1,6 +1,6 @@
 /**
  * Branch Pricing Manager Component
- * Manages per-branch pricing with currency display for products
+ * Manages per-branch pricing and tax rates with currency display for products
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,7 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Building2, DollarSign, Globe, Loader2, Save, X } from 'lucide-react';
+import { Building2, DollarSign, Globe, Loader2, Percent, Save, X } from 'lucide-react';
 import { 
   getProductBranchPrices, 
   bulkUpdateBranchPrices, 
@@ -31,6 +31,7 @@ interface BranchPricingManagerProps {
   productId: string;
   productName: string;
   basePrice: number;
+  baseTaxRate: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
@@ -40,6 +41,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
   productId,
   productName,
   basePrice,
+  baseTaxRate,
   open,
   onOpenChange,
   onSaved,
@@ -84,22 +86,35 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     setHasChanges(true);
   };
 
-  const handleClearPrice = (branchId: string) => {
+  const handleTaxRateChange = (branchId: string, value: string) => {
+    const numValue = value === '' ? null : parseFloat(value);
+    
     setBranchPrices(prev =>
       prev.map(bp =>
         bp.branch_id === branchId
-          ? { ...bp, price: null }
+          ? { ...bp, tax_rate: numValue }
           : bp
       )
     );
     setHasChanges(true);
   };
 
-  const handleSetBasePrice = (branchId: string) => {
+  const handleClearBranch = (branchId: string) => {
     setBranchPrices(prev =>
       prev.map(bp =>
         bp.branch_id === branchId
-          ? { ...bp, price: basePrice }
+          ? { ...bp, price: null, tax_rate: null }
+          : bp
+      )
+    );
+    setHasChanges(true);
+  };
+
+  const handleCopyDefaults = (branchId: string) => {
+    setBranchPrices(prev =>
+      prev.map(bp =>
+        bp.branch_id === branchId
+          ? { ...bp, price: basePrice, tax_rate: baseTaxRate }
           : bp
       )
     );
@@ -110,7 +125,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     try {
       setSaving(true);
       await bulkUpdateBranchPrices(productId, branchPrices);
-      toast.success('Branch prices saved successfully');
+      toast.success('Branch pricing saved successfully');
       setOriginalPrices(JSON.parse(JSON.stringify(branchPrices)));
       setHasChanges(false);
       onSaved?.();
@@ -137,23 +152,33 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
     return acc;
   }, {} as Record<string, BranchPrice[]>);
 
+  const hasCustomValue = (bp: BranchPrice) => bp.price !== null || bp.tax_rate !== null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
+      <DialogContent className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="w-5 h-5" />
-            Branch Pricing - {productName}
+            Branch Pricing & Tax Rates - {productName}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Base Price Info */}
+        {/* Default Values Info */}
         <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Default Base Price:</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Default Price:</span>
+              <span className="font-semibold">{formatCurrency(basePrice, 'SGD')}</span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Default Tax:</span>
+              <span className="font-semibold">{baseTaxRate}%</span>
+            </div>
           </div>
-          <span className="font-semibold">{formatCurrency(basePrice, 'SGD')}</span>
         </div>
 
         <Separator />
@@ -179,57 +204,84 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                   
                   <div className="space-y-3">
                     {branches.map((bp) => (
-                      <Card key={bp.branch_id} className="overflow-hidden">
+                      <Card key={bp.branch_id} className={`overflow-hidden ${hasCustomValue(bp) ? 'border-primary/50' : ''}`}>
                         <CardContent className="p-3">
                           <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 w-40">
                               <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                               <span className="font-medium truncate">{bp.branch_name}</span>
                             </div>
                             
-                            <div className="flex items-center gap-2">
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                                  {getCurrencySymbol(bp.branch_currency)}
-                                </span>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="Use default"
-                                  value={bp.price ?? ''}
-                                  onChange={(e) => handlePriceChange(bp.branch_id, e.target.value)}
-                                  className="w-32 pl-8 pr-2 text-right"
-                                />
+                            <div className="flex items-center gap-3 flex-1">
+                              {/* Price Input */}
+                              <div className="flex-1">
+                                <Label className="text-xs text-muted-foreground">Price</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                                    {getCurrencySymbol(bp.branch_currency)}
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder={basePrice.toFixed(2)}
+                                    value={bp.price ?? ''}
+                                    onChange={(e) => handlePriceChange(bp.branch_id, e.target.value)}
+                                    className="h-8 pl-7 pr-2 text-right text-sm"
+                                  />
+                                </div>
                               </div>
                               
-                              {bp.price !== null && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleClearPrice(bp.branch_id)}
-                                  title="Clear (use default)"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              )}
+                              {/* Tax Rate Input */}
+                              <div className="w-24">
+                                <Label className="text-xs text-muted-foreground">Tax %</Label>
+                                <div className="relative">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    placeholder={baseTaxRate.toFixed(2)}
+                                    value={bp.tax_rate ?? ''}
+                                    onChange={(e) => handleTaxRateChange(bp.branch_id, e.target.value)}
+                                    className="h-8 pr-6 text-right text-sm"
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                                    %
+                                  </span>
+                                </div>
+                              </div>
                               
-                              {bp.price === null && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleSetBasePrice(bp.branch_id)}
-                                  title="Copy base price"
-                                >
-                                  <DollarSign className="w-4 h-4" />
-                                </Button>
-                              )}
+                              {/* Actions */}
+                              <div className="flex items-end gap-1 pb-0.5">
+                                {hasCustomValue(bp) ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleClearBranch(bp.branch_id)}
+                                    title="Clear (use defaults)"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCopyDefaults(bp.branch_id)}
+                                    title="Copy default values"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                           
-                          {bp.price === null && (
+                          {!hasCustomValue(bp) && (
                             <p className="text-xs text-muted-foreground mt-1 ml-6">
-                              Using default: {formatCurrency(basePrice, bp.branch_currency)}
+                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {baseTaxRate}% tax
                             </p>
                           )}
                         </CardContent>

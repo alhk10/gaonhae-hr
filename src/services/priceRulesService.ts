@@ -1,6 +1,6 @@
 /**
  * Price Rules Service
- * Manages branch-specific pricing with currency support
+ * Manages branch-specific pricing and tax rates with currency support
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,7 @@ export interface PriceRule {
   branch_name?: string;
   branch_currency?: string;
   price_override: number | null;
+  tax_rate: number | null;
   discount_percentage: number | null;
   belt_min: string | null;
   belt_max: string | null;
@@ -28,6 +29,7 @@ export interface BranchPrice {
   branch_name: string;
   branch_currency: string;
   price: number | null;
+  tax_rate: number | null;
   rule_id?: string;
 }
 
@@ -36,6 +38,7 @@ export interface CreatePriceRuleData {
   rule_name: string;
   branch_id: string | null;
   price_override: number | null;
+  tax_rate?: number | null;
   discount_percentage?: number | null;
   belt_min?: string | null;
   belt_max?: string | null;
@@ -121,6 +124,7 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
     branch_name: branch.name,
     branch_currency: branch.currency || 'SGD',
     price: ruleMap.get(branch.id)?.price_override ?? null,
+    tax_rate: ruleMap.get(branch.id)?.tax_rate ?? null,
     rule_id: ruleMap.get(branch.id)?.id,
   }));
 }
@@ -136,6 +140,7 @@ export async function createPriceRule(data: CreatePriceRuleData): Promise<PriceR
       rule_name: data.rule_name,
       branch_id: data.branch_id,
       price_override: data.price_override,
+      tax_rate: data.tax_rate || null,
       discount_percentage: data.discount_percentage || null,
       belt_min: data.belt_min || null,
       belt_max: data.belt_max || null,
@@ -195,17 +200,18 @@ export async function deletePriceRule(ruleId: string): Promise<void> {
 }
 
 /**
- * Upsert branch price (create or update)
+ * Upsert branch price and tax rate (create or update)
  */
 export async function upsertBranchPrice(
   productId: string,
   branchId: string,
   branchName: string,
   price: number | null,
+  taxRate: number | null,
   existingRuleId?: string
 ): Promise<void> {
-  if (price === null) {
-    // If price is null and rule exists, delete the rule
+  // If both price and tax are null and rule exists, delete the rule
+  if (price === null && taxRate === null) {
     if (existingRuleId) {
       await deletePriceRule(existingRuleId);
     }
@@ -216,6 +222,7 @@ export async function upsertBranchPrice(
     // Update existing rule
     await updatePriceRule(existingRuleId, {
       price_override: price,
+      tax_rate: taxRate,
     });
   } else {
     // Create new rule
@@ -224,13 +231,14 @@ export async function upsertBranchPrice(
       rule_name: `${branchName} Price`,
       branch_id: branchId,
       price_override: price,
+      tax_rate: taxRate,
       is_active: true,
     });
   }
 }
 
 /**
- * Bulk update branch prices for a product
+ * Bulk update branch prices and tax rates for a product
  */
 export async function bulkUpdateBranchPrices(
   productId: string,
@@ -242,6 +250,7 @@ export async function bulkUpdateBranchPrices(
       bp.branch_id,
       bp.branch_name,
       bp.price,
+      bp.tax_rate,
       bp.rule_id
     );
   }
