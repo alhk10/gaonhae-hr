@@ -299,6 +299,42 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_operating_schedule: {
+        Row: {
+          branch_id: string
+          close_time: string | null
+          created_at: string | null
+          id: string
+          is_open: boolean
+          notes: string | null
+          open_time: string | null
+          updated_at: string | null
+          weekday: number
+        }
+        Insert: {
+          branch_id: string
+          close_time?: string | null
+          created_at?: string | null
+          id?: string
+          is_open?: boolean
+          notes?: string | null
+          open_time?: string | null
+          updated_at?: string | null
+          weekday: number
+        }
+        Update: {
+          branch_id?: string
+          close_time?: string | null
+          created_at?: string | null
+          id?: string
+          is_open?: boolean
+          notes?: string | null
+          open_time?: string | null
+          updated_at?: string | null
+          weekday?: number
+        }
+        Relationships: []
+      }
       branch_profit_loss_entries: {
         Row: {
           amount: number

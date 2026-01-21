@@ -22,11 +22,11 @@ import {
   deleteTerm,
   addTermBreak,
   deleteTermBreak,
-  calculateTeachingWeeks,
   getTermYears,
   CreateTermData,
   CreateTermBreakData
 } from '@/services/termCalendarService';
+import { calculateTeachingWeeksWithSchedule } from '@/services/branchOperatingService';
 
 const TERM_NUMBERS = [
   { value: 1, label: 'Term 1' },
@@ -76,6 +76,8 @@ export function TermCalendarManagement() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [calculatedWeeks, setCalculatedWeeks] = useState<number | null>(null);
+  const [calculatingWeeks, setCalculatingWeeks] = useState(false);
   
   // Filters
   const [filterBranch, setFilterBranch] = useState<string>('all');
@@ -164,7 +166,13 @@ export function TermCalendarManagement() {
 
     setSaving(true);
     try {
-      const teachingWeeks = calculateTeachingWeeks(termForm.start_date, termForm.end_date, tempBreaks);
+      // Calculate weeks using branch operating schedule
+      const teachingWeeks = await calculateTeachingWeeksWithSchedule(
+        termForm.branch_id,
+        termForm.start_date,
+        termForm.end_date,
+        tempBreaks.map(b => ({ start_date: b.start_date, end_date: b.end_date }))
+      );
       
       const termData: CreateTermData = {
         branch_id: termForm.branch_id,
@@ -271,9 +279,36 @@ export function TermCalendarManagement() {
     setTempBreaks(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Calculate teaching weeks when form changes
+  useEffect(() => {
+    const calculateWeeks = async () => {
+      if (!termForm.branch_id || !termForm.start_date || !termForm.end_date) {
+        setCalculatedWeeks(null);
+        return;
+      }
+      
+      setCalculatingWeeks(true);
+      try {
+        const weeks = await calculateTeachingWeeksWithSchedule(
+          termForm.branch_id,
+          termForm.start_date,
+          termForm.end_date,
+          tempBreaks.map(b => ({ start_date: b.start_date, end_date: b.end_date }))
+        );
+        setCalculatedWeeks(weeks);
+      } catch (error) {
+        console.error('Failed to calculate weeks:', error);
+        setCalculatedWeeks(null);
+      } finally {
+        setCalculatingWeeks(false);
+      }
+    };
+    
+    calculateWeeks();
+  }, [termForm.branch_id, termForm.start_date, termForm.end_date, tempBreaks]);
+
   const getTeachingWeeks = () => {
-    if (!termForm.start_date || !termForm.end_date) return null;
-    return calculateTeachingWeeks(termForm.start_date, termForm.end_date, tempBreaks);
+    return calculatedWeeks;
   };
 
   const getValidityEndDate = () => {
@@ -376,7 +411,7 @@ export function TermCalendarManagement() {
                         <div className="text-sm text-muted-foreground">
                           {formatDate(term.start_date)} – {formatDate(term.end_date)}
                           <span className="mx-2">•</span>
-                          {term.total_weeks || calculateTeachingWeeks(term.start_date, term.end_date, term.breaks)} weeks
+                          {term.total_weeks || '?'} weeks
                           <span className="mx-2">•</span>
                           Valid until: {format(validityEnd, 'd MMM yyyy')}
                         </div>
