@@ -356,13 +356,26 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
     // Generate student number
     const studentNumber = await generateStudentNumber();
     
+    // Sanitize empty strings to null for database fields that don't accept empty strings
+    const sanitizedData = {
+      ...studentData,
+      last_name: studentData.last_name || null,
+      date_of_birth: studentData.date_of_birth || null,
+      email: studentData.email || null,
+      phone: studentData.phone || null,
+      emergency_contact_name: studentData.emergency_contact_name || null,
+      emergency_contact_phone: studentData.emergency_contact_phone || null,
+      emergency_contact_relationship: studentData.emergency_contact_relationship || null,
+      trial_date: studentData.trial_date || null,
+      trial_time: studentData.trial_time || null,
+      referral_source: studentData.referral_source || null,
+      student_number: studentNumber,
+      enrollment_date: new Date().toISOString().split('T')[0]
+    };
+    
     const { data, error } = await supabase
       .from('students')
-      .insert({
-        ...studentData,
-        student_number: studentNumber,
-        enrollment_date: new Date().toISOString().split('T')[0]
-      })
+      .insert(sanitizedData)
       .select()
       .single();
 
