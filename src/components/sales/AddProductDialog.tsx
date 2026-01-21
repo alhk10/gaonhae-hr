@@ -43,7 +43,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     description: '',
     category_id: '',
     base_price: '',
-    tax_rate: '',
     available_variants: { sizes: [], colors: [], belt_ranks: [] } as ProductVariants,
     min_belt_level: '',
     max_belt_level: '',
@@ -97,7 +96,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         description: formData.description.trim() || undefined,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         base_price: formData.base_price ? parseFloat(formData.base_price) : 0,
-        tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : undefined,
         available_variants: formData.available_variants,
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
@@ -132,7 +130,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       description: '',
       category_id: '',
       base_price: '',
-      tax_rate: '',
       available_variants: { sizes: [], colors: [], belt_ranks: [] },
       min_belt_level: '',
       max_belt_level: '',
@@ -220,7 +217,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
               <Tag className="w-4 h-4" />
               Pricing & Category
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="category_id" className="text-xs">Category</Label>
                 <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
@@ -251,27 +248,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="tax_rate" className="text-xs">Tax Rate (%)</Label>
-                <Input
-                  id="tax_rate"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={formData.tax_rate}
-                  onChange={(e) => handleInputChange('tax_rate', e.target.value)}
-                  placeholder="8.00"
-                  className="h-9"
-                />
-              </div>
             </div>
             
             {/* Branch Pricing Note */}
             <Alert className="bg-muted/50 border-muted">
               <Globe className="w-4 h-4" />
               <AlertDescription className="text-xs">
-                Branch-specific pricing with multi-currency support can be configured after creating the product.
+                Branch-specific pricing and tax rates with multi-currency support can be configured after creating the product.
               </AlertDescription>
             </Alert>
           </section>
