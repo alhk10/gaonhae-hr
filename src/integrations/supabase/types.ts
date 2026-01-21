@@ -2043,6 +2043,7 @@ export type Database = {
           price_override: number | null
           product_id: string
           rule_name: string
+          tax_rate: number | null
           updated_at: string
           updated_by: string | null
         }
@@ -2060,6 +2061,7 @@ export type Database = {
           price_override?: number | null
           product_id: string
           rule_name: string
+          tax_rate?: number | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -2077,6 +2079,7 @@ export type Database = {
           price_override?: number | null
           product_id?: string
           rule_name?: string
+          tax_rate?: number | null
           updated_at?: string
           updated_by?: string | null
         }

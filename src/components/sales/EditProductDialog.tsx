@@ -395,6 +395,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         productId={product.id}
         productName={product.name}
         basePrice={formData.base_price}
+        baseTaxRate={formData.tax_rate}
         open={showBranchPricing}
         onOpenChange={setShowBranchPricing}
       />
