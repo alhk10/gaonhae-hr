@@ -439,8 +439,9 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                         </TableCell>
                          <TableCell>
                            <div className="font-medium">
-                             ${product.base_price?.toFixed(2) || '0.00'}
+                             S${product.base_price?.toFixed(2) || '0.00'}
                            </div>
+                           <div className="text-xs text-muted-foreground">Base price</div>
                          </TableCell>
                          <TableCell>
                            {inventory[product.id] ? (
