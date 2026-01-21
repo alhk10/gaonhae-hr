@@ -47,6 +47,7 @@ const transformProduct = (raw: any): Product => ({
   validity_months: raw.validity_months,
   term_id: raw.term_id,
   is_recurring: raw.is_recurring,
+  is_service: raw.is_service,
   is_active: raw.is_active,
   metadata: raw.metadata,
   created_at: raw.created_at,
@@ -79,6 +80,7 @@ export interface Product {
   validity_months?: number;
   term_id?: string;
   is_recurring?: boolean;
+  is_service?: boolean; // Service products don't track inventory
   is_active: boolean;
   metadata?: any;
   created_at: string;
@@ -240,6 +242,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       session_count: productData.session_count,
       validity_months: productData.validity_months,
       is_recurring: productData.is_recurring,
+      is_service: productData.is_service,
       is_active: productData.is_active,
       metadata: productData.metadata,
       created_by: productData.created_by,
