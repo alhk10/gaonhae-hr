@@ -43,7 +43,9 @@ const transformProduct = (raw: any): Product => ({
   max_belt_level: raw.max_belt_level,
   requires_belt_level: raw.requires_belt_level,
   session_count: raw.session_count,
+  validity_type: raw.validity_type,
   validity_months: raw.validity_months,
+  term_id: raw.term_id,
   is_recurring: raw.is_recurring,
   is_active: raw.is_active,
   metadata: raw.metadata,
@@ -73,7 +75,9 @@ export interface Product {
   max_belt_level?: string;
   requires_belt_level?: boolean;
   session_count?: number;
+  validity_type?: 'months' | 'term';
   validity_months?: number;
+  term_id?: string;
   is_recurring?: boolean;
   is_active: boolean;
   metadata?: any;

@@ -2185,9 +2185,11 @@ export type Database = {
           session_count: number | null
           sku: string
           tax_rate: number | null
+          term_id: string | null
           updated_at: string
           updated_by: string | null
           validity_months: number | null
+          validity_type: string | null
         }
         Insert: {
           available_sizes?: string[] | null
@@ -2211,9 +2213,11 @@ export type Database = {
           session_count?: number | null
           sku: string
           tax_rate?: number | null
+          term_id?: string | null
           updated_at?: string
           updated_by?: string | null
           validity_months?: number | null
+          validity_type?: string | null
         }
         Update: {
           available_sizes?: string[] | null
@@ -2237,9 +2241,11 @@ export type Database = {
           session_count?: number | null
           sku?: string
           tax_rate?: number | null
+          term_id?: string | null
           updated_at?: string
           updated_by?: string | null
           validity_months?: number | null
+          validity_type?: string | null
         }
         Relationships: [
           {
@@ -2247,6 +2253,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "term_calendars"
             referencedColumns: ["id"]
           },
         ]
@@ -2960,6 +2973,53 @@ export type Database = {
         }
         Relationships: []
       }
+      term_breaks: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          term_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          term_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          term_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "term_breaks_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "term_calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       term_calendars: {
         Row: {
           branch_id: string | null
@@ -2967,12 +3027,16 @@ export type Database = {
           created_by: string | null
           description: string | null
           end_date: string
+          grace_days: number | null
           id: string
           is_active: boolean | null
           name: string
           start_date: string
+          term_number: number | null
+          total_weeks: number | null
           updated_at: string
           updated_by: string | null
+          year: number | null
         }
         Insert: {
           branch_id?: string | null
@@ -2980,12 +3044,16 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           end_date: string
+          grace_days?: number | null
           id?: string
           is_active?: boolean | null
           name: string
           start_date: string
+          term_number?: number | null
+          total_weeks?: number | null
           updated_at?: string
           updated_by?: string | null
+          year?: number | null
         }
         Update: {
           branch_id?: string | null
@@ -2993,12 +3061,16 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           end_date?: string
+          grace_days?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
           start_date?: string
+          term_number?: number | null
+          total_weeks?: number | null
           updated_at?: string
           updated_by?: string | null
+          year?: number | null
         }
         Relationships: []
       }

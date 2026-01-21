@@ -10,6 +10,7 @@ import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager'
 import BranchManagement from '@/components/settings/BranchManagement';
 import EducationResourcesManagement from '@/components/settings/EducationResourcesManagement';
 import { NotificationSettingsManagement } from '@/components/settings/NotificationSettingsManagement';
+import { TermCalendarManagement } from '@/components/settings/TermCalendarManagement';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
@@ -64,13 +65,14 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="auth-users" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
             <TabsTrigger value="user-management">User Mgmt</TabsTrigger>
             <TabsTrigger value="employee-modules">Emp Modules</TabsTrigger>
             <TabsTrigger value="system-allowances">Allowances</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
             <TabsTrigger value="branch-management">Branches</TabsTrigger>
+            <TabsTrigger value="terms">Terms</TabsTrigger>
             <TabsTrigger value="education">Education</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
           </TabsList>
@@ -102,6 +104,10 @@ const Settings = () => {
 
           <TabsContent value="branch-management" className="mt-6">
             <BranchManagement />
+          </TabsContent>
+
+          <TabsContent value="terms" className="mt-6">
+            <TermCalendarManagement />
           </TabsContent>
 
           <TabsContent value="education" className="mt-6">
