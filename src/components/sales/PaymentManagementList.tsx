@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { getPayments, deletePayment, type Payment } from '@/services/paymentService';
 import CreatePaymentDialog from './CreatePaymentDialog';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 const PaymentManagementList: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -120,12 +121,6 @@ const PaymentManagementList: React.FC = () => {
     return methods[method] || method;
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD'
-    }).format(amount);
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-SG');

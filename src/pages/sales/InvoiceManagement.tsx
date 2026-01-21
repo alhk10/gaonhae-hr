@@ -42,7 +42,7 @@ const InvoiceManagement: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyValue = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
       style: 'currency',
       currency: 'SGD'
@@ -89,7 +89,7 @@ const InvoiceManagement: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loadingStats ? '-' : formatCurrency(stats.totalRevenue)}
+                {loadingStats ? '-' : formatCurrencyValue(stats.totalRevenue)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Total invoiced amount

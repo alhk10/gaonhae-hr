@@ -44,7 +44,7 @@ const PaymentManagement: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyValue = (amount: number) => {
     return new Intl.NumberFormat('en-SG', {
       style: 'currency',
       currency: 'SGD'
@@ -91,7 +91,7 @@ const PaymentManagement: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {loadingStats ? '-' : formatCurrency(stats.totalAmount)}
+                {loadingStats ? '-' : formatCurrencyValue(stats.totalAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Total amount received
@@ -106,7 +106,7 @@ const PaymentManagement: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {loadingStats ? '-' : formatCurrency(stats.thisMonthAmount)}
+                {loadingStats ? '-' : formatCurrencyValue(stats.thisMonthAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Current month collections
@@ -121,7 +121,7 @@ const PaymentManagement: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {loadingStats ? '-' : formatCurrency(stats.pendingAmount)}
+                {loadingStats ? '-' : formatCurrencyValue(stats.pendingAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Pending collections
@@ -151,7 +151,7 @@ const PaymentManagement: React.FC = () => {
                     </div>
                     <div className="text-xl font-bold">{method.count}</div>
                     <div className="text-sm text-muted-foreground">
-                      {formatCurrency(method.amount)}
+                      {formatCurrencyValue(method.amount)}
                     </div>
                   </div>
                 ))}

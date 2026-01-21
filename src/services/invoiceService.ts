@@ -23,6 +23,7 @@ export interface Invoice {
   due_date?: string;
   payment_terms_days?: number;
   branch_id?: string;
+  branch_currency?: string; // Currency from branch
   notes?: string;
   internal_notes?: string;
   created_at: string;
@@ -117,10 +118,29 @@ export const getInvoices = async (
       throw new Error(`Failed to fetch invoices: ${error.message}`);
     }
 
-    // Transform the data to include student name
+    // Get branch currencies for invoices with branch_id
+    const branchIds = [...new Set((data || []).filter(inv => inv.branch_id).map(inv => inv.branch_id))];
+    let branchCurrencies: Record<string, string> = {};
+    
+    if (branchIds.length > 0) {
+      const { data: branches } = await supabase
+        .from('branches')
+        .select('id, currency')
+        .in('id', branchIds);
+      
+      if (branches) {
+        branchCurrencies = branches.reduce((acc, branch) => {
+          acc[branch.id] = branch.currency || 'SGD';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+    }
+
+    // Transform the data to include student name and branch currency
     const transformedInvoices = (data || []).map(invoice => ({
       ...invoice,
-      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
+      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student',
+      branch_currency: invoice.branch_id ? branchCurrencies[invoice.branch_id] || 'SGD' : 'SGD'
     })) as Invoice[];
 
     return {
