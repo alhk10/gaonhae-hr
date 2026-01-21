@@ -299,20 +299,30 @@ function ClassCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const getBeltRange = () => {
-    if (!classSchedule.belt_range_min && !classSchedule.belt_range_max) {
-      return null;
-    }
-    if (classSchedule.belt_range_min && classSchedule.belt_range_max) {
-      if (classSchedule.belt_range_min === classSchedule.belt_range_max) {
-        return classSchedule.belt_range_min;
+  const getAgeRange = () => {
+    if (classSchedule.age_from && classSchedule.age_to) {
+      if (classSchedule.age_from === classSchedule.age_to) {
+        return `Age ${classSchedule.age_from}`;
       }
-      return `${classSchedule.belt_range_min} - ${classSchedule.belt_range_max}`;
+      return `Ages ${classSchedule.age_from}-${classSchedule.age_to}`;
     }
-    return classSchedule.belt_range_min || classSchedule.belt_range_max;
+    if (classSchedule.age_from) return `Ages ${classSchedule.age_from}+`;
+    if (classSchedule.age_to) return `Up to age ${classSchedule.age_to}`;
+    return null;
   };
 
-  const beltRange = getBeltRange();
+  const getBeltLevels = () => {
+    if (classSchedule.belt_levels && classSchedule.belt_levels.length > 0) {
+      if (classSchedule.belt_levels.length <= 3) {
+        return classSchedule.belt_levels.join(', ');
+      }
+      return `${classSchedule.belt_levels.length} belt levels`;
+    }
+    return null;
+  };
+
+  const ageRange = getAgeRange();
+  const beltLevels = getBeltLevels();
 
   return (
     <div
@@ -336,16 +346,16 @@ function ClassCard({
         </div>
 
         <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-          {classSchedule.age_group && (
+          {ageRange && (
             <span className="flex items-center gap-1">
               <Users className="w-3.5 h-3.5" />
-              {classSchedule.age_group}
+              {ageRange}
             </span>
           )}
-          {beltRange && (
+          {beltLevels && (
             <span className="flex items-center gap-1">
               <Award className="w-3.5 h-3.5" />
-              {beltRange}
+              {beltLevels}
             </span>
           )}
           {classSchedule.max_capacity && (

@@ -18,13 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import {
   ClassSchedule,
   ClassScheduleInput,
   WEEKDAYS,
   CLASS_TYPES,
-  AGE_GROUPS,
   BELT_LEVELS,
 } from '@/services/branchTimetableService';
 
@@ -56,8 +56,10 @@ export function ClassScheduleDialog({
     weekday: 1,
     start_time: '09:00',
     end_time: '10:00',
-    class_type: 'Beginner',
-    age_group: null,
+    class_type: 'Little Gaonhae',
+    age_from: null,
+    age_to: null,
+    belt_levels: [],
     belt_range_min: null,
     belt_range_max: null,
     max_capacity: null,
@@ -73,7 +75,9 @@ export function ClassScheduleDialog({
         start_time: classSchedule.start_time,
         end_time: classSchedule.end_time,
         class_type: classSchedule.class_type,
-        age_group: classSchedule.age_group,
+        age_from: classSchedule.age_from,
+        age_to: classSchedule.age_to,
+        belt_levels: classSchedule.belt_levels || [],
         belt_range_min: classSchedule.belt_range_min,
         belt_range_max: classSchedule.belt_range_max,
         max_capacity: classSchedule.max_capacity,
@@ -86,8 +90,10 @@ export function ClassScheduleDialog({
         weekday: 1,
         start_time: '09:00',
         end_time: '10:00',
-        class_type: 'Beginner',
-        age_group: null,
+        class_type: 'Little Gaonhae',
+        age_from: null,
+        age_to: null,
+        belt_levels: [],
         belt_range_min: null,
         belt_range_max: null,
         max_capacity: null,
@@ -105,6 +111,15 @@ export function ClassScheduleDialog({
       onOpenChange(false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBeltToggle = (belt: string, checked: boolean) => {
+    const currentBelts = formData.belt_levels || [];
+    if (checked) {
+      setFormData({ ...formData, belt_levels: [...currentBelts, belt] });
+    } else {
+      setFormData({ ...formData, belt_levels: currentBelts.filter(b => b !== belt) });
     }
   };
 
@@ -218,82 +233,69 @@ export function ClassScheduleDialog({
             </Select>
           </div>
 
-          {/* Age Group */}
-          <div className="space-y-2">
-            <Label htmlFor="age_group">Age Group</Label>
-            <Select
-              value={formData.age_group || 'none'}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  age_group: value === 'none' ? null : value,
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select age group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Not specified</SelectItem>
-                {AGE_GROUPS.map((group) => (
-                  <SelectItem key={group} value={group}>
-                    {group}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Belt Range */}
+          {/* Age Range */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="belt_min">Belt From</Label>
-              <Select
-                value={formData.belt_range_min || 'none'}
-                onValueChange={(value) =>
+              <Label htmlFor="age_from">Age From</Label>
+              <Input
+                id="age_from"
+                type="number"
+                min="1"
+                max="100"
+                value={formData.age_from || ''}
+                onChange={(e) =>
                   setFormData({
                     ...formData,
-                    belt_range_min: value === 'none' ? null : value,
+                    age_from: e.target.value ? parseInt(e.target.value, 10) : null,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Min belt" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Any</SelectItem>
-                  {BELT_LEVELS.map((belt) => (
-                    <SelectItem key={belt} value={belt}>
-                      {belt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="e.g., 4"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="belt_max">Belt To</Label>
-              <Select
-                value={formData.belt_range_max || 'none'}
-                onValueChange={(value) =>
+              <Label htmlFor="age_to">Age To</Label>
+              <Input
+                id="age_to"
+                type="number"
+                min="1"
+                max="100"
+                value={formData.age_to || ''}
+                onChange={(e) =>
                   setFormData({
                     ...formData,
-                    belt_range_max: value === 'none' ? null : value,
+                    age_to: e.target.value ? parseInt(e.target.value, 10) : null,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Max belt" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Any</SelectItem>
-                  {BELT_LEVELS.map((belt) => (
-                    <SelectItem key={belt} value={belt}>
-                      {belt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="e.g., 6"
+              />
             </div>
+          </div>
+
+          {/* Belt Levels Multi-Select */}
+          <div className="space-y-2">
+            <Label>Belt Levels</Label>
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+              {BELT_LEVELS.map((belt) => (
+                <div key={belt} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`belt-${belt}`}
+                    checked={(formData.belt_levels || []).includes(belt)}
+                    onCheckedChange={(checked) => handleBeltToggle(belt, !!checked)}
+                  />
+                  <label
+                    htmlFor={`belt-${belt}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    {belt}
+                  </label>
+                </div>
+              ))}
+            </div>
+            {(formData.belt_levels || []).length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {(formData.belt_levels || []).join(', ')}
+              </p>
+            )}
           </div>
 
           {/* Capacity and Instructor */}

@@ -8,6 +8,9 @@ export interface ClassSchedule {
   end_time: string;
   class_type: string;
   age_group: string | null;
+  age_from: number | null;
+  age_to: number | null;
+  belt_levels: string[] | null;
   belt_range_min: string | null;
   belt_range_max: string | null;
   max_capacity: number | null;
@@ -24,6 +27,9 @@ export interface ClassScheduleInput {
   end_time: string;
   class_type: string;
   age_group?: string | null;
+  age_from?: number | null;
+  age_to?: number | null;
+  belt_levels?: string[] | null;
   belt_range_min?: string | null;
   belt_range_max?: string | null;
   max_capacity?: number | null;
@@ -42,20 +48,14 @@ export const WEEKDAYS = [
 ];
 
 export const CLASS_TYPES = [
-  'Beginner',
-  'Intermediate',
-  'Advanced',
+  'Little Gaonhae',
+  'Junior',
+  'Kids',
+  'Teens & Adults',
   'Competition',
-  'Private',
-  'Special'
-];
-
-export const AGE_GROUPS = [
-  'Kids (4-6)',
-  'Junior (7-12)',
-  'Teen (13-17)',
-  'Adult (18+)',
-  'All Ages'
+  'Team Gaonhae Poomsae',
+  'Team Gaonhae Kyorugi',
+  'Kang Klass'
 ];
 
 export const BELT_LEVELS = [
@@ -100,6 +100,9 @@ export async function getClassSchedules(branchId?: string): Promise<ClassSchedul
     end_time: item.end_time,
     class_type: item.class_type,
     age_group: item.age_group,
+    age_from: (item as any).age_from ?? null,
+    age_to: (item as any).age_to ?? null,
+    belt_levels: (item as any).belt_levels ?? null,
     belt_range_min: item.belt_range_min,
     belt_range_max: item.belt_range_max,
     max_capacity: item.max_capacity,
@@ -132,6 +135,9 @@ export async function getClassSchedule(id: string): Promise<ClassSchedule | null
     end_time: data.end_time,
     class_type: data.class_type,
     age_group: data.age_group,
+    age_from: (data as any).age_from ?? null,
+    age_to: (data as any).age_to ?? null,
+    belt_levels: (data as any).belt_levels ?? null,
     belt_range_min: data.belt_range_min,
     belt_range_max: data.belt_range_max,
     max_capacity: data.max_capacity,
@@ -152,12 +158,15 @@ export async function createClassSchedule(input: ClassScheduleInput): Promise<st
       end_time: input.end_time,
       class_type: input.class_type,
       age_group: input.age_group || null,
+      age_from: input.age_from || null,
+      age_to: input.age_to || null,
+      belt_levels: input.belt_levels || null,
       belt_range_min: input.belt_range_min || null,
       belt_range_max: input.belt_range_max || null,
       max_capacity: input.max_capacity || null,
       instructor_name: input.instructor_name || null,
       is_active: input.is_active ?? true
-    })
+    } as any)
     .select('id')
     .single();
 
