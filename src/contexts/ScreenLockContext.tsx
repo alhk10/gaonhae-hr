@@ -7,6 +7,7 @@ interface ScreenLockContextType {
   isLocked: boolean;
   hasPin: boolean;
   refreshPinStatus: () => void;
+  lock: () => void;
 }
 
 const ScreenLockContext = createContext<ScreenLockContextType | null>(null);
@@ -19,13 +20,13 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
   const { user, userDetails } = useAuth();
   const employeeId = userDetails?.id || null;
 
-  const { isLocked, hasPin, unlock, refreshPinStatus } = useScreenLock({
+  const { isLocked, hasPin, unlock, lock, refreshPinStatus } = useScreenLock({
     employeeId,
     timeout: 5 * 60 * 1000, // 5 minutes
   });
 
   return (
-    <ScreenLockContext.Provider value={{ isLocked, hasPin, refreshPinStatus }}>
+    <ScreenLockContext.Provider value={{ isLocked, hasPin, refreshPinStatus, lock }}>
       {children}
       <ScreenLockOverlay
         isLocked={isLocked}
