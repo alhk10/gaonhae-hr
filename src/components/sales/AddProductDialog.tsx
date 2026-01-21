@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe, Briefcase } from 'lucide-react';
 import { ProductVariantManager } from './ProductVariantManager';
 import { TermValiditySelector } from './TermValiditySelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -53,6 +53,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     validity_months: '',
     term_id: null as string | null,
     is_recurring: false,
+    is_service: false,
     is_active: true
   });
   
@@ -111,6 +112,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         validity_months: formData.validity_type === 'months' && formData.validity_months ? parseInt(formData.validity_months) : undefined,
         term_id: formData.validity_type === 'term' ? formData.term_id : undefined,
         is_recurring: formData.is_recurring,
+        is_service: formData.is_service,
         is_active: formData.is_active
       };
 
@@ -144,6 +146,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       validity_months: '',
       term_id: null,
       is_recurring: false,
+      is_service: false,
       is_active: true
     });
     setEnabledVariantTypes({ size: false, color: false, belt_rank: false });
@@ -411,15 +414,28 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
           <section className="rounded-lg bg-accent/30 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Settings className="w-4 h-4" />
-              Status
+              Status & Type
             </h3>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) => handleInputChange('is_active', checked)}
-              />
-              <Label htmlFor="is_active" className="text-xs">Active Product</Label>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_service"
+                  checked={formData.is_service}
+                  onCheckedChange={(checked) => handleInputChange('is_service', checked)}
+                />
+                <Label htmlFor="is_service" className="text-xs flex items-center gap-2">
+                  <Briefcase className="w-3 h-3" />
+                  Service (no inventory tracking)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => handleInputChange('is_active', checked)}
+                />
+                <Label htmlFor="is_active" className="text-xs">Active Product</Label>
+              </div>
             </div>
           </section>
 

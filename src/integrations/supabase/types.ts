@@ -2225,6 +2225,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_recurring: boolean | null
+          is_service: boolean
           max_belt_level: string | null
           metadata: Json | null
           min_belt_level: string | null
@@ -2253,6 +2254,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_recurring?: boolean | null
+          is_service?: boolean
           max_belt_level?: string | null
           metadata?: Json | null
           min_belt_level?: string | null
@@ -2281,6 +2283,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_recurring?: boolean | null
+          is_service?: boolean
           max_belt_level?: string | null
           metadata?: Json | null
           min_belt_level?: string | null

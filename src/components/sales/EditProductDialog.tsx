@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
 import { ProductVariantManager } from './ProductVariantManager';
@@ -55,6 +55,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     validity_months: 0,
     term_id: null as string | null,
     is_recurring: false,
+    is_service: false,
     is_active: true,
     metadata: {}
   });
@@ -84,6 +85,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         validity_months: product.validity_months || 0,
         term_id: product.term_id || null,
         is_recurring: product.is_recurring || false,
+        is_service: product.is_service || false,
         is_active: product.is_active,
         metadata: product.metadata || {}
       });
@@ -375,11 +377,20 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             <section className="rounded-lg bg-accent/30 p-4 space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <Settings className="w-4 h-4" />
-                Status
+                Status & Type
               </h3>
-              <div className="flex items-center space-x-2">
-                <Switch checked={formData.is_active} onCheckedChange={(checked) => handleInputChange('is_active', checked)} />
-                <Label className="text-xs">Active Product</Label>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center space-x-2">
+                  <Switch checked={formData.is_service} onCheckedChange={(checked) => handleInputChange('is_service', checked)} />
+                  <Label className="text-xs flex items-center gap-2">
+                    <Briefcase className="w-3 h-3" />
+                    Service (no inventory tracking)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch checked={formData.is_active} onCheckedChange={(checked) => handleInputChange('is_active', checked)} />
+                  <Label className="text-xs">Active Product</Label>
+                </div>
               </div>
             </section>
 

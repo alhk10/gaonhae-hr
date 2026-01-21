@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Package, DollarSign, Users, Clock, Settings, Globe, Building2 } from 'lucide-react';
+import { Calendar, Package, DollarSign, Users, Clock, Settings, Globe, Building2, Briefcase } from 'lucide-react';
 import { Product } from '@/services/productService';
 import { getProductBranchPrices, type BranchPrice } from '@/services/priceRulesService';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -70,9 +70,17 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl">{product.name}</DialogTitle>
-            <Badge variant={product.is_active ? "default" : "secondary"}>
-              {product.is_active ? "Active" : "Inactive"}
-            </Badge>
+            <div className="flex gap-2">
+              {product.is_service && (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  Service
+                </Badge>
+              )}
+              <Badge variant={product.is_active ? "default" : "secondary"}>
+                {product.is_active ? "Active" : "Inactive"}
+              </Badge>
+            </div>
           </div>
         </DialogHeader>
 

@@ -26,7 +26,8 @@ import {
   PackagePlus,
   CheckCircle2,
   XCircle,
-  Boxes
+  Boxes,
+  Briefcase
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import { getProductInventory, ProductInventory } from '@/services/inventoryService';
@@ -444,7 +445,12 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                            <div className="text-xs text-muted-foreground">Base price</div>
                          </TableCell>
                          <TableCell>
-                           {inventory[product.id] ? (
+                           {product.is_service ? (
+                             <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                               <Briefcase className="w-3 h-3 mr-1" />
+                               Service
+                             </Badge>
+                           ) : inventory[product.id] ? (
                              <InventoryStatusBadge
                                status={inventory[product.id].status}
                                quantity={inventory[product.id].available_quantity}
