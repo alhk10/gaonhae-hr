@@ -119,23 +119,13 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       return;
     }
     
-    if (!formData.first_name || !formData.last_name) {
-      toast.error('First name and last name are required');
+    if (!formData.first_name) {
+      toast.error('First name is required');
       return;
     }
     
-    if (!formData.date_of_birth) {
-      toast.error('Date of birth is required');
-      return;
-    }
-    
-    if (!formData.phone) {
-      toast.error('Phone number is required');
-      return;
-    }
-    
-    if (!formData.emergency_contact_name || !formData.emergency_contact_phone || !formData.emergency_contact_relationship) {
-      toast.error('Emergency contact information is required');
+    if (!formData.phone && !formData.email) {
+      toast.error('Either phone or email is required');
       return;
     }
     
@@ -222,12 +212,11 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Label htmlFor="last_name">Last Name</Label>
                   <Input
                     id="last_name"
                     value={formData.last_name}
                     onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    required
                   />
                 </div>
               </div>
@@ -256,13 +245,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                <Label htmlFor="date_of_birth">Date of Birth</Label>
                 <Input
                   id="date_of_birth"
                   type="date"
                   value={formData.date_of_birth}
                   onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                  required
                 />
               </div>
             </CardContent>
@@ -273,19 +261,18 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
                 <Phone className="w-4 h-4" />
-                Contact Information
+                Contact Information (Phone or Email required)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Phone *</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     placeholder="+65 9123 4567"
-                    required
                   />
                 </div>
                 <div>
@@ -307,34 +294,32 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
                 <AlertCircle className="w-4 h-4" />
-                Emergency Contact
+                Emergency Contact (Optional)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="emergency_contact_name">Name *</Label>
+                  <Label htmlFor="emergency_contact_name">Name</Label>
                   <Input
                     id="emergency_contact_name"
                     value={formData.emergency_contact_name}
                     onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
                     placeholder="Emergency contact name"
-                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="emergency_contact_phone">Phone *</Label>
+                  <Label htmlFor="emergency_contact_phone">Phone</Label>
                   <Input
                     id="emergency_contact_phone"
                     value={formData.emergency_contact_phone}
                     onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
                     placeholder="+65 9123 4567"
-                    required
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="emergency_contact_relationship">Relationship *</Label>
+                <Label htmlFor="emergency_contact_relationship">Relationship</Label>
                 <Select 
                   value={formData.emergency_contact_relationship} 
                   onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
