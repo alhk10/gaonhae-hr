@@ -6,6 +6,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+
+// Get tax rate as decimal (e.g., 0.09 for 9%)
+const getTaxRateForCountry = (country: string | null): number => {
+  const percentage = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
+  return percentage / 100;
+};
 
 export interface Invoice {
   id: string;
@@ -216,6 +223,19 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     // Generate invoice number
     const invoiceNumber = await generateInvoiceNumber();
     
+    // Get branch country for tax rate
+    let branchCountry: string | null = null;
+    if (invoiceData.branch_id) {
+      const { data: branch } = await supabase
+        .from('branches')
+        .select('country')
+        .eq('id', invoiceData.branch_id)
+        .single();
+      branchCountry = branch?.country || null;
+    }
+    
+    const taxRate = getTaxRateForCountry(branchCountry);
+    
     // Calculate totals
     let subtotal = 0;
     let taxAmount = 0;
@@ -223,8 +243,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     for (const item of invoiceData.items) {
       const itemTotal = item.quantity * item.unit_price;
       subtotal += itemTotal;
-      // Assume 8% tax rate for now - this could be configurable
-      taxAmount += itemTotal * 0.08;
+      taxAmount += itemTotal * taxRate;
     }
     
     const totalAmount = subtotal + taxAmount;
@@ -268,7 +287,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     // Create invoice items
     const itemsToInsert = invoiceData.items.map(item => {
       const itemTotal = item.quantity * item.unit_price;
-      const itemTaxAmount = itemTotal * 0.08;
+      const itemTaxAmount = itemTotal * taxRate;
       
       return {
         invoice_id: invoice.id,
@@ -276,7 +295,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        tax_rate: 0.08,
+        tax_rate: taxRate,
         tax_amount: itemTaxAmount,
         total_amount: itemTotal + itemTaxAmount,
         size_variant: item.size_variant

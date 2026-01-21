@@ -26,6 +26,12 @@ import {
   type BranchPrice 
 } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+
+// Get default tax rate for a country
+const getCountryDefaultTax = (country: string): number => {
+  return COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE;
+};
 
 interface BranchPricingManagerProps {
   productId: string;
@@ -241,7 +247,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                                     step="0.01"
                                     min="0"
                                     max="100"
-                                    placeholder={baseTaxRate.toFixed(2)}
+                                    placeholder={getCountryDefaultTax(bp.branch_country).toString()}
                                     value={bp.tax_rate ?? ''}
                                     onChange={(e) => handleTaxRateChange(bp.branch_id, e.target.value)}
                                     className="h-8 pr-6 text-right text-sm"
@@ -281,7 +287,7 @@ export const BranchPricingManager: React.FC<BranchPricingManagerProps> = ({
                           
                           {!hasCustomValue(bp) && (
                             <p className="text-xs text-muted-foreground mt-1 ml-6">
-                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {baseTaxRate}% tax
+                              Using defaults: {formatCurrency(basePrice, bp.branch_currency)} @ {getCountryDefaultTax(bp.branch_country)}% tax ({bp.branch_country})
                             </p>
                           )}
                         </CardContent>
