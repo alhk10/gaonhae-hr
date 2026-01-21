@@ -2718,7 +2718,7 @@ export type Database = {
           first_name: string
           gender: string | null
           id: string
-          last_name: string
+          last_name: string | null
           medical_conditions: string | null
           nationality: string | null
           notes: string | null
@@ -2754,7 +2754,7 @@ export type Database = {
           first_name: string
           gender?: string | null
           id?: string
-          last_name: string
+          last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
           notes?: string | null
@@ -2790,7 +2790,7 @@ export type Database = {
           first_name?: string
           gender?: string | null
           id?: string
-          last_name?: string
+          last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
           notes?: string | null
