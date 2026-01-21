@@ -28,12 +28,11 @@ export const SetupPinPrompt = ({ employeeId, onPinSet }: SetupPinPromptProps) =>
   const [confirmPin, setConfirmPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
   // Check if user has a PIN on mount
   useEffect(() => {
     const checkPin = async () => {
-      if (!employeeId || hasChecked || dismissed) return;
+      if (!employeeId || hasChecked) return;
       
       const hasPinSet = await hasEmployeePin(employeeId);
       setHasChecked(true);
@@ -45,7 +44,7 @@ export const SetupPinPrompt = ({ employeeId, onPinSet }: SetupPinPromptProps) =>
     };
 
     checkPin();
-  }, [employeeId, hasChecked, dismissed]);
+  }, [employeeId, hasChecked]);
 
   const handleSetPin = async () => {
     if (pin.length !== 4) {
@@ -74,29 +73,22 @@ export const SetupPinPrompt = ({ employeeId, onPinSet }: SetupPinPromptProps) =>
     }
   };
 
-  const handleSkip = () => {
-    setDismissed(true);
-    setOpen(false);
-  };
-
-  const handleRemindLater = () => {
-    setOpen(false);
-    // Will show again on next login since we don't persist the dismissal
-  };
-
   if (!employeeId) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <DialogTitle className="text-center">Secure Your Session</DialogTitle>
+          <DialogTitle className="text-center">Set Up Your Security PIN</DialogTitle>
           <DialogDescription className="text-center">
-            Set up a 4-digit PIN to automatically lock your screen after 5 minutes of inactivity. 
-            This helps protect your account when you step away.
+            A 4-digit PIN is required to secure your session. Your screen will automatically lock after 5 minutes of inactivity.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,7 +130,7 @@ export const SetupPinPrompt = ({ employeeId, onPinSet }: SetupPinPromptProps) =>
           </div>
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
+        <DialogFooter>
           <Button
             onClick={handleSetPin}
             disabled={isLoading || pin.length !== 4 || confirmPin.length !== 4}
@@ -153,23 +145,6 @@ export const SetupPinPrompt = ({ employeeId, onPinSet }: SetupPinPromptProps) =>
               "Set PIN"
             )}
           </Button>
-          
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              onClick={handleRemindLater}
-              className="flex-1"
-            >
-              Remind Me Later
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={handleSkip}
-              className="flex-1 text-muted-foreground"
-            >
-              Don't Ask Again
-            </Button>
-          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
