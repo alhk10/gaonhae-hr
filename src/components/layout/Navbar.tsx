@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Menu, X, Key, Shield } from 'lucide-react';
+import { User, LogOut, Menu, X, Key, Shield, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserPasswordChangeDialog from '@/components/auth/UserPasswordChangeDialog';
@@ -10,7 +10,7 @@ import { useScreenLockContext } from '@/contexts/ScreenLockContext';
 
 const Navbar = () => {
   const { user, logout, userDetails } = useAuth();
-  const { refreshPinStatus } = useScreenLockContext();
+  const { refreshPinStatus, lock, hasPin } = useScreenLockContext();
   const isMobile = useIsMobile();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -42,6 +42,12 @@ const Navbar = () => {
 
   const handlePinSet = () => {
     refreshPinStatus();
+  };
+
+  const handleLockNow = () => {
+    console.log('Navbar: Lock Now button clicked');
+    lock();
+    setShowMobileMenu(false);
   };
 
   const toggleMobileMenu = () => {
@@ -86,6 +92,19 @@ const Navbar = () => {
                   <Shield className="w-4 h-4" />
                   <span>Set PIN</span>
                 </Button>
+                
+                {/* Lock Now Button - only show if user has a PIN */}
+                {hasPin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLockNow}
+                    className="flex items-center space-x-1"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Lock Now</span>
+                  </Button>
+                )}
                 
                 {/* Password Change Button */}
                 <Button
@@ -148,6 +167,19 @@ const Navbar = () => {
                 <Shield className="w-4 h-4" />
                 <span>Set PIN</span>
               </Button>
+              
+              {/* Mobile Lock Now Button - only show if user has a PIN */}
+              {hasPin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLockNow}
+                  className="w-full flex items-center justify-center space-x-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>Lock Now</span>
+                </Button>
+              )}
               
               {/* Mobile Password Change Button */}
               <Button
