@@ -23,7 +23,8 @@ import {
   Calendar,
   Palette,
   Save,
-  X
+  X,
+  CreditCard
 } from 'lucide-react';
 import { getBranches, saveBranch, updateBranch, deleteBranch, type Branch } from '@/services/settingsService';
 
@@ -40,7 +41,8 @@ const BranchManagement: React.FC = () => {
     address: '',
     color: 'bg-blue-500',
     country: 'Singapore',
-    currency: 'SGD'
+    currency: 'SGD',
+    stripe_account_id: ''
   });
 
   const countryOptions = [
@@ -107,7 +109,8 @@ const BranchManagement: React.FC = () => {
       address: '',
       color: 'bg-blue-500',
       country: 'Singapore',
-      currency: 'SGD'
+      currency: 'SGD',
+      stripe_account_id: ''
     });
   };
 
@@ -123,7 +126,8 @@ const BranchManagement: React.FC = () => {
         address: formData.address.trim(),
         color: formData.color,
         country: formData.country,
-        currency: formData.currency
+        currency: formData.currency,
+        stripe_account_id: formData.stripe_account_id.trim() || undefined
       });
       
       toast.success('Branch created successfully');
@@ -143,7 +147,8 @@ const BranchManagement: React.FC = () => {
       address: branch.address,
       color: branch.color || 'bg-blue-500',
       country: branch.country || 'Singapore',
-      currency: branch.currency || 'SGD'
+      currency: branch.currency || 'SGD',
+      stripe_account_id: branch.stripe_account_id || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -161,7 +166,8 @@ const BranchManagement: React.FC = () => {
         address: formData.address.trim(),
         color: formData.color,
         country: formData.country,
-        currency: formData.currency
+        currency: formData.currency,
+        stripe_account_id: formData.stripe_account_id.trim() || undefined
       });
       
       toast.success('Branch updated successfully');
@@ -314,6 +320,21 @@ const BranchManagement: React.FC = () => {
                       </Select>
                     </div>
                   </div>
+                  <div>
+                    <Label htmlFor="add-stripe">Stripe Account ID</Label>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="add-stripe"
+                        placeholder="e.g., acct_1234567890"
+                        value={formData.stripe_account_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, stripe_account_id: e.target.value }))}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Optional. Used for Stripe Connect payment integration.
+                    </p>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => {
@@ -385,6 +406,7 @@ const BranchManagement: React.FC = () => {
                     <TableHead>Address</TableHead>
                     <TableHead>Country</TableHead>
                     <TableHead>Currency</TableHead>
+                    <TableHead>Stripe Account</TableHead>
                     <TableHead>Color</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -409,6 +431,16 @@ const BranchManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{branch.currency || 'SGD'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {branch.stripe_account_id ? (
+                          <div className="flex items-center gap-1">
+                            <CreditCard className="h-3 w-3 text-green-600" />
+                            <span className="text-xs font-mono">{branch.stripe_account_id.slice(0, 12)}...</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Not configured</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -555,6 +587,21 @@ const BranchManagement: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-stripe">Stripe Account ID</Label>
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="edit-stripe"
+                  placeholder="e.g., acct_1234567890"
+                  value={formData.stripe_account_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, stripe_account_id: e.target.value }))}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Optional. Used for Stripe Connect payment integration.
+              </p>
             </div>
           </div>
           <DialogFooter>
