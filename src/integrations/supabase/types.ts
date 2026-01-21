@@ -400,6 +400,7 @@ export type Database = {
       }
       branch_timetables: {
         Row: {
+          age_group: string | null
           belt_range_max: string | null
           belt_range_min: string | null
           branch_id: string
@@ -417,6 +418,7 @@ export type Database = {
           weekday: number
         }
         Insert: {
+          age_group?: string | null
           belt_range_max?: string | null
           belt_range_min?: string | null
           branch_id: string
@@ -434,6 +436,7 @@ export type Database = {
           weekday: number
         }
         Update: {
+          age_group?: string | null
           belt_range_max?: string | null
           belt_range_min?: string | null
           branch_id?: string
