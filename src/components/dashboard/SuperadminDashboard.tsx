@@ -6,6 +6,7 @@ import { Users, FileText, Clock, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
 
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
@@ -179,6 +180,9 @@ const SuperadminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Class Weekly Planner */}
+      <ClassWeeklyPlanner />
     </div>
   );
 };

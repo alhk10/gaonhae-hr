@@ -714,6 +714,51 @@ export type Database = {
           },
         ]
       }
+      class_pricing_tiers: {
+        Row: {
+          branch_id: string
+          class_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          price_per_lesson: number | null
+          price_per_week: number
+          tier_display_name: string
+          tier_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          class_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_per_lesson?: number | null
+          price_per_week?: number
+          tier_display_name: string
+          tier_name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          class_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_per_lesson?: number | null
+          price_per_week?: number
+          tier_display_name?: string
+          tier_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       clock_status: {
         Row: {
           clock_in_time: string | null
@@ -2655,6 +2700,92 @@ export type Database = {
           },
         ]
       }
+      student_class_enrollments: {
+        Row: {
+          branch_id: string
+          class_type: string
+          created_at: string
+          created_by: string | null
+          enrolled_weekdays: number[] | null
+          id: string
+          invoice_item_id: string | null
+          notes: string | null
+          pricing_tier_id: string | null
+          status: string
+          student_id: string
+          term_id: string
+          tier_name: string
+          total_price: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          class_type: string
+          created_at?: string
+          created_by?: string | null
+          enrolled_weekdays?: number[] | null
+          id?: string
+          invoice_item_id?: string | null
+          notes?: string | null
+          pricing_tier_id?: string | null
+          status?: string
+          student_id: string
+          term_id: string
+          tier_name: string
+          total_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          class_type?: string
+          created_at?: string
+          created_by?: string | null
+          enrolled_weekdays?: number[] | null
+          id?: string
+          invoice_item_id?: string | null
+          notes?: string | null
+          pricing_tier_id?: string | null
+          status?: string
+          student_id?: string
+          term_id?: string
+          tier_name?: string
+          total_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_class_enrollments_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_class_enrollments_pricing_tier_id_fkey"
+            columns: ["pricing_tier_id"]
+            isOneToOne: false
+            referencedRelation: "class_pricing_tiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_class_enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_class_enrollments_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "term_calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_emergency_contacts: {
         Row: {
           created_at: string
@@ -2813,6 +2944,79 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: true
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_scheduled_classes: {
+        Row: {
+          attended_at: string | null
+          created_at: string
+          end_time: string
+          enrollment_id: string
+          id: string
+          notes: string | null
+          recorded_by: string | null
+          scheduled_date: string
+          start_time: string
+          status: string
+          swap_reason: string | null
+          swapped_from_id: string | null
+          timetable_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attended_at?: string | null
+          created_at?: string
+          end_time: string
+          enrollment_id: string
+          id?: string
+          notes?: string | null
+          recorded_by?: string | null
+          scheduled_date: string
+          start_time: string
+          status?: string
+          swap_reason?: string | null
+          swapped_from_id?: string | null
+          timetable_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attended_at?: string | null
+          created_at?: string
+          end_time?: string
+          enrollment_id?: string
+          id?: string
+          notes?: string | null
+          recorded_by?: string | null
+          scheduled_date?: string
+          start_time?: string
+          status?: string
+          swap_reason?: string | null
+          swapped_from_id?: string | null
+          timetable_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_scheduled_classes_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_class_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_scheduled_classes_swapped_from_id_fkey"
+            columns: ["swapped_from_id"]
+            isOneToOne: false
+            referencedRelation: "student_scheduled_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_scheduled_classes_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "branch_timetables"
             referencedColumns: ["id"]
           },
         ]
