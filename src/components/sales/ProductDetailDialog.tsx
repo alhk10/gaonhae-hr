@@ -244,18 +244,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     </div>
                   </div>
                 )}
-                {product.available_variants.belt_ranks && product.available_variants.belt_ranks.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Belt Ranks</p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.available_variants.belt_ranks.map((rank) => (
-                        <Badge key={rank} variant="outline" className="bg-amber-500/10 text-amber-700">
-                          {rank}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}

@@ -23,7 +23,6 @@ export interface VariantType {
 export interface ProductVariants {
   sizes?: string[];
   colors?: string[];
-  belt_ranks?: string[];
 }
 
 /**
@@ -126,9 +125,6 @@ export const flattenVariants = (variants: ProductVariants): { type: string; valu
   if (variants.colors?.length) {
     result.push({ type: 'color', values: variants.colors });
   }
-  if (variants.belt_ranks?.length) {
-    result.push({ type: 'belt_rank', values: variants.belt_ranks });
-  }
   
   return result;
 };
@@ -139,7 +135,6 @@ export const flattenVariants = (variants: ProductVariants): { type: string; valu
 export const calculateVariantCombinations = (variants: ProductVariants): number => {
   const sizes = variants.sizes?.length || 1;
   const colors = variants.colors?.length || 1;
-  const beltRanks = variants.belt_ranks?.length || 1;
   
-  return sizes * colors * beltRanks;
+  return sizes * colors;
 };

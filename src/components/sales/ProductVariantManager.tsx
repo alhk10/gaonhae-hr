@@ -1,6 +1,6 @@
 /**
  * Product Variant Manager
- * Unified dialog for managing Size, Color, and Belt Rank variants
+ * Unified dialog for managing Size and Color variants
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { X, Plus, Ruler, Palette, Award, Loader2 } from 'lucide-react';
+import { X, Plus, Ruler, Palette, Loader2 } from 'lucide-react';
 import { getVariantTypes, VariantType, VariantPreset, ProductVariants } from '@/services/variantTypesService';
 
 interface ProductVariantManagerProps {
@@ -22,23 +22,20 @@ interface ProductVariantManagerProps {
   enabledTypes: {
     size: boolean;
     color: boolean;
-    belt_rank: boolean;
   };
-  onEnabledTypesChange: (enabledTypes: { size: boolean; color: boolean; belt_rank: boolean }) => void;
+  onEnabledTypesChange: (enabledTypes: { size: boolean; color: boolean }) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 const VARIANT_ICONS: Record<string, React.ReactNode> = {
   size: <Ruler className="w-4 h-4" />,
-  color: <Palette className="w-4 h-4" />,
-  belt_rank: <Award className="w-4 h-4" />
+  color: <Palette className="w-4 h-4" />
 };
 
 const VARIANT_COLORS: Record<string, string> = {
   size: 'bg-blue-500/10 text-blue-700 border-blue-200',
-  color: 'bg-purple-500/10 text-purple-700 border-purple-200',
-  belt_rank: 'bg-amber-500/10 text-amber-700 border-amber-200'
+  color: 'bg-purple-500/10 text-purple-700 border-purple-200'
 };
 
 export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
@@ -55,8 +52,7 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
   const [currentEnabled, setCurrentEnabled] = useState(enabledTypes);
   const [newValues, setNewValues] = useState<Record<string, string>>({
     size: '',
-    color: '',
-    belt_rank: ''
+    color: ''
   });
   const [activeTab, setActiveTab] = useState('size');
 
@@ -86,7 +82,6 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     switch (code) {
       case 'size': return currentVariants.sizes || [];
       case 'color': return currentVariants.colors || [];
-      case 'belt_rank': return currentVariants.belt_ranks || [];
       default: return [];
     }
   };
@@ -96,7 +91,6 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
       switch (code) {
         case 'size': return { ...prev, sizes: values };
         case 'color': return { ...prev, colors: values };
-        case 'belt_rank': return { ...prev, belt_ranks: values };
         default: return prev;
       }
     });
@@ -277,8 +271,7 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
   const enabledCount = Object.values(currentEnabled).filter(Boolean).length;
   const totalValues = 
     (currentVariants.sizes?.length || 0) + 
-    (currentVariants.colors?.length || 0) + 
-    (currentVariants.belt_ranks?.length || 0);
+    (currentVariants.colors?.length || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,7 +293,7 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="size" className="flex items-center gap-2">
                 <Ruler className="w-4 h-4" />
                 Size
@@ -319,15 +312,6 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                   </Badge>
                 ) : null}
               </TabsTrigger>
-              <TabsTrigger value="belt_rank" className="flex items-center gap-2">
-                <Award className="w-4 h-4" />
-                Belt Rank
-                {currentEnabled.belt_rank && currentVariants.belt_ranks?.length ? (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                    {currentVariants.belt_ranks.length}
-                  </Badge>
-                ) : null}
-              </TabsTrigger>
             </TabsList>
 
             <div className="mt-4">
@@ -336,9 +320,6 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
               </TabsContent>
               <TabsContent value="color" className="mt-0">
                 {renderVariantTab('color')}
-              </TabsContent>
-              <TabsContent value="belt_rank" className="mt-0">
-                {renderVariantTab('belt_rank')}
               </TabsContent>
             </div>
           </Tabs>
@@ -354,9 +335,6 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
               ) : null}
               {currentEnabled.color && currentVariants.colors?.length ? (
                 <span>Colors: {currentVariants.colors.length}</span>
-              ) : null}
-              {currentEnabled.belt_rank && currentVariants.belt_ranks?.length ? (
-                <span>Belt Ranks: {currentVariants.belt_ranks.length}</span>
               ) : null}
             </div>
           </div>

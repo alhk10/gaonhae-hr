@@ -43,7 +43,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     description: '',
     category_id: '',
     base_price: '',
-    available_variants: { sizes: [], colors: [], belt_ranks: [] } as ProductVariants,
+    available_variants: { sizes: [], colors: [] } as ProductVariants,
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
@@ -53,8 +53,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false,
-    belt_rank: false
+    color: false
   });
 
   useEffect(() => {
@@ -97,7 +96,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         available_variants: formData.available_variants,
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
-        requires_belt_rank: enabledVariantTypes.belt_rank,
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
         max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
         requires_belt_level: formData.requires_belt_level,
@@ -126,14 +124,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       description: '',
       category_id: '',
       base_price: '',
-      available_variants: { sizes: [], colors: [], belt_ranks: [] },
+      available_variants: { sizes: [], colors: [] },
       min_belt_level: '',
       max_belt_level: '',
       requires_belt_level: false,
       is_service: false,
       is_active: true
     });
-    setEnabledVariantTypes({ size: false, color: false, belt_rank: false });
+    setEnabledVariantTypes({ size: false, color: false });
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -143,10 +141,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   // Count total variants configured
   const totalVariants = 
     (formData.available_variants.sizes?.length || 0) +
-    (formData.available_variants.colors?.length || 0) +
-    (formData.available_variants.belt_ranks?.length || 0);
+    (formData.available_variants.colors?.length || 0);
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.belt_rank;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -260,7 +257,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
               Product Variants
             </h3>
             <p className="text-xs text-muted-foreground">
-              Configure Size, Color, and Belt Rank variants for this product
+              Configure Size and Color variants for this product
             </p>
             
             <div className="flex items-center justify-between">
@@ -273,11 +270,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 {enabledVariantTypes.color && (
                   <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
                     Colors: {formData.available_variants.colors?.length || 0}
-                  </Badge>
-                )}
-                {enabledVariantTypes.belt_rank && (
-                  <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
-                    Belt Ranks: {formData.available_variants.belt_ranks?.length || 0}
                   </Badge>
                 )}
                 {!hasAnyVariants && (
