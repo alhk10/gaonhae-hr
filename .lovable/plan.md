@@ -1,12 +1,8 @@
 
-
-# Plan: Add Term Tagging for Classes Category Items in Invoice Creation
+# Plan: Add Change Log for Invoices
 
 ## Overview
-When adding invoice items from the "Classes" category, the system will automatically tag them with the appropriate term for the selected branch. The term selection logic follows these rules:
-1. Auto-select the **current term** (based on today's date and branch)
-2. If the current term already has a Classes invoice for this student, select the **next term**
-3. If no next term is available, display an **error message**
+Implement a comprehensive change log system for invoices that tracks all modifications including status changes, payment updates, item modifications, and field edits. The change log will be displayed in a dialog accessible from the invoice list and will show a chronological history of all changes made to an invoice.
 
 ---
 
@@ -14,448 +10,231 @@ When adding invoice items from the "Classes" category, the system will automatic
 
 | Change | Description |
 |--------|-------------|
-| **New state for terms** | Add state to track available terms for the selected branch |
-| **Add term_id to newItem** | Track the selected term when adding class items |
-| **Term dropdown** | Add a Term dropdown field (visible only for Classes category) |
-| **Auto-term selection logic** | Auto-select current term, or next term if already invoiced |
-| **Check existing invoices** | Query invoice_items to check if student already has class invoices for a term |
-| **Store term in metadata** | Include term_id in invoice_item metadata when creating invoice |
-| **Error handling** | Show error toast if no available term exists |
+| **New database table** | Create `invoice_change_logs` table to store change history |
+| **New service functions** | Add functions to create and retrieve change log entries |
+| **Update existing functions** | Modify invoice service functions to log changes when updates occur |
+| **New UI component** | Create `InvoiceChangeLogDialog` to display the change history |
+| **Update invoice list** | Add a "History" button to the invoice actions column |
+| **RLS policies** | Add appropriate security policies for the change log table |
 
 ---
 
 ## Implementation Details
 
-### 1. Add New State Variables
+### 1. Database Schema
 
-```typescript
-import { getTerms, getCurrentTerm, Term } from '@/services/termCalendarService';
+Create a new `invoice_change_logs` table following the pattern established by `security_audit_log` and `student_grading_history`:
 
-// Add to component state
-const [branchTerms, setBranchTerms] = useState<Term[]>([]);
-const [termLoading, setTermLoading] = useState(false);
-const [termError, setTermError] = useState<string | null>(null);
+```sql
+CREATE TABLE public.invoice_change_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    field_name TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    changes JSONB,
+    changed_by TEXT,
+    changed_by_email TEXT,
+    ip_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Create index for faster lookups by invoice
+CREATE INDEX idx_invoice_change_logs_invoice_id ON public.invoice_change_logs(invoice_id);
+CREATE INDEX idx_invoice_change_logs_created_at ON public.invoice_change_logs(created_at DESC);
 ```
 
-### 2. Update newItem State
+**Action Types:**
+- `created` - Invoice was created
+- `status_changed` - Status was modified
+- `payment_added` - Payment was recorded
+- `payment_removed` - Payment was deleted
+- `item_added` - Line item was added
+- `item_removed` - Line item was deleted
+- `item_updated` - Line item was modified
+- `field_updated` - Other invoice fields were modified (notes, due_date, etc.)
+- `deleted` - Invoice was deleted (soft log before deletion)
 
-```typescript
-const [newItem, setNewItem] = useState({
-  product_id: '',
-  category_id: '',
-  quantity: 1,
-  unit_price: 0,
-  size_variant: '',
-  color_variant: '',
-  term_id: ''  // NEW: track selected term for class items
-});
+### 2. RLS Policies
+
+```sql
+-- Enable RLS
+ALTER TABLE public.invoice_change_logs ENABLE ROW LEVEL SECURITY;
+
+-- Superadmins can manage all change logs
+CREATE POLICY "superadmin_manage_invoice_change_logs" ON public.invoice_change_logs
+FOR ALL USING (get_current_user_role() = 'superadmin')
+WITH CHECK (get_current_user_role() = 'superadmin');
+
+-- Students can view change logs for their own invoices
+CREATE POLICY "students_view_own_invoice_change_logs" ON public.invoice_change_logs
+FOR SELECT USING (
+    invoice_id IN (
+        SELECT id FROM invoices WHERE student_id IN (
+            SELECT id FROM students WHERE email = auth.email()
+        )
+    )
+);
+
+-- Insert policy for any authenticated user (logs are created programmatically)
+CREATE POLICY "authenticated_insert_invoice_change_logs" ON public.invoice_change_logs
+FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 ```
 
-### 3. Load Terms When Branch Changes
+### 3. Service Layer Updates
 
-When a branch is selected, load the active/upcoming terms for that branch:
+**New file: `src/services/invoiceChangeLogService.ts`**
 
 ```typescript
-const loadBranchTerms = async (branchId: string) => {
-  if (!branchId) {
-    setBranchTerms([]);
-    return;
-  }
-  
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('term_calendars')
-      .select('*')
-      .eq('branch_id', branchId)
-      .eq('is_active', true)
-      .gte('end_date', today)
-      .order('start_date', { ascending: true });
-    
-    if (error) throw error;
-    setBranchTerms(data || []);
-  } catch (error) {
-    console.error('Error loading terms:', error);
-    setBranchTerms([]);
-  }
-};
-```
-
-Call this when branch changes:
-```typescript
-// In handleInputChange for branch_id
-if (field === 'branch_id') {
-  loadBranchTerms(value);
+export interface InvoiceChangeLog {
+  id: string;
+  invoice_id: string;
+  action: string;
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
+  changes?: Record<string, any>;
+  changed_by?: string;
+  changed_by_email?: string;
+  created_at: string;
 }
+
+// Log a change to an invoice
+export const logInvoiceChange = async (params: {
+  invoice_id: string;
+  action: string;
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
+  changes?: Record<string, any>;
+}): Promise<void>
+
+// Get change logs for an invoice
+export const getInvoiceChangeLogs = async (
+  invoiceId: string
+): Promise<InvoiceChangeLog[]>
 ```
 
-### 4. Check Existing Invoices for Student + Term
+**Update `src/services/invoiceService.ts`:**
 
-Create a function to check if the student already has a class invoice for a specific term:
+- Import and use `logInvoiceChange` in:
+  - `createInvoice()` - Log "created" action
+  - `updateInvoiceStatus()` - Log "status_changed" with old/new values
+  - `deleteInvoice()` - Log "deleted" action before deletion
 
-```typescript
-const checkExistingClassInvoice = async (
-  studentId: string, 
-  termId: string
-): Promise<boolean> => {
-  if (!studentId || !termId) return false;
-  
-  try {
-    // Get invoices for this student
-    const { data: invoices, error: invError } = await supabase
-      .from('invoices')
-      .select('id')
-      .eq('student_id', studentId);
-    
-    if (invError || !invoices?.length) return false;
-    
-    const invoiceIds = invoices.map(i => i.id);
-    
-    // Check if any invoice items have this term in metadata and are class products
-    const { data: items, error: itemsError } = await supabase
-      .from('invoice_items')
-      .select(`
-        id,
-        metadata,
-        product_id,
-        products!inner(category_id, product_categories!inner(name))
-      `)
-      .in('invoice_id', invoiceIds)
-      .eq('products.product_categories.name', 'Classes');
-    
-    if (itemsError) return false;
-    
-    // Check metadata for term_id match
-    return (items || []).some(item => 
-      item.metadata?.term_id === termId
-    );
-  } catch (error) {
-    console.error('Error checking existing invoice:', error);
-    return false;
-  }
-};
+**Update `src/services/paymentService.ts`:**
+
+- Log "payment_added" when a payment is created
+- Log "payment_removed" when a payment is deleted
+
+### 4. UI Component
+
+**New file: `src/components/sales/InvoiceChangeLogDialog.tsx`**
+
+A dialog component that displays the change history in a timeline format:
+
+```text
++-----------------------------------------------+
+|  Invoice Change Log - INV-2025-00001          |
+|-----------------------------------------------|
+|  Timeline                                     |
+|                                               |
+|  ● Jan 29, 2025 10:30 AM                      |
+|    Status changed from "draft" to "sent"     |
+|    by John Doe                                |
+|                                               |
+|  ● Jan 28, 2025 3:15 PM                       |
+|    Payment of $500.00 added                   |
+|    by Jane Smith                              |
+|                                               |
+|  ● Jan 27, 2025 9:00 AM                       |
+|    Invoice created                            |
+|    by John Doe                                |
+|                                               |
+|                              [Close]          |
++-----------------------------------------------+
 ```
 
-### 5. Auto-Select Term When Classes Category Selected
+**Features:**
+- Chronological timeline view (newest first)
+- Color-coded action types (green for payments, blue for status, etc.)
+- User attribution for each change
+- Timestamps formatted in local timezone
+- Collapsible detail sections for complex changes (like item modifications)
+- Loading state with skeleton
+- Empty state when no logs exist
 
-Update `handleCategoryChange` to auto-select the appropriate term:
+### 5. Integration with Invoice List
 
-```typescript
-const handleCategoryChange = async (categoryId: string) => {
-  const category = categories.find(c => c.id === categoryId);
-  const selectedBranch = branches.find(b => b.id === formData.branch_id);
-  
-  let defaultQuantity = 1;
-  let selectedTermId = '';
-  
-  setTermError(null);
-  
-  if (category?.name === 'Classes') {
-    // Set quantity defaults
-    if (selectedBranch?.country === 'Singapore') {
-      defaultQuantity = 12;
-    } else if (selectedBranch?.country === 'Australia') {
-      defaultQuantity = 10;
-    }
-    
-    // Auto-select term
-    if (formData.branch_id && formData.student_id) {
-      setTermLoading(true);
-      
-      try {
-        // Get current/upcoming terms for this branch
-        const today = new Date().toISOString().split('T')[0];
-        const availableTerms = branchTerms.filter(t => t.end_date >= today);
-        
-        if (availableTerms.length === 0) {
-          setTermError('No active terms available for this branch');
-        } else {
-          // Find current term (today is within term dates)
-          const currentTerm = availableTerms.find(t => 
-            t.start_date <= today && t.end_date >= today
-          );
-          
-          if (currentTerm) {
-            // Check if current term already has class invoice for this student
-            const hasExisting = await checkExistingClassInvoice(
-              formData.student_id, 
-              currentTerm.id
-            );
-            
-            if (hasExisting) {
-              // Find next term
-              const nextTerm = availableTerms.find(t => 
-                t.start_date > currentTerm.end_date
-              );
-              
-              if (nextTerm) {
-                selectedTermId = nextTerm.id;
-              } else {
-                setTermError('No next term available. Student already has classes invoiced for current term.');
-              }
-            } else {
-              selectedTermId = currentTerm.id;
-            }
-          } else {
-            // No current term - use first available future term
-            selectedTermId = availableTerms[0].id;
-          }
-        }
-      } catch (error) {
-        console.error('Error auto-selecting term:', error);
-      } finally {
-        setTermLoading(false);
-      }
-    }
-  }
-  
-  setNewItem(prev => ({
-    ...prev,
-    category_id: categoryId,
-    product_id: '',
-    quantity: defaultQuantity,
-    unit_price: 0,
-    size_variant: '',
-    color_variant: '',
-    term_id: selectedTermId
-  }));
-};
-```
+**Update `src/components/sales/InvoiceManagementList.tsx`:**
 
-### 6. Add Term Dropdown UI
-
-Add a Term selector that appears only when Classes category is selected:
+Add a "History" button in the actions column:
 
 ```tsx
-{/* Term Dropdown - Only for Classes category */}
-{selectedCategory?.name === 'Classes' && branchTerms.length > 0 && (
-  <div className="space-y-2">
-    <Label>Term *</Label>
-    <Select 
-      value={newItem.term_id} 
-      onValueChange={(value) => handleNewItemChange('term_id', value)}
-      disabled={termLoading}
+import { History } from 'lucide-react';
+import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
+
+// In the actions column
+<InvoiceChangeLogDialog
+  invoiceId={invoice.id}
+  invoiceNumber={invoice.invoice_number}
+  trigger={
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8"
+      title="View History"
     >
-      <SelectTrigger className={termError ? 'border-destructive' : ''}>
-        <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
-      </SelectTrigger>
-      <SelectContent>
-        {branchTerms.map((term) => (
-          <SelectItem key={term.id} value={term.id}>
-            {term.name} ({term.start_date} to {term.end_date})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-    {termError && (
-      <p className="text-sm text-destructive">{termError}</p>
-    )}
-  </div>
-)}
-```
-
-### 7. Store Term in InvoiceItem Interface
-
-Update the InvoiceItem interface:
-
-```typescript
-interface InvoiceItem {
-  product_id: string;
-  product_name: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  size_variant?: string;
-  color_variant?: string;
-  term_id?: string;      // NEW: for class items
-  term_name?: string;    // NEW: display name
-  total: number;
-}
-```
-
-### 8. Update addItem Function
-
-When adding a class item, include the term:
-
-```typescript
-const addItem = () => {
-  if (!newItem.product_id) {
-    toast.error('Please select a product');
-    return;
+      <History className="h-4 w-4" />
+    </Button>
   }
-
-  const product = products.find(p => p.id === newItem.product_id);
-  const selectedCategory = categories.find(c => c.id === newItem.category_id);
-  
-  if (!product) {
-    toast.error('Product not found');
-    return;
-  }
-  
-  // Validate term for Classes category
-  if (selectedCategory?.name === 'Classes') {
-    if (!newItem.term_id) {
-      toast.error('Please select a term for class items');
-      return;
-    }
-    if (termError) {
-      toast.error(termError);
-      return;
-    }
-  }
-
-  const term = branchTerms.find(t => t.id === newItem.term_id);
-  
-  const item: InvoiceItem = {
-    product_id: newItem.product_id,
-    product_name: product.name,
-    description: product.name,
-    quantity: newItem.quantity,
-    unit_price: newItem.unit_price,
-    size_variant: newItem.size_variant || undefined,
-    color_variant: newItem.color_variant || undefined,
-    term_id: newItem.term_id || undefined,
-    term_name: term?.name || undefined,
-    total: newItem.quantity * newItem.unit_price
-  };
-
-  setItems([...items, item]);
-  // Reset with term cleared
-  setNewItem({
-    product_id: '',
-    category_id: newItem.category_id,
-    quantity: 1,
-    unit_price: 0,
-    size_variant: '',
-    color_variant: '',
-    term_id: ''
-  });
-};
-```
-
-### 9. Update Invoice Service to Include Metadata
-
-Update the `CreateInvoiceData` interface and `createInvoice` function in `invoiceService.ts`:
-
-```typescript
-// In CreateInvoiceData
-items: Array<{
-  product_id: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  size_variant?: string;
-  metadata?: Record<string, any>;  // NEW
-}>;
-
-// In createInvoice, when creating items:
-const itemsToInsert = invoiceData.items.map(item => {
-  const itemTotal = item.quantity * item.unit_price;
-  const itemTaxAmount = itemTotal * taxRate;
-  
-  return {
-    invoice_id: invoice.id,
-    product_id: item.product_id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    tax_rate: taxRate,
-    tax_amount: itemTaxAmount,
-    total_amount: itemTotal + itemTaxAmount,
-    size_variant: item.size_variant,
-    metadata: item.metadata  // NEW: stores term_id
-  };
-});
-```
-
-### 10. Update handleSubmit in CreateInvoiceDialog
-
-Pass term metadata when creating invoice:
-
-```typescript
-items: items.map(item => ({
-  product_id: item.product_id,
-  description: item.description,
-  quantity: item.quantity,
-  unit_price: item.unit_price,
-  size_variant: item.size_variant || undefined,
-  metadata: item.term_id ? { term_id: item.term_id } : undefined
-}))
-```
-
-### 11. Display Term in Items Table
-
-Add a Term column to the invoice items table:
-
-```tsx
-<TableHeader>
-  <TableRow>
-    <TableHead>Product</TableHead>
-    <TableHead>Term</TableHead>  {/* NEW */}
-    <TableHead>Quantity</TableHead>
-    <TableHead>Unit Price</TableHead>
-    <TableHead>Size</TableHead>
-    <TableHead>Color</TableHead>
-    <TableHead>Total</TableHead>
-    <TableHead className="w-12">Actions</TableHead>
-  </TableRow>
-</TableHeader>
-<TableBody>
-  {items.map((item, index) => (
-    <TableRow key={index}>
-      <TableCell className="font-medium">{item.product_name}</TableCell>
-      <TableCell>{item.term_name || '-'}</TableCell>  {/* NEW */}
-      ...
-    </TableRow>
-  ))}
-</TableBody>
+/>
 ```
 
 ---
 
-## File Changes
+## File Changes Summary
 
-### `src/components/sales/CreateInvoiceDialog.tsx`
-- Add state for `branchTerms`, `termLoading`, `termError`
-- Add `term_id` to `newItem` state
-- Add `term_id` and `term_name` to `InvoiceItem` interface
-- Create `loadBranchTerms()` function
-- Create `checkExistingClassInvoice()` function
-- Update `handleInputChange` to load terms when branch changes
-- Update `handleCategoryChange` to auto-select term
-- Add Term dropdown UI (conditional for Classes)
-- Update `addItem()` to validate and include term
-- Update `handleSubmit()` to pass term metadata
-- Add Term column to items table
-- Import `getTerms` from termCalendarService
+### New Files
+| File | Description |
+|------|-------------|
+| `src/services/invoiceChangeLogService.ts` | Service for managing invoice change logs |
+| `src/components/sales/InvoiceChangeLogDialog.tsx` | Dialog component for displaying change history |
 
-### `src/services/invoiceService.ts`
-- Update `CreateInvoiceData` interface to include optional `metadata` in items
-- Update `createInvoice` to pass metadata to invoice_items
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/services/invoiceService.ts` | Add change logging to create, update, and delete functions |
+| `src/services/paymentService.ts` | Add change logging for payment operations |
+| `src/components/sales/InvoiceManagementList.tsx` | Add History button to actions column |
+
+### Database Migration
+| Change | Description |
+|--------|-------------|
+| New table | `invoice_change_logs` with proper indexes |
+| RLS policies | Superadmin full access, students view own, authenticated insert |
 
 ---
 
-## Error Scenarios
+## Technical Considerations
 
-| Scenario | Behavior |
-|----------|----------|
-| No branch selected | Term dropdown hidden |
-| No student selected | Term auto-select skipped, manual selection required |
-| No terms for branch | Error: "No active terms available for this branch" |
-| Current term already invoiced, no next term | Error: "No next term available. Student already has classes invoiced for current term." |
-| Term not selected for class item | Error toast when trying to add item |
+1. **Performance**: Indexes on `invoice_id` and `created_at` ensure fast lookups
+2. **Data Retention**: Change logs are cascaded on invoice deletion to maintain referential integrity
+3. **Audit Trail**: The `changed_by_email` field is populated from `auth.email()` for accountability
+4. **JSONB for Complex Changes**: The `changes` field stores structured data for complex modifications (like item updates with multiple field changes)
+5. **RLS Security**: Follows existing patterns - superadmins have full access, students can only see their own invoice logs
 
 ---
 
 ## Testing Checklist
 
-- [ ] Term dropdown appears only when Classes category is selected
-- [ ] Terms are filtered to selected branch only
-- [ ] Current term is auto-selected when available
-- [ ] Next term is selected if current term already has class invoice for student
-- [ ] Error displayed when no terms available
-- [ ] Error displayed when current term invoiced and no next term
-- [ ] Term is stored in invoice_item metadata upon creation
-- [ ] Term column displays correctly in items table
-- [ ] Items without terms (non-class) show "-" in Term column
-
+- [ ] Change log table is created with correct schema
+- [ ] RLS policies allow appropriate access levels
+- [ ] Invoice creation logs "created" action
+- [ ] Status changes log old and new values
+- [ ] Payment additions/removals are logged
+- [ ] Change log dialog displays entries in chronological order
+- [ ] History button appears in invoice list actions
+- [ ] Empty state shows when no logs exist
+- [ ] Loading state displays while fetching logs
