@@ -39,6 +39,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const SubmitPartnersClaim = lazy(() => import('./pages/SubmitPartnersClaim'));
 const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
+const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -342,6 +343,16 @@ function App() {
                         <AuthGuard>
                           <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
                             <BranchProfitLoss />
+                          </PositionAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/miscellaneous" 
+                      element={
+                        <AuthGuard>
+                          <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
+                            <Miscellaneous />
                           </PositionAccessGuard>
                         </AuthGuard>
                       } 

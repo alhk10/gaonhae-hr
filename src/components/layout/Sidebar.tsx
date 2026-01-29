@@ -19,7 +19,8 @@ import {
   Receipt,
   TrendingUp,
   Briefcase,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileCheck
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -131,7 +132,8 @@ const Sidebar = () => {
       // Partner pages (superadmin can access all)
       adminItems.push(
         { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
-        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' }
+        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' },
+        { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
 
       adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
@@ -243,10 +245,11 @@ const Sidebar = () => {
       }
     }
 
-    // Add partner-specific pages based on position (Branch P&L only - Partners Claim is handled above)
+    // Add partner-specific pages based on position (Branch P&L and Miscellaneous - Partners Claim is handled above)
     if (isPartnerPosition) {
       menuItems.push(
-        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' }
+        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' },
+        { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
     }
 
