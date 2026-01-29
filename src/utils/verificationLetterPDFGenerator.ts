@@ -104,25 +104,26 @@ const loadLogo = async (): Promise<HTMLImageElement | null> => {
 };
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
-  const leftMargin = 20;
-  const logoWidth = 38.5; // 10% bigger than 35mm
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const logoWidth = 38.5;
+  const centerX = pageWidth / 2;
 
-  // Add logo - left aligned
+  // Add logo - centered
   if (logoImg) {
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', leftMargin, 15, logoWidth, Math.min(logoHeight, 27.5));
+    const logoX = centerX - logoWidth / 2;
+    doc.addImage(logoImg, 'JPEG', logoX, 15, logoWidth, Math.min(logoHeight, 27.5));
   }
 
-  // Company details - left aligned next to logo
-  const textX = leftMargin + logoWidth + 5;
+  // Company details - centered below logo
   doc.setTextColor(54, 54, 54);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 22);
+  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', centerX, 48, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28);
-  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34);
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', centerX, 54, { align: 'center' });
+  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', centerX, 60, { align: 'center' });
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -131,7 +132,7 @@ const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
 const formatDate = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
-    return format(new Date(dateStr), 'dd/MM/yyyy');
+    return format(new Date(dateStr), 'd MMMM yyyy');
   } catch {
     return dateStr;
   }
@@ -166,7 +167,8 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 55;
+  let yPos = 75;
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   // Date
   doc.setFontSize(11);
@@ -175,13 +177,14 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
 
   // To Whom It May Concern
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TO WHOM IT MAY CONCERN', 20, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
 
-  // Title
+  // Title - centered
   doc.setFontSize(14);
-  doc.text('STUDENT VERIFICATION LETTER', 20, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text('STUDENT VERIFICATION LETTER', pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
   // Body paragraph - using template
@@ -253,7 +256,8 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
     joinDate: formatDate(data.joinDate),
   };
 
-  let yPos = 55;
+  let yPos = 75;
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   // Date
   doc.setFontSize(11);
@@ -262,13 +266,14 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
 
   // To Whom It May Concern
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TO WHOM IT MAY CONCERN', 20, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
 
-  // Title
+  // Title - centered
   doc.setFontSize(14);
-  doc.text('EMPLOYMENT VERIFICATION LETTER', 20, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EMPLOYMENT VERIFICATION LETTER', pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
   // Body paragraph - using template
@@ -322,19 +327,21 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 55;
+  let yPos = 75;
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
   yPos += 15;
 
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TO WHOM IT MAY CONCERN', 20, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
 
   doc.setFontSize(14);
-  doc.text('STUDENT VERIFICATION LETTER', 20, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text('STUDENT VERIFICATION LETTER', pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
   doc.setFontSize(11);
@@ -401,19 +408,21 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
     joinDate: formatDate(data.joinDate),
   };
 
-  let yPos = 55;
+  let yPos = 75;
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
   yPos += 15;
 
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TO WHOM IT MAY CONCERN', 20, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
 
   doc.setFontSize(14);
-  doc.text('EMPLOYMENT VERIFICATION LETTER', 20, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EMPLOYMENT VERIFICATION LETTER', pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
   doc.setFontSize(11);
