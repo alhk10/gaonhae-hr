@@ -760,16 +760,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 </TableBody>
               </Table>
 
-              {/* Running Totals after Invoice Items */}
+              {/* Subtotal after Invoice Items */}
               <div className="flex justify-end">
                 <div className="w-64 space-y-1 text-sm">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Tax ({taxRate}%):</span>
-                    <span>${taxAmount.toFixed(2)}</span>
-                  </div>
                   <div className="flex justify-between font-medium">
-                    <span>Current Total:</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>Subtotal:</span>
+                    <span>${subtotal.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
