@@ -159,6 +159,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setTimeout(() => resolve({ data: { session: null } }), 8000)
         );
         const { data: { session } } = await Promise.race([getSessionPromise as any, timeout]);
+        
+        // If session exists but is close to expiring, proactively refresh
+        if (session?.expires_at) {
+          const expiresAtMs = session.expires_at * 1000;
+          const now = Date.now();
+          const timeUntilExpiry = expiresAtMs - now;
+          
+          // If token expires in less than 5 minutes, refresh it
+          if (timeUntilExpiry < 5 * 60 * 1000) {
+            logger.debug('Token expiring soon, proactively refreshing...');
+            const { data: refreshData } = await supabase.auth.refreshSession();
+            if (refreshData.session) {
+              await handleUserSession(refreshData.session);
+              return;
+            }
+          }
+        }
+        
         await handleUserSession(session);
       } catch (error) {
         logger.error('Error getting initial session', error);
@@ -170,10 +188,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       logger.info('Auth state changed', { event });
+      
+      // On TOKEN_REFRESHED event, update the session
+      if (event === 'TOKEN_REFRESHED') {
+        logger.debug('Token refreshed, updating session');
+      }
+      
       await handleUserSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // Set up periodic session refresh every 4 minutes to prevent expiration
+    const refreshInterval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.expires_at) {
+          const expiresAtMs = session.expires_at * 1000;
+          const now = Date.now();
+          const timeUntilExpiry = expiresAtMs - now;
+          
+          // If token expires in less than 5 minutes, refresh it
+          if (timeUntilExpiry < 5 * 60 * 1000) {
+            logger.debug('Periodic check: Token expiring soon, refreshing...');
+            await supabase.auth.refreshSession();
+          }
+        }
+      } catch (error) {
+        logger.error('Error during periodic session refresh', error);
+      }
+    }, 4 * 60 * 1000); // Check every 4 minutes
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const value: AuthContextType = {
