@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase } from 'lucide-react';
+import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Command,
@@ -29,6 +29,7 @@ import {
   printStudentVerificationLetter,
   printEmploymentVerificationLetter,
 } from '@/utils/verificationLetterPDFGenerator';
+import LetterTemplateSettingsDialog from '@/components/miscellaneous/LetterTemplateSettingsDialog';
 
 interface Student {
   id: string;
@@ -77,6 +78,7 @@ const Miscellaneous = () => {
   const [studentOpen, setStudentOpen] = useState(false);
   const [employeeOpen, setEmployeeOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Fetch students
   const { data: students = [], isLoading: studentsLoading } = useQuery({
@@ -210,12 +212,17 @@ const Miscellaneous = () => {
     <ResponsiveLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <FileCheck className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Miscellaneous</h1>
-            <p className="text-muted-foreground">Generate verification letters for students and employees</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FileCheck className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Miscellaneous</h1>
+              <p className="text-muted-foreground">Generate verification letters for students and employees</p>
+            </div>
           </div>
+          <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)}>
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -453,6 +460,12 @@ const Miscellaneous = () => {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Settings Dialog */}
+        <LetterTemplateSettingsDialog
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
       </div>
     </ResponsiveLayout>
   );

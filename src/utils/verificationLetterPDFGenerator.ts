@@ -19,6 +19,38 @@ interface EmployeeData {
   joinDate: string;
 }
 
+interface LetterTemplates {
+  studentBody: string;
+  studentClosing: string;
+  employeeBody: string;
+  employeeClosing: string;
+}
+
+const DEFAULT_TEMPLATES: LetterTemplates = {
+  studentBody: 'This is to certify that {fullName} is a student currently registered at Gaonhae Taekwondo.',
+  studentClosing: 'This letter is issued upon request for {fullName}\'s reference.',
+  employeeBody: 'This is to certify that {fullName} is employed at Gaonhae Taekwondo LLP.',
+  employeeClosing: 'This letter is issued upon request for {fullName}\'s reference.',
+};
+
+const STORAGE_KEY = 'verification-letter-templates';
+
+const getLetterTemplates = (): LetterTemplates => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return { ...DEFAULT_TEMPLATES, ...JSON.parse(stored) };
+    }
+  } catch (error) {
+    console.error('Error loading templates:', error);
+  }
+  return DEFAULT_TEMPLATES;
+};
+
+const replacePlaceholders = (template: string, fullName: string): string => {
+  return template.replace(/{fullName}/g, fullName);
+};
+
 const loadLogo = async (): Promise<HTMLImageElement | null> => {
   try {
     const logoImg = new Image();
@@ -83,6 +115,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   const logoImg = await loadLogo();
   await addLetterhead(doc, logoImg);
 
+  const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
 
@@ -104,10 +137,10 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   doc.text('STUDENT VERIFICATION LETTER', 20, yPos);
   yPos += 15;
 
-  // Body paragraph
+  // Body paragraph - using template
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = `This is to certify that ${fullName} is a student currently registered at Gaonhae Taekwondo.`;
+  const bodyText = replacePlaceholders(templates.studentBody, fullName);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -133,8 +166,8 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
 
   yPos += 10;
 
-  // Closing statement
-  const closingText = `This letter is issued upon request for ${fullName}'s reference.`;
+  // Closing statement - using template
+  const closingText = replacePlaceholders(templates.studentClosing, fullName);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -161,6 +194,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   const logoImg = await loadLogo();
   await addLetterhead(doc, logoImg);
 
+  const templates = getLetterTemplates();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
 
   let yPos = 55;
@@ -181,10 +215,10 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   doc.text('EMPLOYMENT VERIFICATION LETTER', 20, yPos);
   yPos += 15;
 
-  // Body paragraph
+  // Body paragraph - using template
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = `This is to certify that ${data.name} is employed at Gaonhae Taekwondo LLP.`;
+  const bodyText = replacePlaceholders(templates.employeeBody, data.name);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -211,8 +245,8 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
 
   yPos += 10;
 
-  // Closing statement
-  const closingText = `This letter is issued upon request for ${data.name}'s reference.`;
+  // Closing statement - using template
+  const closingText = replacePlaceholders(templates.employeeClosing, data.name);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -239,6 +273,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
   const logoImg = await loadLogo();
   await addLetterhead(doc, logoImg);
 
+  const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
 
@@ -259,7 +294,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = `This is to certify that ${fullName} is a student currently registered at Gaonhae Taekwondo.`;
+  const bodyText = replacePlaceholders(templates.studentBody, fullName);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -284,7 +319,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   yPos += 10;
 
-  const closingText = `This letter is issued upon request for ${fullName}'s reference.`;
+  const closingText = replacePlaceholders(templates.studentClosing, fullName);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -309,6 +344,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
   const logoImg = await loadLogo();
   await addLetterhead(doc, logoImg);
 
+  const templates = getLetterTemplates();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
 
   let yPos = 55;
@@ -328,7 +364,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = `This is to certify that ${data.name} is employed at Gaonhae Taekwondo LLP.`;
+  const bodyText = replacePlaceholders(templates.employeeBody, data.name);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -354,7 +390,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   yPos += 10;
 
-  const closingText = `This letter is issued upon request for ${data.name}'s reference.`;
+  const closingText = replacePlaceholders(templates.employeeClosing, data.name);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
