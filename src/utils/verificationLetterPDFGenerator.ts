@@ -104,25 +104,27 @@ const loadLogo = async (): Promise<HTMLImageElement | null> => {
 };
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
-  const leftMargin = 20;
+  const pageWidth = doc.internal.pageSize.getWidth();
   const logoWidth = 38.5;
+  const totalWidth = logoWidth + 5 + 120; // logo + gap + text area
+  const startX = (pageWidth - totalWidth) / 2;
 
-  // Add logo - left aligned
+  // Add logo - centered with text
   if (logoImg) {
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', leftMargin, 15, logoWidth, Math.min(logoHeight, 27.5));
+    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 27.5));
   }
 
   // Company details - inline with logo, right of it
-  const textX = leftMargin + logoWidth + 5;
+  const textX = startX + logoWidth + 5;
   doc.setTextColor(54, 54, 54);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 22, { align: 'justify' });
+  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 22);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28, { align: 'justify' });
-  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34, { align: 'justify' });
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28);
+  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34);
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -281,7 +283,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   const bodyText = replaceEmployeePlaceholders(templates.employeeBody, employeePlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 10;
+  yPos += bodyLines.length * 6 + 5;
 
 
   // Closing statement - using template
@@ -429,7 +431,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
   const bodyText = replaceEmployeePlaceholders(templates.employeeBody, employeePlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 10;
+  yPos += bodyLines.length * 6 + 5;
 
 
   const closingText = replaceEmployeePlaceholders(templates.employeeClosing, employeePlaceholders);
