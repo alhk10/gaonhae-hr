@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { formatPeriodForAPI } from '@/utils/periodUtils';
 import type { PayrollState, FullTimeEmployee, CasualEmployee } from '@/types/payroll';
-import { ensureValidSession } from '@/services/sessionRefreshService';
+import { withSessionRefresh } from '@/services/sessionRefreshService';
 
 export const usePayrollPersistence = (
   payrollState: PayrollState,
@@ -17,13 +17,10 @@ export const usePayrollPersistence = (
       casualCount: payrollState.casualEmployees.length
     });
 
-    // Ensure session is valid before making requests
-    await ensureValidSession();
+    return withSessionRefresh(async () => {
+      const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
+      const [year, month] = formattedPeriod.split('-').map(Number);
 
-    const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
-    const [year, month] = formattedPeriod.split('-').map(Number);
-
-    try {
       // Save full-time employees
       for (const employee of payrollState.fullTimeEmployees) {
         const { data: existing } = await supabase
@@ -109,10 +106,7 @@ export const usePayrollPersistence = (
       }
 
       logger.info('Payroll saved successfully');
-    } catch (error) {
-      logger.error('Failed to save payroll', error);
-      throw error;
-    }
+    });
   }, [payrollState]);
 
   const loadPayrollFromSupabase = useCallback(async () => {
@@ -127,76 +121,75 @@ export const usePayrollPersistence = (
 
     logger.info('Loading payroll from Supabase', { period: payrollState.currentPeriod });
 
+    setPayrollState(prev => ({ ...prev, isLoading: true }));
+
     try {
-      setPayrollState(prev => ({ ...prev, isLoading: true }));
+      await withSessionRefresh(async () => {
+        const { data: records, error } = await supabase
+          .from('payroll_records')
+          .select('*')
+          .eq('year', year)
+          .eq('month', month.toString().padStart(2, '0'));
 
-      // Ensure session is valid before making requests
-      await ensureValidSession();
+        if (error) throw error;
 
-      const { data: records, error } = await supabase
-        .from('payroll_records')
-        .select('*')
-        .eq('year', year)
-        .eq('month', month.toString().padStart(2, '0'));
+        const fullTimeEmployees: FullTimeEmployee[] = [];
+        const casualEmployees: CasualEmployee[] = [];
 
-      if (error) throw error;
+        records?.forEach(record => {
+          const data = record.payroll_data as any;
+          
+          if (data.type === 'Full-Time') {
+            fullTimeEmployees.push({
+              id: record.id,
+              name: data.name,
+              employeeId: record.employee_id!,
+              baseSalary: data.baseSalary,
+              allowances: data.allowances,
+              cpfEmployee: data.cpfEmployee,
+              cpfEmployer: data.cpfEmployer,
+              grossPay: data.grossPay,
+              netPay: data.netPay,
+              cpfContribution: data.cpfEmployee + data.cpfEmployer,
+              claims: data.claims
+            });
+          } else if (data.type === 'Casual') {
+            casualEmployees.push({
+              id: record.id,
+              name: data.name,
+              employeeId: record.employee_id!,
+              hourlyRate: data.hourlyRate || 0,
+              hoursWorked: data.hoursWorked || 0,
+              daysWorked: data.daysWorked || 0,
+              baseSalary: data.baseSalary,
+              totalPay: data.totalPay,
+              employeeCPF: data.employeeCPF,
+              employerCPF: data.employerCPF,
+              grossPay: data.grossPay,
+              netPay: data.netPay,
+              cpfEmployee: data.employeeCPF,
+              cpfEmployer: data.employerCPF,
+              cpf: data.employeeCPF + data.employerCPF,
+              total: data.netPay,
+              claims: data.claims,
+              slotBookingPay: data.slotBookingPay,
+              slotBookingMetadata: data.slotBookingMetadata,
+              warnings: data.warnings
+            });
+          }
+        });
 
-      const fullTimeEmployees: FullTimeEmployee[] = [];
-      const casualEmployees: CasualEmployee[] = [];
+        setPayrollState(prev => ({
+          ...prev,
+          fullTimeEmployees,
+          casualEmployees,
+          isLoading: false
+        }));
 
-      records?.forEach(record => {
-        const data = record.payroll_data as any;
-        
-        if (data.type === 'Full-Time') {
-          fullTimeEmployees.push({
-            id: record.id,
-            name: data.name,
-            employeeId: record.employee_id!,
-            baseSalary: data.baseSalary,
-            allowances: data.allowances,
-            cpfEmployee: data.cpfEmployee,
-            cpfEmployer: data.cpfEmployer,
-            grossPay: data.grossPay,
-            netPay: data.netPay,
-            cpfContribution: data.cpfEmployee + data.cpfEmployer,
-            claims: data.claims
-          });
-        } else if (data.type === 'Casual') {
-          casualEmployees.push({
-            id: record.id,
-            name: data.name,
-            employeeId: record.employee_id!,
-            hourlyRate: data.hourlyRate || 0,
-            hoursWorked: data.hoursWorked || 0,
-            daysWorked: data.daysWorked || 0,
-            baseSalary: data.baseSalary,
-            totalPay: data.totalPay,
-            employeeCPF: data.employeeCPF,
-            employerCPF: data.employerCPF,
-            grossPay: data.grossPay,
-            netPay: data.netPay,
-            cpfEmployee: data.employeeCPF,
-            cpfEmployer: data.employerCPF,
-            cpf: data.employeeCPF + data.employerCPF,
-            total: data.netPay,
-            claims: data.claims,
-            slotBookingPay: data.slotBookingPay,
-            slotBookingMetadata: data.slotBookingMetadata,
-            warnings: data.warnings
-          });
-        }
-      });
-
-      setPayrollState(prev => ({
-        ...prev,
-        fullTimeEmployees,
-        casualEmployees,
-        isLoading: false
-      }));
-
-      logger.info('Payroll loaded successfully', {
-        fullTimeCount: fullTimeEmployees.length,
-        casualCount: casualEmployees.length
+        logger.info('Payroll loaded successfully', {
+          fullTimeCount: fullTimeEmployees.length,
+          casualCount: casualEmployees.length
+        });
       });
     } catch (error) {
       logger.error('Failed to load payroll', error);

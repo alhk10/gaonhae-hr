@@ -275,43 +275,39 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
 export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
   logger.debug('Fetching all payroll records from Supabase');
   
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const { data: records, error } = await supabase
-    .from('payroll_records')
-    .select('*')
-    .order('year', { ascending: false })
-    .order('month', { ascending: false })
-    .limit(50); // Add pagination limit
+  return withSessionRefresh(async () => {
+    const { data: records, error } = await supabase
+      .from('payroll_records')
+      .select('*')
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+      .limit(50); // Add pagination limit
 
-  if (error) {
-    logger.error('Error fetching all payroll records from Supabase:', error);
-    throw error;
-  }
+    if (error) {
+      logger.error('Error fetching all payroll records from Supabase:', error);
+      throw error;
+    }
 
-  const formattedRecords = records?.map((record: any) => ({
-    id: record.id,
-    employeeId: record.employee_id,
-    month: record.month,
-    year: record.year,
-    payrollData: record.payroll_data as PayrollData,
-    createdAt: record.created_at,
-    updatedAt: record.updated_at,
-    isLocked: record.is_locked || false
-  })) || [];
+    const formattedRecords = records?.map((record: any) => ({
+      id: record.id,
+      employeeId: record.employee_id,
+      month: record.month,
+      year: record.year,
+      payrollData: record.payroll_data as PayrollData,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
+      isLocked: record.is_locked || false
+    })) || [];
 
-  logger.debug('Fetched all payroll records from Supabase', { count: formattedRecords.length });
-  return formattedRecords;
+    logger.debug('Fetched all payroll records from Supabase', { count: formattedRecords.length });
+    return formattedRecords;
+  });
 };
 
 export const deletePayrollRecord = async (recordId: string): Promise<void> => {
   logger.info('Starting deletion process for payroll record', { recordId });
   
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  try {
+  return withSessionRefresh(async () => {
     // Step 1: Check if record exists and is not locked
     logger.debug('Step 1: Verifying record exists and is not locked');
     const { data: existingRecord, error: fetchError } = await supabase
@@ -350,102 +346,94 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
     }
 
     logger.info('Deletion completed successfully for record', { recordId });
-
-  } catch (error) {
-    logger.error('Delete operation failed:', error);
-    throw error;
-  }
+  });
 };
 
 export const updatePayrollLockStatus = async (recordId: string, isLocked: boolean): Promise<void> => {
   logger.debug('Updating payroll lock status', { recordId, isLocked });
   
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const { error } = await supabase
-    .from('payroll_records')
-    .update({ 
-      is_locked: isLocked,
-      status: isLocked ? 'finalized' : 'draft',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', recordId);
+  return withSessionRefresh(async () => {
+    const { error } = await supabase
+      .from('payroll_records')
+      .update({ 
+        is_locked: isLocked,
+        status: isLocked ? 'finalized' : 'draft',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', recordId);
 
-  if (error) {
-    logger.error('Error updating payroll lock status:', error);
-    throw error;
-  }
-  
-  logger.info('Payroll lock status updated successfully');
+    if (error) {
+      logger.error('Error updating payroll lock status:', error);
+      throw error;
+    }
+    
+    logger.info('Payroll lock status updated successfully');
+  });
 };
 
 export const saveDraftPayroll = async (period: string, payrollData: any): Promise<void> => {
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const [year, month] = period.split('-');
-  const recordId = `PERIOD_${period}`;
-  
-  const { error } = await supabase
-    .from('payroll_records')
-    .upsert({
-      id: recordId,
-      employee_id: null,
-      month: period,
-      year: parseInt(year),
-      payroll_data: payrollData,
-      status: 'draft',
-      updated_at: new Date().toISOString(),
-    });
+  return withSessionRefresh(async () => {
+    const [year, month] = period.split('-');
+    const recordId = `PERIOD_${period}`;
+    
+    const { error } = await supabase
+      .from('payroll_records')
+      .upsert({
+        id: recordId,
+        employee_id: null,
+        month: period,
+        year: parseInt(year),
+        payroll_data: payrollData,
+        status: 'draft',
+        updated_at: new Date().toISOString(),
+      });
 
-  if (error) {
-    logger.error('Error saving draft payroll:', error);
-    throw new Error(`Failed to save draft payroll: ${error.message}`);
-  }
+    if (error) {
+      logger.error('Error saving draft payroll:', error);
+      throw new Error(`Failed to save draft payroll: ${error.message}`);
+    }
+  });
 };
 
 export const finalizePayroll = async (period: string, userId: string): Promise<void> => {
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const recordId = `PERIOD_${period}`;
-  
-  const { error } = await supabase
-    .from('payroll_records')
-    .update({
-      status: 'finalized',
-      finalized_at: new Date().toISOString(),
-      finalized_by: userId,
-      is_locked: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', recordId);
+  return withSessionRefresh(async () => {
+    const recordId = `PERIOD_${period}`;
+    
+    const { error } = await supabase
+      .from('payroll_records')
+      .update({
+        status: 'finalized',
+        finalized_at: new Date().toISOString(),
+        finalized_by: userId,
+        is_locked: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', recordId);
 
-  if (error) {
-    logger.error('Error finalizing payroll:', error);
-    throw new Error(`Failed to finalize payroll: ${error.message}`);
-  }
+    if (error) {
+      logger.error('Error finalizing payroll:', error);
+      throw new Error(`Failed to finalize payroll: ${error.message}`);
+    }
+  });
 };
 
 export const getPayrollStatus = async (period: string): Promise<{ status: string; finalizedBy?: string; finalizedAt?: string } | null> => {
   const recordId = `PERIOD_${period}`;
   
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const { data, error } = await supabase
-    .from('payroll_records')
-    .select('status, finalized_by, finalized_at')
-    .eq('id', recordId)
-    .maybeSingle();
+  return withSessionRefresh(async () => {
+    const { data, error } = await supabase
+      .from('payroll_records')
+      .select('status, finalized_by, finalized_at')
+      .eq('id', recordId)
+      .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    logger.error('Error getting payroll status:', error);
-    throw new Error(`Failed to get payroll status: ${error.message}`);
-  }
+    if (error && error.code !== 'PGRST116') {
+      logger.error('Error getting payroll status:', error);
+      throw new Error(`Failed to get payroll status: ${error.message}`);
+    }
 
-  return data;
+    return data;
+  });
 };
 
 // Get payroll records for a specific period with payment status
@@ -458,34 +446,33 @@ export const getPayrollRecordsForPeriod = async (period: string): Promise<{
   cpfPaidAt: string | null;
   cpfPaidBy: string | null;
 }[]> => {
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  // Extract year and month from period (e.g., "November 2025" -> year: 2025, month: "November")
-  const [monthName, year] = period.split(' ');
-  
-  logger.debug('Fetching payroll records for period', { period, year, monthName });
-  
-  const { data, error } = await supabase
-    .from('payroll_records')
-    .select('employee_id, salary_paid, salary_paid_at, salary_paid_by, cpf_paid, cpf_paid_at, cpf_paid_by')
-    .eq('year', parseInt(year))
-    .eq('month', period);
+  return withSessionRefresh(async () => {
+    // Extract year and month from period (e.g., "November 2025" -> year: 2025, month: "November")
+    const [monthName, year] = period.split(' ');
+    
+    logger.debug('Fetching payroll records for period', { period, year, monthName });
+    
+    const { data, error } = await supabase
+      .from('payroll_records')
+      .select('employee_id, salary_paid, salary_paid_at, salary_paid_by, cpf_paid, cpf_paid_at, cpf_paid_by')
+      .eq('year', parseInt(year))
+      .eq('month', period);
 
-  if (error) {
-    logger.error('Error fetching payroll records for period:', error);
-    return [];
-  }
+    if (error) {
+      logger.error('Error fetching payroll records for period:', error);
+      return [];
+    }
 
-  return (data || []).map(record => ({
-    employeeId: record.employee_id || '',
-    salaryPaid: record.salary_paid || false,
-    salaryPaidAt: record.salary_paid_at,
-    salaryPaidBy: record.salary_paid_by,
-    cpfPaid: record.cpf_paid || false,
-    cpfPaidAt: record.cpf_paid_at,
-    cpfPaidBy: record.cpf_paid_by,
-  }));
+    return (data || []).map(record => ({
+      employeeId: record.employee_id || '',
+      salaryPaid: record.salary_paid || false,
+      salaryPaidAt: record.salary_paid_at,
+      salaryPaidBy: record.salary_paid_by,
+      cpfPaid: record.cpf_paid || false,
+      cpfPaidAt: record.cpf_paid_at,
+      cpfPaidBy: record.cpf_paid_by,
+    }));
+  });
 };
 
 // Update salary payment status for an employee
@@ -495,59 +482,58 @@ export const updateSalaryPaymentStatus = async (
   isPaid: boolean,
   paidBy: string
 ): Promise<void> => {
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const [, year] = period.split(' ');
-  const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
-  
-  logger.debug('Updating salary payment status', { employeeId, period, isPaid, recordId });
-  
-  // Check if record exists
-  const { data: existing } = await supabase
-    .from('payroll_records')
-    .select('id')
-    .eq('id', recordId)
-    .maybeSingle();
-
-  if (existing) {
-    // Update existing record
-    const { error } = await supabase
+  return withSessionRefresh(async () => {
+    const [, year] = period.split(' ');
+    const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
+    
+    logger.debug('Updating salary payment status', { employeeId, period, isPaid, recordId });
+    
+    // Check if record exists
+    const { data: existing } = await supabase
       .from('payroll_records')
-      .update({
-        salary_paid: isPaid,
-        salary_paid_at: isPaid ? new Date().toISOString() : null,
-        salary_paid_by: isPaid ? paidBy : null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', recordId);
+      .select('id')
+      .eq('id', recordId)
+      .maybeSingle();
 
-    if (error) {
-      logger.error('Error updating salary payment status:', error);
-      throw error;
-    }
-  } else {
-    // Insert new record with minimal data
-    const { error } = await supabase
-      .from('payroll_records')
-      .insert({
-        id: recordId,
-        employee_id: employeeId,
-        month: period,
-        year: parseInt(year),
-        payroll_data: {} as any,
-        salary_paid: isPaid,
-        salary_paid_at: isPaid ? new Date().toISOString() : null,
-        salary_paid_by: isPaid ? paidBy : null,
-      });
+    if (existing) {
+      // Update existing record
+      const { error } = await supabase
+        .from('payroll_records')
+        .update({
+          salary_paid: isPaid,
+          salary_paid_at: isPaid ? new Date().toISOString() : null,
+          salary_paid_by: isPaid ? paidBy : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', recordId);
 
-    if (error) {
-      logger.error('Error inserting salary payment status:', error);
-      throw error;
+      if (error) {
+        logger.error('Error updating salary payment status:', error);
+        throw error;
+      }
+    } else {
+      // Insert new record with minimal data
+      const { error } = await supabase
+        .from('payroll_records')
+        .insert({
+          id: recordId,
+          employee_id: employeeId,
+          month: period,
+          year: parseInt(year),
+          payroll_data: {} as any,
+          salary_paid: isPaid,
+          salary_paid_at: isPaid ? new Date().toISOString() : null,
+          salary_paid_by: isPaid ? paidBy : null,
+        });
+
+      if (error) {
+        logger.error('Error inserting salary payment status:', error);
+        throw error;
+      }
     }
-  }
-  
-  logger.info('Salary payment status updated successfully', { employeeId, isPaid });
+    
+    logger.info('Salary payment status updated successfully', { employeeId, isPaid });
+  });
 };
 
 // Update CPF payment status for an employee
@@ -557,57 +543,56 @@ export const updateCpfPaymentStatus = async (
   isPaid: boolean,
   paidBy: string
 ): Promise<void> => {
-  // Ensure session is valid before making the request
-  await ensureValidSession();
-  
-  const [, year] = period.split(' ');
-  const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
-  
-  logger.debug('Updating CPF payment status', { employeeId, period, isPaid, recordId });
-  
-  // Check if record exists
-  const { data: existing } = await supabase
-    .from('payroll_records')
-    .select('id')
-    .eq('id', recordId)
-    .maybeSingle();
-
-  if (existing) {
-    // Update existing record
-    const { error } = await supabase
+  return withSessionRefresh(async () => {
+    const [, year] = period.split(' ');
+    const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
+    
+    logger.debug('Updating CPF payment status', { employeeId, period, isPaid, recordId });
+    
+    // Check if record exists
+    const { data: existing } = await supabase
       .from('payroll_records')
-      .update({
-        cpf_paid: isPaid,
-        cpf_paid_at: isPaid ? new Date().toISOString() : null,
-        cpf_paid_by: isPaid ? paidBy : null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', recordId);
+      .select('id')
+      .eq('id', recordId)
+      .maybeSingle();
 
-    if (error) {
-      logger.error('Error updating CPF payment status:', error);
-      throw error;
-    }
-  } else {
-    // Insert new record with minimal data
-    const { error } = await supabase
-      .from('payroll_records')
-      .insert({
-        id: recordId,
-        employee_id: employeeId,
-        month: period,
-        year: parseInt(year),
-        payroll_data: {} as any,
-        cpf_paid: isPaid,
-        cpf_paid_at: isPaid ? new Date().toISOString() : null,
-        cpf_paid_by: isPaid ? paidBy : null,
-      });
+    if (existing) {
+      // Update existing record
+      const { error } = await supabase
+        .from('payroll_records')
+        .update({
+          cpf_paid: isPaid,
+          cpf_paid_at: isPaid ? new Date().toISOString() : null,
+          cpf_paid_by: isPaid ? paidBy : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', recordId);
 
-    if (error) {
-      logger.error('Error inserting CPF payment status:', error);
-      throw error;
+      if (error) {
+        logger.error('Error updating CPF payment status:', error);
+        throw error;
+      }
+    } else {
+      // Insert new record with minimal data
+      const { error } = await supabase
+        .from('payroll_records')
+        .insert({
+          id: recordId,
+          employee_id: employeeId,
+          month: period,
+          year: parseInt(year),
+          payroll_data: {} as any,
+          cpf_paid: isPaid,
+          cpf_paid_at: isPaid ? new Date().toISOString() : null,
+          cpf_paid_by: isPaid ? paidBy : null,
+        });
+
+      if (error) {
+        logger.error('Error inserting CPF payment status:', error);
+        throw error;
+      }
     }
-  }
-  
-  logger.info('CPF payment status updated successfully', { employeeId, isPaid });
+    
+    logger.info('CPF payment status updated successfully', { employeeId, isPaid });
+  });
 };
