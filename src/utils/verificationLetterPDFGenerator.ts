@@ -122,6 +122,7 @@ const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28);
+  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34);
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -278,27 +279,6 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
 
-  // Employment Details section
-  doc.setFont('helvetica', 'bold');
-  doc.text('Employment Details:', 20, yPos);
-  yPos += 8;
-
-  doc.setFont('helvetica', 'normal');
-  const details = [
-    { label: 'Full Name', value: data.name },
-    { label: 'Date of Birth', value: formatDate(data.dateOfBirth) },
-    { label: 'NRIC', value: data.nric || 'N/A' },
-    { label: 'Position', value: data.position || 'N/A' },
-    { label: 'Monthly Salary', value: formatCurrency(data.baseSalary || 0) },
-    { label: 'Employment Start Date', value: formatDate(data.joinDate) },
-  ];
-
-  details.forEach((detail) => {
-    doc.text(`• ${detail.label}: ${detail.value}`, 25, yPos);
-    yPos += 7;
-  });
-
-  yPos += 10;
 
   // Closing statement - using template
   const closingText = replaceEmployeePlaceholders(templates.employeeClosing, employeePlaceholders);
@@ -443,26 +423,6 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Employment Details:', 20, yPos);
-  yPos += 8;
-
-  doc.setFont('helvetica', 'normal');
-  const details = [
-    { label: 'Full Name', value: data.name },
-    { label: 'Date of Birth', value: formatDate(data.dateOfBirth) },
-    { label: 'NRIC', value: data.nric || 'N/A' },
-    { label: 'Position', value: data.position || 'N/A' },
-    { label: 'Monthly Salary', value: formatCurrency(data.baseSalary || 0) },
-    { label: 'Employment Start Date', value: formatDate(data.joinDate) },
-  ];
-
-  details.forEach((detail) => {
-    doc.text(`• ${detail.label}: ${detail.value}`, 25, yPos);
-    yPos += 7;
-  });
-
-  yPos += 10;
 
   const closingText = replaceEmployeePlaceholders(templates.employeeClosing, employeePlaceholders);
   doc.text(closingText, 20, yPos);
