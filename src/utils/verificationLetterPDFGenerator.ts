@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 
-interface StudentData {
+export interface StudentData {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
@@ -10,13 +10,22 @@ interface StudentData {
   enrollmentDate: string;
 }
 
-interface EmployeeData {
+export interface EmployeeData {
   name: string;
   dateOfBirth: string;
   nric: string;
   position: string;
   baseSalary: number;
   joinDate: string;
+}
+
+export interface LetterTemplateData {
+  id: string;
+  name: string;
+  type: 'student' | 'employee';
+  title: string;
+  body_text: string;
+  closing_text: string;
 }
 
 interface LetterTemplates {
@@ -448,6 +457,263 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
   doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
 
   // Open print dialog
+  doc.autoPrint();
+  window.open(doc.output('bloburl'), '_blank');
+};
+
+// Template-based generation functions
+export const generateStudentVerificationLetterWithTemplate = async (
+  data: StudentData,
+  template: LetterTemplateData
+): Promise<void> => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  doc.setFont('helvetica');
+
+  const logoImg = await loadLogo();
+  await addLetterhead(doc, logoImg);
+
+  const fullName = `${data.firstName} ${data.lastName}`.trim();
+  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const studentPlaceholders: StudentPlaceholders = {
+    fullName,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nricPassport: data.nricPassport || 'N/A',
+    currentBelt: data.currentBelt || 'N/A',
+    enrollmentDate: formatDate(data.enrollmentDate),
+  };
+
+  let yPos = 55;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFontSize(11);
+  doc.text(currentDate, 20, yPos);
+  yPos += 20;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
+  yPos += 15;
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 15;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
+  const bodyLines = doc.splitTextToSize(bodyText, 170);
+  doc.text(bodyLines, 20, yPos);
+  yPos += bodyLines.length * 6 + 5;
+
+  const closingText = replaceStudentPlaceholders(template.closing_text, studentPlaceholders);
+  const closingLines = doc.splitTextToSize(closingText, 170);
+  doc.text(closingLines, 20, yPos);
+  yPos += closingLines.length * 6 + 15;
+
+  doc.text('Yours faithfully,', 20, yPos);
+  yPos += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+
+  const fileName = `${template.name.replace(/\s+/g, '_')}_${fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+  doc.save(fileName);
+};
+
+export const printStudentVerificationLetterWithTemplate = async (
+  data: StudentData,
+  template: LetterTemplateData
+): Promise<void> => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  doc.setFont('helvetica');
+
+  const logoImg = await loadLogo();
+  await addLetterhead(doc, logoImg);
+
+  const fullName = `${data.firstName} ${data.lastName}`.trim();
+  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const studentPlaceholders: StudentPlaceholders = {
+    fullName,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nricPassport: data.nricPassport || 'N/A',
+    currentBelt: data.currentBelt || 'N/A',
+    enrollmentDate: formatDate(data.enrollmentDate),
+  };
+
+  let yPos = 55;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFontSize(11);
+  doc.text(currentDate, 20, yPos);
+  yPos += 20;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
+  yPos += 15;
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 15;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
+  const bodyLines = doc.splitTextToSize(bodyText, 170);
+  doc.text(bodyLines, 20, yPos);
+  yPos += bodyLines.length * 6 + 5;
+
+  const closingText = replaceStudentPlaceholders(template.closing_text, studentPlaceholders);
+  const closingLines = doc.splitTextToSize(closingText, 170);
+  doc.text(closingLines, 20, yPos);
+  yPos += closingLines.length * 6 + 15;
+
+  doc.text('Yours faithfully,', 20, yPos);
+  yPos += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+
+  doc.autoPrint();
+  window.open(doc.output('bloburl'), '_blank');
+};
+
+export const generateEmployeeVerificationLetterWithTemplate = async (
+  data: EmployeeData,
+  template: LetterTemplateData
+): Promise<void> => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  doc.setFont('helvetica');
+
+  const logoImg = await loadLogo();
+  await addLetterhead(doc, logoImg);
+
+  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const employeePlaceholders: EmployeePlaceholders = {
+    fullName: data.name,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nric: data.nric || 'N/A',
+    position: data.position || 'N/A',
+    salary: formatCurrency(data.baseSalary || 0),
+    joinDate: formatDate(data.joinDate),
+  };
+
+  let yPos = 55;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFontSize(11);
+  doc.text(currentDate, 20, yPos);
+  yPos += 20;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
+  yPos += 15;
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 15;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
+  const bodyLines = doc.splitTextToSize(bodyText, 170);
+  doc.text(bodyLines, 20, yPos);
+  yPos += bodyLines.length * 6 + 5;
+
+  const closingText = replaceEmployeePlaceholders(template.closing_text, employeePlaceholders);
+  const closingLines = doc.splitTextToSize(closingText, 170);
+  doc.text(closingLines, 20, yPos);
+  yPos += closingLines.length * 6 + 15;
+
+  doc.text('Yours faithfully,', 20, yPos);
+  yPos += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+
+  const fileName = `${template.name.replace(/\s+/g, '_')}_${data.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+  doc.save(fileName);
+};
+
+export const printEmployeeVerificationLetterWithTemplate = async (
+  data: EmployeeData,
+  template: LetterTemplateData
+): Promise<void> => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  doc.setFont('helvetica');
+
+  const logoImg = await loadLogo();
+  await addLetterhead(doc, logoImg);
+
+  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const employeePlaceholders: EmployeePlaceholders = {
+    fullName: data.name,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nric: data.nric || 'N/A',
+    position: data.position || 'N/A',
+    salary: formatCurrency(data.baseSalary || 0),
+    joinDate: formatDate(data.joinDate),
+  };
+
+  let yPos = 55;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFontSize(11);
+  doc.text(currentDate, 20, yPos);
+  yPos += 20;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('To Whom It May Concern', 20, yPos);
+  yPos += 15;
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 15;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
+  const bodyLines = doc.splitTextToSize(bodyText, 170);
+  doc.text(bodyLines, 20, yPos);
+  yPos += bodyLines.length * 6 + 5;
+
+  const closingText = replaceEmployeePlaceholders(template.closing_text, employeePlaceholders);
+  const closingLines = doc.splitTextToSize(closingText, 170);
+  doc.text(closingLines, 20, yPos);
+  yPos += closingLines.length * 6 + 15;
+
+  doc.text('Yours faithfully,', 20, yPos);
+  yPos += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+
   doc.autoPrint();
   window.open(doc.output('bloburl'), '_blank');
 };
