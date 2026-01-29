@@ -174,10 +174,10 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 15;
+  yPos += 20;
 
   // To Whom It May Concern
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
@@ -263,10 +263,10 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 15;
+  yPos += 20;
 
   // To Whom It May Concern
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
@@ -333,9 +333,9 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 15;
+  yPos += 20;
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
@@ -414,9 +414,9 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 15;
+  yPos += 20;
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text('To Whom It May Concern', 20, yPos);
   yPos += 15;
