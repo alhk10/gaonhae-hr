@@ -1631,6 +1631,54 @@ export type Database = {
         }
         Relationships: []
       }
+      letter_templates: {
+        Row: {
+          body_text: string
+          closing_text: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          sort_order: number | null
+          title: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body_text: string
+          closing_text: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          sort_order?: number | null
+          title: string
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body_text?: string
+          closing_text?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          sort_order?: number | null
+          title?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       location_exceptions: {
         Row: {
           created_at: string | null

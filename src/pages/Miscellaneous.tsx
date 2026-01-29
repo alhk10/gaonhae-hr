@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase, Settings } from 'lucide-react';
+import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase, Plus, Pencil, Trash2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Command,
@@ -21,15 +21,26 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import {
-  generateStudentVerificationLetter,
-  generateEmploymentVerificationLetter,
-  printStudentVerificationLetter,
-  printEmploymentVerificationLetter,
+  generateStudentVerificationLetterWithTemplate,
+  generateEmployeeVerificationLetterWithTemplate,
+  printStudentVerificationLetterWithTemplate,
+  printEmployeeVerificationLetterWithTemplate,
 } from '@/utils/verificationLetterPDFGenerator';
-import LetterTemplateSettingsDialog from '@/components/miscellaneous/LetterTemplateSettingsDialog';
+import { letterTemplateService, LetterTemplate } from '@/services/letterTemplateService';
+import AddEditTemplateDialog from '@/components/miscellaneous/AddEditTemplateDialog';
 
 interface Student {
   id: string;
@@ -72,13 +83,16 @@ const formatCurrency = (amount: number | null): string => {
 };
 
 const Miscellaneous = () => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('student');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [studentOpen, setStudentOpen] = useState(false);
   const [employeeOpen, setEmployeeOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [isAddEditOpen, setIsAddEditOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<LetterTemplate | null>(null);
+  const [deleteConfirmTemplate, setDeleteConfirmTemplate] = useState<LetterTemplate | null>(null);
 
   // Fetch students
   const { data: students = [], isLoading: studentsLoading } = useQuery({
@@ -109,6 +123,17 @@ const Miscellaneous = () => {
     },
   });
 
+  // Fetch templates
+  const { data: studentTemplates = [], isLoading: studentTemplatesLoading } = useQuery({
+    queryKey: ['letter-templates', 'student'],
+    queryFn: () => letterTemplateService.getTemplates('student'),
+  });
+
+  const { data: employeeTemplates = [], isLoading: employeeTemplatesLoading } = useQuery({
+    queryKey: ['letter-templates', 'employee'],
+    queryFn: () => letterTemplateService.getTemplates('employee'),
+  });
+
   const selectedStudent = students.find(s => s.id === selectedStudentId);
   const selectedEmployee = employees.find(e => e.id === selectedEmployeeId);
 
@@ -120,92 +145,227 @@ const Miscellaneous = () => {
     return employee.display_name || employee.name;
   };
 
-  const handleGenerateStudentPDF = async () => {
+  const handleGenerateStudentPDF = async (template: LetterTemplate) => {
     if (!selectedStudent) return;
     
-    setIsGenerating(true);
+    setIsGenerating(template.id);
     try {
-      await generateStudentVerificationLetter({
-        firstName: selectedStudent.first_name,
-        lastName: selectedStudent.last_name,
-        dateOfBirth: selectedStudent.date_of_birth || '',
-        nricPassport: selectedStudent.nric_passport || '',
-        currentBelt: selectedStudent.current_belt || '',
-        enrollmentDate: selectedStudent.enrollment_date || '',
-      });
-      toast.success('Student verification letter downloaded');
+      await generateStudentVerificationLetterWithTemplate(
+        {
+          firstName: selectedStudent.first_name,
+          lastName: selectedStudent.last_name,
+          dateOfBirth: selectedStudent.date_of_birth || '',
+          nricPassport: selectedStudent.nric_passport || '',
+          currentBelt: selectedStudent.current_belt || '',
+          enrollmentDate: selectedStudent.enrollment_date || '',
+        },
+        template
+      );
+      toast.success(`${template.name} downloaded`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(null);
     }
   };
 
-  const handlePrintStudentPDF = async () => {
+  const handlePrintStudentPDF = async (template: LetterTemplate) => {
     if (!selectedStudent) return;
     
-    setIsGenerating(true);
+    setIsGenerating(template.id);
     try {
-      await printStudentVerificationLetter({
-        firstName: selectedStudent.first_name,
-        lastName: selectedStudent.last_name,
-        dateOfBirth: selectedStudent.date_of_birth || '',
-        nricPassport: selectedStudent.nric_passport || '',
-        currentBelt: selectedStudent.current_belt || '',
-        enrollmentDate: selectedStudent.enrollment_date || '',
-      });
+      await printStudentVerificationLetterWithTemplate(
+        {
+          firstName: selectedStudent.first_name,
+          lastName: selectedStudent.last_name,
+          dateOfBirth: selectedStudent.date_of_birth || '',
+          nricPassport: selectedStudent.nric_passport || '',
+          currentBelt: selectedStudent.current_belt || '',
+          enrollmentDate: selectedStudent.enrollment_date || '',
+        },
+        template
+      );
       toast.success('Print dialog opened');
     } catch (error) {
       console.error('Error printing PDF:', error);
       toast.error('Failed to open print dialog');
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(null);
     }
   };
 
-  const handleGenerateEmployeePDF = async () => {
+  const handleGenerateEmployeePDF = async (template: LetterTemplate) => {
     if (!selectedEmployee) return;
     
-    setIsGenerating(true);
+    setIsGenerating(template.id);
     try {
-      await generateEmploymentVerificationLetter({
-        name: selectedEmployee.name,
-        dateOfBirth: selectedEmployee.date_of_birth,
-        nric: selectedEmployee.nric,
-        position: selectedEmployee.position || '',
-        baseSalary: selectedEmployee.base_salary || 0,
-        joinDate: selectedEmployee.join_date || '',
-      });
-      toast.success('Employment verification letter downloaded');
+      await generateEmployeeVerificationLetterWithTemplate(
+        {
+          name: selectedEmployee.name,
+          dateOfBirth: selectedEmployee.date_of_birth,
+          nric: selectedEmployee.nric,
+          position: selectedEmployee.position || '',
+          baseSalary: selectedEmployee.base_salary || 0,
+          joinDate: selectedEmployee.join_date || '',
+        },
+        template
+      );
+      toast.success(`${template.name} downloaded`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(null);
     }
   };
 
-  const handlePrintEmployeePDF = async () => {
+  const handlePrintEmployeePDF = async (template: LetterTemplate) => {
     if (!selectedEmployee) return;
     
-    setIsGenerating(true);
+    setIsGenerating(template.id);
     try {
-      await printEmploymentVerificationLetter({
-        name: selectedEmployee.name,
-        dateOfBirth: selectedEmployee.date_of_birth,
-        nric: selectedEmployee.nric,
-        position: selectedEmployee.position || '',
-        baseSalary: selectedEmployee.base_salary || 0,
-        joinDate: selectedEmployee.join_date || '',
-      });
+      await printEmployeeVerificationLetterWithTemplate(
+        {
+          name: selectedEmployee.name,
+          dateOfBirth: selectedEmployee.date_of_birth,
+          nric: selectedEmployee.nric,
+          position: selectedEmployee.position || '',
+          baseSalary: selectedEmployee.base_salary || 0,
+          joinDate: selectedEmployee.join_date || '',
+        },
+        template
+      );
       toast.success('Print dialog opened');
     } catch (error) {
       console.error('Error printing PDF:', error);
       toast.error('Failed to open print dialog');
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(null);
     }
+  };
+
+  const handleEditTemplate = (template: LetterTemplate) => {
+    setEditingTemplate(template);
+    setIsAddEditOpen(true);
+  };
+
+  const handleAddTemplate = () => {
+    setEditingTemplate(null);
+    setIsAddEditOpen(true);
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!deleteConfirmTemplate) return;
+    
+    try {
+      await letterTemplateService.deleteTemplate(deleteConfirmTemplate.id);
+      toast.success('Template deleted');
+      queryClient.invalidateQueries({ queryKey: ['letter-templates'] });
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Failed to delete template');
+    } finally {
+      setDeleteConfirmTemplate(null);
+    }
+  };
+
+  const handleDuplicateTemplate = async (template: LetterTemplate) => {
+    try {
+      await letterTemplateService.duplicateTemplate(template.id, `${template.name} (Copy)`);
+      toast.success('Template duplicated');
+      queryClient.invalidateQueries({ queryKey: ['letter-templates'] });
+    } catch (error) {
+      console.error('Error duplicating template:', error);
+      toast.error('Failed to duplicate template');
+    }
+  };
+
+  const handleTemplateSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ['letter-templates'] });
+  };
+
+  const renderTemplateButtons = (
+    templates: LetterTemplate[],
+    isLoading: boolean,
+    selectedEntity: Student | Employee | undefined,
+    onGenerate: (t: LetterTemplate) => void,
+    onPrint: (t: LetterTemplate) => void
+  ) => {
+    if (isLoading) {
+      return <div className="text-sm text-muted-foreground">Loading templates...</div>;
+    }
+
+    if (templates.length === 0) {
+      return <div className="text-sm text-muted-foreground">No templates available. Add one to get started.</div>;
+    }
+
+    return (
+      <div className="space-y-3">
+        {templates.map((template) => (
+          <Card key={template.id} className="bg-muted/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium truncate">{template.name}</h4>
+                    {template.is_default && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Default</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{template.title}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onGenerate(template)}
+                    disabled={!selectedEntity || isGenerating === template.id}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Download
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPrint(template)}
+                    disabled={!selectedEntity || isGenerating === template.id}
+                  >
+                    <Printer className="h-4 w-4 mr-1" />
+                    Print
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleEditTemplate(template)}
+                    className="h-8 w-8"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleDuplicateTemplate(template)}
+                    className="h-8 w-8"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  {!template.is_default && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setDeleteConfirmTemplate(template)}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -220,8 +380,9 @@ const Miscellaneous = () => {
               <p className="text-muted-foreground">Generate verification letters for students and employees</p>
             </div>
           </div>
-          <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)}>
-            <Settings className="h-4 w-4" />
+          <Button onClick={handleAddTemplate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Template
           </Button>
         </div>
 
@@ -261,7 +422,7 @@ const Miscellaneous = () => {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                    <PopoverContent className="w-full p-0 bg-background" style={{ width: 'var(--radix-popover-trigger-width)' }}>
                       <Command>
                         <CommandInput placeholder="Search students..." />
                         <CommandList>
@@ -325,25 +486,16 @@ const Miscellaneous = () => {
                   </Card>
                 )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleGenerateStudentPDF}
-                    disabled={!selectedStudent || isGenerating}
-                    className="flex-1"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handlePrintStudentPDF}
-                    disabled={!selectedStudent || isGenerating}
-                    className="flex-1"
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print
-                  </Button>
+                {/* Template Buttons */}
+                <div className="space-y-3">
+                  <Label>Available Templates</Label>
+                  {renderTemplateButtons(
+                    studentTemplates,
+                    studentTemplatesLoading,
+                    selectedStudent,
+                    handleGenerateStudentPDF,
+                    handlePrintStudentPDF
+                  )}
                 </div>
               </TabsContent>
 
@@ -368,7 +520,7 @@ const Miscellaneous = () => {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                    <PopoverContent className="w-full p-0 bg-background" style={{ width: 'var(--radix-popover-trigger-width)' }}>
                       <Command>
                         <CommandInput placeholder="Search employees..." />
                         <CommandList>
@@ -436,36 +588,50 @@ const Miscellaneous = () => {
                   </Card>
                 )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleGenerateEmployeePDF}
-                    disabled={!selectedEmployee || isGenerating}
-                    className="flex-1"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handlePrintEmployeePDF}
-                    disabled={!selectedEmployee || isGenerating}
-                    className="flex-1"
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print
-                  </Button>
+                {/* Template Buttons */}
+                <div className="space-y-3">
+                  <Label>Available Templates</Label>
+                  {renderTemplateButtons(
+                    employeeTemplates,
+                    employeeTemplatesLoading,
+                    selectedEmployee,
+                    handleGenerateEmployeePDF,
+                    handlePrintEmployeePDF
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
-        {/* Settings Dialog */}
-        <LetterTemplateSettingsDialog
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+        {/* Add/Edit Template Dialog */}
+        <AddEditTemplateDialog
+          isOpen={isAddEditOpen}
+          onClose={() => {
+            setIsAddEditOpen(false);
+            setEditingTemplate(null);
+          }}
+          template={editingTemplate}
+          onSaved={handleTemplateSaved}
         />
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteConfirmTemplate} onOpenChange={() => setDeleteConfirmTemplate(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Template</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{deleteConfirmTemplate?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteTemplate} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ResponsiveLayout>
   );
