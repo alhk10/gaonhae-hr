@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import type { Term } from '@/services/termCalendarService';
 
 interface CreateInvoiceDialogProps {
   trigger: React.ReactNode;
@@ -36,6 +37,8 @@ interface InvoiceItem {
   unit_price: number;
   size_variant?: string;
   color_variant?: string;
+  term_id?: string;
+  term_name?: string;
   total: number;
 }
 
@@ -59,6 +62,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const { accessibleBranches, isSuperadmin, canCreate } = useInvoiceAccess();
+  
+  // Term state for Classes category
+  const [branchTerms, setBranchTerms] = useState<Term[]>([]);
+  const [termLoading, setTermLoading] = useState(false);
+  const [termError, setTermError] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
@@ -72,7 +81,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     quantity: 1,
     unit_price: 0,
     size_variant: '',
-    color_variant: ''
+    color_variant: '',
+    term_id: ''
   });
 
   useEffect(() => {
@@ -178,7 +188,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          size_variant: item.size_variant || undefined
+          size_variant: item.size_variant || undefined,
+          metadata: item.term_id ? { term_id: item.term_id } : undefined
         }))
       };
 
@@ -210,24 +221,148 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       quantity: 1,
       unit_price: 0,
       size_variant: '',
-      color_variant: ''
+      color_variant: '',
+      term_id: ''
     });
+    setBranchTerms([]);
+    setTermError(null);
   };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Load terms when branch changes
+    if (field === 'branch_id') {
+      loadBranchTerms(value);
+    }
   };
 
-  const handleCategoryChange = (categoryId: string) => {
+  // Load terms for the selected branch
+  const loadBranchTerms = async (branchId: string) => {
+    if (!branchId) {
+      setBranchTerms([]);
+      return;
+    }
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('term_calendars')
+        .select('*')
+        .eq('branch_id', branchId)
+        .eq('is_active', true)
+        .gte('end_date', today)
+        .order('start_date', { ascending: true });
+      
+      if (error) throw error;
+      setBranchTerms((data || []) as Term[]);
+    } catch (error) {
+      console.error('Error loading terms:', error);
+      setBranchTerms([]);
+    }
+  };
+
+  // Check if student already has a class invoice for a specific term
+  const checkExistingClassInvoice = async (
+    studentId: string, 
+    termId: string
+  ): Promise<boolean> => {
+    if (!studentId || !termId) return false;
+    
+    try {
+      // Get invoices for this student
+      const { data: invoices, error: invError } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('student_id', studentId);
+      
+      if (invError || !invoices?.length) return false;
+      
+      const invoiceIds = invoices.map(i => i.id);
+      
+      // Check if any invoice items have this term in metadata
+      const { data: items, error: itemsError } = await supabase
+        .from('invoice_items')
+        .select('id, metadata')
+        .in('invoice_id', invoiceIds);
+      
+      if (itemsError) return false;
+      
+      // Check metadata for term_id match
+      return (items || []).some(item => {
+        const metadata = item.metadata as Record<string, any> | null;
+        return metadata?.term_id === termId;
+      });
+    } catch (error) {
+      console.error('Error checking existing invoice:', error);
+      return false;
+    }
+  };
+
+  const handleCategoryChange = async (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     
     let defaultQuantity = 1;
+    let selectedTermId = '';
+    
+    setTermError(null);
+    
     if (category?.name === 'Classes') {
+      // Set quantity defaults based on country
       if (selectedBranch?.country === 'Singapore') {
         defaultQuantity = 12;
       } else if (selectedBranch?.country === 'Australia') {
         defaultQuantity = 10;
+      }
+      
+      // Auto-select term if branch and student are selected
+      if (formData.branch_id && formData.student_id) {
+        setTermLoading(true);
+        
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const availableTerms = branchTerms.filter(t => t.end_date >= today);
+          
+          if (availableTerms.length === 0) {
+            setTermError('No active terms available for this branch');
+          } else {
+            // Find current term (today is within term dates)
+            const currentTerm = availableTerms.find(t => 
+              t.start_date <= today && t.end_date >= today
+            );
+            
+            if (currentTerm) {
+              // Check if current term already has class invoice for this student
+              const hasExisting = await checkExistingClassInvoice(
+                formData.student_id, 
+                currentTerm.id
+              );
+              
+              if (hasExisting) {
+                // Find next term
+                const nextTerm = availableTerms.find(t => 
+                  t.start_date > currentTerm.end_date
+                );
+                
+                if (nextTerm) {
+                  selectedTermId = nextTerm.id;
+                } else {
+                  setTermError('No next term available. Student already has classes invoiced for current term.');
+                }
+              } else {
+                selectedTermId = currentTerm.id;
+              }
+            } else {
+              // No current term - use first available future term
+              selectedTermId = availableTerms[0].id;
+            }
+          }
+        } catch (error) {
+          console.error('Error auto-selecting term:', error);
+        } finally {
+          setTermLoading(false);
+        }
       }
     }
     
@@ -238,7 +373,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       quantity: defaultQuantity,
       unit_price: 0,
       size_variant: '',
-      color_variant: ''
+      color_variant: '',
+      term_id: selectedTermId
     }));
   };
 
@@ -270,6 +406,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const sizeOptions = selectedProduct?.available_variants?.sizes || [];
   const colorOptions = selectedProduct?.available_variants?.colors || [];
 
+  const selectedCategory = categories.find(c => c.id === newItem.category_id);
+
   const addItem = () => {
     if (!newItem.product_id) {
       toast.error('Please select a product');
@@ -282,6 +420,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       return;
     }
 
+    // Validate term for Classes category
+    if (selectedCategory?.name === 'Classes') {
+      if (!newItem.term_id) {
+        toast.error('Please select a term for class items');
+        return;
+      }
+      if (termError) {
+        toast.error(termError);
+        return;
+      }
+    }
+
+    const term = branchTerms.find(t => t.id === newItem.term_id);
+
     const item: InvoiceItem = {
       product_id: newItem.product_id,
       product_name: product.name,
@@ -290,6 +442,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: newItem.unit_price,
       size_variant: newItem.size_variant || undefined,
       color_variant: newItem.color_variant || undefined,
+      term_id: newItem.term_id || undefined,
+      term_name: term?.name || undefined,
       total: newItem.quantity * newItem.unit_price
     };
 
@@ -300,7 +454,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       quantity: 1,
       unit_price: 0,
       size_variant: '',
-      color_variant: ''
+      color_variant: '',
+      term_id: ''
     });
   };
 
@@ -504,6 +659,32 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     </div>
                   )}
 
+                  {/* Term Dropdown - Only for Classes category */}
+                  {selectedCategory?.name === 'Classes' && branchTerms.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Term *</Label>
+                      <Select 
+                        value={newItem.term_id} 
+                        onValueChange={(value) => handleNewItemChange('term_id', value)}
+                        disabled={termLoading}
+                      >
+                        <SelectTrigger className={termError ? 'border-destructive' : ''}>
+                          <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branchTerms.map((term) => (
+                            <SelectItem key={term.id} value={term.id}>
+                              {term.name} ({term.start_date} to {term.end_date})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {termError && (
+                        <p className="text-sm text-destructive">{termError}</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>&nbsp;</Label>
                     <Button type="button" onClick={addItem} className="w-full">
@@ -525,6 +706,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
+                    <TableHead>Term</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Unit Price</TableHead>
                     <TableHead>Size</TableHead>
@@ -537,6 +719,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   {items.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
+                      <TableCell>{item.term_name || '-'}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
