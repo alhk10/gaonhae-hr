@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -833,21 +832,15 @@ const PayrollProcessing = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex h-[calc(100vh-73px)]">
-          <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="text-center flex items-center justify-center h-full">
-              <div>
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-lg text-gray-600">Loading payroll data...</p>
-                <p className="text-sm text-gray-500">Please wait while we fetch employee information</p>
-              </div>
-            </div>
-          </main>
+      <ResponsiveLayout>
+        <div className="text-center flex items-center justify-center h-full">
+          <div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-lg text-gray-600">Loading payroll data...</p>
+            <p className="text-sm text-gray-500">Please wait while we fetch employee information</p>
+          </div>
         </div>
-      </div>
+      </ResponsiveLayout>
     );
   }
 
@@ -1784,136 +1777,128 @@ const PayrollProcessing = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="flex h-[calc(100vh-73px)]">
-        <Sidebar />
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-lg border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
-                  <div className="flex items-center gap-2 mt-2">
-                    <p className="text-gray-600">Process payroll for {selectedPeriod}</p>
-                    {isPeriodLocked && (
-                      <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
-                        🔒 Locked
-                      </Badge>
-                    )}
-                  </div>
-                  {periodStatus?.finalizedBy && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Finalized by {periodStatus.finalizedBy} on {new Date(periodStatus.finalizedAt || '').toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Button
-                    onClick={async () => {
-                      if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
-                        await forceRecalculatePayroll(selectedPeriod, true);
-                      }
-                    }}
-                    variant="outline"
-                    className="gap-2"
-                    disabled={loading}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    {loading ? 'Recalculating...' : 'Force Recalculate'}
-                  </Button>
-                  <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
-                    1. Processing
+    <ResponsiveLayout>
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-lg shadow-lg border">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-gray-600">Process payroll for {selectedPeriod}</p>
+                {isPeriodLocked && (
+                  <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+                    🔒 Locked
                   </Badge>
-                  <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-4 py-2">
-                    2. Payment
-                  </Badge>
-                  <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-4 py-2">
-                    3. CPF
-                  </Badge>
-                </div>
+                )}
               </div>
+              {periodStatus?.finalizedBy && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Finalized by {periodStatus.finalizedBy} on {new Date(periodStatus.finalizedAt || '').toLocaleDateString()}
+                </p>
+              )}
             </div>
-
-
-            {currentStep === 'processing' && renderProcessingStep()}
-            {currentStep === 'payment' && renderPaymentStep()}
-            {currentStep === 'cpf' && renderCPFStep()}
-
-
-            {/* Edit Dialogs */}
-            <EditSalaryDialog
-              isOpen={editSalaryDialog.isOpen}
-              onClose={() => setEditSalaryDialog(prev => ({ ...prev, isOpen: false }))}
-              employeeName={editSalaryDialog.employeeName}
-              currentSalary={editSalaryDialog.currentSalary}
-              employeeType={editSalaryDialog.employeeType}
-              paymentType={editSalaryDialog.paymentType}
-              onSave={handleSalarySave}
-            />
-
-            <EditAllowancesDialog
-              isOpen={editAllowancesDialog.isOpen}
-              onClose={() => setEditAllowancesDialog(prev => ({ ...prev, isOpen: false }))}
-              employeeName={editAllowancesDialog.employeeName}
-              allowances={editAllowancesDialog.allowances}
-              onSave={handleAllowancesSave}
-            />
-
-            <EditDeductionsDialog
-              isOpen={editDeductionsDialog.isOpen}
-              onClose={() => setEditDeductionsDialog(prev => ({ ...prev, isOpen: false }))}
-              employeeName={editDeductionsDialog.employeeName}
-              deductions={editDeductionsDialog.deductions}
-              onSave={handleDeductionsSave}
-            />
-
-            {/* Slot Breakdown Dialog */}
-            {slotBreakdownData && (
-              <SlotBreakdownDialog
-                isOpen={slotBreakdownOpen}
-                onClose={() => {
-                  setSlotBreakdownOpen(false);
-                  setSlotBreakdownData(null);
-                }}
-                employeeName={slotBreakdownData.employeeName}
-                breakdown={slotBreakdownData.breakdown}
-                totalPay={slotBreakdownData.totalPay}
-                totalSlots={slotBreakdownData.totalSlots}
-                fullSlotRate={slotBreakdownData.fullSlotRate}
-                milestoneBonus={slotBreakdownData.milestoneBonus}
-                milestoneBonusThreshold={slotBreakdownData.milestoneBonusThreshold}
-                onUpdate={async () => {
-                  // Refresh the slot breakdown data after an update
-                  try {
-                    const fullEmployeeProfile = await getEmployeeById(slotBreakdownData.employeeId);
-                    if (fullEmployeeProfile) {
-                      const slotData = await getSlotBookingPayForPeriod(
-                        slotBreakdownData.employeeId,
-                        selectedPeriod,
-                        fullEmployeeProfile
-                      );
-                      setSlotBreakdownData({
-                        employeeId: slotBreakdownData.employeeId,
-                        employeeName: slotBreakdownData.employeeName,
-                        breakdown: slotData.breakdown,
-                        totalPay: slotData.totalPay,
-                        totalSlots: slotData.totalSlots,
-                        fullSlotRate: slotData.fullSlotRate,
-                        milestoneBonus: slotData.milestoneBonus,
-                        milestoneBonusThreshold: slotData.milestoneBonusThreshold,
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Error refreshing slot breakdown:', error);
+            <div className="flex items-center space-x-3">
+              <Button
+                onClick={async () => {
+                  if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
+                    await forceRecalculatePayroll(selectedPeriod, true);
                   }
                 }}
-              />
-            )}
+                variant="outline"
+                className="gap-2"
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Recalculating...' : 'Force Recalculate'}
+              </Button>
+              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
+                1. Processing
+              </Badge>
+              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-4 py-2">
+                2. Payment
+              </Badge>
+              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-4 py-2">
+                3. CPF
+              </Badge>
+            </div>
           </div>
-        </main>
+        </div>
+
+        {currentStep === 'processing' && renderProcessingStep()}
+        {currentStep === 'payment' && renderPaymentStep()}
+        {currentStep === 'cpf' && renderCPFStep()}
+
+        {/* Edit Dialogs */}
+        <EditSalaryDialog
+          isOpen={editSalaryDialog.isOpen}
+          onClose={() => setEditSalaryDialog(prev => ({ ...prev, isOpen: false }))}
+          employeeName={editSalaryDialog.employeeName}
+          currentSalary={editSalaryDialog.currentSalary}
+          employeeType={editSalaryDialog.employeeType}
+          paymentType={editSalaryDialog.paymentType}
+          onSave={handleSalarySave}
+        />
+
+        <EditAllowancesDialog
+          isOpen={editAllowancesDialog.isOpen}
+          onClose={() => setEditAllowancesDialog(prev => ({ ...prev, isOpen: false }))}
+          employeeName={editAllowancesDialog.employeeName}
+          allowances={editAllowancesDialog.allowances}
+          onSave={handleAllowancesSave}
+        />
+
+        <EditDeductionsDialog
+          isOpen={editDeductionsDialog.isOpen}
+          onClose={() => setEditDeductionsDialog(prev => ({ ...prev, isOpen: false }))}
+          employeeName={editDeductionsDialog.employeeName}
+          deductions={editDeductionsDialog.deductions}
+          onSave={handleDeductionsSave}
+        />
+
+        {/* Slot Breakdown Dialog */}
+        {slotBreakdownData && (
+          <SlotBreakdownDialog
+            isOpen={slotBreakdownOpen}
+            onClose={() => {
+              setSlotBreakdownOpen(false);
+              setSlotBreakdownData(null);
+            }}
+            employeeName={slotBreakdownData.employeeName}
+            breakdown={slotBreakdownData.breakdown}
+            totalPay={slotBreakdownData.totalPay}
+            totalSlots={slotBreakdownData.totalSlots}
+            fullSlotRate={slotBreakdownData.fullSlotRate}
+            milestoneBonus={slotBreakdownData.milestoneBonus}
+            milestoneBonusThreshold={slotBreakdownData.milestoneBonusThreshold}
+            onUpdate={async () => {
+              // Refresh the slot breakdown data after an update
+              try {
+                const fullEmployeeProfile = await getEmployeeById(slotBreakdownData.employeeId);
+                if (fullEmployeeProfile) {
+                  const slotData = await getSlotBookingPayForPeriod(
+                    slotBreakdownData.employeeId,
+                    selectedPeriod,
+                    fullEmployeeProfile
+                  );
+                  setSlotBreakdownData({
+                    employeeId: slotBreakdownData.employeeId,
+                    employeeName: slotBreakdownData.employeeName,
+                    breakdown: slotData.breakdown,
+                    totalPay: slotData.totalPay,
+                    totalSlots: slotData.totalSlots,
+                    fullSlotRate: slotData.fullSlotRate,
+                    milestoneBonus: slotData.milestoneBonus,
+                    milestoneBonusThreshold: slotData.milestoneBonusThreshold,
+                  });
+                }
+              } catch (error) {
+                console.error('Error refreshing slot breakdown:', error);
+              }
+            }}
+          />
+        )}
       </div>
-    </div>
+    </ResponsiveLayout>
   );
 };
 
