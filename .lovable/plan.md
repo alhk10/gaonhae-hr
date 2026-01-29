@@ -1,132 +1,260 @@
 
+# Plan: Show Saved Payroll Data for Past Months
 
-## Miscellaneous Page - Verification Letters Generator
+## Problem Statement
+When viewing past months in payroll processing (especially with "Force Recalculate"), the system fetches **current** employee data (allowances, deductions, claims) instead of loading the **saved** historical payroll data from the `payroll_records` table. This means changes made to employee records after payroll was processed incorrectly affect the displayed values for past months.
 
-### Overview
-Create a new "Miscellaneous" page accessible to Senior Partners and Superadmins that allows generating Student Verification Letters and Employment Verification Letters as PDFs.
+## Current State
+- Payroll data IS being saved correctly to `payroll_records.payroll_data` with arrays for:
+  - `baseSalary`, `allowances[]`, `deductions[]`, `claims`, CPF amounts, gross/net salary
+  - Slot breakdown data for casual employees
+- However, when loading a past month, the system:
+  1. Deletes cached payroll records for Nov 2025+
+  2. Fetches CURRENT employee allowances/deductions from `allowances` and `deductions` tables
+  3. Recalculates everything from scratch
 
-### Implementation Architecture
+## Solution Overview
+Implement a system that:
+1. **For processed months**: Load saved historical data from `payroll_records`
+2. **For unprocessed months**: Calculate fresh from current employee data
+3. **Provide explicit "Recalculate" option**: Users can choose to recalculate if needed
 
-```text
-src/
-├── pages/
-│   └── Miscellaneous.tsx                    # Main page with tabs
-├── utils/
-│   └── verificationLetterPDFGenerator.ts    # PDF generation utilities
+---
+
+## Implementation Steps
+
+### Step 1: Create a service function to load saved payroll data
+**File: `src/services/payrollService.ts`**
+
+Add a new function to fetch saved payroll records for a specific period with full historical data:
+
+```typescript
+export const getSavedPayrollForPeriod = async (period: string): Promise<{
+  hasData: boolean;
+  fullTimeEmployees: Array<{
+    employeeId: string;
+    name: string;
+    baseSalary: number;
+    allowances: Array<{ name: string; amount: number }>;
+    deductions: Array<{ name: string; amount: number }>;
+    approvedClaims: number;
+    grossSalary: number;
+    employeeCPF: number;
+    employerCPF: number;
+    netSalary: number;
+  }>;
+  casualEmployees: Array<{
+    employeeId: string;
+    name: string;
+    baseSalary: number;
+    allowances: Array<{ name: string; amount: number }>;
+    deductions: Array<{ name: string; amount: number }>;
+    approvedClaims: number;
+    grossSalary: number;
+    employeeCPF: number;
+    employerCPF: number;
+    netSalary: number;
+    slotBookingPay?: number;
+    slotBreakdown?: any[];
+    calculationMethod?: string;
+  }>;
+}>
 ```
 
-### Data Requirements
+This will:
+- Parse the period format (e.g., "November 2025")
+- Query `payroll_records` for all records with matching year and month
+- Return structured data with historical values
 
-**Student Verification Letter Fields:**
-- First Name + Last Name (from `students.first_name`, `students.last_name`)
-- Date of Birth (from `students.date_of_birth`)
-- NRIC/Passport (from `students.nric_passport`)
-- Current Belt (from `students.current_belt`)
-- Enrollment Date (from `students.enrollment_date`)
+### Step 2: Modify `usePayrollPersistence.ts` to handle November 2025+ periods
+**File: `src/hooks/usePayrollPersistence.ts`**
 
-**Employment Verification Letter Fields:**
-- Employee Name (from `employees.name`)
-- Date of Birth (from `employees.date_of_birth`)
-- NRIC (from `employees.nric`)
-- Position (from `employees.position`)
-- Base Salary (from `employees.base_salary`)
-- Join Date (from `employees.join_date`)
+Update `loadPayrollFromSupabase` to:
+- Remove the skip for Nov 2025+ periods
+- Use the new `getSavedPayrollForPeriod` function
+- Include full allowances/deductions arrays in the loaded data
+- Handle both period formats ("November 2025" and "11")
 
-### Technical Details
+### Step 3: Update `PayrollProcessing.tsx` loading logic
+**File: `src/pages/PayrollProcessing.tsx`**
 
-#### 1. New Page: `src/pages/Miscellaneous.tsx`
-- Two tabs: "Student Letters" and "Employee Letters"
-- Searchable dropdown to select student/employee
-- Preview of selected person's details
-- "Generate PDF" and "Print" buttons
-- Uses existing patterns from `BranchProfitLoss.tsx` for PDF generation
+Modify the main `useEffect` that loads payroll data:
 
-#### 2. PDF Generator: `src/utils/verificationLetterPDFGenerator.ts`
-- Uses `jsPDF` library (already installed)
-- Implements Gaonhae Taekwondo letterhead with logo (following existing patterns from `payslipPDFGenerator.ts`)
-- A4 format with proper margins
-- Professional letter layout with date, "To Whom It May Concern" heading
-
-**Student Letter Template:**
-```text
-[Company Letterhead with Logo]
-Gaonhae Taekwondo LLP | T18LL1687K
-271 Bukit Timah Road #02-08 Singapore 259708
-
-[Current Date]
-
-TO WHOM IT MAY CONCERN
-
-STUDENT VERIFICATION LETTER
-
-This is to certify that [First Name Last Name] is a student currently registered at Gaonhae Taekwondo.
-
-Student Details:
-- Full Name: [First Name Last Name]
-- Date of Birth: [DD/MM/YYYY]
-- NRIC/Passport: [Number]
-- Current Belt: [Belt Level]
-- Member Since: [Enrollment Date]
-
-This letter is issued upon request for [student's] reference.
-
-Yours faithfully,
-Gaonhae Taekwondo LLP
+```typescript
+useEffect(() => {
+  const loadAllEmployeeData = async () => {
+    // 1. First, check if there's saved payroll data for this period
+    const savedPayroll = await getSavedPayrollForPeriod(selectedPeriod);
+    
+    if (savedPayroll.hasData) {
+      // 2. If saved data exists, use it directly
+      // Set employeeAllowances and employeeDeductions from saved data
+      // Don't fetch current employee allowances/deductions
+      // Show "Using Saved Data" indicator
+    } else {
+      // 3. If no saved data, calculate from current employee data
+      // Current logic for fetching and calculating
+    }
+  };
+}, [selectedPeriod]);
 ```
 
-**Employment Letter Template:**
-```text
-[Company Letterhead with Logo]
-Gaonhae Taekwondo LLP | T18LL1687K
-271 Bukit Timah Road #02-08 Singapore 259708
+### Step 4: Add "Recalculate from Current Data" button
+**File: `src/pages/PayrollProcessing.tsx`**
 
-[Current Date]
+Add a button that allows superadmins to explicitly recalculate payroll from current employee data when viewing saved periods:
 
-TO WHOM IT MAY CONCERN
+- Show indicator when viewing saved historical data
+- Provide "Recalculate" button with confirmation dialog
+- Make current `forceRecalculatePayroll` available as explicit action
 
-EMPLOYMENT VERIFICATION LETTER
+### Step 5: Update the `usePayrollPersistence` save function
+**File: `src/hooks/usePayrollPersistence.ts`**
 
-This is to certify that [Employee Name] is employed at 
-Gaonhae Taekwondo LLP.
+Ensure the save function includes ALL necessary fields:
 
-Employment Details:
-- Full Name: [Employee Name]
-- Date of Birth: [DD/MM/YYYY]
-- NRIC: [Number]
-- Position: [Position]
-- Monthly Salary: S$[Amount]
-- Employment Start Date: [Join Date]
-
-This letter is issued upon request for [employee's] reference.
-
-Yours faithfully,
-Gaonhae Taekwondo LLP
+```typescript
+payroll_data: {
+  name: employee.name,
+  baseSalary: employee.baseSalary,
+  // Save ARRAYS not just totals
+  allowances: employee.allowancesArray?.map(a => ({ name: a.name, amount: a.amount })) || [],
+  deductions: employee.deductions?.map(d => ({ name: d.name, amount: d.amount })) || [],
+  totalAllowances: totalAllowancesAmount,
+  totalDeductions: totalDeductionsAmount,
+  approvedClaims: employee.claims || 0,
+  grossPay: employee.grossPay,
+  employeeCPF: employee.cpfEmployee,
+  employerCPF: employee.cpfEmployer,
+  netPay: employee.netPay,
+  type: 'Full-Time'
+}
 ```
 
-#### 3. Route & Sidebar Integration
-- Add route `/miscellaneous` in `App.tsx` with PositionAccessGuard for `['Partner', 'Senior Partner']` or Superadmin access
-- Add sidebar menu item with `FileCheck` icon
+### Step 6: Update state variables for historical data
+**File: `src/pages/PayrollProcessing.tsx`**
 
-#### 4. UI Components
-- SearchableSelect for student/employee selection (using existing component)
-- Preview card showing selected person's details
-- Action buttons for PDF download and print
+Add new state variables:
 
-### Files to Create/Modify
+```typescript
+const [isUsingHistoricalData, setIsUsingHistoricalData] = useState(false);
+const [historicalPayrollData, setHistoricalPayrollData] = useState<any>(null);
+```
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/pages/Miscellaneous.tsx` | Create | Main page with Student/Employee tabs |
-| `src/utils/verificationLetterPDFGenerator.ts` | Create | PDF generation functions for both letter types |
-| `src/App.tsx` | Modify | Add route for `/miscellaneous` |
-| `src/components/layout/Sidebar.tsx` | Modify | Add menu item for Miscellaneous page |
+When historical data is loaded:
+- Set `employeeAllowances` and `employeeDeductions` from saved payroll data
+- Set flag to indicate historical mode
+- Show visual indicator in UI
 
-### Access Control
-- Restricted to Senior Partners and Superadmins (using existing `PositionAccessGuard` pattern)
-- Uses existing RLS policies for student and employee data access
+### Step 7: Update PayrollContext to support historical data loading
+**File: `src/contexts/PayrollContext.tsx`**
 
-### Dependencies
-- `jsPDF` - Already installed for PDF generation
-- Existing `searchable-select.tsx` component for dropdown selection
-- Existing company logo at `/images/company-logo.jpg`
+Add a new function `loadHistoricalPayroll` that:
+- Takes a period and loads from `payroll_records`
+- Sets payroll state with historical values
+- Doesn't trigger recalculation
 
+---
+
+## UI Changes
+
+### Visual Indicator for Historical Data
+When viewing saved payroll data, display a banner:
+
+```
+📋 Viewing saved payroll data from [date processed]
+   Allowances, deductions, and CPF amounts reflect values at time of processing.
+   [Recalculate from Current Data] button
+```
+
+### Recalculate Button Behavior
+- Available only when viewing saved historical data
+- Shows confirmation dialog explaining that this will overwrite saved values
+- Calls `forceRecalculatePayroll` with `showToast: true`
+
+---
+
+## Technical Details
+
+### Data Structure in `payroll_records.payroll_data`
+
+For Full-Time employees:
+```json
+{
+  "type": "Full-Time",
+  "name": "Employee Name",
+  "baseSalary": 3200,
+  "allowances": [
+    { "name": "Preschool Allowance", "amount": 300 },
+    { "name": "Grading Allowance", "amount": 100 }
+  ],
+  "deductions": [],
+  "totalAllowances": 400,
+  "totalDeductions": 0,
+  "approvedClaims": 0,
+  "grossSalary": 3600,
+  "employeeCPF": 720,
+  "employerCPF": 612,
+  "netSalary": 2880
+}
+```
+
+For Casual employees:
+```json
+{
+  "type": "Casual",
+  "name": "Employee Name",
+  "baseSalary": 0,
+  "hourlyRate": 15,
+  "hoursWorked": 48,
+  "daysWorked": 8,
+  "allowances": [{ "name": "Performance Bonus", "amount": 50 }],
+  "deductions": [],
+  "slotBookingPay": 1200,
+  "slotBreakdown": [...],
+  "calculationMethod": "dynamic_pricing",
+  "totalAllowances": 50,
+  "approvedClaims": 0,
+  "grossSalary": 1250,
+  "employeeCPF": 250,
+  "employerCPF": 212.5,
+  "netSalary": 1000
+}
+```
+
+---
+
+## Files to Modify
+
+1. **`src/services/payrollService.ts`** - Add `getSavedPayrollForPeriod` function
+2. **`src/hooks/usePayrollPersistence.ts`** - Update save/load to include full arrays, remove Nov 2025+ skip
+3. **`src/pages/PayrollProcessing.tsx`** - Update loading logic, add historical data indicator, add recalculate button
+4. **`src/contexts/PayrollContext.tsx`** - Add `loadHistoricalPayroll` function
+5. **`src/types/payroll.ts`** - Ensure `allowancesArray` and `deductions` array types are properly defined
+
+---
+
+## Edge Cases to Handle
+
+1. **Mixed state**: Some employees have saved data, others don't
+   - Solution: For employees without saved data, calculate from current data
+   
+2. **Employee no longer exists**: Saved record references deleted employee
+   - Solution: Show employee data from saved record (historical view)
+   
+3. **New employee added mid-month**: Employee has no saved record for past month
+   - Solution: Skip employee from historical view, or calculate if explicitly requested
+
+4. **Period format variations**: "November 2025" vs "11" vs "2025-11"
+   - Solution: Normalize period format in `getSavedPayrollForPeriod`
+
+---
+
+## Testing Checklist
+
+- [ ] Viewing December 2025 (already processed) shows saved allowances, not current
+- [ ] Editing an allowance for an employee doesn't change past month's saved data
+- [ ] "Recalculate" button successfully updates saved data with current values
+- [ ] New months without saved data calculate correctly from current employee data
+- [ ] Casual employee slot breakdown data displays correctly from saved records
+- [ ] CPF amounts display historical values for processed months
