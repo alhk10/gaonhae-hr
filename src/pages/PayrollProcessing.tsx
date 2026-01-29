@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight, RefreshCw } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight, RefreshCw, History, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
@@ -23,9 +23,12 @@ import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
-import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus, deletePayrollRecord } from '@/services/payrollService';
+import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus, deletePayrollRecord, getSavedPayrollForPeriod } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
 import { forceRefreshSession } from '@/services/sessionRefreshService';
+import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 
 const PayrollProcessing = () => {
@@ -57,6 +60,10 @@ const PayrollProcessing = () => {
   const [periodStatus, setPeriodStatus] = useState<{ status: string; finalizedBy?: string; finalizedAt?: string } | null>(null);
   const [paidStatus, setPaidStatus] = useState<{[key: string]: boolean}>({});
   const [cpfPaidStatus, setCpfPaidStatus] = useState<{[key: string]: boolean}>({});
+  
+  // Historical data state
+  const [isUsingHistoricalData, setIsUsingHistoricalData] = useState(false);
+  const [historicalProcessedAt, setHistoricalProcessedAt] = useState<string | null>(null);
 
   // Helper function to force recalculate payroll
   const forceRecalculatePayroll = async (period: string = selectedPeriod, showToast: boolean = true) => {
@@ -200,11 +207,12 @@ const PayrollProcessing = () => {
       
       try {
         setLoading(true);
+        setIsUsingHistoricalData(false);
+        setHistoricalProcessedAt(null);
         
         // Force refresh session before any operations to handle expired JWT
         await forceRefreshSession();
         
-        // CRITICAL: For November 2025 onwards, FORCE CLEAR any cached payroll data
         const formatPeriodForAPI = (period: string): string => {
           const [monthName, year] = period.split(' ');
           const monthNames = [
@@ -219,28 +227,172 @@ const PayrollProcessing = () => {
         const [year, month] = formattedPeriod.split('-').map(Number);
         const isNovember2025OrLater = (year > 2025) || (year === 2025 && month >= 11);
         
-        if (isNovember2025OrLater) {
+        // STEP 1: Check for saved historical payroll data first
+        const savedPayroll = await getSavedPayrollForPeriod(selectedPeriod);
+        
+        if (savedPayroll.hasData && savedPayroll.fullTimeEmployees.length + savedPayroll.casualEmployees.length > 0) {
           console.log('\n╔══════════════════════════════════════════════════════════╗');
-          console.log('║  ⚡ NOVEMBER 2025+ DETECTED - FORCING RECALCULATION    ║');
+          console.log('║  📋 HISTORICAL PAYROLL DATA FOUND                        ║');
           console.log('╠══════════════════════════════════════════════════════════╣');
           console.log('║  Period:', selectedPeriod.padEnd(44), '║');
-          console.log('║  Action: Clear cached data & recalculate with slots    ║');
+          console.log('║  Full-Time:', String(savedPayroll.fullTimeEmployees.length).padEnd(42), '║');
+          console.log('║  Casual:', String(savedPayroll.casualEmployees.length).padEnd(45), '║');
+          console.log('║  Processed:', (savedPayroll.processedAt || 'Unknown').substring(0, 19).padEnd(41), '║');
           console.log('╚══════════════════════════════════════════════════════════╝\n');
           
-          // Delete cached November 2025 payroll record to force recalculation using service
-          try {
-            await deletePayrollRecord(`PERIOD_${formattedPeriod}`);
-            console.log('✓ Deleted cached payroll record');
-          } catch (deleteError) {
-            console.warn('Could not delete cached payroll (may not exist):', deleteError);
-          }
+          // Use saved historical data - don't recalculate!
+          setIsUsingHistoricalData(true);
+          setHistoricalProcessedAt(savedPayroll.processedAt || null);
           
-          // Clear any existing November 2025 payroll state
+          // Build allowances/deductions maps from historical data
+          const historicalAllowances: {[key: string]: any[]} = {};
+          const historicalDeductions: {[key: string]: any[]} = {};
+          
+          [...savedPayroll.fullTimeEmployees, ...savedPayroll.casualEmployees].forEach(emp => {
+            historicalAllowances[emp.employeeId] = emp.allowances.map((a, idx) => ({
+              id: idx,
+              employee_id: emp.employeeId,
+              name: a.name,
+              amount: a.amount,
+              type: 'Fixed',
+            }));
+            historicalDeductions[emp.employeeId] = emp.deductions.map((d, idx) => ({
+              id: idx,
+              employee_id: emp.employeeId,
+              name: d.name,
+              amount: d.amount,
+              type: 'Fixed',
+            }));
+          });
+          
+          setEmployeeAllowances(historicalAllowances);
+          setEmployeeDeductions(historicalDeductions);
+          
+          // Still need employee base info for display purposes
+          const employees = await getEmployeesForPayroll();
+          setAllEmployees(employees);
+          
+          // Load period status and lock info
+          const status = await getPayrollStatus(formattedPeriod);
+          setPeriodStatus(status);
+          setIsPeriodLocked(status?.status === 'finalized' || false);
+          
+          // Load existing payment status from Supabase
+          const paymentRecords = await getPayrollRecordsForPeriod(selectedPeriod);
+          const salaryStatus: {[key: string]: boolean} = {};
+          const cpfStatus: {[key: string]: boolean} = {};
+          paymentRecords.forEach(record => {
+            if (record.employeeId) {
+              salaryStatus[record.employeeId] = record.salaryPaid;
+              cpfStatus[record.employeeId] = record.cpfPaid;
+            }
+          });
+          setPaidStatus(salaryStatus);
+          setCpfPaidStatus(cpfStatus);
+          
+          // Set payroll state from historical data
           setCurrentPeriod(selectedPeriod);
           
-          // Force wait for state to clear
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Update payroll context with historical values
+          // Convert saved data to the format expected by payrollState
+          const fullTimeFromSaved = savedPayroll.fullTimeEmployees.map(emp => ({
+            id: emp.employeeId,
+            name: emp.name,
+            employeeId: emp.employeeId,
+            baseSalary: emp.baseSalary,
+            allowances: emp.totalAllowances,
+            cpfContribution: emp.employeeCPF + emp.employerCPF,
+            cpfEmployee: emp.employeeCPF,
+            cpfEmployer: emp.employerCPF,
+            grossPay: emp.grossPay,
+            netPay: emp.netPay,
+            claims: emp.approvedClaims,
+            allowancesArray: emp.allowances.map((a, idx) => ({
+              id: `hist-${idx}`,
+              employeeId: emp.employeeId,
+              name: a.name,
+              amount: a.amount,
+              type: 'Fixed' as const,
+            })),
+            deductions: emp.deductions.map((d, idx) => ({
+              id: `hist-${idx}`,
+              employeeId: emp.employeeId,
+              name: d.name,
+              amount: d.amount,
+              type: 'Fixed' as const,
+            })),
+          }));
+
+          const casualFromSaved = savedPayroll.casualEmployees.map(emp => ({
+            id: emp.employeeId,
+            name: emp.name,
+            employeeId: emp.employeeId,
+            baseSalary: emp.baseSalary || 0,
+            hourlyRate: emp.hourlyRate || 0,
+            hoursWorked: emp.hoursWorked || 0,
+            daysWorked: emp.daysWorked || 0,
+            totalPay: emp.netPay,
+            employeeCPF: emp.employeeCPF,
+            employerCPF: emp.employerCPF,
+            grossPay: emp.grossPay,
+            netPay: emp.netPay,
+            cpfEmployee: emp.employeeCPF,
+            cpfEmployer: emp.employerCPF,
+            cpf: emp.employeeCPF + emp.employerCPF,
+            total: emp.netPay,
+            claims: emp.approvedClaims,
+            slotBookingPay: emp.slotBookingPay || 0,
+            slotBookingMetadata: {
+              totalSlots: emp.slotBreakdown?.length || 0,
+              hasBookings: (emp.slotBreakdown?.length || 0) > 0,
+              breakdown: emp.slotBreakdown || [],
+              calculationMethod: emp.calculationMethod || 'legacy_rates',
+            },
+            allowances: emp.allowances,
+            deductions: emp.deductions,
+            warnings: [],
+          }));
+          
+          // Directly update payroll state with historical data via addEmployeesToPayroll bypass
+          // For now, we'll trigger the normal flow but skip the force delete
+          await refreshAvailableEmployees();
+          
+          // Wait and then add employees to payroll using historical values
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          const employeeIds = employees.map(emp => emp.id);
+          const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, selectedPeriod);
+          
+          // Override with historical values
+          if (optimizedPayrollData) {
+            Object.keys(historicalAllowances).forEach(empId => {
+              optimizedPayrollData.allowances[empId] = historicalAllowances[empId];
+            });
+            Object.keys(historicalDeductions).forEach(empId => {
+              optimizedPayrollData.deductions[empId] = historicalDeductions[empId];
+            });
+          }
+          
+          setPayrollData(optimizedPayrollData);
+          await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod, employees);
+          
+          console.log('[PayrollProcessing] ✅ Historical data loaded successfully');
+          setLoading(false);
+          return; // Exit early - we've loaded historical data
         }
+        
+        // STEP 2: No historical data - proceed with normal calculation
+        console.log('\n╔══════════════════════════════════════════════════════════╗');
+        console.log('║  🔄 NO HISTORICAL DATA - CALCULATING FRESH               ║');
+        console.log('╠══════════════════════════════════════════════════════════╣');
+        console.log('║  Period:', selectedPeriod.padEnd(44), '║');
+        console.log('╚══════════════════════════════════════════════════════════╝\n');
+        
+        // Clear any existing payroll state
+        setCurrentPeriod(selectedPeriod);
+        
+        // Force wait for state to clear
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Load period status and lock info
         const status = await getPayrollStatus(formattedPeriod);
@@ -756,6 +908,35 @@ const PayrollProcessing = () => {
           selectedPeriod={selectedPeriod}
           onPeriodChange={handlePeriodChange}
         />
+
+        {/* Historical Data Indicator Banner */}
+        {isUsingHistoricalData && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <History className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Viewing Saved Payroll Data</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Displaying allowances, deductions, and CPF amounts as they were at time of processing
+                  {historicalProcessedAt && ` (${format(new Date(historicalProcessedAt), 'dd MMM yyyy, HH:mm')})`}.
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm('This will recalculate payroll using current employee data (allowances, deductions, etc.). Any previously saved values will be overwritten. Continue?')) {
+                      forceRecalculatePayroll(selectedPeriod, true);
+                    }
+                  }}
+                  className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Recalculate from Current Data
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
