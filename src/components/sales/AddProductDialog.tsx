@@ -14,9 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe, Briefcase } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase } from 'lucide-react';
 import { ProductVariantManager } from './ProductVariantManager';
-import { TermValiditySelector } from './TermValiditySelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const BELT_LEVELS = [
@@ -48,11 +47,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
-    session_count: '',
-    validity_type: 'months' as 'months' | 'term',
-    validity_months: '',
-    term_id: null as string | null,
-    is_recurring: false,
     is_service: false,
     is_active: true
   });
@@ -107,11 +101,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
         max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
         requires_belt_level: formData.requires_belt_level,
-        session_count: formData.session_count ? parseInt(formData.session_count) : undefined,
-        validity_type: formData.validity_type,
-        validity_months: formData.validity_type === 'months' && formData.validity_months ? parseInt(formData.validity_months) : undefined,
-        term_id: formData.validity_type === 'term' ? formData.term_id : undefined,
-        is_recurring: formData.is_recurring,
         is_service: formData.is_service,
         is_active: formData.is_active
       };
@@ -141,11 +130,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       min_belt_level: '',
       max_belt_level: '',
       requires_belt_level: false,
-      session_count: '',
-      validity_type: 'months',
-      validity_months: '',
-      term_id: null,
-      is_recurring: false,
       is_service: false,
       is_active: true
     });
@@ -364,50 +348,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 </div>
               </div>
             )}
-          </section>
-
-          {/* Sessions & Validity Section */}
-          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Calendar className="w-4 h-4" />
-              Sessions & Validity
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Session Count</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.session_count}
-                  onChange={(e) => handleInputChange('session_count', e.target.value)}
-                  placeholder="10"
-                  className="h-9"
-                />
-              </div>
-              <div className="flex items-end pb-1">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_recurring"
-                    checked={formData.is_recurring}
-                    onCheckedChange={(checked) => handleInputChange('is_recurring', checked)}
-                  />
-                  <Label htmlFor="is_recurring" className="text-xs">Recurring (monthly fees)</Label>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Label className="text-xs text-muted-foreground mb-2 block">Validity Period</Label>
-              <TermValiditySelector
-                validityType={formData.validity_type}
-                validityMonths={formData.validity_months ? parseInt(formData.validity_months) : 0}
-                termId={formData.term_id}
-                onValidityTypeChange={(type) => handleInputChange('validity_type', type)}
-                onValidityMonthsChange={(months) => handleInputChange('validity_months', months.toString())}
-                onTermIdChange={(id) => handleInputChange('term_id', id)}
-              />
-            </div>
           </section>
 
           {/* Status Section */}
