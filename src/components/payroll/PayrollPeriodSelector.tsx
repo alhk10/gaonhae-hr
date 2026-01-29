@@ -11,6 +11,7 @@ import { usePayroll } from '@/contexts/PayrollContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureValidSession } from '@/services/sessionRefreshService';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
@@ -90,6 +91,9 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const loadAvailablePeriodsAndStats = async () => {
     setIsLoadingPeriods(true);
     try {
+      // Ensure session is valid before loading
+      await ensureValidSession();
+      
       const records = await getAllPayrollRecords();
       
       // Group records by period
@@ -131,6 +135,9 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const loadPayrollStatus = async () => {
     setIsLoadingStatus(true);
     try {
+      // Ensure session is valid before loading
+      await ensureValidSession();
+      
       const formattedPeriod = formatPeriodForAPI(selectedPeriod);
       const status = await getPayrollStatus(formattedPeriod);
       setLocalPayrollStatus(status);
@@ -157,8 +164,9 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
       return;
     }
     
-    // Fallback to direct Supabase call if needed
+    // Fallback to direct Supabase call if needed - ensure session first
     try {
+      await ensureValidSession();
       const { data, error } = await supabase.rpc('get_current_user_role');
       if (!error) {
         setUserrole(data || '');

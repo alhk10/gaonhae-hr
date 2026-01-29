@@ -197,7 +197,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await handleUserSession(session);
     });
 
-    // Set up periodic session refresh every 4 minutes to prevent expiration
+    // Set up periodic session refresh every 2 minutes to prevent expiration
     const refreshInterval = setInterval(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -206,16 +206,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const now = Date.now();
           const timeUntilExpiry = expiresAtMs - now;
           
-          // If token expires in less than 5 minutes, refresh it
-          if (timeUntilExpiry < 5 * 60 * 1000) {
-            logger.debug('Periodic check: Token expiring soon, refreshing...');
-            await supabase.auth.refreshSession();
+          // If token expires in less than 10 minutes, refresh it
+          if (timeUntilExpiry < 10 * 60 * 1000) {
+            logger.debug(`Periodic check: Token expires in ${Math.round(timeUntilExpiry / 60000)} minutes, refreshing...`);
+            const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              logger.error('Periodic refresh failed:', refreshError);
+            } else if (refreshedData.session) {
+              logger.info('Periodic session refresh successful');
+            }
           }
         }
       } catch (error) {
         logger.error('Error during periodic session refresh', error);
       }
-    }, 4 * 60 * 1000); // Check every 4 minutes
+    }, 2 * 60 * 1000); // Check every 2 minutes
 
     return () => {
       subscription.unsubscribe();
