@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   XCircle,
   Boxes,
-  Briefcase
+  Briefcase,
+  Globe
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import { getProductInventory, ProductInventory } from '@/services/inventoryService';
@@ -37,6 +38,7 @@ import { EditProductDialog } from './EditProductDialog';
 import { ProductDetailDialog } from './ProductDetailDialog';
 import { InventoryStatusBadge } from './InventoryStatusBadge';
 import { InventoryAdjustmentDialog } from './InventoryAdjustmentDialog';
+import { BranchPricingManager } from './BranchPricingManager';
 
 interface ProductManagementListProps {
   onDataChange?: () => void;
@@ -56,6 +58,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [inventoryProduct, setInventoryProduct] = useState<Product | null>(null);
+  const [branchPricingProduct, setBranchPricingProduct] = useState<Product | null>(null);
   const [inventory, setInventory] = useState<Record<string, ProductInventory>>({});
   const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -488,6 +491,14 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => setBranchPricingProduct(product)}
+                              title="Branch Pricing"
+                            >
+                              <Globe className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleInventoryAdjust(product)}
                               title="Adjust Inventory"
                             >
@@ -567,6 +578,18 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
           onDataChange?.();
         }}
       />
+
+      {/* Branch Pricing Manager Dialog */}
+      {branchPricingProduct && (
+        <BranchPricingManager
+          productId={branchPricingProduct.id}
+          productName={branchPricingProduct.name}
+          basePrice={Number(branchPricingProduct.base_price)}
+          baseTaxRate={Number(branchPricingProduct.tax_rate) || 8}
+          open={!!branchPricingProduct}
+          onOpenChange={(open) => !open && setBranchPricingProduct(null)}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
