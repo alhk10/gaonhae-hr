@@ -258,6 +258,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     
     try {
       const today = new Date().toISOString().split('T')[0];
+      console.log('[loadBranchTerms] Fetching terms for branch:', branchId, 'today:', today);
+      
       const { data, error } = await supabase
         .from('term_calendars')
         .select('*')
@@ -266,10 +268,19 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         .gte('end_date', today)
         .order('start_date', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('[loadBranchTerms] Query error:', error);
+        throw error;
+      }
+      
+      console.log('[loadBranchTerms] Found terms:', data?.length || 0, data);
       setBranchTerms((data || []) as Term[]);
-    } catch (error) {
-      console.error('Error loading terms:', error);
+    } catch (error: any) {
+      console.error('[loadBranchTerms] Error loading terms:', error);
+      // If it's an auth error, show appropriate message
+      if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
+        setTermError('Session expired. Please refresh the page.');
+      }
       setBranchTerms([]);
     }
   };
@@ -313,13 +324,18 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
   // Refresh term selection - fetches terms and auto-selects the appropriate one
   const refreshTermSelection = async (branchId: string, studentId: string): Promise<string> => {
-    if (!branchId || !studentId) return '';
+    if (!branchId || !studentId) {
+      console.log('[refreshTermSelection] Missing branchId or studentId:', { branchId, studentId });
+      return '';
+    }
     
     setTermLoading(true);
     setTermError(null);
     
     try {
       const today = new Date().toISOString().split('T')[0];
+      console.log('[refreshTermSelection] Fetching terms for branch:', branchId, 'today:', today);
+      
       const { data: termsData, error: termsError } = await supabase
         .from('term_calendars')
         .select('*')
@@ -328,7 +344,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         .gte('end_date', today)
         .order('start_date', { ascending: true });
       
-      if (termsError) throw termsError;
+      if (termsError) {
+        console.error('[refreshTermSelection] Query error:', termsError);
+        throw termsError;
+      }
+      
+      console.log('[refreshTermSelection] Found terms:', termsData?.length || 0, termsData);
       
       const availableTerms = (termsData || []) as Term[];
       setBranchTerms(availableTerms);
@@ -343,6 +364,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         t.start_date <= today && t.end_date >= today
       );
       
+      console.log('[refreshTermSelection] Current term:', currentTerm);
+      
       if (currentTerm) {
         // Check if current term already has class invoice for this student
         const hasExisting = await checkExistingClassInvoice(studentId, currentTerm.id);
@@ -352,20 +375,27 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           const nextTerm = availableTerms.find(t => t.start_date > currentTerm.end_date);
           
           if (nextTerm) {
+            console.log('[refreshTermSelection] Using next term:', nextTerm);
             return nextTerm.id;
           } else {
             setTermError('No next term available. Student already has classes invoiced for current term.');
             return '';
           }
         } else {
+          console.log('[refreshTermSelection] Using current term:', currentTerm.id);
           return currentTerm.id;
         }
       } else {
         // No current term - use first available future term
+        console.log('[refreshTermSelection] Using first available term:', availableTerms[0]);
         return availableTerms[0].id;
       }
-    } catch (error) {
-      console.error('Error refreshing term selection:', error);
+    } catch (error: any) {
+      console.error('[refreshTermSelection] Error:', error);
+      // If it's an auth error, show appropriate message
+      if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
+        setTermError('Session expired. Please refresh the page.');
+      }
       return '';
     } finally {
       setTermLoading(false);
