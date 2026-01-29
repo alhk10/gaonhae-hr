@@ -1,6 +1,7 @@
 /**
  * Invoice Management List Component
  * Displays and manages invoices in the sales module
+ * Supports branch-based access control for non-superadmin users
  */
 
 import React, { useState, useEffect } from 'react';
@@ -30,6 +31,7 @@ import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 const InvoiceManagementList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -39,6 +41,7 @@ const InvoiceManagementList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [studentFilter, setStudentFilter] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
+  const { accessibleBranches, isSuperadmin, canEdit, canDelete, canCreate, hasAccess } = useInvoiceAccess();
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,8 +73,18 @@ const InvoiceManagementList: React.FC = () => {
         statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
         studentFilter && studentFilter !== 'all' ? studentFilter : undefined
       );
-      setInvoices(response.invoices);
-      setTotalInvoices(response.total);
+      
+      // Filter invoices by accessible branches for non-superadmins
+      let filteredInvoices = response.invoices;
+      if (!isSuperadmin && accessibleBranches.length > 0) {
+        const accessibleBranchIds = accessibleBranches.map(b => b.branch_id);
+        filteredInvoices = response.invoices.filter(
+          inv => inv.branch_id && accessibleBranchIds.includes(inv.branch_id)
+        );
+      }
+      
+      setInvoices(filteredInvoices);
+      setTotalInvoices(isSuperadmin ? response.total : filteredInvoices.length);
     } catch (error) {
       console.error('Error loading invoices:', error);
       toast.error('Failed to load invoices');
@@ -107,7 +120,13 @@ const InvoiceManagementList: React.FC = () => {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
+  const handleDeleteInvoice = async (invoiceId: string, branchId?: string) => {
+    // Check delete permission for this branch
+    if (branchId && !canDelete(branchId)) {
+      toast.error('You do not have permission to delete invoices for this branch');
+      return;
+    }
+    
     if (!confirm('Are you sure you want to delete this invoice?')) return;
     
     try {
@@ -151,15 +170,17 @@ const InvoiceManagementList: React.FC = () => {
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <CreateInvoiceDialog 
-            trigger={
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Invoice
-              </Button>
-            }
-            onInvoiceCreated={loadInvoices}
-          />
+          {hasAccess && (
+            <CreateInvoiceDialog 
+              trigger={
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Invoice
+                </Button>
+              }
+              onInvoiceCreated={loadInvoices}
+            />
+          )}
         </div>
       </div>
 
@@ -353,7 +374,7 @@ const InvoiceManagementList: React.FC = () => {
                             size="icon"
                             className="h-8 w-8"
                             title="Edit Invoice"
-                            disabled
+                            disabled={!canEdit(invoice.branch_id || '')}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -362,7 +383,8 @@ const InvoiceManagementList: React.FC = () => {
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive"
                             title="Delete Invoice"
-                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            onClick={() => handleDeleteInvoice(invoice.id, invoice.branch_id || undefined)}
+                            disabled={!canDelete(invoice.branch_id || '')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

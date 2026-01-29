@@ -1,6 +1,7 @@
 /**
  * Create Invoice Dialog Component
  * Form for creating new invoices in the sales module
+ * Supports branch-based access control for non-superadmin users
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +18,7 @@ import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService
 import { getStudents } from '@/services/studentService';
 import { getProducts } from '@/services/productService';
 import { supabase } from '@/integrations/supabase/client';
+import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
 
@@ -41,6 +43,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string}>>([]);
   const [products, setProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number}>>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
+  const { accessibleBranches, isSuperadmin, canCreate } = useInvoiceAccess();
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
@@ -310,11 +313,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches.filter(b => !['Competition', 'Headquarters'].includes(b.name)).map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name} {branch.country && `(${branch.country})`}
-                      </SelectItem>
-                    ))}
+                    {branches
+                      .filter(b => !['Competition', 'Headquarters'].includes(b.name))
+                      .filter(b => isSuperadmin || canCreate(b.id))
+                      .map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name} {branch.country && `(${branch.country})`}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

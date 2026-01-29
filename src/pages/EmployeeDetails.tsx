@@ -20,6 +20,7 @@ import AdminAccessManager from '@/components/employee/AdminAccessManager';
 import LocationExceptionManager from '@/components/employee/LocationExceptionManager';
 import AllowanceDeductionManager from '@/components/employee/AllowanceDeductionManager';
 import EmployeeQualificationsManager from '@/components/employee/EmployeeQualificationsManager';
+import InvoiceAccessManager from '@/components/employee/InvoiceAccessManager';
 import { updateEmployeeAdminAccess, updateEmployeePageAccess } from '@/services/employeeService';
 import EmployeeClaimHistory from '@/components/employee/EmployeeClaimHistory';
 import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
@@ -643,6 +644,15 @@ const EmployeeDetails = () => {
             <LocationExceptionManager
               employeeId={employeeData.id}
               employeeName={employeeData.name}
+            />
+          )}
+
+          {/* Invoice Access Management - Only visible to superadmins */}
+          {isSuperAdmin && (
+            <InvoiceAccessManager
+              employeeId={employeeData.id}
+              employeeName={employeeData.name}
+              isEditing={isEditing}
             />
           )}
 

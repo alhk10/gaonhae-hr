@@ -1,10 +1,12 @@
 /**
  * Invoice Management Page
  * Main page for Milestone 6 - Invoice management system
+ * Supports branch-based access control for non-superadmin users
  */
 
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+import SalesAccessGuard from '@/components/sales/SalesAccessGuard';
 import InvoiceManagementList from '@/components/sales/InvoiceManagementList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +52,8 @@ const InvoiceManagement: React.FC = () => {
   };
 
   return (
-    <ResponsiveLayout>
+    <SalesAccessGuard requireInvoiceAccess={true}>
+      <ResponsiveLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -172,6 +175,7 @@ const InvoiceManagement: React.FC = () => {
         <InvoiceManagementList />
       </div>
     </ResponsiveLayout>
+    </SalesAccessGuard>
   );
 };
 
