@@ -873,6 +873,42 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_invoice_access: {
+        Row: {
+          branch_id: string
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          created_at: string | null
+          created_by: string | null
+          employee_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          branch_id: string
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          branch_id?: string
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       employee_page_access: {
         Row: {
           apply_leave: boolean | null

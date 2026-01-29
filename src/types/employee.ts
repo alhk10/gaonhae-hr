@@ -154,3 +154,11 @@ export interface EmployeeProfile {
   pageAccess: EmployeePageAccessPermissions;
   qualifications?: EmployeeQualifications;
 }
+
+export interface InvoiceAccessPermission {
+  branch_id: string;
+  branch_name?: string;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
