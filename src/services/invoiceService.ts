@@ -74,6 +74,7 @@ export interface CreateInvoiceData {
     quantity: number;
     unit_price: number;
     size_variant?: string;
+    metadata?: Record<string, any>;
   }>;
 }
 
@@ -298,7 +299,8 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         tax_rate: taxRate,
         tax_amount: itemTaxAmount,
         total_amount: itemTotal + itemTaxAmount,
-        size_variant: item.size_variant
+        size_variant: item.size_variant,
+        metadata: item.metadata
       };
     });
 
