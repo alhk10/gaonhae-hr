@@ -3,6 +3,7 @@ import { getEmployeeById } from './employeeService';
 import { getEmployeeClaims } from './claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { logger } from '@/utils/logger';
+import { withSessionRefresh, ensureValidSession } from './sessionRefreshService';
 
 export interface PayrollData {
   baseSalary: number;
@@ -268,6 +269,9 @@ export const getEmployeePayrollRecords = async (employeeId: string): Promise<Pay
 export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
   logger.debug('Fetching all payroll records from Supabase');
   
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const { data: records, error } = await supabase
     .from('payroll_records')
     .select('*')
@@ -408,6 +412,9 @@ export const finalizePayroll = async (period: string, userId: string): Promise<v
 
 export const getPayrollStatus = async (period: string): Promise<{ status: string; finalizedBy?: string; finalizedAt?: string } | null> => {
   const recordId = `PERIOD_${period}`;
+  
+  // Ensure session is valid before making the request
+  await ensureValidSession();
   
   const { data, error } = await supabase
     .from('payroll_records')

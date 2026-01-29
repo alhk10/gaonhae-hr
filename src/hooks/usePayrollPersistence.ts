@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { formatPeriodForAPI } from '@/utils/periodUtils';
 import type { PayrollState, FullTimeEmployee, CasualEmployee } from '@/types/payroll';
+import { ensureValidSession } from '@/services/sessionRefreshService';
 
 export const usePayrollPersistence = (
   payrollState: PayrollState,
@@ -15,6 +16,9 @@ export const usePayrollPersistence = (
       fullTimeCount: payrollState.fullTimeEmployees.length,
       casualCount: payrollState.casualEmployees.length
     });
+
+    // Ensure session is valid before making requests
+    await ensureValidSession();
 
     const formattedPeriod = formatPeriodForAPI(payrollState.currentPeriod);
     const [year, month] = formattedPeriod.split('-').map(Number);
@@ -125,6 +129,9 @@ export const usePayrollPersistence = (
 
     try {
       setPayrollState(prev => ({ ...prev, isLoading: true }));
+
+      // Ensure session is valid before making requests
+      await ensureValidSession();
 
       const { data: records, error } = await supabase
         .from('payroll_records')

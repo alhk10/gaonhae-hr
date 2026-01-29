@@ -2,11 +2,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 import { logger } from '@/utils/logger';
+import { withSessionRefresh } from './sessionRefreshService';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees list');
   
   try {
+    // Ensure session is valid before making the request
+    await withSessionRefresh(async () => {});
+    
     // Optimized query - fetch essential fields plus admin access for list view
     const { data: employees, error } = await supabase
       .from('employees')
@@ -112,6 +116,9 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees with full payroll data');
   
   try {
+    // Ensure session is valid before making the request
+    await withSessionRefresh(async () => {});
+    
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
