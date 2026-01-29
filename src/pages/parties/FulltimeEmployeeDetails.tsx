@@ -37,6 +37,7 @@ import EmployeeClaimHistory from '@/components/employee/EmployeeClaimHistory';
 import EmployeeLeaveHistory from '@/components/employee/EmployeeLeaveHistory';
 import EmployeePayrollHistory from '@/components/employee/EmployeePayrollHistory';
 import PartnerBranchSharesManager from '@/components/employee/PartnerBranchSharesManager';
+import InvoiceAccessManager from '@/components/employee/InvoiceAccessManager';
 import { AdminAccessPermissions, EmployeePageAccessPermissions, EmployeeQualifications } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -621,6 +622,15 @@ const FulltimeEmployeeDetails = () => {
                 <LocationExceptionManager
                   employeeId={employeeData.id}
                   employeeName={employeeData.name}
+                />
+              )}
+
+              {/* Invoice Access Management - Only visible to superadmins */}
+              {isSuperAdmin && (
+                <InvoiceAccessManager
+                  employeeId={employeeData.id}
+                  employeeName={employeeData.name}
+                  isEditing={isEditing}
                 />
               )}
 
