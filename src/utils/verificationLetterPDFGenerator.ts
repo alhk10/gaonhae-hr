@@ -36,20 +36,17 @@ const loadLogo = async (): Promise<HTMLImageElement | null> => {
 };
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
-  const pageWidth = 210; // A4 width in mm
-  const logoWidth = 35;
-  const textWidth = 80;
-  const totalWidth = logoWidth + 5 + textWidth;
-  const startX = (pageWidth - totalWidth) / 2;
+  const leftMargin = 20;
+  const logoWidth = 38.5; // 10% bigger than 35mm
 
-  // Add logo
+  // Add logo - left aligned
   if (logoImg) {
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 25));
+    doc.addImage(logoImg, 'JPEG', leftMargin, 15, logoWidth, Math.min(logoHeight, 27.5));
   }
 
-  // Company details
-  const textX = startX + logoWidth + 5;
+  // Company details - left aligned next to logo
+  const textX = leftMargin + logoWidth + 5;
   doc.setTextColor(54, 54, 54);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
