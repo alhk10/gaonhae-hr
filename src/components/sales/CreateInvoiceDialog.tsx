@@ -54,7 +54,7 @@ interface ProductWithVariants {
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -91,13 +91,21 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         id: s.id, 
         name: `${s.first_name} ${s.last_name}`, 
         email: s.email || '',
-        branch_id: s.branch_id
+        branch_id: s.branch_id,
+        status: s.status
       })));
     } catch (error) {
       console.error('Error loading students:', error);
       toast.error('Failed to load students');
     }
   };
+
+  // Filter students by active status and selected branch
+  const filteredStudents = students.filter(s => {
+    const isActive = s.status === 'active';
+    const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
+    return isActive && matchesBranch;
+  });
 
   const loadBranches = async () => {
     try {
@@ -384,7 +392,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <SelectValue placeholder="Select student" />
                   </SelectTrigger>
                   <SelectContent>
-                    {students.map((student) => (
+                    {filteredStudents.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
                         {student.name} ({student.email})
                       </SelectItem>
@@ -455,6 +463,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       step="0.01"
                       value={newItem.unit_price}
                       onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
+                      disabled={selectedProduct && selectedProduct.base_price > 0}
+                      className={selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
                     />
                   </div>
 
@@ -504,6 +514,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 </div>
               </CardContent>
             </Card>
+
+            {/* Running Totals after Add Items */}
+            <div className="flex justify-end">
+              <div className="w-64 space-y-1 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Tax ({taxRate}%):</span>
+                  <span>${taxAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Current Total:</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Items List */}
