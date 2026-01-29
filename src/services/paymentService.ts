@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
+import { logInvoiceChange } from './invoiceChangeLogService';
 
 export interface Payment {
   id: string;
@@ -249,6 +250,18 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       // Don't throw here as payment was created successfully
     }
 
+    // Log the payment addition
+    await logInvoiceChange({
+      invoice_id: paymentData.invoice_id,
+      action: 'payment_added',
+      changes: {
+        payment_number: paymentNumber,
+        amount: paymentData.amount,
+        payment_method: paymentData.payment_method,
+        new_balance: newBalanceDue
+      }
+    });
+
     return {
       ...payment,
       invoice_number: payment.invoices?.invoice_number,
@@ -314,7 +327,7 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
     // Get payment details first
     const { data: payment, error: getError } = await supabase
       .from('payments')
-      .select('invoice_id, amount')
+      .select('invoice_id, amount, payment_number, payment_method')
       .eq('id', paymentId)
       .single();
 
@@ -358,6 +371,17 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
         })
         .eq('id', payment.invoice_id);
     }
+
+    // Log the payment removal
+    await logInvoiceChange({
+      invoice_id: payment.invoice_id,
+      action: 'payment_removed',
+      changes: {
+        payment_number: payment.payment_number,
+        amount: payment.amount,
+        payment_method: payment.payment_method
+      }
+    });
   } catch (error) {
     logger.error('Error in deletePayment', error);
     throw error;

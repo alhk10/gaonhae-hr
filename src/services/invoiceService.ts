@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import { logInvoiceChange } from './invoiceChangeLogService';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
@@ -314,6 +315,18 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       throw new Error(`Failed to create invoice items: ${itemsError.message}`);
     }
 
+    // Log the creation
+    await logInvoiceChange({
+      invoice_id: invoice.id,
+      action: 'created',
+      changes: {
+        invoice_number: invoiceNumber,
+        student_id: invoiceData.student_id,
+        total_amount: totalAmount,
+        items_count: invoiceData.items.length
+      }
+    });
+
     return {
       ...invoice,
       student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
@@ -332,6 +345,15 @@ export const updateInvoiceStatus = async (
   status: Invoice['status']
 ): Promise<Invoice> => {
   try {
+    // Get current status first for logging
+    const { data: currentInvoice } = await supabase
+      .from('invoices')
+      .select('status')
+      .eq('id', invoiceId)
+      .single();
+
+    const oldStatus = currentInvoice?.status;
+
     const { data, error } = await supabase
       .from('invoices')
       .update({
@@ -349,6 +371,17 @@ export const updateInvoiceStatus = async (
       throw new Error(`Failed to update invoice status: ${error.message}`);
     }
 
+    // Log the status change
+    if (oldStatus !== status) {
+      await logInvoiceChange({
+        invoice_id: invoiceId,
+        action: 'status_changed',
+        field_name: 'status',
+        old_value: oldStatus,
+        new_value: status
+      });
+    }
+
     return {
       ...data,
       student_name: data.students ? `${data.students.first_name} ${data.students.last_name}` : 'Unknown Student'
@@ -364,6 +397,26 @@ export const updateInvoiceStatus = async (
  */
 export const deleteInvoice = async (invoiceId: string): Promise<void> => {
   try {
+    // Get invoice details for logging before deletion
+    const { data: invoice } = await supabase
+      .from('invoices')
+      .select('invoice_number, total_amount, status')
+      .eq('id', invoiceId)
+      .single();
+
+    // Log the deletion before actually deleting (since cascade will delete logs too)
+    if (invoice) {
+      await logInvoiceChange({
+        invoice_id: invoiceId,
+        action: 'deleted',
+        changes: {
+          invoice_number: invoice.invoice_number,
+          total_amount: invoice.total_amount,
+          status: invoice.status
+        }
+      });
+    }
+
     // Delete invoice items first (foreign key constraint)
     const { error: itemsError } = await supabase
       .from('invoice_items')

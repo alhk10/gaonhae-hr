@@ -1317,6 +1317,56 @@ export type Database = {
           },
         ]
       }
+      invoice_change_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changed_by_email: string | null
+          changes: Json | null
+          created_at: string
+          field_name: string | null
+          id: string
+          invoice_id: string
+          ip_address: string | null
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changes?: Json | null
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          invoice_id: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changes?: Json | null
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          invoice_id?: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_change_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string

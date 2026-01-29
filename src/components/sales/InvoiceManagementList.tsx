@@ -24,12 +24,14 @@ import {
   Send,
   DollarSign,
   Calendar,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
+import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
@@ -369,6 +371,10 @@ const InvoiceManagementList: React.FC = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <InvoiceChangeLogDialog
+                            invoiceId={invoice.id}
+                            invoiceNumber={invoice.invoice_number}
+                          />
                           <Button
                             variant="ghost"
                             size="icon"
