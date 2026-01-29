@@ -47,8 +47,44 @@ const getLetterTemplates = (): LetterTemplates => {
   return DEFAULT_TEMPLATES;
 };
 
-const replacePlaceholders = (template: string, fullName: string): string => {
-  return template.replace(/{fullName}/g, fullName);
+interface StudentPlaceholders {
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  nricPassport: string;
+  currentBelt: string;
+  enrollmentDate: string;
+}
+
+interface EmployeePlaceholders {
+  fullName: string;
+  dateOfBirth: string;
+  nric: string;
+  position: string;
+  salary: string;
+  joinDate: string;
+}
+
+const replaceStudentPlaceholders = (template: string, data: StudentPlaceholders): string => {
+  return template
+    .replace(/{fullName}/g, data.fullName)
+    .replace(/{firstName}/g, data.firstName)
+    .replace(/{lastName}/g, data.lastName)
+    .replace(/{dateOfBirth}/g, data.dateOfBirth)
+    .replace(/{nricPassport}/g, data.nricPassport)
+    .replace(/{currentBelt}/g, data.currentBelt)
+    .replace(/{enrollmentDate}/g, data.enrollmentDate);
+};
+
+const replaceEmployeePlaceholders = (template: string, data: EmployeePlaceholders): string => {
+  return template
+    .replace(/{fullName}/g, data.fullName)
+    .replace(/{dateOfBirth}/g, data.dateOfBirth)
+    .replace(/{nric}/g, data.nric)
+    .replace(/{position}/g, data.position)
+    .replace(/{salary}/g, data.salary)
+    .replace(/{joinDate}/g, data.joinDate);
 };
 
 const loadLogo = async (): Promise<HTMLImageElement | null> => {
@@ -118,6 +154,16 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const studentPlaceholders: StudentPlaceholders = {
+    fullName,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nricPassport: data.nricPassport || 'N/A',
+    currentBelt: data.currentBelt || 'N/A',
+    enrollmentDate: formatDate(data.enrollmentDate),
+  };
 
   let yPos = 55;
 
@@ -140,7 +186,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   // Body paragraph - using template
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = replacePlaceholders(templates.studentBody, fullName);
+  const bodyText = replaceStudentPlaceholders(templates.studentBody, studentPlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -167,7 +213,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   yPos += 10;
 
   // Closing statement - using template
-  const closingText = replacePlaceholders(templates.studentClosing, fullName);
+  const closingText = replaceStudentPlaceholders(templates.studentClosing, studentPlaceholders);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -196,6 +242,15 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
 
   const templates = getLetterTemplates();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const employeePlaceholders: EmployeePlaceholders = {
+    fullName: data.name,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nric: data.nric || 'N/A',
+    position: data.position || 'N/A',
+    salary: formatCurrency(data.baseSalary || 0),
+    joinDate: formatDate(data.joinDate),
+  };
 
   let yPos = 55;
 
@@ -218,7 +273,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   // Body paragraph - using template
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = replacePlaceholders(templates.employeeBody, data.name);
+  const bodyText = replaceEmployeePlaceholders(templates.employeeBody, employeePlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -246,7 +301,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   yPos += 10;
 
   // Closing statement - using template
-  const closingText = replacePlaceholders(templates.employeeClosing, data.name);
+  const closingText = replaceEmployeePlaceholders(templates.employeeClosing, employeePlaceholders);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -276,6 +331,16 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
   const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const studentPlaceholders: StudentPlaceholders = {
+    fullName,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nricPassport: data.nricPassport || 'N/A',
+    currentBelt: data.currentBelt || 'N/A',
+    enrollmentDate: formatDate(data.enrollmentDate),
+  };
 
   let yPos = 55;
 
@@ -294,7 +359,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = replacePlaceholders(templates.studentBody, fullName);
+  const bodyText = replaceStudentPlaceholders(templates.studentBody, studentPlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -319,7 +384,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   yPos += 10;
 
-  const closingText = replacePlaceholders(templates.studentClosing, fullName);
+  const closingText = replaceStudentPlaceholders(templates.studentClosing, studentPlaceholders);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
@@ -346,6 +411,15 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   const templates = getLetterTemplates();
   const currentDate = format(new Date(), 'dd MMMM yyyy');
+  
+  const employeePlaceholders: EmployeePlaceholders = {
+    fullName: data.name,
+    dateOfBirth: formatDate(data.dateOfBirth),
+    nric: data.nric || 'N/A',
+    position: data.position || 'N/A',
+    salary: formatCurrency(data.baseSalary || 0),
+    joinDate: formatDate(data.joinDate),
+  };
 
   let yPos = 55;
 
@@ -364,7 +438,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  const bodyText = replacePlaceholders(templates.employeeBody, data.name);
+  const bodyText = replaceEmployeePlaceholders(templates.employeeBody, employeePlaceholders);
   const bodyLines = doc.splitTextToSize(bodyText, 170);
   doc.text(bodyLines, 20, yPos);
   yPos += bodyLines.length * 6 + 10;
@@ -390,7 +464,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   yPos += 10;
 
-  const closingText = replacePlaceholders(templates.employeeClosing, data.name);
+  const closingText = replaceEmployeePlaceholders(templates.employeeClosing, employeePlaceholders);
   doc.text(closingText, 20, yPos);
   yPos += 20;
 
