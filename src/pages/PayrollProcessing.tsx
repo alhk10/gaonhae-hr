@@ -23,8 +23,9 @@ import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService
 import { format } from 'date-fns';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
-import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus } from '@/services/payrollService';
+import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus, deletePayrollRecord } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
+import { ensureValidSession } from '@/services/sessionRefreshService';
 
 
 const PayrollProcessing = () => {
@@ -61,6 +62,9 @@ const PayrollProcessing = () => {
   const forceRecalculatePayroll = async (period: string = selectedPeriod, showToast: boolean = true) => {
     setLoading(true);
     try {
+      // Ensure session is valid before any operations
+      await ensureValidSession();
+      
       const formatPeriodForAPILocal = (p: string): string => {
         const [monthName, year] = p.split(' ');
         const monthNames = [
@@ -74,14 +78,12 @@ const PayrollProcessing = () => {
       const formattedPeriod = formatPeriodForAPILocal(period);
       console.log('[ForceRecalculate] Starting for period:', period, formattedPeriod);
       
-      // Delete cached payroll record
-      const { error: deleteError } = await authService
-        .from('payroll_records')
-        .delete()
-        .eq('id', `PERIOD_${formattedPeriod}`);
-      
-      if (deleteError) {
-        console.error('Error deleting cached payroll:', deleteError);
+      // Delete cached payroll record using the service (which handles session refresh)
+      try {
+        await deletePayrollRecord(`PERIOD_${formattedPeriod}`);
+      } catch (deleteError) {
+        // Ignore if record doesn't exist
+        console.log('[ForceRecalculate] Note: Could not delete cached record (may not exist):', deleteError);
       }
       
       // Clear current payroll state
@@ -199,6 +201,9 @@ const PayrollProcessing = () => {
       try {
         setLoading(true);
         
+        // Ensure session is valid before any operations
+        await ensureValidSession();
+        
         // CRITICAL: For November 2025 onwards, FORCE CLEAR any cached payroll data
         const formatPeriodForAPI = (period: string): string => {
           const [monthName, year] = period.split(' ');
@@ -222,16 +227,12 @@ const PayrollProcessing = () => {
           console.log('║  Action: Clear cached data & recalculate with slots    ║');
           console.log('╚══════════════════════════════════════════════════════════╝\n');
           
-          // Delete cached November 2025 payroll record to force recalculation
-          const { error: deleteError } = await authService
-            .from('payroll_records')
-            .delete()
-            .eq('id', `PERIOD_${formattedPeriod}`);
-          
-          if (deleteError) {
-            console.warn('Could not delete cached payroll:', deleteError);
-          } else {
+          // Delete cached November 2025 payroll record to force recalculation using service
+          try {
+            await deletePayrollRecord(`PERIOD_${formattedPeriod}`);
             console.log('✓ Deleted cached payroll record');
+          } catch (deleteError) {
+            console.warn('Could not delete cached payroll (may not exist):', deleteError);
           }
           
           // Clear any existing November 2025 payroll state

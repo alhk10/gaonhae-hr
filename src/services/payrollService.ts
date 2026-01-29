@@ -205,6 +205,9 @@ export const getEmployeeAttendanceForPeriod = async (employeeId: string, period:
 export const savePayrollRecord = async (employeeId: string, month: string, payrollData: PayrollData): Promise<void> => {
   logger.debug('Saving payroll record to Supabase', { employeeId, month });
   
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   // Extract year from month if it's in "Month YYYY" format, otherwise use current year
   let year = new Date().getFullYear();
   if (month.includes(' ')) {
@@ -238,6 +241,9 @@ export const savePayrollRecord = async (employeeId: string, month: string, payro
 
 export const getEmployeePayrollRecords = async (employeeId: string): Promise<PayrollRecord[]> => {
   logger.debug('Fetching payroll records for employee', { employeeId });
+  
+  // Ensure session is valid before making the request
+  await ensureValidSession();
   
   const { data: records, error } = await supabase
     .from('payroll_records')
@@ -302,6 +308,9 @@ export const getAllPayrollRecords = async (): Promise<PayrollRecord[]> => {
 export const deletePayrollRecord = async (recordId: string): Promise<void> => {
   logger.info('Starting deletion process for payroll record', { recordId });
   
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   try {
     // Step 1: Check if record exists and is not locked
     logger.debug('Step 1: Verifying record exists and is not locked');
@@ -351,6 +360,9 @@ export const deletePayrollRecord = async (recordId: string): Promise<void> => {
 export const updatePayrollLockStatus = async (recordId: string, isLocked: boolean): Promise<void> => {
   logger.debug('Updating payroll lock status', { recordId, isLocked });
   
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const { error } = await supabase
     .from('payroll_records')
     .update({ 
@@ -369,6 +381,9 @@ export const updatePayrollLockStatus = async (recordId: string, isLocked: boolea
 };
 
 export const saveDraftPayroll = async (period: string, payrollData: any): Promise<void> => {
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const [year, month] = period.split('-');
   const recordId = `PERIOD_${period}`;
   
@@ -391,6 +406,9 @@ export const saveDraftPayroll = async (period: string, payrollData: any): Promis
 };
 
 export const finalizePayroll = async (period: string, userId: string): Promise<void> => {
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const recordId = `PERIOD_${period}`;
   
   const { error } = await supabase
@@ -440,6 +458,9 @@ export const getPayrollRecordsForPeriod = async (period: string): Promise<{
   cpfPaidAt: string | null;
   cpfPaidBy: string | null;
 }[]> => {
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   // Extract year and month from period (e.g., "November 2025" -> year: 2025, month: "November")
   const [monthName, year] = period.split(' ');
   
@@ -474,6 +495,9 @@ export const updateSalaryPaymentStatus = async (
   isPaid: boolean,
   paidBy: string
 ): Promise<void> => {
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const [, year] = period.split(' ');
   const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
   
@@ -533,6 +557,9 @@ export const updateCpfPaymentStatus = async (
   isPaid: boolean,
   paidBy: string
 ): Promise<void> => {
+  // Ensure session is valid before making the request
+  await ensureValidSession();
+  
   const [, year] = period.split(' ');
   const recordId = `${employeeId}_${year}_${period.replace(' ', '_')}`;
   
