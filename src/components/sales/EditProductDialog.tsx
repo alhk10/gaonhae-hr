@@ -45,7 +45,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     category_id: '',
     base_price: 0,
     tax_rate: 8,
-    available_variants: { sizes: [], colors: [], belt_ranks: [] } as ProductVariants,
+    available_variants: { sizes: [], colors: [] } as ProductVariants,
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
@@ -55,14 +55,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   });
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false,
-    belt_rank: false
+    color: false
   });
 
   useEffect(() => {
     if (open && product) {
       loadCategories();
-      const variants = product.available_variants || { sizes: [], colors: [], belt_ranks: [] };
+      const variants = product.available_variants || { sizes: [], colors: [] };
       setFormData({
         name: product.name || '',
         sku: product.sku || '',
@@ -80,8 +79,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       });
       setEnabledVariantTypes({
         size: product.requires_size || (variants.sizes?.length || 0) > 0,
-        color: product.requires_color || (variants.colors?.length || 0) > 0,
-        belt_rank: product.requires_belt_rank || (variants.belt_ranks?.length || 0) > 0
+        color: product.requires_color || (variants.colors?.length || 0) > 0
       });
     }
   }, [open, product]);
@@ -123,7 +121,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         ...formData,
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
-        requires_belt_rank: enabledVariantTypes.belt_rank,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
         max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined
@@ -146,7 +143,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
   if (!product) return null;
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.belt_rank;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
 
   return (
     <>
@@ -275,11 +272,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   {enabledVariantTypes.color && (
                     <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
                       Colors: {formData.available_variants.colors?.length || 0}
-                    </Badge>
-                  )}
-                  {enabledVariantTypes.belt_rank && (
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
-                      Belt Ranks: {formData.available_variants.belt_ranks?.length || 0}
                     </Badge>
                   )}
                   {!hasAnyVariants && (

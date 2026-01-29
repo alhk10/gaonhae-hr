@@ -10,7 +10,6 @@ import { logger } from '@/utils/logger';
 export interface ProductVariants {
   sizes?: string[];
   colors?: string[];
-  belt_ranks?: string[];
 }
 
 // Helper to parse variants from database JSON
@@ -19,8 +18,7 @@ const parseVariants = (data: unknown): ProductVariants | undefined => {
   const obj = data as Record<string, unknown>;
   return {
     sizes: Array.isArray(obj.sizes) ? obj.sizes : undefined,
-    colors: Array.isArray(obj.colors) ? obj.colors : undefined,
-    belt_ranks: Array.isArray(obj.belt_ranks) ? obj.belt_ranks : undefined
+    colors: Array.isArray(obj.colors) ? obj.colors : undefined
   };
 };
 
