@@ -7,12 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Package, Tag, Award, Calendar, Layers, Settings, Globe, Briefcase } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
 import { ProductVariantManager } from './ProductVariantManager';
 import { BranchPricingManager } from './BranchPricingManager';
-import { TermValiditySelector } from './TermValiditySelector';
 
 interface EditProductDialogProps {
   product: Product;
@@ -50,11 +49,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     min_belt_level: '',
     max_belt_level: '',
     requires_belt_level: false,
-    session_count: 0,
-    validity_type: 'months' as 'months' | 'term',
-    validity_months: 0,
-    term_id: null as string | null,
-    is_recurring: false,
     is_service: false,
     is_active: true,
     metadata: {}
@@ -80,11 +74,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         min_belt_level: product.min_belt_level || 'none',
         max_belt_level: product.max_belt_level || 'none',
         requires_belt_level: product.requires_belt_level || false,
-        session_count: product.session_count || 0,
-        validity_type: (product.validity_type as 'months' | 'term') || 'months',
-        validity_months: product.validity_months || 0,
-        term_id: product.term_id || null,
-        is_recurring: product.is_recurring || false,
         is_service: product.is_service || false,
         is_active: product.is_active,
         metadata: product.metadata || {}
@@ -340,37 +329,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   </div>
                 </div>
               )}
-            </section>
-
-            {/* Sessions & Validity Section */}
-            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
-              <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Calendar className="w-4 h-4" />
-                Sessions & Validity
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Session Count</Label>
-                  <Input type="number" min="0" value={formData.session_count} onChange={(e) => handleInputChange('session_count', parseInt(e.target.value) || 0)} className="h-9" />
-                </div>
-                <div className="flex items-end pb-1">
-                  <div className="flex items-center space-x-2">
-                    <Switch checked={formData.is_recurring} onCheckedChange={(checked) => handleInputChange('is_recurring', checked)} />
-                    <Label className="text-xs">Recurring (monthly fees)</Label>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-2">
-                <Label className="text-xs text-muted-foreground mb-2 block">Validity Period</Label>
-                <TermValiditySelector
-                  validityType={formData.validity_type}
-                  validityMonths={formData.validity_months}
-                  termId={formData.term_id}
-                  onValidityTypeChange={(type) => handleInputChange('validity_type', type)}
-                  onValidityMonthsChange={(months) => handleInputChange('validity_months', months)}
-                  onTermIdChange={(id) => handleInputChange('term_id', id)}
-                />
-              </div>
             </section>
 
             {/* Status Section */}

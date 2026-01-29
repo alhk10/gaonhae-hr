@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Package, DollarSign, Users, Clock, Settings, Globe, Building2, Briefcase } from 'lucide-react';
+import { Calendar, Package, DollarSign, Users, Settings, Globe, Building2, Briefcase } from 'lucide-react';
 import { Product } from '@/services/productService';
 import { getProductBranchPrices, type BranchPrice } from '@/services/priceRulesService';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -202,40 +202,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Maximum Belt Level</p>
                     <p className="text-base">{product.max_belt_level || 'No Maximum'}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Sessions & Validity */}
-          {(product.session_count > 0 || product.validity_months > 0) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Sessions & Validity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {product.session_count > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Session Count</p>
-                      <p className="text-base">{product.session_count} sessions</p>
-                    </div>
-                  )}
-                  {product.validity_months > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Validity Period</p>
-                      <p className="text-base">{product.validity_months} months</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Recurring</p>
-                    <Badge variant={product.is_recurring ? "default" : "secondary"}>
-                      {product.is_recurring ? "Yes" : "No"}
-                    </Badge>
                   </div>
                 </div>
               </CardContent>
