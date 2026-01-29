@@ -321,8 +321,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         setTermLoading(true);
         
         try {
+          // Fetch terms directly to avoid race condition with branchTerms state
           const today = new Date().toISOString().split('T')[0];
-          const availableTerms = branchTerms.filter(t => t.end_date >= today);
+          const { data: termsData, error: termsError } = await supabase
+            .from('term_calendars')
+            .select('*')
+            .eq('branch_id', formData.branch_id)
+            .eq('is_active', true)
+            .gte('end_date', today)
+            .order('start_date', { ascending: true });
+          
+          if (termsError) throw termsError;
+          
+          const availableTerms = (termsData || []) as Term[];
+          
+          // Update branchTerms state for the dropdown
+          setBranchTerms(availableTerms);
           
           if (availableTerms.length === 0) {
             setTermError('No active terms available for this branch');
