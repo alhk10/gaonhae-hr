@@ -104,26 +104,25 @@ const loadLogo = async (): Promise<HTMLImageElement | null> => {
 };
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const leftMargin = 20;
   const logoWidth = 38.5;
-  const centerX = pageWidth / 2;
 
-  // Add logo - centered
+  // Add logo - left aligned
   if (logoImg) {
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    const logoX = centerX - logoWidth / 2;
-    doc.addImage(logoImg, 'JPEG', logoX, 15, logoWidth, Math.min(logoHeight, 27.5));
+    doc.addImage(logoImg, 'JPEG', leftMargin, 15, logoWidth, Math.min(logoHeight, 27.5));
   }
 
-  // Company details - centered below logo
+  // Company details - inline with logo, right of it
+  const textX = leftMargin + logoWidth + 5;
   doc.setTextColor(54, 54, 54);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', centerX, 48, { align: 'center' });
+  doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 22, { align: 'justify' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', centerX, 54, { align: 'center' });
-  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', centerX, 60, { align: 'center' });
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28, { align: 'justify' });
+  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34, { align: 'justify' });
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -167,7 +166,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 75;
+  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Date
@@ -256,7 +255,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
     joinDate: formatDate(data.joinDate),
   };
 
-  let yPos = 75;
+  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Date
@@ -327,7 +326,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 75;
+  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFontSize(11);
@@ -408,7 +407,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
     joinDate: formatDate(data.joinDate),
   };
 
-  let yPos = 75;
+  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFontSize(11);
