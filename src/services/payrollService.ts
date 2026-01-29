@@ -596,3 +596,137 @@ export const updateCpfPaymentStatus = async (
     logger.info('CPF payment status updated successfully', { employeeId, isPaid });
   });
 };
+
+// Types for saved payroll data
+export interface SavedPayrollEmployee {
+  employeeId: string;
+  name: string;
+  type: 'Full-Time' | 'Casual';
+  baseSalary: number;
+  allowances: Array<{ name: string; amount: number }>;
+  deductions: Array<{ name: string; amount: number }>;
+  totalAllowances: number;
+  totalDeductions: number;
+  approvedClaims: number;
+  grossPay: number;
+  employeeCPF: number;
+  employerCPF: number;
+  netPay: number;
+  // Casual-specific fields
+  hourlyRate?: number;
+  hoursWorked?: number;
+  daysWorked?: number;
+  slotBookingPay?: number;
+  slotBreakdown?: any[];
+  calculationMethod?: 'dynamic_pricing' | 'legacy_rates';
+}
+
+export interface SavedPayrollData {
+  hasData: boolean;
+  processedAt?: string;
+  fullTimeEmployees: SavedPayrollEmployee[];
+  casualEmployees: SavedPayrollEmployee[];
+}
+
+// Get saved payroll data for a specific period - preserves historical data
+export const getSavedPayrollForPeriod = async (period: string): Promise<SavedPayrollData> => {
+  logger.debug('Fetching saved payroll for period', { period });
+  
+  return withSessionRefresh(async () => {
+    // Parse period format (e.g., "November 2025" or "2025-11")
+    let year: number, month: string;
+    
+    if (period.includes('-')) {
+      // Format: "2025-11"
+      const [yearStr, monthStr] = period.split('-');
+      year = parseInt(yearStr);
+      month = monthStr.padStart(2, '0');
+    } else {
+      // Format: "November 2025"
+      const [monthName, yearStr] = period.split(' ');
+      year = parseInt(yearStr);
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIndex = monthNames.indexOf(monthName) + 1;
+      month = monthIndex.toString().padStart(2, '0');
+    }
+
+    logger.debug('Parsed period', { year, month });
+
+    // Query payroll_records for all records in this period
+    const { data: records, error } = await supabase
+      .from('payroll_records')
+      .select('*')
+      .eq('year', year)
+      .eq('month', month);
+
+    if (error) {
+      logger.error('Error fetching saved payroll:', error);
+      return { hasData: false, fullTimeEmployees: [], casualEmployees: [] };
+    }
+
+    if (!records || records.length === 0) {
+      logger.debug('No saved payroll data found for period', { period });
+      return { hasData: false, fullTimeEmployees: [], casualEmployees: [] };
+    }
+
+    logger.info('Found saved payroll records', { count: records.length, period });
+
+    const fullTimeEmployees: SavedPayrollEmployee[] = [];
+    const casualEmployees: SavedPayrollEmployee[] = [];
+    let latestProcessedAt: string | undefined;
+
+    records.forEach((record: any) => {
+      const data = record.payroll_data as any;
+      if (!data || !record.employee_id) return;
+
+      // Track the latest processed date
+      if (!latestProcessedAt || record.updated_at > latestProcessedAt) {
+        latestProcessedAt = record.updated_at;
+      }
+
+      const employee: SavedPayrollEmployee = {
+        employeeId: record.employee_id,
+        name: data.name || 'Unknown',
+        type: data.type || 'Full-Time',
+        baseSalary: data.baseSalary || 0,
+        allowances: data.allowances || [],
+        deductions: data.deductions || [],
+        totalAllowances: data.totalAllowances || data.allowances?.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0) || 0,
+        totalDeductions: data.totalDeductions || data.deductions?.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0) || 0,
+        approvedClaims: data.approvedClaims || data.claims || 0,
+        grossPay: data.grossPay || data.grossSalary || 0,
+        employeeCPF: data.employeeCPF || data.cpfEmployee || 0,
+        employerCPF: data.employerCPF || data.cpfEmployer || 0,
+        netPay: data.netPay || data.netSalary || 0,
+      };
+
+      if (data.type === 'Casual') {
+        employee.hourlyRate = data.hourlyRate || 0;
+        employee.hoursWorked = data.hoursWorked || 0;
+        employee.daysWorked = data.daysWorked || 0;
+        employee.slotBookingPay = data.slotBookingPay || 0;
+        employee.slotBreakdown = data.slotBreakdown || data.slotBookingMetadata?.breakdown || [];
+        employee.calculationMethod = data.calculationMethod || data.slotBookingMetadata?.calculationMethod || 'legacy_rates';
+        casualEmployees.push(employee);
+      } else {
+        fullTimeEmployees.push(employee);
+      }
+    });
+
+    logger.info('Parsed saved payroll data', {
+      fullTimeCount: fullTimeEmployees.length,
+      casualCount: casualEmployees.length,
+      processedAt: latestProcessedAt
+    });
+
+    return {
+      hasData: true,
+      processedAt: latestProcessedAt,
+      fullTimeEmployees,
+      casualEmployees
+    };
+  });
+};
