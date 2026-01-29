@@ -228,12 +228,24 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setTermError(null);
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = async (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Load terms when branch changes
     if (field === 'branch_id') {
       loadBranchTerms(value);
+      
+      // Refresh term selection if Classes category is selected
+      if (selectedCategory?.name === 'Classes' && formData.student_id) {
+        const selectedTermId = await refreshTermSelection(value, formData.student_id);
+        setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
+      }
+    }
+    
+    // Refresh term selection when student changes (if Classes category selected)
+    if (field === 'student_id' && selectedCategory?.name === 'Classes' && formData.branch_id) {
+      const selectedTermId = await refreshTermSelection(formData.branch_id, value);
+      setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
     }
   };
 
@@ -299,6 +311,67 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
+  // Refresh term selection - fetches terms and auto-selects the appropriate one
+  const refreshTermSelection = async (branchId: string, studentId: string): Promise<string> => {
+    if (!branchId || !studentId) return '';
+    
+    setTermLoading(true);
+    setTermError(null);
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: termsData, error: termsError } = await supabase
+        .from('term_calendars')
+        .select('*')
+        .eq('branch_id', branchId)
+        .eq('is_active', true)
+        .gte('end_date', today)
+        .order('start_date', { ascending: true });
+      
+      if (termsError) throw termsError;
+      
+      const availableTerms = (termsData || []) as Term[];
+      setBranchTerms(availableTerms);
+      
+      if (availableTerms.length === 0) {
+        setTermError('No active terms available for this branch');
+        return '';
+      }
+      
+      // Find current term (today is within term dates)
+      const currentTerm = availableTerms.find(t => 
+        t.start_date <= today && t.end_date >= today
+      );
+      
+      if (currentTerm) {
+        // Check if current term already has class invoice for this student
+        const hasExisting = await checkExistingClassInvoice(studentId, currentTerm.id);
+        
+        if (hasExisting) {
+          // Find next term
+          const nextTerm = availableTerms.find(t => t.start_date > currentTerm.end_date);
+          
+          if (nextTerm) {
+            return nextTerm.id;
+          } else {
+            setTermError('No next term available. Student already has classes invoiced for current term.');
+            return '';
+          }
+        } else {
+          return currentTerm.id;
+        }
+      } else {
+        // No current term - use first available future term
+        return availableTerms[0].id;
+      }
+    } catch (error) {
+      console.error('Error refreshing term selection:', error);
+      return '';
+    } finally {
+      setTermLoading(false);
+    }
+  };
+
   const handleCategoryChange = async (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
@@ -318,65 +391,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       
       // Auto-select term if branch and student are selected
       if (formData.branch_id && formData.student_id) {
-        setTermLoading(true);
-        
-        try {
-          // Fetch terms directly to avoid race condition with branchTerms state
-          const today = new Date().toISOString().split('T')[0];
-          const { data: termsData, error: termsError } = await supabase
-            .from('term_calendars')
-            .select('*')
-            .eq('branch_id', formData.branch_id)
-            .eq('is_active', true)
-            .gte('end_date', today)
-            .order('start_date', { ascending: true });
-          
-          if (termsError) throw termsError;
-          
-          const availableTerms = (termsData || []) as Term[];
-          
-          // Update branchTerms state for the dropdown
-          setBranchTerms(availableTerms);
-          
-          if (availableTerms.length === 0) {
-            setTermError('No active terms available for this branch');
-          } else {
-            // Find current term (today is within term dates)
-            const currentTerm = availableTerms.find(t => 
-              t.start_date <= today && t.end_date >= today
-            );
-            
-            if (currentTerm) {
-              // Check if current term already has class invoice for this student
-              const hasExisting = await checkExistingClassInvoice(
-                formData.student_id, 
-                currentTerm.id
-              );
-              
-              if (hasExisting) {
-                // Find next term
-                const nextTerm = availableTerms.find(t => 
-                  t.start_date > currentTerm.end_date
-                );
-                
-                if (nextTerm) {
-                  selectedTermId = nextTerm.id;
-                } else {
-                  setTermError('No next term available. Student already has classes invoiced for current term.');
-                }
-              } else {
-                selectedTermId = currentTerm.id;
-              }
-            } else {
-              // No current term - use first available future term
-              selectedTermId = availableTerms[0].id;
-            }
-          }
-        } catch (error) {
-          console.error('Error auto-selecting term:', error);
-        } finally {
-          setTermLoading(false);
-        }
+        selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
       }
     }
     
@@ -386,6 +401,28 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       product_id: '', // Reset product when category changes
       quantity: defaultQuantity,
       unit_price: 0,
+      size_variant: '',
+      color_variant: '',
+      term_id: selectedTermId
+    }));
+  };
+
+  // Handle product change - refresh term if Classes category
+  const handleProductChange = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    const isClassesCategory = selectedCategory?.name === 'Classes';
+    
+    let selectedTermId = newItem.term_id;
+    
+    // Refresh term when product changes (for Classes category)
+    if (isClassesCategory && formData.branch_id && formData.student_id) {
+      selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+    }
+    
+    setNewItem(prev => ({
+      ...prev,
+      product_id: productId,
+      unit_price: product?.base_price || 0,
       size_variant: '',
       color_variant: '',
       term_id: selectedTermId
@@ -600,7 +637,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
                   <div className="space-y-2">
                     <Label>Product *</Label>
-                    <Select value={newItem.product_id} onValueChange={(value) => handleNewItemChange('product_id', value)}>
+                    <Select value={newItem.product_id} onValueChange={handleProductChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
