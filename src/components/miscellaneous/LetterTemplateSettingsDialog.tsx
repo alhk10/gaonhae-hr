@@ -99,11 +99,6 @@ const LetterTemplateSettingsDialog: React.FC<LetterTemplateSettingsDialogProps> 
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-            <p className="font-medium mb-1">Available placeholders:</p>
-            <p><code className="bg-background px-1 rounded">{'{fullName}'}</code> - Person's full name</p>
-          </div>
-
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="student" className="flex items-center gap-2">
@@ -117,6 +112,19 @@ const LetterTemplateSettingsDialog: React.FC<LetterTemplateSettingsDialogProps> 
             </TabsList>
 
             <TabsContent value="student" className="space-y-4 mt-4">
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                <p className="font-medium mb-2">Available placeholders:</p>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <p><code className="bg-background px-1 rounded">{'{fullName}'}</code> - Full name</p>
+                  <p><code className="bg-background px-1 rounded">{'{firstName}'}</code> - First name</p>
+                  <p><code className="bg-background px-1 rounded">{'{lastName}'}</code> - Last name</p>
+                  <p><code className="bg-background px-1 rounded">{'{dateOfBirth}'}</code> - Date of birth</p>
+                  <p><code className="bg-background px-1 rounded">{'{nricPassport}'}</code> - NRIC/Passport</p>
+                  <p><code className="bg-background px-1 rounded">{'{currentBelt}'}</code> - Belt level</p>
+                  <p><code className="bg-background px-1 rounded">{'{enrollmentDate}'}</code> - Member since</p>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <Button
                   type="button"
@@ -160,6 +168,18 @@ const LetterTemplateSettingsDialog: React.FC<LetterTemplateSettingsDialogProps> 
             </TabsContent>
 
             <TabsContent value="employee" className="space-y-4 mt-4">
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                <p className="font-medium mb-2">Available placeholders:</p>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <p><code className="bg-background px-1 rounded">{'{fullName}'}</code> - Full name</p>
+                  <p><code className="bg-background px-1 rounded">{'{dateOfBirth}'}</code> - Date of birth</p>
+                  <p><code className="bg-background px-1 rounded">{'{nric}'}</code> - NRIC number</p>
+                  <p><code className="bg-background px-1 rounded">{'{position}'}</code> - Job position</p>
+                  <p><code className="bg-background px-1 rounded">{'{salary}'}</code> - Monthly salary</p>
+                  <p><code className="bg-background px-1 rounded">{'{joinDate}'}</code> - Start date</p>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <Button
                   type="button"
