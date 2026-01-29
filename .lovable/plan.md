@@ -1,217 +1,243 @@
 
-# Plan: Remove Belt Rank Variant Tab
+
+# Plan: Add Invoicing Function Access by Branch
 
 ## Overview
-Remove the "Belt Rank" variant tab from the Product Variant Manager while keeping the Size and Color variant tabs fully functional. The database columns will remain untouched to preserve existing data.
-
-**Important Note**: This removes only the **Belt Rank Variant** (product variant options). The **Belt Level Requirements** section (eligibility to purchase a product based on student's belt level) will remain functional as it's a separate feature.
+Add a branch-based access control system for the Invoicing function, allowing superadmins to grant specific employees access to create and manage invoices for designated branches. Superadmins will automatically have access to all branches.
 
 ---
 
-## Scope of Removal
+## Architecture Decision
 
-### UI Elements to Remove
-1. **Belt Rank tab** in ProductVariantManager dialog
-2. **Belt Rank badge** display in Add/Edit Product dialogs
-3. **Belt Ranks section** in Product Detail dialog
+The system will use a **new database table** (`employee_invoice_access`) to store employee-to-branch invoicing permissions, following the existing access control patterns in the codebase.
 
-### What Remains Functional
-- Size variant tab and all its functionality
-- Color variant tab and all its functionality
-- Belt Level Requirements section (min/max belt level for eligibility)
-- All other product features (pricing, categories, inventory, etc.)
+```text
++----------------------+     +-------------------------+     +----------+
+|     employees        | --> | employee_invoice_access | <-- | branches |
++----------------------+     +-------------------------+     +----------+
+| id (PK)              |     | id (PK)                 |     | id (PK)  |
+| name                 |     | employee_id (FK)        |     | name     |
+| email                |     | branch_id (FK)          |     | country  |
++----------------------+     | can_create              |     +----------+
+                             | can_edit                |
+                             | can_delete              |
+                             | created_at              |
+                             +-------------------------+
+```
+
+---
+
+## Database Changes
+
+### New Table: `employee_invoice_access`
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | uuid | NO | gen_random_uuid() | Primary key |
+| employee_id | text | NO | - | References employees.id |
+| branch_id | text | NO | - | References branches.id |
+| can_create | boolean | YES | true | Can create invoices |
+| can_edit | boolean | YES | true | Can edit invoices |
+| can_delete | boolean | YES | false | Can delete invoices |
+| created_at | timestamptz | YES | now() | Created timestamp |
+| updated_at | timestamptz | YES | now() | Last updated |
+| created_by | text | YES | - | Created by employee_id |
+
+### RLS Policies
+- **Superadmins**: Full CRUD access
+- **Employees**: Can view their own invoice access permissions
+
+### Unique Constraint
+- `UNIQUE(employee_id, branch_id)` - One permission record per employee per branch
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/employee/InvoiceAccessManager.tsx` | UI component for managing employee invoice access by branch |
+| `src/services/invoiceAccessService.ts` | Service for CRUD operations on employee_invoice_access table |
+| `src/hooks/useInvoiceAccess.ts` | Hook for checking current user's invoice access |
 
 ---
 
 ## Files to Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/sales/ProductVariantManager.tsx` | Edit | Remove belt_rank tab, icon, color, state, and logic |
-| `src/components/sales/AddProductDialog.tsx` | Edit | Remove belt_rank from state, badges, and submit logic |
-| `src/components/sales/EditProductDialog.tsx` | Edit | Remove belt_rank from state, badges, and submit logic |
-| `src/components/sales/ProductDetailDialog.tsx` | Edit | Remove Belt Ranks display section |
-| `src/services/variantTypesService.ts` | Edit | Remove belt_ranks from type and utility functions |
-| `src/services/productService.ts` | Edit | Remove belt_ranks from ProductVariants interface and parseVariants |
+| File | Changes |
+|------|---------|
+| `src/pages/EmployeeDetails.tsx` | Add InvoiceAccessManager component for superadmins |
+| `src/types/employee.ts` | Add InvoiceAccessPermission interface |
+| `src/components/sales/CreateInvoiceDialog.tsx` | Filter branches based on user's invoice access |
+| `src/components/sales/InvoiceManagementList.tsx` | Filter invoices by accessible branches |
+| `src/pages/sales/InvoiceManagement.tsx` | Add access check for non-superadmin users |
+| `src/components/sales/SalesAccessGuard.tsx` | Allow access for users with invoice permissions |
 
 ---
 
 ## Implementation Details
 
-### Step 1: Update `ProductVariantManager.tsx`
+### 1. Database Migration
 
-**Remove from props interface (lines 23-27):**
-```typescript
-// Change from:
-enabledTypes: {
-  size: boolean;
-  color: boolean;
-  belt_rank: boolean;
-};
-onEnabledTypesChange: (enabledTypes: { size: boolean; color: boolean; belt_rank: boolean }) => void;
+```sql
+-- Create employee_invoice_access table
+CREATE TABLE public.employee_invoice_access (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  can_create BOOLEAN DEFAULT true,
+  can_edit BOOLEAN DEFAULT true,
+  can_delete BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  created_by TEXT,
+  UNIQUE(employee_id, branch_id)
+);
 
-// To:
-enabledTypes: {
-  size: boolean;
-  color: boolean;
-};
-onEnabledTypesChange: (enabledTypes: { size: boolean; color: boolean }) => void;
+-- Enable RLS
+ALTER TABLE public.employee_invoice_access ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Superadmins can manage invoice access"
+ON public.employee_invoice_access FOR ALL
+USING (get_current_user_role() = 'superadmin')
+WITH CHECK (get_current_user_role() = 'superadmin');
+
+CREATE POLICY "Employees view own invoice access"
+ON public.employee_invoice_access FOR SELECT
+USING (employee_id = get_current_employee_id());
+
+-- Index for performance
+CREATE INDEX idx_employee_invoice_access_employee 
+ON public.employee_invoice_access(employee_id);
+
+CREATE INDEX idx_employee_invoice_access_branch 
+ON public.employee_invoice_access(branch_id);
 ```
 
-**Remove from VARIANT_ICONS (line 35):**
-- Delete: `belt_rank: <Award className="w-4 h-4" />`
+### 2. Service: `invoiceAccessService.ts`
 
-**Remove from VARIANT_COLORS (line 41):**
-- Delete: `belt_rank: 'bg-amber-500/10 text-amber-700 border-amber-200'`
+Key functions:
+- `getEmployeeInvoiceAccess(employeeId)` - Get all branch access for an employee
+- `updateEmployeeInvoiceAccess(employeeId, branchAccess[])` - Update branch permissions
+- `checkInvoiceAccess(branchId)` - Check if current user can access a branch
+- `getAccessibleBranches()` - Get list of branches current user can access
 
-**Remove from newValues state (line 59):**
-- Delete: `belt_rank: ''`
+### 3. Component: `InvoiceAccessManager.tsx`
 
-**Remove from getVariantArray switch (line 89):**
-- Delete: `case 'belt_rank': return currentVariants.belt_ranks || [];`
+UI features:
+- Displays all branches with checkbox/toggle for each
+- Per-branch permissions: Create, Edit, Delete
+- Only visible to superadmins
+- Located in Employee Details page after Admin Access section
+- Similar UI pattern to `AdminAccessManager.tsx`
 
-**Remove from setVariantArray switch (line 99):**
-- Delete: `case 'belt_rank': return { ...prev, belt_ranks: values };`
+### 4. Hook: `useInvoiceAccess.ts`
 
-**Remove from totalValues calculation (line 281):**
-- Delete: `(currentVariants.belt_ranks?.length || 0)`
-
-**Remove Belt Rank tab trigger (lines 322-330):**
-- Delete the entire `<TabsTrigger value="belt_rank">` block
-
-**Remove Belt Rank tab content (lines 340-342):**
-- Delete: `<TabsContent value="belt_rank" className="mt-0">{renderVariantTab('belt_rank')}</TabsContent>`
-
-**Update TabsList grid (line 303):**
-- Change from: `grid-cols-3`
-- To: `grid-cols-2`
-
-**Remove from Variant Summary (lines 358-360):**
-- Delete belt_rank summary display
-
-**Remove Award icon import (line 16):**
-- Remove `Award` from lucide-react imports
-
-### Step 2: Update `AddProductDialog.tsx`
-
-**Remove from enabledVariantTypes state (lines 54-58):**
 ```typescript
-// Change from:
-const [enabledVariantTypes, setEnabledVariantTypes] = useState({
-  size: false,
-  color: false,
-  belt_rank: false
-});
+interface InvoiceAccessState {
+  hasAccess: boolean;
+  accessibleBranches: string[];
+  canCreate: (branchId: string) => boolean;
+  canEdit: (branchId: string) => boolean;
+  canDelete: (branchId: string) => boolean;
+  isLoading: boolean;
+}
 
-// To:
-const [enabledVariantTypes, setEnabledVariantTypes] = useState({
-  size: false,
-  color: false
-});
+export const useInvoiceAccess = (): InvoiceAccessState
 ```
 
-**Remove from available_variants initial state (line 46):**
-- Remove `belt_ranks: []` from the object
+### 5. Update `SalesAccessGuard.tsx`
 
-**Remove from productData submit (line 100):**
-- Delete: `requires_belt_rank: enabledVariantTypes.belt_rank,`
+Modify access check logic:
+- Superadmins: Full access (current behavior)
+- Employees with invoice access: Allow entry to invoicing pages
+- Filter visible data by accessible branches
 
-**Remove from resetForm (line 129):**
-- Remove `belt_ranks: []` and from enabledVariantTypes reset
+### 6. Update `CreateInvoiceDialog.tsx`
 
-**Remove Belt Rank badge display (lines 278-282):**
-- Delete the entire conditional block for belt_rank badge
+- Filter branch dropdown to only show accessible branches
+- Superadmins see all branches (unchanged)
+- Non-superadmins see only their permitted branches
 
-**Update hasAnyVariants check (line 149):**
-- Remove `|| enabledVariantTypes.belt_rank`
+### 7. Update `InvoiceManagementList.tsx`
 
-### Step 3: Update `EditProductDialog.tsx`
-
-**Remove from enabledVariantTypes state (lines 56-60):**
-```typescript
-// Change from:
-const [enabledVariantTypes, setEnabledVariantTypes] = useState({
-  size: false,
-  color: false,
-  belt_rank: false
-});
-
-// To:
-const [enabledVariantTypes, setEnabledVariantTypes] = useState({
-  size: false,
-  color: false
-});
-```
-
-**Remove from available_variants initial state (line 48):**
-- Remove `belt_ranks: []` from the object
-
-**Remove from useEffect form population (line 84):**
-- Delete: `belt_rank: product.requires_belt_rank || (variants.belt_ranks?.length || 0) > 0`
-
-**Remove from handleSubmit (line 126):**
-- Delete: `requires_belt_rank: enabledVariantTypes.belt_rank,`
-
-**Remove Belt Rank badge display (lines 280-284):**
-- Delete the entire conditional block for belt_rank badge
-
-**Update hasAnyVariants check (line 149):**
-- Remove `|| enabledVariantTypes.belt_rank`
-
-### Step 4: Update `ProductDetailDialog.tsx`
-
-**Remove Belt Ranks variant section (lines 247-258):**
-- Delete the entire conditional block that displays belt_ranks
-
-### Step 5: Update `variantTypesService.ts`
-
-**Remove from ProductVariants interface (line 26):**
-- Delete: `belt_ranks?: string[];`
-
-**Remove from flattenVariants function (lines 129-131):**
-- Delete the belt_ranks push block
-
-**Remove from calculateVariantCombinations function (line 142):**
-- Delete: `const beltRanks = variants.belt_ranks?.length || 1;`
-- Update return to: `return sizes * colors;`
-
-### Step 6: Update `productService.ts`
-
-**Remove from ProductVariants interface (line 13):**
-- Delete: `belt_ranks?: string[];`
-
-**Remove from parseVariants function (line 23):**
-- Delete: `belt_ranks: Array.isArray(obj.belt_ranks) ? obj.belt_ranks : undefined`
+- Filter displayed invoices by accessible branches
+- Hide edit/delete actions for branches without those permissions
 
 ---
 
-## Database Columns (Preserved)
-The following database columns will remain untouched for backward compatibility:
-- `products.requires_belt_rank` (boolean)
-- `products.available_variants` (jsonb - may contain `belt_ranks` key from existing data)
-- `product_variant_types` table (Belt Rank record will remain)
+## Access Control Flow
+
+```text
+User opens Invoice Management
+            |
+            v
+    Is user superadmin?
+     /            \
+   Yes             No
+    |               |
+    v               v
+Full access    Check employee_invoice_access
+                        |
+                        v
+               Has any branch access?
+                /             \
+              Yes              No
+               |                |
+               v                v
+          Filter by        Show "Access Denied"
+          permitted
+          branches
+```
+
+---
+
+## UI Preview: InvoiceAccessManager
+
+```text
++----------------------------------------------------------+
+| Invoicing Access by Branch                               |
++----------------------------------------------------------+
+| Grant this employee access to create and manage invoices |
+| for specific branches.                                   |
++----------------------------------------------------------+
+| [ ] Balmoral                                             |
+|     [x] Create  [x] Edit  [ ] Delete                     |
++----------------------------------------------------------+
+| [x] Bukit Merah                                          |
+|     [x] Create  [x] Edit  [ ] Delete                     |
++----------------------------------------------------------+
+| [ ] Jurong West                                          |
+|     [ ] Create  [ ] Edit  [ ] Delete                     |
++----------------------------------------------------------+
+| [x] Kembangan                                            |
+|     [x] Create  [x] Edit  [x] Delete                     |
++----------------------------------------------------------+
+```
 
 ---
 
 ## Summary of Changes
 
-| File | Lines Removed | Change Type |
-|------|---------------|-------------|
-| `ProductVariantManager.tsx` | ~40 lines | Edit |
-| `AddProductDialog.tsx` | ~12 lines | Edit |
-| `EditProductDialog.tsx` | ~12 lines | Edit |
-| `ProductDetailDialog.tsx` | ~12 lines | Edit |
-| `variantTypesService.ts` | ~8 lines | Edit |
-| `productService.ts` | ~3 lines | Edit |
+| Category | Files | Effort |
+|----------|-------|--------|
+| Database | 1 migration | Low |
+| New Components | 1 (InvoiceAccessManager) | Medium |
+| New Services | 1 (invoiceAccessService) | Medium |
+| New Hooks | 1 (useInvoiceAccess) | Low |
+| Modified Components | 4 (Guards, Dialogs, Lists) | Medium |
+| Types | 1 (employee.ts) | Low |
 
 ---
 
 ## Testing Checklist
 
-- [ ] Add Product dialog opens and Manage Variants shows only Size and Color tabs
-- [ ] Edit Product dialog loads existing products and shows only Size and Color tabs
-- [ ] Product Detail dialog displays only Size and Color variants (not Belt Ranks)
-- [ ] Existing products with belt_rank data still load without errors (backward compatible)
-- [ ] Size and Color variant functionality works completely
-- [ ] Belt Level Requirements section (eligibility) still functions correctly
-- [ ] No console errors related to removed functionality
+- [ ] Superadmin can see InvoiceAccessManager in Employee Details
+- [ ] Superadmin can grant/revoke branch access for employees
+- [ ] Employee with invoice access can see Invoice Management page
+- [ ] Employee only sees branches they have access to
+- [ ] Employee cannot create invoices for unauthorized branches
+- [ ] Superadmin still has full access to all branches
+- [ ] RLS policies prevent unauthorized data access
+
