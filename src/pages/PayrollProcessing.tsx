@@ -25,7 +25,7 @@ import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { calculateFullTimePayroll, calculateCasualPayroll } from '@/utils/payrollCalculations';
 import { getPayrollStatus, finalizePayroll, updatePayrollLockStatus, getPayrollRecordsForPeriod, updateSalaryPaymentStatus, updateCpfPaymentStatus, deletePayrollRecord } from '@/services/payrollService';
 import { supabase as authService } from '@/integrations/supabase/client';
-import { ensureValidSession } from '@/services/sessionRefreshService';
+import { forceRefreshSession } from '@/services/sessionRefreshService';
 
 
 const PayrollProcessing = () => {
@@ -62,8 +62,8 @@ const PayrollProcessing = () => {
   const forceRecalculatePayroll = async (period: string = selectedPeriod, showToast: boolean = true) => {
     setLoading(true);
     try {
-      // Ensure session is valid before any operations
-      await ensureValidSession();
+      // Force refresh session before any operations to handle expired JWT
+      await forceRefreshSession();
       
       const formatPeriodForAPILocal = (p: string): string => {
         const [monthName, year] = p.split(' ');
@@ -201,8 +201,8 @@ const PayrollProcessing = () => {
       try {
         setLoading(true);
         
-        // Ensure session is valid before any operations
-        await ensureValidSession();
+        // Force refresh session before any operations to handle expired JWT
+        await forceRefreshSession();
         
         // CRITICAL: For November 2025 onwards, FORCE CLEAR any cached payroll data
         const formatPeriodForAPI = (period: string): string => {

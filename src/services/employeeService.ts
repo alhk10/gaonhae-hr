@@ -2,15 +2,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 import { logger } from '@/utils/logger';
-import { ensureValidSession } from './sessionRefreshService';
+import { withSessionRefresh, forceRefreshSession } from './sessionRefreshService';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees list');
   
-  try {
-    // Ensure session is valid before making the request
-    await ensureValidSession();
-    
+  return withSessionRefresh(async () => {
     // Optimized query - fetch essential fields plus admin access for list view
     const { data: employees, error } = await supabase
       .from('employees')
@@ -106,18 +103,13 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
         }
       };
     });
-  } catch (error) {
-    logger.error('EmployeeService: Error in getEmployees:', error);
-    throw error;
-  }
+  });
 };
 
 export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees with full payroll data');
   
-  try {
-    // Ensure session is valid before making the request
-    await ensureValidSession();
+  return withSessionRefresh(async () => {
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
@@ -231,10 +223,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
         }
       };
     });
-  } catch (error) {
-    logger.error('Error in getEmployeesForPayroll:', error);
-    throw error;
-  }
+  });
 };
 
 export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {

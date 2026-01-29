@@ -1,13 +1,23 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
+import { withSessionRefresh } from '@/services/sessionRefreshService';
 
-export const getEmployeePayrollDataOptimized = async (employeeIds: string[], period?: string) => {
+interface PayrollDataResult {
+  allowances: Record<string, any[]>;
+  deductions: Record<string, any[]>;
+  claims: Record<string, any[]>;
+  attendance: Record<string, { totalHours: number; totalDays: number }>;
+}
+
+export const getEmployeePayrollDataOptimized = async (employeeIds: string[], period?: string): Promise<PayrollDataResult> => {
   logger.debug('Fetching optimized payroll data', { employeeIds: employeeIds.length, period });
   
-  if (employeeIds.length === 0) return {};
+  if (employeeIds.length === 0) {
+    return { allowances: {}, deductions: {}, claims: {}, attendance: {} };
+  }
 
-  try {
+  return withSessionRefresh(async () => {
     // Parse period for attendance queries
     let attendanceFilter: { startDate?: string; endDate?: string } = {};
     if (period) {
@@ -106,8 +116,5 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
       claims: claimsByEmployee,
       attendance: attendanceByEmployee
     };
-  } catch (error) {
-    logger.error('Error fetching optimized payroll data:', error);
-    throw error;
-  }
+  });
 };

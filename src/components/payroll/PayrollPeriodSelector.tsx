@@ -11,7 +11,7 @@ import { usePayroll } from '@/contexts/PayrollContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ensureValidSession } from '@/services/sessionRefreshService';
+import { forceRefreshSession } from '@/services/sessionRefreshService';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
@@ -91,8 +91,8 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const loadAvailablePeriodsAndStats = async () => {
     setIsLoadingPeriods(true);
     try {
-      // Ensure session is valid before loading
-      await ensureValidSession();
+      // Force refresh session before loading
+      await forceRefreshSession();
       
       const records = await getAllPayrollRecords();
       
@@ -135,8 +135,8 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
   const loadPayrollStatus = async () => {
     setIsLoadingStatus(true);
     try {
-      // Ensure session is valid before loading
-      await ensureValidSession();
+      // Force refresh session before loading
+      await forceRefreshSession();
       
       const formattedPeriod = formatPeriodForAPI(selectedPeriod);
       const status = await getPayrollStatus(formattedPeriod);
@@ -164,9 +164,9 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
       return;
     }
     
-    // Fallback to direct Supabase call if needed - ensure session first
+    // Fallback to direct Supabase call if needed - force refresh session first
     try {
-      await ensureValidSession();
+      await forceRefreshSession();
       const { data, error } = await supabase.rpc('get_current_user_role');
       if (!error) {
         setUserrole(data || '');
