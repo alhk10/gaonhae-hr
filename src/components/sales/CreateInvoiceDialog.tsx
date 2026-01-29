@@ -420,8 +420,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       return;
     }
 
-    // Validate term for Classes category
-    if (selectedCategory?.name === 'Classes') {
+    // Validate term for Classes category (only if terms are available)
+    if (selectedCategory?.name === 'Classes' && branchTerms.length > 0) {
       if (!newItem.term_id) {
         toast.error('Please select a term for class items');
         return;
@@ -660,25 +660,31 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   )}
 
                   {/* Term Dropdown - Only for Classes category */}
-                  {selectedCategory?.name === 'Classes' && branchTerms.length > 0 && (
+                  {selectedCategory?.name === 'Classes' && (
                     <div className="space-y-2">
-                      <Label>Term *</Label>
-                      <Select 
-                        value={newItem.term_id} 
-                        onValueChange={(value) => handleNewItemChange('term_id', value)}
-                        disabled={termLoading}
-                      >
-                        <SelectTrigger className={termError ? 'border-destructive' : ''}>
-                          <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {branchTerms.map((term) => (
-                            <SelectItem key={term.id} value={term.id}>
-                              {term.name} ({term.start_date} to {term.end_date})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Term {branchTerms.length > 0 ? '*' : ''}</Label>
+                      {branchTerms.length > 0 ? (
+                        <Select 
+                          value={newItem.term_id} 
+                          onValueChange={(value) => handleNewItemChange('term_id', value)}
+                          disabled={termLoading}
+                        >
+                          <SelectTrigger className={termError ? 'border-destructive' : ''}>
+                            <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branchTerms.map((term) => (
+                              <SelectItem key={term.id} value={term.id}>
+                                {term.name} ({term.start_date} to {term.end_date})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-2">
+                          No active terms configured for this branch
+                        </p>
+                      )}
                       {termError && (
                         <p className="text-sm text-destructive">{termError}</p>
                       )}
