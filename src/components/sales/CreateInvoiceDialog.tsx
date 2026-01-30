@@ -67,10 +67,11 @@ const BELT_LEVELS = [
   'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
 ];
 
-// Normalize belt format: "green-tip" → "Green Tip"
+// Normalize belt format: "green-tip" or "Green Tip" → "Green Tip"
 const normalizeBelt = (belt: string): string => {
   if (!belt) return '';
-  return belt.split('-')
+  // Split by either hyphen or space, then normalize each word
+  return belt.split(/[-\s]+/)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 };
