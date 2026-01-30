@@ -63,7 +63,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   // Referral source options
   const referralSourceOptions = [
     { value: 'family_friends', label: 'Family & Friends' },
-    { value: 'social_media', label: 'Social Media' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'instagram', label: 'Instagram' },
     { value: 'google_search', label: 'Google Search' },
     { value: 'pass_by', label: 'Pass By' },
     { value: 'others', label: 'Others' }
