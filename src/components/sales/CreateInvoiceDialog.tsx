@@ -56,7 +56,7 @@ interface ProductWithVariants {
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -101,8 +101,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         name: `${s.first_name} ${s.last_name}`, 
         email: s.email || '',
         branch_id: s.branch_id,
-        status: s.status,
-        current_belt: s.current_belt
+        status: s.status
       })));
     } catch (error) {
       console.error('Error loading students:', error);
@@ -477,39 +476,17 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
   };
 
-  // Get selected student's current belt for filtering grading products
-  const selectedStudent = students.find(s => s.id === formData.student_id);
-  const studentCurrentBelt = selectedStudent?.current_belt;
-
-  const selectedCategory = categories.find(c => c.id === newItem.category_id);
-
-  // Get filtered products based on selected category and student's belt for grading
-  const filteredProducts = (() => {
-    if (!newItem.category_id) return products;
-    
-    let filtered = products.filter(p => p.category_id === newItem.category_id);
-    
-    // For grading category, filter by student's current belt
-    const isGradingCategory = selectedCategory?.name === 'Grading';
-    if (isGradingCategory && studentCurrentBelt) {
-      // Product names are like "Blue >> Red Tip" where first part is current belt
-      filtered = filtered.filter(p => {
-        const beltMatch = p.name.match(/^(.+?)\s*>>\s*/);
-        if (beltMatch) {
-          const productCurrentBelt = beltMatch[1].trim();
-          return productCurrentBelt.toLowerCase() === studentCurrentBelt.toLowerCase();
-        }
-        return true; // Include products without the >> pattern
-      });
-    }
-    
-    return filtered;
-  })();
+  // Get filtered products based on selected category
+  const filteredProducts = newItem.category_id 
+    ? products.filter(p => p.category_id === newItem.category_id)
+    : products;
 
   // Get selected product's variants
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const sizeOptions = selectedProduct?.available_variants?.sizes || [];
   const colorOptions = selectedProduct?.available_variants?.colors || [];
+
+  const selectedCategory = categories.find(c => c.id === newItem.category_id);
 
   const addItem = () => {
     if (!newItem.product_id) {
