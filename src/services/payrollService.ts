@@ -64,8 +64,20 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
 
     // Get approved claims from Supabase
     const claims = await getEmployeeClaims(employeeId);
+    
+    // Partner claim types that should NOT be included in payroll (they go to Branch P&L)
+    const PARTNER_CLAIM_TYPES = [
+      'Transport',
+      'Office Stationeries', 
+      'Training Equipment',
+      'Other Business Expense'
+    ];
+    
     const approvedClaimsTotal = claims
-      .filter(claim => claim.status === 'Approved')
+      .filter(claim => 
+        claim.status === 'Approved' && 
+        !PARTNER_CLAIM_TYPES.includes(claim.type)
+      )
       .reduce((sum, claim) => sum + claim.amount, 0);
 
     // Check if employee is casual and needs attendance-based calculation
