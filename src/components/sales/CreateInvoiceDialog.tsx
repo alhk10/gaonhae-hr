@@ -664,8 +664,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 <TableRow>
                   <TableHead>Category</TableHead>
                   <TableHead>Product</TableHead>
-                  <TableHead className="w-20">Qty</TableHead>
-                  <TableHead className="w-24">Price</TableHead>
+                  <TableHead className="w-14">Qty</TableHead>
+                  <TableHead className="w-20">Price</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead>Term</TableHead>
@@ -690,7 +690,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                          className="w-16 h-8"
+                          className="w-14 h-8"
                         />
                       </TableCell>
                       <TableCell>
@@ -700,7 +700,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
-                          className="w-20 h-8"
+                          className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`}
                         />
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
@@ -760,7 +760,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       min="1"
                       value={newItem.quantity}
                       onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
-                      className="w-16 h-8"
+                      className="w-14 h-8"
                     />
                   </TableCell>
                   <TableCell>
@@ -771,7 +771,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       value={newItem.unit_price}
                       onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
                       disabled={selectedProduct && selectedProduct.base_price > 0}
-                      className={`w-20 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`}
+                      className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`}
                     />
                   </TableCell>
                   <TableCell>
