@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
@@ -95,7 +96,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     
     // Additional Information
     nationality: '',
-    language_spoken: '',
+    languages_spoken: [] as string[],
     
     // Emergency Contact Information
     emergency_contact_name: '',
@@ -187,7 +188,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         address: '',
         postal_code: '',
         nationality: '',
-        language_spoken: '',
+        languages_spoken: [],
         emergency_contact_name: '',
         emergency_contact_phone: '',
         emergency_contact_relationship: '',
@@ -428,14 +429,15 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="language_spoken" className="text-xs">Language Spoken</Label>
-                <SearchableSelect
-                  value={formData.language_spoken}
-                  onValueChange={(value) => handleInputChange('language_spoken', value)}
+                <Label htmlFor="languages_spoken" className="text-xs">Language Spoken</Label>
+                <MultiSelect
+                  values={formData.languages_spoken}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, languages_spoken: values }))}
                   options={commonLanguages}
-                  placeholder="Select or type language"
+                  placeholder="Select languages"
                   searchPlaceholder="Search languages..."
                   allowAddNew={true}
+                  maxDisplayed={3}
                 />
               </div>
             </div>
