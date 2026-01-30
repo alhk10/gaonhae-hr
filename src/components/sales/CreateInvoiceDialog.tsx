@@ -20,7 +20,7 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
 
 interface CreateInvoiceDialogProps {
@@ -557,23 +557,42 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setItems(updatedItems);
   };
 
-  // Get the tax rate based on selected branch country
-  const getSelectedBranchTaxRate = (): number => {
+  // Get the tax rate and inclusion setting based on selected branch country
+  const getSelectedBranchTaxConfig = (): { rate: number; isInclusive: boolean } => {
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     const country = selectedBranch?.country || null;
-    return country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
+    const rate = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
+    const isInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+    return { rate, isInclusive };
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const taxRate = getSelectedBranchTaxRate() / 100;
-    const taxAmount = subtotal * taxRate;
-    const total = subtotal + taxAmount;
+    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+    const { rate, isInclusive } = getSelectedBranchTaxConfig();
+    const taxRateDecimal = rate / 100;
     
-    return { subtotal, taxAmount, total, taxRate: getSelectedBranchTaxRate() };
+    let subtotal: number;
+    let taxAmount: number;
+    let total: number;
+    
+    if (isInclusive) {
+      // Tax inclusive: price already includes tax (e.g., Australia)
+      // Total = itemsTotal, Subtotal = Total / (1 + taxRate), Tax = Total - Subtotal
+      total = itemsTotal;
+      subtotal = itemsTotal / (1 + taxRateDecimal);
+      taxAmount = total - subtotal;
+    } else {
+      // Tax exclusive: tax added on top (e.g., Singapore)
+      // Subtotal = itemsTotal, Tax = Subtotal * taxRate, Total = Subtotal + Tax
+      subtotal = itemsTotal;
+      taxAmount = subtotal * taxRateDecimal;
+      total = subtotal + taxAmount;
+    }
+    
+    return { subtotal, taxAmount, total, taxRate: rate, isInclusive };
   };
 
-  const { subtotal, taxAmount, total, taxRate } = calculateTotals();
+  const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -583,9 +602,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Invoice</DialogTitle>
-          <DialogDescription>
-            Create a new invoice for a student with multiple items
-          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -849,7 +865,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Tax ({taxRate}%):</span>
+                    <span>Tax ({taxRate}%{isInclusive ? ' incl.' : ''}):</span>
                     <span>${taxAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
