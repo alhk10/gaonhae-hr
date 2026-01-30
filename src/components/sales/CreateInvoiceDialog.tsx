@@ -162,9 +162,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   };
   
   // Get filtered grading slots based on selected branch
+  // If no slots exist for the selected branch, show all available slots
   const getFilteredGradingSlots = (): GradingSlot[] => {
-    if (!formData.branch_id) return gradingSlots;
-    return gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
+    if (!formData.branch_id) {
+      return gradingSlots;
+    }
+    const filtered = gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
+    // If no slots for selected branch, show all slots
+    return filtered.length > 0 ? filtered : gradingSlots;
   };
 
   const loadStudents = async () => {
