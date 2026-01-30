@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
 import { ProductVariantManager } from './ProductVariantManager';
 import { BranchPricingManager } from './BranchPricingManager';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface EditProductDialogProps {
   product: Product;
@@ -46,8 +47,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     base_price: 0,
     tax_rate: 8,
     available_variants: { sizes: [], colors: [] } as ProductVariants,
-    min_belt_level: '',
-    max_belt_level: '',
+    allowed_belt_levels: [] as string[],
     requires_belt_level: false,
     is_service: false,
     is_active: true,
@@ -70,8 +70,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         base_price: Number(product.base_price) || 0,
         tax_rate: Number(product.tax_rate) || 8,
         available_variants: variants,
-        min_belt_level: product.min_belt_level || 'none',
-        max_belt_level: product.max_belt_level || 'none',
+        allowed_belt_levels: product.allowed_belt_levels || [],
         requires_belt_level: product.requires_belt_level || false,
         is_service: product.is_service || false,
         is_active: product.is_active,
@@ -122,8 +121,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
-        min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
-        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined
+        allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined
       });
 
       toast.success('Product updated successfully');
@@ -298,27 +296,19 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 <Label className="text-xs">Requires specific belt level</Label>
               </div>
               {formData.requires_belt_level && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Minimum Belt Level</Label>
-                    <Select value={formData.min_belt_level} onValueChange={(value) => handleInputChange('min_belt_level', value)}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Select minimum" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Minimum</SelectItem>
-                        {BELT_LEVELS.map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Maximum Belt Level</Label>
-                    <Select value={formData.max_belt_level} onValueChange={(value) => handleInputChange('max_belt_level', value)}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Select maximum" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Maximum</SelectItem>
-                        {BELT_LEVELS.map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-1">
+                <Label className="text-xs">Allowed Belt Levels</Label>
+                  <MultiSelect
+                    values={formData.allowed_belt_levels}
+                    onValuesChange={(values) => handleInputChange('allowed_belt_levels', values)}
+                    options={BELT_LEVELS}
+                    placeholder="Select belt levels..."
+                    searchPlaceholder="Search belt levels..."
+                    maxDisplayed={3}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Only students with these belt levels can see this product
+                  </p>
                 </div>
               )}
             </section>

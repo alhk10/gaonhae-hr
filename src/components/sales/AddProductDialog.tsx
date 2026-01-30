@@ -17,6 +17,7 @@ import { createProduct, getProductCategories, ProductVariants } from '@/services
 import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase } from 'lucide-react';
 import { ProductVariantManager } from './ProductVariantManager';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -44,8 +45,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     category_id: '',
     base_price: '',
     available_variants: { sizes: [], colors: [] } as ProductVariants,
-    min_belt_level: '',
-    max_belt_level: '',
+    allowed_belt_levels: [] as string[],
     requires_belt_level: false,
     is_service: false,
     is_active: true
@@ -96,8 +96,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         available_variants: formData.available_variants,
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
-        min_belt_level: formData.min_belt_level && formData.min_belt_level !== 'none' ? formData.min_belt_level : undefined,
-        max_belt_level: formData.max_belt_level && formData.max_belt_level !== 'none' ? formData.max_belt_level : undefined,
+        allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
         requires_belt_level: formData.requires_belt_level,
         is_service: formData.is_service,
         is_active: formData.is_active
@@ -125,8 +124,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       category_id: '',
       base_price: '',
       available_variants: { sizes: [], colors: [] },
-      min_belt_level: '',
-      max_belt_level: '',
+      allowed_belt_levels: [],
       requires_belt_level: false,
       is_service: false,
       is_active: true
@@ -303,41 +301,19 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
             </div>
 
             {formData.requires_belt_level && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Minimum Belt Level</Label>
-                  <Select
-                    value={formData.min_belt_level}
-                    onValueChange={(value) => handleInputChange('min_belt_level', value)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select minimum" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Minimum</SelectItem>
-                      {BELT_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Maximum Belt Level</Label>
-                  <Select
-                    value={formData.max_belt_level}
-                    onValueChange={(value) => handleInputChange('max_belt_level', value)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select maximum" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Maximum</SelectItem>
-                      {BELT_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Allowed Belt Levels</Label>
+                <MultiSelect
+                  values={formData.allowed_belt_levels}
+                  onValuesChange={(values) => handleInputChange('allowed_belt_levels', values)}
+                  options={BELT_LEVELS}
+                  placeholder="Select belt levels..."
+                  searchPlaceholder="Search belt levels..."
+                  maxDisplayed={3}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Only students with these belt levels can see this product
+                </p>
               </div>
             )}
           </section>

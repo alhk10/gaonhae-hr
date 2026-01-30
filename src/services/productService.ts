@@ -40,6 +40,7 @@ const transformProduct = (raw: any): Product => ({
   min_belt_level: raw.min_belt_level,
   max_belt_level: raw.max_belt_level,
   requires_belt_level: raw.requires_belt_level,
+  allowed_belt_levels: raw.allowed_belt_levels,
   session_count: raw.session_count,
   validity_type: raw.validity_type,
   validity_months: raw.validity_months,
@@ -73,6 +74,7 @@ export interface Product {
   min_belt_level?: string;
   max_belt_level?: string;
   requires_belt_level?: boolean;
+  allowed_belt_levels?: string[];
   session_count?: number;
   validity_type?: 'months' | 'term';
   validity_months?: number;
@@ -237,6 +239,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       min_belt_level: productData.min_belt_level,
       max_belt_level: productData.max_belt_level,
       requires_belt_level: productData.requires_belt_level,
+      allowed_belt_levels: productData.allowed_belt_levels,
       session_count: productData.session_count,
       validity_months: productData.validity_months,
       is_recurring: productData.is_recurring,
