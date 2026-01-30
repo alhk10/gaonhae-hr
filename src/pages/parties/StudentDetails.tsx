@@ -25,6 +25,7 @@ import { StudentAttendance } from '@/components/sales/StudentAttendance';
 import { StudentEntitlements } from '@/components/sales/StudentEntitlements';
 import { StudentInvoices } from '@/components/sales/StudentInvoices';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
+import { StudentChangeLog } from '@/components/sales/StudentChangeLog';
 
 // Services
 import {
@@ -39,6 +40,7 @@ import {
   StudentAttendance as StudentAttendanceType,
   StudentEntitlement
 } from '@/services/studentService';
+import { getStudentChangeLogs, StudentChangeLog as ChangeLogType } from '@/services/studentChangeLogService';
 
 // Helper to capitalize first letter
 const capitalize = (str: string | null | undefined): string => {
@@ -57,6 +59,7 @@ const StudentDetails: React.FC = () => {
   const [entitlements, setEntitlements] = useState<StudentEntitlement[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [changeLogs, setChangeLogs] = useState<ChangeLogType[]>([]);
   
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,7 @@ const StudentDetails: React.FC = () => {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [entitlementsLoading, setEntitlementsLoading] = useState(false);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [changeLogsLoading, setChangeLogsLoading] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -100,18 +104,21 @@ const StudentDetails: React.FC = () => {
       setAttendanceLoading(true);
       setEntitlementsLoading(true);
       setInvoicesLoading(true);
+      setChangeLogsLoading(true);
 
-      const [contactsData, attendanceData, entitlementsData, invoicesData] = await Promise.all([
+      const [contactsData, attendanceData, entitlementsData, invoicesData, changeLogsData] = await Promise.all([
         getStudentEmergencyContacts(id),
         getStudentAttendance(id),
         getStudentEntitlements(id),
-        getStudentInvoices(id)
+        getStudentInvoices(id),
+        getStudentChangeLogs(id)
       ]);
 
       setEmergencyContacts(contactsData);
       setAttendance(attendanceData);
       setEntitlements(entitlementsData);
       setInvoices(invoicesData);
+      setChangeLogs(changeLogsData);
 
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -122,6 +129,7 @@ const StudentDetails: React.FC = () => {
       setAttendanceLoading(false);
       setEntitlementsLoading(false);
       setInvoicesLoading(false);
+      setChangeLogsLoading(false);
     }
   };
 
@@ -353,6 +361,12 @@ const StudentDetails: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Section 7: Change Log */}
+          <StudentChangeLog 
+            changeLogs={changeLogs} 
+            loading={changeLogsLoading} 
+          />
         </div>
       </ResponsiveLayout>
     </AuthGuard>

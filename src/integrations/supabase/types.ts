@@ -2834,6 +2834,56 @@ export type Database = {
           },
         ]
       }
+      student_change_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changed_by_email: string | null
+          changes: Json | null
+          created_at: string
+          field_name: string | null
+          id: string
+          ip_address: string | null
+          new_value: string | null
+          old_value: string | null
+          student_id: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changes?: Json | null
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          student_id: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changes?: Json | null
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_change_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_class_enrollments: {
         Row: {
           branch_id: string
