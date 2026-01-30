@@ -51,12 +51,15 @@ interface ProductWithVariants {
     sizes?: string[];
     colors?: string[];
   };
+  requires_belt_level?: boolean;
+  min_belt_level?: string;
+  max_belt_level?: string;
 }
 
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -101,7 +104,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         name: `${s.first_name} ${s.last_name}`, 
         email: s.email || '',
         branch_id: s.branch_id,
-        status: s.status
+        status: s.status,
+        current_belt: s.current_belt
       })));
     } catch (error) {
       console.error('Error loading students:', error);
@@ -148,7 +152,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         sku: p.sku,
         base_price: p.base_price,
         category_id: p.category_id,
-        available_variants: p.available_variants
+        available_variants: p.available_variants,
+        requires_belt_level: p.requires_belt_level,
+        min_belt_level: p.min_belt_level,
+        max_belt_level: p.max_belt_level
       })));
     } catch (error) {
       console.error('Error loading products:', error);
@@ -476,17 +483,35 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
   };
 
-  // Get filtered products based on selected category
-  const filteredProducts = newItem.category_id 
-    ? products.filter(p => p.category_id === newItem.category_id)
-    : products;
+  // Get selected student's current belt level
+  const selectedStudent = students.find(s => s.id === formData.student_id);
+  const selectedCategory = categories.find(c => c.id === newItem.category_id);
+  
+  // Get filtered products based on selected category and student's belt level for grading
+  const filteredProducts = (() => {
+    let filtered = newItem.category_id 
+      ? products.filter(p => p.category_id === newItem.category_id)
+      : products;
+    
+    // For Grading category, filter by student's current belt level
+    if (selectedCategory?.name === 'Grading' && selectedStudent?.current_belt) {
+      filtered = filtered.filter(p => {
+        // If product requires belt level, match min_belt_level to student's current belt
+        if (p.requires_belt_level && p.min_belt_level) {
+          return p.min_belt_level === selectedStudent.current_belt;
+        }
+        // Show products without belt level requirements
+        return !p.requires_belt_level;
+      });
+    }
+    
+    return filtered;
+  })();
 
   // Get selected product's variants
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const sizeOptions = selectedProduct?.available_variants?.sizes || [];
   const colorOptions = selectedProduct?.available_variants?.colors || [];
-
-  const selectedCategory = categories.find(c => c.id === newItem.category_id);
 
   const addItem = () => {
     if (!newItem.product_id) {
