@@ -422,6 +422,13 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
  */
 export async function updateStudent(studentId: string, studentData: Partial<CreateStudentData>): Promise<Student> {
   try {
+    // First, get the current student data for change logging
+    const { data: oldData } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', studentId)
+      .single();
+
     const { data, error } = await supabase
       .from('students')
       .update(studentData)
@@ -433,6 +440,17 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       logger.error('Error updating student', error);
       await logSalesModuleAccess('update_student', false, { error: error.message, studentId });
       throw error;
+    }
+
+    // Log the changes
+    if (oldData) {
+      try {
+        const { logStudentFieldChanges } = await import('./studentChangeLogService');
+        await logStudentFieldChanges(studentId, oldData, studentData);
+      } catch (logError) {
+        // Don't fail the update if logging fails
+        logger.error('Error logging student changes', logError);
+      }
     }
 
     await logSalesModuleAccess('update_student', true, { studentId });
