@@ -1,21 +1,20 @@
 /**
  * Edit Student Dialog
- * Modal form for updating existing students
+ * Modal form for updating existing students - matching AddStudentDialog format
  */
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
-import { Edit, Calendar, Mail, Phone, MapPin, User, CreditCard } from 'lucide-react';
-import { Student, updateStudent, CreateStudentData } from '@/services/studentService';
+import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
+import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
 
 interface EditStudentDialogProps {
@@ -41,6 +40,13 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     'Canada', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Switzerland'
   ];
 
+  // Common languages spoken
+  const commonLanguages = [
+    'English', 'Mandarin', 'Malay', 'Tamil', 'Cantonese', 'Hokkien', 'Teochew',
+    'Japanese', 'Korean', 'Thai', 'Vietnamese', 'Indonesian', 'Hindi', 'Bengali',
+    'Tagalog', 'French', 'German', 'Spanish', 'Arabic', 'Russian'
+  ];
+
   // Belt progression system
   const beltLevels = [
     'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -53,79 +59,118 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
   // Referral source options
   const referralSourceOptions = [
     { value: 'family_friends', label: 'Family & Friends' },
-    { value: 'social_media', label: 'Social Media' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'instagram', label: 'Instagram' },
     { value: 'google_search', label: 'Google Search' },
     { value: 'pass_by', label: 'Pass By' },
     { value: 'others', label: 'Others' }
   ];
 
-  const [formData, setFormData] = useState<CreateStudentData>({
+  const [formData, setFormData] = useState({
+    // Referral Source
+    referral_source: '',
+    
+    // Personal Information
     first_name: '',
     last_name: '',
     preferred_name: '',
     certificate_name: '',
     display_name: '',
-    referral_source: '',
     date_of_birth: '',
     gender: '',
-    nationality: '',
     nric_passport: '',
-    email: '',
     phone: '',
+    email: '',
     address: '',
     postal_code: '',
+    
+    // Additional Information
+    nationality: '',
+    languages_spoken: [] as string[],
+    
+    // Emergency Contact Information
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
+    emergency_contact_2_name: '',
+    emergency_contact_2_phone: '',
+    emergency_contact_2_relationship: '',
+    
+    // Training Information
     current_belt: '',
     previous_experience: '',
     training_goals: '',
     medical_conditions: '',
     dietary_restrictions: '',
+    
+    // Administrative
     branch_id: '',
+    registered_date: '',
     status: 'active',
     notes: ''
   });
 
-  // Initialize form data when student changes
+  // Initialize form data when student changes or dialog opens
   useEffect(() => {
-    if (student) {
+    if (student && open) {
       const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
       setFormData({
+        referral_source: student.referral_source || '',
         first_name: student.first_name || '',
         last_name: student.last_name || '',
         preferred_name: student.preferred_name || '',
         certificate_name: student.certificate_name || fullName,
         display_name: student.display_name || fullName,
-        referral_source: student.referral_source || '',
         date_of_birth: student.date_of_birth || '',
         gender: student.gender || '',
-        nationality: student.nationality || '',
         nric_passport: student.nric_passport || '',
-        email: student.email || '',
         phone: student.phone || '',
+        email: student.email || '',
         address: student.address || '',
         postal_code: student.postal_code || '',
+        nationality: student.nationality || '',
+        languages_spoken: (student as any).languages_spoken || [],
         emergency_contact_name: student.emergency_contact_name || '',
         emergency_contact_phone: student.emergency_contact_phone || '',
         emergency_contact_relationship: student.emergency_contact_relationship || '',
+        emergency_contact_2_name: (student as any).emergency_contact_2_name || '',
+        emergency_contact_2_phone: (student as any).emergency_contact_2_phone || '',
+        emergency_contact_2_relationship: (student as any).emergency_contact_2_relationship || '',
         current_belt: student.current_belt || '',
         previous_experience: student.previous_experience || '',
         training_goals: student.training_goals || '',
         medical_conditions: student.medical_conditions || '',
         dietary_restrictions: student.dietary_restrictions || '',
         branch_id: student.branch_id || '',
+        registered_date: (student as any).registered_date || '',
         status: student.status || 'active',
         notes: student.notes || ''
       });
     }
-  }, [student]);
+  }, [student, open]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-update certificate_name and display_name when first/last name changes
+      if (field === 'first_name' || field === 'last_name') {
+        const firstName = field === 'first_name' ? value : prev.first_name;
+        const lastName = field === 'last_name' ? value : prev.last_name;
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        // Only auto-update if the field hasn't been manually edited
+        const currentAutoName = `${prev.first_name} ${prev.last_name}`.trim();
+        if (!prev.certificate_name || prev.certificate_name === currentAutoName) {
+          updated.certificate_name = fullName;
+        }
+        if (!prev.display_name || prev.display_name === currentAutoName) {
+          updated.display_name = fullName;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,343 +222,477 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
             <Edit className="w-5 h-5" />
             Edit Student: {student.first_name} {student.last_name}
           </DialogTitle>
-          <DialogDescription>
-            Update the student's information below. Required fields are marked with an asterisk (*).
-          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="personal">Personal</TabsTrigger>
-              <TabsTrigger value="contact">Contact</TabsTrigger>
-              <TabsTrigger value="training">Training</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-            </TabsList>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Referral Source Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <User className="w-4 h-4" />
+              Where did you hear about us?
+            </h3>
+            <div className="space-y-1">
+              <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select an option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {referralSourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
 
-            <TabsContent value="personal" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Personal Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="first_name">First Name *</Label>
-                      <Input
-                        id="first_name"
-                        value={formData.first_name}
-                        onChange={(e) => handleInputChange('first_name', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="last_name">Last Name *</Label>
-                      <Input
-                        id="last_name"
-                        value={formData.last_name}
-                        onChange={(e) => handleInputChange('last_name', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+          {/* Personal Information Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <User className="w-4 h-4" />
+              Personal Information
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="first_name" className="text-xs">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => handleInputChange('first_name', e.target.value)}
+                    required
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="last_name" className="text-xs">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => handleInputChange('last_name', e.target.value)}
+                    required
+                    className="h-9"
+                  />
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="certificate_name">Certificate Name *</Label>
-                      <Input
-                        id="certificate_name"
-                        value={formData.certificate_name}
-                        onChange={(e) => handleInputChange('certificate_name', e.target.value)}
-                        placeholder="Name for printing on certificates"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="display_name">Display Name *</Label>
-                      <Input
-                        id="display_name"
-                        value={formData.display_name}
-                        onChange={(e) => handleInputChange('display_name', e.target.value)}
-                        placeholder="Name shown on UI"
-                        required
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="certificate_name" className="text-xs">Certificate Name *</Label>
+                  <Input
+                    id="certificate_name"
+                    value={formData.certificate_name}
+                    onChange={(e) => handleInputChange('certificate_name', e.target.value)}
+                    placeholder="Name for printing on certificates"
+                    required
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="display_name" className="text-xs">Display Name *</Label>
+                  <Input
+                    id="display_name"
+                    value={formData.display_name}
+                    onChange={(e) => handleInputChange('display_name', e.target.value)}
+                    placeholder="Name shown on UI"
+                    required
+                    className="h-9"
+                  />
+                </div>
+              </div>
 
-                  <div>
-                    <Label htmlFor="preferred_name">Preferred Name</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="preferred_name" className="text-xs">Preferred Name</Label>
+                  <Input
+                    id="preferred_name"
+                    value={formData.preferred_name}
+                    onChange={(e) => handleInputChange('preferred_name', e.target.value)}
+                    placeholder="Name the student prefers to be called"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="nric_passport" className="text-xs">NRIC/Passport</Label>
+                  <Input
+                    id="nric_passport"
+                    value={formData.nric_passport}
+                    onChange={(e) => handleInputChange('nric_passport', e.target.value)}
+                    placeholder="NRIC or Passport Number"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="date_of_birth" className="text-xs">Date of Birth</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="gender" className="text-xs">Gender</Label>
+                  <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="phone" className="text-xs">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="+65 9123 4567"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-xs">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="student@example.com"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="address" className="text-xs">Address</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Full address"
+                    rows={2}
+                    className="min-h-[60px]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="postal_code" className="text-xs">Postal Code</Label>
+                  <Input
+                    id="postal_code"
+                    value={formData.postal_code}
+                    onChange={(e) => handleInputChange('postal_code', e.target.value)}
+                    placeholder="123456"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Additional Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <User className="w-4 h-4" />
+              Additional Information
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="nationality" className="text-xs">Nationality</Label>
+                <SearchableSelect
+                  value={formData.nationality}
+                  onValueChange={(value) => handleInputChange('nationality', value)}
+                  options={commonNationalities}
+                  placeholder="Select or type nationality"
+                  searchPlaceholder="Search nationalities..."
+                  allowAddNew={true}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="languages_spoken" className="text-xs">Language Spoken</Label>
+                <MultiSelect
+                  values={formData.languages_spoken}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, languages_spoken: values }))}
+                  options={commonLanguages}
+                  placeholder="Select languages"
+                  searchPlaceholder="Search languages..."
+                  allowAddNew={true}
+                  maxDisplayed={3}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Emergency Contact Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Mail className="w-4 h-4" />
+              Emergency Contact Information
+            </h3>
+            <div className="space-y-3">
+              {/* Emergency Contact 1 */}
+              <div className="rounded-md bg-background/50 p-3 space-y-3">
+                <h4 className="text-xs font-medium">Emergency Contact 1</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_name" className="text-xs">Name</Label>
                     <Input
-                      id="preferred_name"
-                      value={formData.preferred_name}
-                      onChange={(e) => handleInputChange('preferred_name', e.target.value)}
-                      placeholder="Name the student prefers to be called"
+                      id="emergency_contact_name"
+                      value={formData.emergency_contact_name}
+                      onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
+                      placeholder="Emergency contact name"
+                      className="h-9"
                     />
                   </div>
-
-                  <div>
-                    <Label htmlFor="referral_source">Where did you find out about us?</Label>
-                    <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {referralSourceOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="date_of_birth">Date of Birth</Label>
-                      <Input
-                        id="date_of_birth"
-                        type="date"
-                        value={formData.date_of_birth}
-                        onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="nationality">Nationality</Label>
-                      <SearchableSelect
-                        value={formData.nationality}
-                        onValueChange={(value) => handleInputChange('nationality', value)}
-                        options={commonNationalities}
-                        placeholder="Select or type nationality"
-                        searchPlaceholder="Search nationalities..."
-                        allowAddNew={true}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="nric_passport">NRIC/Passport</Label>
-                      <Input
-                        id="nric_passport"
-                        value={formData.nric_passport}
-                        onChange={(e) => handleInputChange('nric_passport', e.target.value)}
-                        placeholder="NRIC or Passport Number"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="contact" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        placeholder="student@example.com"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        placeholder="+65 9123 4567"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      placeholder="Full address"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="postal_code">Postal Code</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_phone" className="text-xs">Phone</Label>
                     <Input
-                      id="postal_code"
-                      value={formData.postal_code}
-                      onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                      placeholder="123456"
+                      id="emergency_contact_phone"
+                      value={formData.emergency_contact_phone}
+                      onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
+                      placeholder="+65 9123 4567"
+                      className="h-9"
                     />
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="training" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Training Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="current_belt">Current Belt Level</Label>
-                    <Select value={formData.current_belt} onValueChange={(value) => handleInputChange('current_belt', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select belt level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {beltLevels.map((belt) => (
-                          <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
-                            {belt}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="previous_experience">Previous Martial Arts Experience</Label>
-                    <Textarea
-                      id="previous_experience"
-                      value={formData.previous_experience}
-                      onChange={(e) => handleInputChange('previous_experience', e.target.value)}
-                      placeholder="Describe any previous martial arts training"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="training_goals">Training Goals</Label>
-                    <Textarea
-                      id="training_goals"
-                      value={formData.training_goals}
-                      onChange={(e) => handleInputChange('training_goals', e.target.value)}
-                      placeholder="What are the student's training goals?"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="medical_conditions">Medical Conditions</Label>
-                    <Textarea
-                      id="medical_conditions"
-                      value={formData.medical_conditions}
-                      onChange={(e) => handleInputChange('medical_conditions', e.target.value)}
-                      placeholder="Any medical conditions we should be aware of"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="dietary_restrictions">Dietary Restrictions</Label>
-                    <Textarea
-                      id="dietary_restrictions"
-                      value={formData.dietary_restrictions}
-                      onChange={(e) => handleInputChange('dietary_restrictions', e.target.value)}
-                      placeholder="Any dietary restrictions or allergies"
-                      rows={2}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="admin" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Administrative Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="branch_id">Primary Branch</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_relationship" className="text-xs">Relationship</Label>
                     <Select 
-                      value={formData.branch_id} 
-                      onValueChange={(value) => handleInputChange('branch_id', value)}
-                      disabled={branchesLoading}
+                      value={formData.emergency_contact_relationship} 
+                      onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select primary branch"} />
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="father">Father</SelectItem>
+                        <SelectItem value="mother">Mother</SelectItem>
+                        <SelectItem value="guardian">Guardian</SelectItem>
+                        <SelectItem value="spouse">Spouse</SelectItem>
+                        <SelectItem value="sibling">Sibling</SelectItem>
+                        <SelectItem value="friend">Friend</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+              </div>
 
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                        <SelectItem value="medical-leave">Medical Leave</SelectItem>
-                        <SelectItem value="examination-leave">Examination Leave</SelectItem>
-                        <SelectItem value="on-holiday">On Holiday</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                      placeholder="Any additional notes about the student"
-                      rows={4}
+              {/* Emergency Contact 2 */}
+              <div className="rounded-md bg-background/50 p-3 space-y-3">
+                <h4 className="text-xs font-medium">Emergency Contact 2</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_name" className="text-xs">Name</Label>
+                    <Input
+                      id="emergency_contact_2_name"
+                      value={formData.emergency_contact_2_name}
+                      onChange={(e) => handleInputChange('emergency_contact_2_name', e.target.value)}
+                      placeholder="Emergency contact name"
+                      className="h-9"
                     />
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_phone" className="text-xs">Phone</Label>
+                    <Input
+                      id="emergency_contact_2_phone"
+                      value={formData.emergency_contact_2_phone}
+                      onChange={(e) => handleInputChange('emergency_contact_2_phone', e.target.value)}
+                      placeholder="+65 9123 4567"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_relationship" className="text-xs">Relationship</Label>
+                    <Select 
+                      value={formData.emergency_contact_2_relationship} 
+                      onValueChange={(value) => handleInputChange('emergency_contact_2_relationship', value)}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select relationship" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="father">Father</SelectItem>
+                        <SelectItem value="mother">Mother</SelectItem>
+                        <SelectItem value="guardian">Guardian</SelectItem>
+                        <SelectItem value="spouse">Spouse</SelectItem>
+                        <SelectItem value="sibling">Sibling</SelectItem>
+                        <SelectItem value="friend">Friend</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <DialogFooter>
+          {/* Training Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <GraduationCap className="w-4 h-4" />
+              Training Information
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="current_belt" className="text-xs">Current Belt Level</Label>
+                  <Select value={formData.current_belt} onValueChange={(value) => handleInputChange('current_belt', value)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select belt level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {beltLevels.map((belt) => (
+                        <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
+                          {belt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="previous_experience" className="text-xs">Previous Martial Arts Experience</Label>
+                  <Textarea
+                    id="previous_experience"
+                    value={formData.previous_experience}
+                    onChange={(e) => handleInputChange('previous_experience', e.target.value)}
+                    placeholder="Describe any previous training"
+                    rows={2}
+                    className="min-h-[60px]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="training_goals" className="text-xs">Training Goals</Label>
+                <Textarea
+                  id="training_goals"
+                  value={formData.training_goals}
+                  onChange={(e) => handleInputChange('training_goals', e.target.value)}
+                  placeholder="What are the student's training goals?"
+                  rows={2}
+                  className="min-h-[60px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="medical_conditions" className="text-xs">Medical Conditions</Label>
+                  <Textarea
+                    id="medical_conditions"
+                    value={formData.medical_conditions}
+                    onChange={(e) => handleInputChange('medical_conditions', e.target.value)}
+                    placeholder="Any medical conditions"
+                    rows={2}
+                    className="min-h-[60px]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="dietary_restrictions" className="text-xs">Dietary Restrictions</Label>
+                  <Textarea
+                    id="dietary_restrictions"
+                    value={formData.dietary_restrictions}
+                    onChange={(e) => handleInputChange('dietary_restrictions', e.target.value)}
+                    placeholder="Any dietary restrictions or allergies"
+                    rows={2}
+                    className="min-h-[60px]"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Administrative Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Settings className="w-4 h-4" />
+              Administrative
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="branch_id" className="text-xs">Primary Branch</Label>
+                  <Select 
+                    value={formData.branch_id} 
+                    onValueChange={(value) => handleInputChange('branch_id', value)}
+                    disabled={branchesLoading}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select primary branch"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="registered_date" className="text-xs">Registered Date</Label>
+                  <Input
+                    id="registered_date"
+                    type="date"
+                    value={formData.registered_date}
+                    onChange={(e) => handleInputChange('registered_date', e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="status" className="text-xs">Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                      <SelectItem value="medical-leave">Medical Leave</SelectItem>
+                      <SelectItem value="examination-leave">Examination Leave</SelectItem>
+                      <SelectItem value="on-holiday">On Holiday</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="notes" className="text-xs">Additional Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Any additional notes about the student"
+                  rows={2}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </div>
+          </section>
+
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              size="sm"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Student'}
+            <Button type="submit" disabled={loading} size="sm">
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </form>
