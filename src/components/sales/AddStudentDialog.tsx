@@ -484,7 +484,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                         <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="parent">Parent</SelectItem>
+                        <SelectItem value="father">Father</SelectItem>
+                        <SelectItem value="mother">Mother</SelectItem>
                         <SelectItem value="guardian">Guardian</SelectItem>
                         <SelectItem value="spouse">Spouse</SelectItem>
                         <SelectItem value="sibling">Sibling</SelectItem>
@@ -530,7 +531,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                         <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="parent">Parent</SelectItem>
+                        <SelectItem value="father">Father</SelectItem>
+                        <SelectItem value="mother">Mother</SelectItem>
                         <SelectItem value="guardian">Guardian</SelectItem>
                         <SelectItem value="spouse">Spouse</SelectItem>
                         <SelectItem value="sibling">Sibling</SelectItem>
