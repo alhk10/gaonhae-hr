@@ -119,9 +119,22 @@ export const ScreenLockOverlay = ({
     }
   };
 
-  const handlePinChange = (value: string) => {
+  const handlePinChange = async (value: string) => {
     setPin(value);
     setError(false);
+    
+    // Auto-unlock when 4 digits are entered
+    if (value.length === 4) {
+      setIsVerifying(true);
+      const success = await onUnlock(value);
+      setIsVerifying(false);
+      
+      if (!success) {
+        setError(true);
+        setPin("");
+        toast.error("Incorrect PIN. Please try again.");
+      }
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -264,21 +277,12 @@ export const ScreenLockOverlay = ({
                 </div>
               )}
 
-              <Button
-                onClick={handleUnlock}
-                disabled={isVerifying || pin.length !== 4}
-                className="w-full"
-                size="lg"
-              >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Unlock"
-                )}
-              </Button>
+              {isVerifying && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Verifying...</span>
+                </div>
+              )}
 
               <button
                 onClick={() => setShowForgotPin(true)}
