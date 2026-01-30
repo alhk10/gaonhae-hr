@@ -58,6 +58,10 @@ interface ProductWithVariants {
   allowed_belt_levels?: string[];
 }
 
+// Grading category ID for validation
+const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
+const GRADING_DUPLICATE_CHECK_DAYS = 60;
+
 // Belt progression order for filtering products
 const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -228,6 +232,45 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
+  // Check if a grading invoice already exists for this student and product in the last 60 days
+  const checkExistingGradingInvoice = async (
+    studentId: string, 
+    productId: string
+  ): Promise<{ exists: boolean; productName?: string; createdAt?: string }> => {
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - GRADING_DUPLICATE_CHECK_DAYS);
+    
+    try {
+      const { data, error } = await supabase
+        .from('invoice_items')
+        .select(`
+          product_id,
+          products!inner(name, category_id),
+          invoices!inner(student_id, created_at, status)
+        `)
+        .eq('product_id', productId)
+        .eq('invoices.student_id', studentId)
+        .neq('invoices.status', 'cancelled')
+        .gte('invoices.created_at', sixtyDaysAgo.toISOString());
+      
+      if (error || !data || data.length === 0) {
+        return { exists: false };
+      }
+      
+      const invoiceData = data[0].invoices as unknown as { created_at: string };
+      const productData = data[0].products as unknown as { name: string };
+      
+      return { 
+        exists: true, 
+        productName: productData?.name,
+        createdAt: invoiceData?.created_at
+      };
+    } catch (error) {
+      console.error('Error checking existing grading invoice:', error);
+      return { exists: false };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -248,6 +291,28 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
     setLoading(true);
     try {
+      // Check for duplicate grading products in the last 60 days
+      for (const item of items) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product?.category_id === GRADING_CATEGORY_ID) {
+          const duplicateCheck = await checkExistingGradingInvoice(
+            formData.student_id, 
+            item.product_id
+          );
+          
+          if (duplicateCheck.exists) {
+            const date = duplicateCheck.createdAt 
+              ? new Date(duplicateCheck.createdAt).toLocaleDateString() 
+              : 'recently';
+            toast.error(
+              `This student already has an invoice for "${duplicateCheck.productName}" created on ${date}. Only 1 grading of the same type allowed per 60 days.`
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const invoiceData: CreateInvoiceData = {
         student_id: formData.student_id,
         branch_id: formData.branch_id || undefined,
@@ -636,6 +701,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     if (!product) {
       toast.error('Product not found');
       return;
+    }
+
+    // Check if adding a grading product and one already exists in current items
+    const isGradingProduct = product.category_id === GRADING_CATEGORY_ID;
+    if (isGradingProduct) {
+      const existingGradingItem = items.find(item => {
+        const itemProduct = products.find(p => p.id === item.product_id);
+        return itemProduct?.category_id === GRADING_CATEGORY_ID;
+      });
+      
+      if (existingGradingItem) {
+        toast.error('Only 1 grading product allowed per invoice. Please remove the existing grading item first.');
+        return;
+      }
     }
 
     // Validate term for Classes category (only if terms are available)
