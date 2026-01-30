@@ -1,149 +1,73 @@
 
-# Plan: Tag Grading Products to Grading Slots
 
-## Overview
-When a user selects a product from the "Grading Fees" category during invoice creation, display a dropdown to select an available grading slot. This links the invoice item to a specific grading examination session.
+# Plan: Fix Grading Slot Filtering - Variable Scoping Issue
 
----
+## Problem
+The grading slot "Morley - 11 Apr 2026 - 08:40 - Green Tip" is not appearing when creating an invoice for student "Mingyu Song" (Green Tip belt), showing "No slots" instead.
 
-## Current Flow
-1. User selects "Grading Fees" category
-2. User selects product (e.g., "Green Tip >> Green")
-3. Product is added to invoice
+## Root Cause
+The `getFilteredGradingSlots` function is defined at **line 165**, but it references `studentBelt` which is defined at **line 583**. This causes a variable scoping issue where `studentBelt` may be undefined when the filter runs.
 
-## New Flow
-1. User selects "Grading Fees" category
-2. User selects product (e.g., "Green Tip >> Green")
-3. **NEW:** User selects grading slot from dropdown
-4. Product is added to invoice with grading_slot_id in metadata
+## Data Verification
+All data is correct in the database:
+- Student "Mingyu Song": `current_belt = "green-tip"` (branch: BR1768967806476)
+- Grading Slot: `belt_levels = ["Green Tip"]` (branch: BR1768967806476)
+- The `normalizeBelt("green-tip")` correctly returns `"Green Tip"`
 
----
+## Solution
+Move the `getFilteredGradingSlots` function definition to AFTER the `studentBelt` variable declaration, ensuring the variable is in scope when the function is defined.
 
-## Implementation Details
+## Changes
 
-### 1. CreateInvoiceDialog.tsx
+### File: `src/components/sales/CreateInvoiceDialog.tsx`
 
-**Add State for Grading Slots:**
+1. **Remove** the `getFilteredGradingSlots` function from lines ~164-187
+
+2. **Add** the function after `studentBelt` is defined (after line 583):
+
 ```typescript
-const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
-```
+// Get selected student's belt for filtering
+const selectedStudent = students.find(s => s.id === formData.student_id);
+const studentBelt = selectedStudent?.current_belt || '';
 
-**Add grading_slot_id to newItem state:**
-```typescript
-const [newItem, setNewItem] = useState({
-  // ... existing fields
-  grading_slot_id: ''
-});
-```
-
-**Load Grading Slots:**
-- Fetch active grading slots when dialog opens
-- Filter by selected branch and student's current belt level
-
-**Grading Slot Filtering Logic:**
-- Filter slots by selected branch_id
-- Filter slots by status = 'active'
-- Filter slots where grading_date is in the future
-- Filter slots by belt_levels matching the student's current belt
-
-**Add Grading Slot Dropdown:**
-Replace the "Term" column with conditional logic:
-- For "Classes" category: Show Term dropdown (existing)
-- For "Grading Fees" category: Show Grading Slot dropdown
-- For other categories: Show "-"
-
-**Update addItem function:**
-Store grading_slot_id in metadata when adding Grading Fees items
-
-**Update InvoiceItem interface:**
-```typescript
-interface InvoiceItem {
-  // ... existing fields
-  grading_slot_id?: string;
-  grading_slot_title?: string;
-}
-```
-
----
-
-### 2. UI Layout Changes
-
-The "Term" column will become a dynamic column that shows:
-- Term dropdown for "Classes" category
-- Grading Slot dropdown for "Grading Fees" category
-- "-" for other categories
-
-**Grading Slot Dropdown Display:**
-- Show slot title (e.g., "Morley - 11 Apr 2026 - 08:00 - Green Tip")
-- Filter to only show slots matching the student's branch and available capacity
-
----
-
-### 3. Data Flow
-
-**When adding a Grading Fees item:**
-```typescript
-const item: InvoiceItem = {
-  // ... existing fields
-  grading_slot_id: newItem.grading_slot_id || undefined,
-  grading_slot_title: selectedSlot?.title || undefined,
-  // In metadata for backend storage:
-  metadata: { grading_slot_id: newItem.grading_slot_id }
+// NEW LOCATION: Get filtered grading slots based on selected branch and student's current belt
+const getFilteredGradingSlots = (): GradingSlot[] => {
+  let filtered = gradingSlots;
+  
+  // Filter by branch if selected
+  if (formData.branch_id) {
+    filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
+  }
+  
+  // STRICT filter by student's current belt level - only show matching slots
+  if (studentBelt) {
+    const normalizedStudentBelt = normalizeBelt(studentBelt);
+    filtered = filtered.filter(slot => {
+      // If slot has no belt_levels defined, don't show it
+      if (!slot.belt_levels || slot.belt_levels.length === 0) return false;
+      // Check if student's belt is in the slot's allowed belt levels
+      return slot.belt_levels.some(beltLevel => 
+        normalizeBelt(beltLevel) === normalizedStudentBelt
+      );
+    });
+  }
+  
+  return filtered;
 };
 ```
 
----
+## Expected Result
+After this fix:
+- When creating an invoice for "Mingyu Song" (Green Tip belt)
+- And selecting "Grading Fees" category
+- The dropdown will show: "Morley - 11 Apr 2026 - 08:40 - Green Tip"
 
-### 4. Grading Slot Service Integration
+## Technical Details
 
-**Import from gradingService:**
-```typescript
-import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
-```
+| Line Range | Current | After Fix |
+|------------|---------|-----------|
+| ~164-187 | `getFilteredGradingSlots` defined | Remove function |
+| ~583-593 | `studentBelt` defined, then `filteredProducts` | Add `getFilteredGradingSlots` between them |
 
-**Load slots on dialog open:**
-```typescript
-const loadGradingSlots = async () => {
-  const slots = await getGradingSlots({ 
-    status: 'active',
-    from_date: new Date().toISOString().split('T')[0]
-  });
-  setGradingSlots(slots);
-};
-```
+This ensures `studentBelt` is always defined before it's referenced by the function.
 
----
-
-## Summary of Changes
-
-| File | Changes |
-|------|---------|
-| `src/components/sales/CreateInvoiceDialog.tsx` | Add grading slot state, load slots, add dropdown for Grading Fees category, store in metadata |
-
----
-
-## UI Preview
-
-**Invoice Items Row for Grading Fees:**
-```
-| Category     | Product              | Qty | Price | Size | Color | Slot                              | Total | Actions |
-|--------------|----------------------|-----|-------|------|-------|-----------------------------------|-------|---------|
-| Grading Fees | Green Tip >> Green   | 1   | 70    | -    | -     | [Morley - 11 Apr 2026 - 08:00 ▼] | $70   | [+]     |
-```
-
-**Filtered Slots:**
-- Only show slots for the selected branch
-- Only show active slots with future dates
-- Show slot title in dropdown
-
----
-
-## Execution Order
-
-1. Add grading slots state to CreateInvoiceDialog
-2. Add loadGradingSlots function
-3. Call loadGradingSlots when dialog opens
-4. Add grading_slot_id to newItem state
-5. Update the "Term" column to conditionally render Grading Slot dropdown for Grading Fees category
-6. Update addItem to include grading_slot_id in metadata
-7. Display grading slot title in existing items table row
