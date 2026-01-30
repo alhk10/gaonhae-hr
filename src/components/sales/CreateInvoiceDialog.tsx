@@ -594,6 +594,31 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return matchesCategory && matchesBelt;
   });
 
+  // Auto-select product if only 1 option available
+  useEffect(() => {
+    if (newItem.category_id && filteredProducts.length === 1 && !newItem.product_id) {
+      const singleProduct = filteredProducts[0];
+      handleProductChange(singleProduct.id);
+    }
+  }, [filteredProducts.length, newItem.category_id, newItem.product_id]);
+
+  // Auto-select term if only 1 option available for Classes category
+  useEffect(() => {
+    const categoryName = categories.find(c => c.id === newItem.category_id)?.name;
+    if (categoryName === 'Classes' && branchTerms.length === 1 && !newItem.term_id) {
+      handleNewItemChange('term_id', branchTerms[0].id);
+    }
+  }, [branchTerms.length, newItem.category_id, newItem.term_id, categories]);
+
+  // Auto-select grading slot if only 1 option available for Grading Fees category
+  useEffect(() => {
+    const categoryName = categories.find(c => c.id === newItem.category_id)?.name;
+    const filteredSlots = getFilteredGradingSlots();
+    if (categoryName === 'Grading Fees' && filteredSlots.length === 1 && !newItem.grading_slot_id) {
+      handleNewItemChange('grading_slot_id', filteredSlots[0].id);
+    }
+  }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
+
   // Get selected product's variants
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const sizeOptions = selectedProduct?.available_variants?.sizes || [];
