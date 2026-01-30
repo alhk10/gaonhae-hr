@@ -167,28 +167,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     
     // Filter by branch if selected
     if (formData.branch_id) {
-      const branchFiltered = gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
-      // Only apply branch filter if there are matching slots
-      if (branchFiltered.length > 0) {
-        filtered = branchFiltered;
-      }
+      filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
     }
     
-    // Filter by student's current belt level
+    // STRICT filter by student's current belt level - only show matching slots
     if (studentBelt) {
       const normalizedStudentBelt = normalizeBelt(studentBelt);
-      const beltFiltered = filtered.filter(slot => {
-        // If slot has no belt_levels defined, show it (no restriction)
-        if (!slot.belt_levels || slot.belt_levels.length === 0) return true;
+      filtered = filtered.filter(slot => {
+        // If slot has no belt_levels defined, don't show it (requires explicit belt match)
+        if (!slot.belt_levels || slot.belt_levels.length === 0) return false;
         // Check if student's belt is in the slot's allowed belt levels
         return slot.belt_levels.some(beltLevel => 
           normalizeBelt(beltLevel) === normalizedStudentBelt
         );
       });
-      // Only apply belt filter if there are matching slots
-      if (beltFiltered.length > 0) {
-        filtered = beltFiltered;
-      }
     }
     
     return filtered;
