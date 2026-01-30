@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getGradingSlots, updateGradingSlot, deleteGradingSlot, type GradingSlot } from '@/services/gradingService';
-import AddGradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
+import GradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import {
   AlertDialog,
@@ -118,14 +118,14 @@ const GradingManagement: React.FC = () => {
             <h1 className="text-2xl font-bold">Grading Management</h1>
             <p className="text-muted-foreground">Schedule and manage grading examination slots</p>
           </div>
-          <AddGradingSlotDialog 
+          <GradingSlotDialog 
             trigger={
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Grading Slot
               </Button>
             }
-            onSlotCreated={loadData}
+            onSlotSaved={loadData}
           />
         </div>
 
@@ -282,6 +282,16 @@ const GradingManagement: React.FC = () => {
                               <SelectItem value="cancelled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
+                          <GradingSlotDialog
+                            trigger={
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            }
+                            editSlot={slot}
+                            mode="edit"
+                            onSlotSaved={loadData}
+                          />
                           <Button
                             variant="ghost"
                             size="icon"
