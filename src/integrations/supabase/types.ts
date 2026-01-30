@@ -1565,6 +1565,54 @@ export type Database = {
           },
         ]
       }
+      invoice_templates: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          default_internal_notes: string | null
+          default_notes: string | null
+          default_payment_terms_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          template_items: Json | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_internal_notes?: string | null
+          default_notes?: string | null
+          default_payment_terms_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          template_items?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_internal_notes?: string | null
+          default_notes?: string | null
+          default_payment_terms_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          template_items?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           amount_paid: number

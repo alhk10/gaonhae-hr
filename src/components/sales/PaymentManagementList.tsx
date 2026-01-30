@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { getPayments, deletePayment, type Payment } from '@/services/paymentService';
 import CreatePaymentDialog from './CreatePaymentDialog';
+import ViewEditPaymentDialog from './ViewEditPaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 const PaymentManagementList: React.FC = () => {
@@ -38,6 +39,11 @@ const PaymentManagementList: React.FC = () => {
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
   const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
+  
+  // View/Edit dialog state
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [dialogMode, setDialogMode] = useState<'view' | 'edit'>('view');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -343,7 +349,11 @@ const PaymentManagementList: React.FC = () => {
                             size="icon"
                             className="h-8 w-8"
                             title="View Payment"
-                            disabled
+                            onClick={() => {
+                              setSelectedPaymentId(payment.id);
+                              setDialogMode('view');
+                              setViewDialogOpen(true);
+                            }}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -352,7 +362,11 @@ const PaymentManagementList: React.FC = () => {
                             size="icon"
                             className="h-8 w-8"
                             title="Edit Payment"
-                            disabled
+                            onClick={() => {
+                              setSelectedPaymentId(payment.id);
+                              setDialogMode('edit');
+                              setViewDialogOpen(true);
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -405,6 +419,17 @@ const PaymentManagementList: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* View/Edit Payment Dialog */}
+      {selectedPaymentId && (
+        <ViewEditPaymentDialog
+          paymentId={selectedPaymentId}
+          open={viewDialogOpen}
+          onOpenChange={setViewDialogOpen}
+          onPaymentUpdated={loadPayments}
+          initialMode={dialogMode}
+        />
+      )}
     </div>
   );
 };

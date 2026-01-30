@@ -32,6 +32,7 @@ import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
+import ViewEditInvoiceDialog from './ViewEditInvoiceDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
@@ -44,6 +45,11 @@ const InvoiceManagementList: React.FC = () => {
   const [studentFilter, setStudentFilter] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const { accessibleBranches, isSuperadmin, canEdit, canDelete, canCreate, hasAccess } = useInvoiceAccess();
+  
+  // View/Edit dialog state
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [dialogMode, setDialogMode] = useState<'view' | 'edit'>('view');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -367,7 +373,11 @@ const InvoiceManagementList: React.FC = () => {
                             size="icon"
                             className="h-8 w-8"
                             title="View Invoice"
-                            disabled
+                            onClick={() => {
+                              setSelectedInvoiceId(invoice.id);
+                              setDialogMode('view');
+                              setViewDialogOpen(true);
+                            }}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -381,6 +391,11 @@ const InvoiceManagementList: React.FC = () => {
                             className="h-8 w-8"
                             title="Edit Invoice"
                             disabled={!canEdit(invoice.branch_id || '')}
+                            onClick={() => {
+                              setSelectedInvoiceId(invoice.id);
+                              setDialogMode('edit');
+                              setViewDialogOpen(true);
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -434,6 +449,17 @@ const InvoiceManagementList: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* View/Edit Invoice Dialog */}
+      {selectedInvoiceId && (
+        <ViewEditInvoiceDialog
+          invoiceId={selectedInvoiceId}
+          open={viewDialogOpen}
+          onOpenChange={setViewDialogOpen}
+          onInvoiceUpdated={loadInvoices}
+          initialMode={dialogMode}
+        />
+      )}
     </div>
   );
 };
