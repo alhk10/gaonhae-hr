@@ -51,33 +51,7 @@ interface ProductWithVariants {
     sizes?: string[];
     colors?: string[];
   };
-  requires_belt_level?: boolean;
-  min_belt_level?: string;
-  max_belt_level?: string;
 }
-
-// Belt level order for sorting grading products
-const BELT_LEVEL_ORDER = [
-  'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green', 
-  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
-  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
-];
-
-// Get belt level sort index
-const getBeltLevelIndex = (belt: string | undefined): number => {
-  if (!belt) return 999;
-  return BELT_LEVEL_ORDER.indexOf(belt);
-};
-
-// Format product name with belt transition if applicable
-const formatProductName = (product: ProductWithVariants): string => {
-  if (product.requires_belt_level && product.min_belt_level && product.max_belt_level) {
-    return `${product.min_belt_level} >> ${product.max_belt_level}`;
-  }
-  return product.name;
-};
 
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
@@ -174,10 +148,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         sku: p.sku,
         base_price: p.base_price,
         category_id: p.category_id,
-        available_variants: p.available_variants,
-        requires_belt_level: p.requires_belt_level,
-        min_belt_level: p.min_belt_level,
-        max_belt_level: p.max_belt_level
+        available_variants: p.available_variants
       })));
     } catch (error) {
       console.error('Error loading products:', error);
@@ -505,21 +476,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
   };
 
-  // Get filtered products based on selected category, sorted by belt level for grading products
-  const filteredProducts = (newItem.category_id 
+  // Get filtered products based on selected category
+  const filteredProducts = newItem.category_id 
     ? products.filter(p => p.category_id === newItem.category_id)
-    : products
-  ).sort((a, b) => {
-    // Sort products with belt requirements by belt level order
-    if (a.requires_belt_level && b.requires_belt_level) {
-      return getBeltLevelIndex(a.min_belt_level) - getBeltLevelIndex(b.min_belt_level);
-    }
-    // Products with belt requirements come first within their category
-    if (a.requires_belt_level && !b.requires_belt_level) return -1;
-    if (!a.requires_belt_level && b.requires_belt_level) return 1;
-    // Otherwise sort by name
-    return a.name.localeCompare(b.name);
-  });
+    : products;
 
   // Get selected product's variants
   const selectedProduct = products.find(p => p.id === newItem.product_id);
@@ -788,7 +748,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       <SelectContent>
                         {filteredProducts.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
-                            {formatProductName(product)}
+                            {product.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
