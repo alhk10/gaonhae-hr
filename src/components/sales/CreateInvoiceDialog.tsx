@@ -52,8 +52,7 @@ interface ProductWithVariants {
     colors?: string[];
   };
   requires_belt_level?: boolean;
-  min_belt_level?: string;
-  max_belt_level?: string;
+  allowed_belt_levels?: string[];
 }
 
 // Belt progression order for filtering products
@@ -79,7 +78,7 @@ const getBeltIndex = (belt: string): number => {
   return BELT_LEVELS.indexOf(normalized);
 };
 
-// Check if student belt is within product's belt range
+// Check if student belt is in product's allowed belt levels
 const isProductAvailableForBelt = (
   product: ProductWithVariants,
   studentBelt: string
@@ -87,17 +86,13 @@ const isProductAvailableForBelt = (
   // If product doesn't require belt level, it's available to all
   if (!product.requires_belt_level) return true;
   
-  const studentIndex = getBeltIndex(studentBelt);
-  if (studentIndex === -1) return true; // Unknown belt, allow all
+  // If no allowed belt levels specified, available to all
+  if (!product.allowed_belt_levels || product.allowed_belt_levels.length === 0) return true;
   
-  const minIndex = product.min_belt_level
-    ? getBeltIndex(product.min_belt_level)
-    : 0;
-  const maxIndex = product.max_belt_level
-    ? getBeltIndex(product.max_belt_level)
-    : BELT_LEVELS.length - 1;
+  const normalizedStudentBelt = normalizeBelt(studentBelt);
+  if (!normalizedStudentBelt) return true; // Unknown belt, allow all
   
-  return studentIndex >= minIndex && studentIndex <= maxIndex;
+  return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
@@ -198,8 +193,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         category_id: p.category_id,
         available_variants: p.available_variants,
         requires_belt_level: p.requires_belt_level,
-        min_belt_level: p.min_belt_level,
-        max_belt_level: p.max_belt_level
+        allowed_belt_levels: p.allowed_belt_levels
       })));
     } catch (error) {
       console.error('Error loading products:', error);
