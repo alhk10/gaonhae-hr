@@ -1,112 +1,149 @@
 
-
-# Plan: Update Grading Belt Levels and Simplify Form
+# Plan: Tag Grading Products to Grading Slots
 
 ## Overview
-Update the grading management system to use the correct belt structure (Foundation 1 through Dan 5), and remove the Examiner and End Time fields from the slot creation/display.
+When a user selects a product from the "Grading Fees" category during invoice creation, display a dropdown to select an available grading slot. This links the invoice item to a specific grading examination session.
 
 ---
 
-## Current vs Correct Belt Structure
+## Current Flow
+1. User selects "Grading Fees" category
+2. User selects product (e.g., "Green Tip >> Green")
+3. Product is added to invoice
 
-| Current (Incorrect) | New (Correct) |
-|---------------------|---------------|
-| White, Yellow, Orange, Green, Blue, Purple, Brown, Red, Black | Foundation 1, Foundation 2, Foundation 3, White, Yellow Tip, Yellow, Green Tip, Green, Blue Tip, Blue, Red Tip, Red, Black Tip, Poom 1-4, Dan 1-5 |
+## New Flow
+1. User selects "Grading Fees" category
+2. User selects product (e.g., "Green Tip >> Green")
+3. **NEW:** User selects grading slot from dropdown
+4. Product is added to invoice with grading_slot_id in metadata
 
 ---
 
-## Changes Required
+## Implementation Details
 
-### 1. AddGradingSlotDialog.tsx
+### 1. CreateInvoiceDialog.tsx
 
-**Update Belt Levels Constant:**
+**Add State for Grading Slots:**
 ```typescript
-// Current
-const BELT_LEVELS = [
-  'White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Red', 'Black'
-];
-
-// Updated
-const BELT_LEVELS = [
-  'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
-  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
-  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
-];
+const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
 ```
 
-**Remove Fields from Form:**
-- Remove End Time input field
-- Remove Examiner input field
-- Remove `end_time` and `examiner_name` from form state
+**Add grading_slot_id to newItem state:**
+```typescript
+const [newItem, setNewItem] = useState({
+  // ... existing fields
+  grading_slot_id: ''
+});
+```
 
-**Updated Form Layout:**
-- Move Max Capacity to share row with Location
-- Simplify grid structure
+**Load Grading Slots:**
+- Fetch active grading slots when dialog opens
+- Filter by selected branch and student's current belt level
+
+**Grading Slot Filtering Logic:**
+- Filter slots by selected branch_id
+- Filter slots by status = 'active'
+- Filter slots where grading_date is in the future
+- Filter slots by belt_levels matching the student's current belt
+
+**Add Grading Slot Dropdown:**
+Replace the "Term" column with conditional logic:
+- For "Classes" category: Show Term dropdown (existing)
+- For "Grading Fees" category: Show Grading Slot dropdown
+- For other categories: Show "-"
+
+**Update addItem function:**
+Store grading_slot_id in metadata when adding Grading Fees items
+
+**Update InvoiceItem interface:**
+```typescript
+interface InvoiceItem {
+  // ... existing fields
+  grading_slot_id?: string;
+  grading_slot_title?: string;
+}
+```
 
 ---
 
-### 2. GradingManagement.tsx (Table Display)
+### 2. UI Layout Changes
 
-**Update Table Headers:**
-Remove these columns:
-- "Examiner" column
-- Update "Time" column to show only start time (remove end time display)
+The "Term" column will become a dynamic column that shows:
+- Term dropdown for "Classes" category
+- Grading Slot dropdown for "Grading Fees" category
+- "-" for other categories
 
-**Update Table Rows:**
-- Remove examiner display cell
-- Simplify time display to show only start time
-
----
-
-### 3. gradingService.ts (Types)
-
-**Update Interfaces:**
-- Keep `end_time` and `examiner_name` in interfaces for backward compatibility with existing database records
-- No code changes needed since the database already has these columns; we're just hiding them from UI
+**Grading Slot Dropdown Display:**
+- Show slot title (e.g., "Morley - 11 Apr 2026 - 08:00 - Green Tip")
+- Filter to only show slots matching the student's branch and available capacity
 
 ---
 
-## Summary of Files to Modify
+### 3. Data Flow
+
+**When adding a Grading Fees item:**
+```typescript
+const item: InvoiceItem = {
+  // ... existing fields
+  grading_slot_id: newItem.grading_slot_id || undefined,
+  grading_slot_title: selectedSlot?.title || undefined,
+  // In metadata for backend storage:
+  metadata: { grading_slot_id: newItem.grading_slot_id }
+};
+```
+
+---
+
+### 4. Grading Slot Service Integration
+
+**Import from gradingService:**
+```typescript
+import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
+```
+
+**Load slots on dialog open:**
+```typescript
+const loadGradingSlots = async () => {
+  const slots = await getGradingSlots({ 
+    status: 'active',
+    from_date: new Date().toISOString().split('T')[0]
+  });
+  setGradingSlots(slots);
+};
+```
+
+---
+
+## Summary of Changes
 
 | File | Changes |
 |------|---------|
-| `src/components/sales/AddGradingSlotDialog.tsx` | Update BELT_LEVELS constant, remove end_time and examiner_name form fields |
-| `src/pages/sales/GradingManagement.tsx` | Remove Examiner column, simplify Time column to show only start time |
+| `src/components/sales/CreateInvoiceDialog.tsx` | Add grading slot state, load slots, add dropdown for Grading Fees category, store in metadata |
 
 ---
 
 ## UI Preview
 
-**Add Grading Slot Dialog (After):**
+**Invoice Items Row for Grading Fees:**
 ```
-Branch *              Date *
-[Select Branch]       [Date Picker]
-
-Start Time           Max Capacity
-[Time Input]         [Number Input]
-
-Location
-[Text Input]
-
-Belt Levels
-[Foundation 1] [Foundation 2] [Foundation 3] [White] [Yellow Tip] ...
-
-Notes
-[Textarea]
+| Category     | Product              | Qty | Price | Size | Color | Slot                              | Total | Actions |
+|--------------|----------------------|-----|-------|------|-------|-----------------------------------|-------|---------|
+| Grading Fees | Green Tip >> Green   | 1   | 70    | -    | -     | [Morley - 11 Apr 2026 - 08:00 ▼] | $70   | [+]     |
 ```
 
-**Grading Slots Table (After):**
-| Date | Time | Branch | Location | Belt Levels | Capacity | Status | Actions |
-|------|------|--------|----------|-------------|----------|--------|---------|
+**Filtered Slots:**
+- Only show slots for the selected branch
+- Only show active slots with future dates
+- Show slot title in dropdown
 
 ---
 
-## Execution Steps
+## Execution Order
 
-1. Update BELT_LEVELS constant in AddGradingSlotDialog.tsx
-2. Remove examiner and end_time form fields from AddGradingSlotDialog.tsx
-3. Remove Examiner column from GradingManagement.tsx table
-4. Simplify Time column display in GradingManagement.tsx
-
+1. Add grading slots state to CreateInvoiceDialog
+2. Add loadGradingSlots function
+3. Call loadGradingSlots when dialog opens
+4. Add grading_slot_id to newItem state
+5. Update the "Term" column to conditionally render Grading Slot dropdown for Grading Fees category
+6. Update addItem to include grading_slot_id in metadata
+7. Display grading slot title in existing items table row
