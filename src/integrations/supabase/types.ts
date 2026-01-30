@@ -1149,132 +1149,6 @@ export type Database = {
         }
         Relationships: []
       }
-      grading_registrations: {
-        Row: {
-          certificate_issued: boolean | null
-          created_at: string | null
-          created_by: string | null
-          current_belt: string
-          grading_slot_id: string
-          id: string
-          invoice_item_id: string | null
-          notes: string | null
-          result: string | null
-          student_id: string
-          target_belt: string
-        }
-        Insert: {
-          certificate_issued?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          current_belt: string
-          grading_slot_id: string
-          id?: string
-          invoice_item_id?: string | null
-          notes?: string | null
-          result?: string | null
-          student_id: string
-          target_belt: string
-        }
-        Update: {
-          certificate_issued?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          current_belt?: string
-          grading_slot_id?: string
-          id?: string
-          invoice_item_id?: string | null
-          notes?: string | null
-          result?: string | null
-          student_id?: string
-          target_belt?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grading_registrations_grading_slot_id_fkey"
-            columns: ["grading_slot_id"]
-            isOneToOne: false
-            referencedRelation: "grading_slots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grading_registrations_invoice_item_id_fkey"
-            columns: ["invoice_item_id"]
-            isOneToOne: false
-            referencedRelation: "invoice_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grading_registrations_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grading_slots: {
-        Row: {
-          belt_levels: string[] | null
-          branch_id: string
-          created_at: string | null
-          created_by: string | null
-          end_time: string | null
-          examiner_name: string | null
-          grading_date: string
-          id: string
-          location: string | null
-          max_capacity: number | null
-          notes: string | null
-          start_time: string | null
-          status: string | null
-          updated_at: string | null
-          updated_by: string | null
-        }
-        Insert: {
-          belt_levels?: string[] | null
-          branch_id: string
-          created_at?: string | null
-          created_by?: string | null
-          end_time?: string | null
-          examiner_name?: string | null
-          grading_date: string
-          id?: string
-          location?: string | null
-          max_capacity?: number | null
-          notes?: string | null
-          start_time?: string | null
-          status?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Update: {
-          belt_levels?: string[] | null
-          branch_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          end_time?: string | null
-          examiner_name?: string | null
-          grading_date?: string
-          id?: string
-          location?: string | null
-          max_capacity?: number | null
-          notes?: string | null
-          start_time?: string | null
-          status?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grading_slots_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       inventory_items: {
         Row: {
           cost_per_unit: number | null
@@ -2960,56 +2834,6 @@ export type Database = {
           },
         ]
       }
-      student_change_logs: {
-        Row: {
-          action: string
-          changed_by: string | null
-          changed_by_email: string | null
-          changes: Json | null
-          created_at: string
-          field_name: string | null
-          id: string
-          ip_address: string | null
-          new_value: string | null
-          old_value: string | null
-          student_id: string
-        }
-        Insert: {
-          action: string
-          changed_by?: string | null
-          changed_by_email?: string | null
-          changes?: Json | null
-          created_at?: string
-          field_name?: string | null
-          id?: string
-          ip_address?: string | null
-          new_value?: string | null
-          old_value?: string | null
-          student_id: string
-        }
-        Update: {
-          action?: string
-          changed_by?: string | null
-          changed_by_email?: string | null
-          changes?: Json | null
-          created_at?: string
-          field_name?: string | null
-          id?: string
-          ip_address?: string | null
-          new_value?: string | null
-          old_value?: string | null
-          student_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_change_logs_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_class_enrollments: {
         Row: {
           branch_id: string
@@ -3343,9 +3167,6 @@ export type Database = {
           dietary_restrictions: string | null
           display_name: string | null
           email: string | null
-          emergency_contact_2_name: string | null
-          emergency_contact_2_phone: string | null
-          emergency_contact_2_relationship: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
@@ -3353,7 +3174,6 @@ export type Database = {
           first_name: string
           gender: string | null
           id: string
-          languages_spoken: string[] | null
           last_name: string | null
           medical_conditions: string | null
           nationality: string | null
@@ -3364,7 +3184,6 @@ export type Database = {
           preferred_name: string | null
           previous_experience: string | null
           referral_source: string | null
-          registered_date: string | null
           status: string | null
           student_number: string
           training_goals: string | null
@@ -3384,9 +3203,6 @@ export type Database = {
           dietary_restrictions?: string | null
           display_name?: string | null
           email?: string | null
-          emergency_contact_2_name?: string | null
-          emergency_contact_2_phone?: string | null
-          emergency_contact_2_relationship?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -3394,7 +3210,6 @@ export type Database = {
           first_name: string
           gender?: string | null
           id?: string
-          languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
@@ -3405,7 +3220,6 @@ export type Database = {
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
-          registered_date?: string | null
           status?: string | null
           student_number: string
           training_goals?: string | null
@@ -3425,9 +3239,6 @@ export type Database = {
           dietary_restrictions?: string | null
           display_name?: string | null
           email?: string | null
-          emergency_contact_2_name?: string | null
-          emergency_contact_2_phone?: string | null
-          emergency_contact_2_relationship?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -3435,7 +3246,6 @@ export type Database = {
           first_name?: string
           gender?: string | null
           id?: string
-          languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
@@ -3446,7 +3256,6 @@ export type Database = {
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
-          registered_date?: string | null
           status?: string | null
           student_number?: string
           training_goals?: string | null

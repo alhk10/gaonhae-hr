@@ -54,7 +54,6 @@ const ProductManagement = lazy(() => import('./pages/sales/ProductManagement'));
 const InvoiceManagement = lazy(() => import('./pages/sales/InvoiceManagement'));
 const PaymentManagement = lazy(() => import('./pages/sales/PaymentManagement'));
 const SalesAnalytics = lazy(() => import('./pages/sales/SalesAnalytics'));
-const GradingManagement = lazy(() => import('./pages/sales/GradingManagement'));
 
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient(QUERY_CONFIG);
@@ -446,16 +445,6 @@ function App() {
                         <AuthGuard>
                           <SalesAccessGuard>
                             <SalesAnalytics />
-                          </SalesAccessGuard>
-                        </AuthGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/sales/grading" 
-                      element={
-                        <AuthGuard>
-                          <SalesAccessGuard>
-                            <GradingManagement />
                           </SalesAccessGuard>
                         </AuthGuard>
                       } 
