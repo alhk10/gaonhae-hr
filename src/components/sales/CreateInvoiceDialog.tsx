@@ -161,15 +161,37 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
   
-  // Get filtered grading slots based on selected branch
-  // If no slots exist for the selected branch, show all available slots
+  // Get filtered grading slots based on selected branch and student's current belt
   const getFilteredGradingSlots = (): GradingSlot[] => {
-    if (!formData.branch_id) {
-      return gradingSlots;
+    let filtered = gradingSlots;
+    
+    // Filter by branch if selected
+    if (formData.branch_id) {
+      const branchFiltered = gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
+      // Only apply branch filter if there are matching slots
+      if (branchFiltered.length > 0) {
+        filtered = branchFiltered;
+      }
     }
-    const filtered = gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
-    // If no slots for selected branch, show all slots
-    return filtered.length > 0 ? filtered : gradingSlots;
+    
+    // Filter by student's current belt level
+    if (studentBelt) {
+      const normalizedStudentBelt = normalizeBelt(studentBelt);
+      const beltFiltered = filtered.filter(slot => {
+        // If slot has no belt_levels defined, show it (no restriction)
+        if (!slot.belt_levels || slot.belt_levels.length === 0) return true;
+        // Check if student's belt is in the slot's allowed belt levels
+        return slot.belt_levels.some(beltLevel => 
+          normalizeBelt(beltLevel) === normalizedStudentBelt
+        );
+      });
+      // Only apply belt filter if there are matching slots
+      if (beltFiltered.length > 0) {
+        filtered = beltFiltered;
+      }
+    }
+    
+    return filtered;
   };
 
   const loadStudents = async () => {
