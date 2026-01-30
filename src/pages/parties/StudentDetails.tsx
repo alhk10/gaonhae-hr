@@ -16,7 +16,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit }from 'lucide-react';
+import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Components
@@ -24,6 +24,7 @@ import { StudentEmergencyContacts } from '@/components/sales/StudentEmergencyCon
 import { StudentAttendance } from '@/components/sales/StudentAttendance';
 import { StudentEntitlements } from '@/components/sales/StudentEntitlements';
 import { StudentInvoices } from '@/components/sales/StudentInvoices';
+import EditStudentDialog from '@/components/sales/EditStudentDialog';
 
 // Services
 import {
@@ -38,6 +39,12 @@ import {
   StudentAttendance as StudentAttendanceType,
   StudentEntitlement
 } from '@/services/studentService';
+
+// Helper to capitalize first letter
+const capitalize = (str: string | null | undefined): string => {
+  if (!str) return '-';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
 const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -118,6 +125,10 @@ const StudentDetails: React.FC = () => {
     }
   };
 
+  const handleStudentUpdated = () => {
+    loadStudentData();
+  };
+
   if (loading || !student) {
     return (
       <AuthGuard>
@@ -170,15 +181,18 @@ const StudentDetails: React.FC = () => {
                   <Badge variant="outline">{student.current_belt}</Badge>
                 )}
               </div>
-              <p className="text-muted-foreground">
-                #{student.student_number}
-              </p>
             </div>
             
-            <Button variant="outline" size="sm">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Student
-            </Button>
+            <EditStudentDialog
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Student
+                </Button>
+              }
+              student={student}
+              onStudentUpdated={handleStudentUpdated}
+            />
           </div>
 
           {/* Section 1: Contact Information */}
@@ -208,7 +222,7 @@ const StudentDetails: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Gender</label>
-                    <p className="text-foreground">{student.gender || '-'}</p>
+                    <p className="text-foreground">{capitalize(student.gender)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Nationality</label>
@@ -235,14 +249,6 @@ const StudentDetails: React.FC = () => {
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Postal Code</label>
                     <p className="text-foreground">{student.postal_code || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Parent/Guardian Name</label>
-                    <p className="text-foreground">{student.parent_guardian_name || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Parent/Guardian Contact</label>
-                    <p className="text-foreground">{student.parent_guardian_phone || '-'}</p>
                   </div>
                 </div>
               </div>
