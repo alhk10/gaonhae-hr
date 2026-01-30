@@ -327,6 +327,7 @@ export interface CreateStudentData {
   date_of_birth?: string;
   gender?: string;
   nationality?: string;
+  languages_spoken?: string[];
   nric_passport?: string;
   email?: string;
   phone?: string;
@@ -335,12 +336,16 @@ export interface CreateStudentData {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
+  emergency_contact_2_name?: string;
+  emergency_contact_2_phone?: string;
+  emergency_contact_2_relationship?: string;
   current_belt?: string;
   previous_experience?: string;
   training_goals?: string;
   medical_conditions?: string;
   dietary_restrictions?: string;
   branch_id?: string;
+  registered_date?: string;
   status: string;
   notes?: string;
   // Trial-specific fields
@@ -366,6 +371,11 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       emergency_contact_name: studentData.emergency_contact_name || null,
       emergency_contact_phone: studentData.emergency_contact_phone || null,
       emergency_contact_relationship: studentData.emergency_contact_relationship || null,
+      emergency_contact_2_name: studentData.emergency_contact_2_name || null,
+      emergency_contact_2_phone: studentData.emergency_contact_2_phone || null,
+      emergency_contact_2_relationship: studentData.emergency_contact_2_relationship || null,
+      languages_spoken: studentData.languages_spoken?.length ? studentData.languages_spoken : null,
+      registered_date: studentData.registered_date || null,
       trial_date: studentData.trial_date || null,
       trial_time: studentData.trial_time || null,
       referral_source: studentData.referral_source || null,
@@ -412,6 +422,13 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
  */
 export async function updateStudent(studentId: string, studentData: Partial<CreateStudentData>): Promise<Student> {
   try {
+    // First, get the current student data for change logging
+    const { data: oldData } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', studentId)
+      .single();
+
     const { data, error } = await supabase
       .from('students')
       .update(studentData)
@@ -423,6 +440,17 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       logger.error('Error updating student', error);
       await logSalesModuleAccess('update_student', false, { error: error.message, studentId });
       throw error;
+    }
+
+    // Log the changes
+    if (oldData) {
+      try {
+        const { logStudentFieldChanges } = await import('./studentChangeLogService');
+        await logStudentFieldChanges(studentId, oldData, studentData);
+      } catch (logError) {
+        // Don't fail the update if logging fails
+        logger.error('Error logging student changes', logError);
+      }
     }
 
     await logSalesModuleAccess('update_student', true, { studentId });

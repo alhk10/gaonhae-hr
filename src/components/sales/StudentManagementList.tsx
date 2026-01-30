@@ -271,7 +271,7 @@ const StudentManagementList: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
-            Students ({total})
+            Students ({students.length})
           </CardTitle>
         </CardHeader>
         <CardContent>

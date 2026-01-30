@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService';
@@ -21,7 +20,7 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
 
 interface CreateInvoiceDialogProps {
@@ -558,23 +557,42 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setItems(updatedItems);
   };
 
-  // Get the tax rate based on selected branch country
-  const getSelectedBranchTaxRate = (): number => {
+  // Get the tax rate and inclusion setting based on selected branch country
+  const getSelectedBranchTaxConfig = (): { rate: number; isInclusive: boolean } => {
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     const country = selectedBranch?.country || null;
-    return country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
+    const rate = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
+    const isInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+    return { rate, isInclusive };
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const taxRate = getSelectedBranchTaxRate() / 100;
-    const taxAmount = subtotal * taxRate;
-    const total = subtotal + taxAmount;
+    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+    const { rate, isInclusive } = getSelectedBranchTaxConfig();
+    const taxRateDecimal = rate / 100;
     
-    return { subtotal, taxAmount, total, taxRate: getSelectedBranchTaxRate() };
+    let subtotal: number;
+    let taxAmount: number;
+    let total: number;
+    
+    if (isInclusive) {
+      // Tax inclusive: price already includes tax (e.g., Australia)
+      // Total = itemsTotal, Subtotal = Total / (1 + taxRate), Tax = Total - Subtotal
+      total = itemsTotal;
+      subtotal = itemsTotal / (1 + taxRateDecimal);
+      taxAmount = total - subtotal;
+    } else {
+      // Tax exclusive: tax added on top (e.g., Singapore)
+      // Subtotal = itemsTotal, Tax = Subtotal * taxRate, Total = Subtotal + Tax
+      subtotal = itemsTotal;
+      taxAmount = subtotal * taxRateDecimal;
+      total = subtotal + taxAmount;
+    }
+    
+    return { subtotal, taxAmount, total, taxRate: rate, isInclusive };
   };
 
-  const { subtotal, taxAmount, total, taxRate } = calculateTotals();
+  const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -584,9 +602,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Invoice</DialogTitle>
-          <DialogDescription>
-            Create a new invoice for a student with multiple items
-          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -630,7 +645,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <SelectContent>
                     {filteredStudents.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.name} ({student.email})
+                        {student.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -639,181 +654,43 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             </div>
           </div>
 
-          {/* Add Items */}
+          {/* Invoice Items Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Add Items</h3>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">New Item</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <h3 className="text-lg font-medium">Invoice Items</h3>
 
-                  <div className="space-y-2">
-                    <Label>Product *</Label>
-                    <Select value={newItem.product_id} onValueChange={handleProductChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} ({product.sku})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={newItem.quantity}
-                      onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Unit Price</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newItem.unit_price}
-                      onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
-                      disabled={selectedProduct && selectedProduct.base_price > 0}
-                      className={selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
-                    />
-                  </div>
-
-                  {sizeOptions.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Size</Label>
-                      <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sizeOptions.map((size) => (
-                            <SelectItem key={size} value={size}>
-                              {size}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {colorOptions.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Color</Label>
-                      <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorOptions.map((color) => (
-                            <SelectItem key={color} value={color}>
-                              {color}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {/* Term Dropdown - Only for Classes category */}
-                  {selectedCategory?.name === 'Classes' && (
-                    <div className="space-y-2">
-                      <Label>Term {branchTerms.length > 0 ? '*' : ''}</Label>
-                      {branchTerms.length > 0 ? (
-                        <Select 
-                          value={newItem.term_id} 
-                          onValueChange={(value) => handleNewItemChange('term_id', value)}
-                          disabled={termLoading}
-                        >
-                          <SelectTrigger className={termError ? 'border-destructive' : ''}>
-                            <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {branchTerms.map((term) => (
-                              <SelectItem key={term.id} value={term.id}>
-                                {term.name} ({term.start_date} to {term.end_date})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <p className="text-sm text-muted-foreground py-2">
-                          No active terms configured for this branch
-                        </p>
-                      )}
-                      {termError && (
-                        <p className="text-sm text-destructive">{termError}</p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label>&nbsp;</Label>
-                    <Button type="button" onClick={addItem} className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Items List */}
-          {items.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Invoice Items</h3>
-              
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead className="w-12">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, index) => (
+            {/* Items Table with Inline Add Row */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="w-14">Qty</TableHead>
+                  <TableHead className="w-20">Price</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Term</TableHead>
+                  <TableHead className="w-24">Total</TableHead>
+                  <TableHead className="w-12">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Existing Items */}
+                {items.map((item, index) => {
+                  const itemProduct = products.find(p => p.id === item.product_id);
+                  const itemCategory = categories.find(c => c.id === itemProduct?.category_id);
+                  return (
                     <TableRow key={index}>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {itemCategory?.name || '-'}
+                      </TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell>{item.term_name || '-'}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                          className="w-20"
+                          className="w-14 h-8"
                         />
                       </TableCell>
                       <TableCell>
@@ -823,11 +700,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`}
                         />
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
                       <TableCell>{item.color_variant || '-'}</TableCell>
+                      <TableCell>{item.term_name || '-'}</TableCell>
                       <TableCell className="font-medium">
                         ${item.total.toFixed(2)}
                       </TableCell>
@@ -843,23 +721,165 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  );
+                })}
 
-              {/* Subtotal after Invoice Items */}
+                {/* Inline Add Item Row */}
+                <TableRow className="bg-muted/30">
+                  <TableCell>
+                    <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
+                      <SelectTrigger className="h-8 w-24">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Select value={newItem.product_id} onValueChange={handleProductChange}>
+                      <SelectTrigger className="h-8 w-32">
+                        <SelectValue placeholder="Product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredProducts.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newItem.quantity}
+                      onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
+                      className="w-14 h-8"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newItem.unit_price}
+                      onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
+                      disabled={selectedProduct && selectedProduct.base_price > 0}
+                      className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {sizeOptions.length > 0 ? (
+                      <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
+                        <SelectTrigger className="h-8 w-20">
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sizeOptions.map((size) => (
+                            <SelectItem key={size} value={size}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {colorOptions.length > 0 ? (
+                      <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
+                        <SelectTrigger className="h-8 w-20">
+                          <SelectValue placeholder="Color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {colorOptions.map((color) => (
+                            <SelectItem key={color} value={color}>
+                              {color}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {selectedCategory?.name === 'Classes' ? (
+                      branchTerms.length > 0 ? (
+                        <Select 
+                          value={newItem.term_id} 
+                          onValueChange={(value) => handleNewItemChange('term_id', value)}
+                          disabled={termLoading}
+                        >
+                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}>
+                            <SelectValue placeholder={termLoading ? "..." : "Term"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branchTerms.map((term) => (
+                              <SelectItem key={term.id} value={term.id}>
+                                {term.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No terms</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                  <TableCell>
+                    <Button 
+                      type="button" 
+                      onClick={addItem} 
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={!newItem.product_id}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+
+            {termError && selectedCategory?.name === 'Classes' && (
+              <p className="text-sm text-destructive">{termError}</p>
+            )}
+
+            {/* Totals Section - After Invoice Items */}
+            {items.length > 0 && (
               <div className="flex justify-end">
-                <div className="w-64 space-y-1 text-sm">
-                  <div className="flex justify-between font-medium">
+                <div className="w-64 space-y-2">
+                  <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tax ({taxRate}%{isInclusive ? ' incl.' : ''}):</span>
+                    <span>${taxAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>Total:</span>
+                    <span>${total.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Notes Section - After Items */}
+          <Separator />
+
+          {/* Notes Section - After Totals */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
@@ -883,28 +903,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               />
             </div>
           </div>
-
-          <Separator />
-
-          {/* Invoice Totals */}
-          {items.length > 0 && (
-            <div className="flex justify-end">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>${subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tax ({taxRate}%):</span>
-                  <span>${taxAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg border-t pt-2">
-                  <span>Total:</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           <DialogFooter>
             <Button
