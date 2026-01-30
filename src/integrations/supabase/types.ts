@@ -3167,6 +3167,9 @@ export type Database = {
           dietary_restrictions: string | null
           display_name: string | null
           email: string | null
+          emergency_contact_2_name: string | null
+          emergency_contact_2_phone: string | null
+          emergency_contact_2_relationship: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
@@ -3174,6 +3177,7 @@ export type Database = {
           first_name: string
           gender: string | null
           id: string
+          languages_spoken: string[] | null
           last_name: string | null
           medical_conditions: string | null
           nationality: string | null
@@ -3184,6 +3188,7 @@ export type Database = {
           preferred_name: string | null
           previous_experience: string | null
           referral_source: string | null
+          registered_date: string | null
           status: string | null
           student_number: string
           training_goals: string | null
@@ -3203,6 +3208,9 @@ export type Database = {
           dietary_restrictions?: string | null
           display_name?: string | null
           email?: string | null
+          emergency_contact_2_name?: string | null
+          emergency_contact_2_phone?: string | null
+          emergency_contact_2_relationship?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -3210,6 +3218,7 @@ export type Database = {
           first_name: string
           gender?: string | null
           id?: string
+          languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
@@ -3220,6 +3229,7 @@ export type Database = {
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
+          registered_date?: string | null
           status?: string | null
           student_number: string
           training_goals?: string | null
@@ -3239,6 +3249,9 @@ export type Database = {
           dietary_restrictions?: string | null
           display_name?: string | null
           email?: string | null
+          emergency_contact_2_name?: string | null
+          emergency_contact_2_phone?: string | null
+          emergency_contact_2_relationship?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -3246,6 +3259,7 @@ export type Database = {
           first_name?: string
           gender?: string | null
           id?: string
+          languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string | null
@@ -3256,6 +3270,7 @@ export type Database = {
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
+          registered_date?: string | null
           status?: string | null
           student_number?: string
           training_goals?: string | null
