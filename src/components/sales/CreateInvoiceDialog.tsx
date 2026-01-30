@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
+import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
@@ -38,6 +39,8 @@ interface InvoiceItem {
   color_variant?: string;
   term_id?: string;
   term_name?: string;
+  grading_slot_id?: string;
+  grading_slot_title?: string;
   total: number;
 }
 
@@ -109,6 +112,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [termLoading, setTermLoading] = useState(false);
   const [termError, setTermError] = useState<string | null>(null);
   
+  // Grading slots state for Grading Fees category
+  const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
+  const [gradingSlotsLoading, setGradingSlotsLoading] = useState(false);
+  
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
@@ -123,7 +130,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     unit_price: 0,
     size_variant: '',
     color_variant: '',
-    term_id: ''
+    term_id: '',
+    grading_slot_id: ''
   });
 
   useEffect(() => {
@@ -132,8 +140,32 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       loadProducts();
       loadBranches();
       loadCategories();
+      loadGradingSlots();
     }
   }, [open]);
+  
+  // Load grading slots for Grading Fees category
+  const loadGradingSlots = async () => {
+    setGradingSlotsLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const slots = await getGradingSlots({
+        status: 'active',
+        from_date: today
+      });
+      setGradingSlots(slots);
+    } catch (error) {
+      console.error('Error loading grading slots:', error);
+    } finally {
+      setGradingSlotsLoading(false);
+    }
+  };
+  
+  // Get filtered grading slots based on selected branch
+  const getFilteredGradingSlots = (): GradingSlot[] => {
+    if (!formData.branch_id) return gradingSlots;
+    return gradingSlots.filter(slot => slot.branch_id === formData.branch_id);
+  };
 
   const loadStudents = async () => {
     try {
@@ -233,7 +265,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           quantity: item.quantity,
           unit_price: item.unit_price,
           size_variant: item.size_variant || undefined,
-          metadata: item.term_id ? { term_id: item.term_id } : undefined
+          metadata: item.term_id 
+            ? { term_id: item.term_id } 
+            : item.grading_slot_id 
+              ? { grading_slot_id: item.grading_slot_id }
+              : undefined
         }))
       };
 
@@ -266,7 +302,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: ''
+      term_id: '',
+      grading_slot_id: ''
     });
     setBranchTerms([]);
     setTermError(null);
@@ -477,7 +514,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: selectedTermId
+      term_id: selectedTermId,
+      grading_slot_id: '' // Reset grading slot when category changes
     }));
   };
 
@@ -568,6 +606,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
 
     const term = branchTerms.find(t => t.id === newItem.term_id);
+    const gradingSlot = gradingSlots.find(s => s.id === newItem.grading_slot_id);
 
     const item: InvoiceItem = {
       product_id: newItem.product_id,
@@ -579,6 +618,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       color_variant: newItem.color_variant || undefined,
       term_id: newItem.term_id || undefined,
       term_name: term?.name || undefined,
+      grading_slot_id: newItem.grading_slot_id || undefined,
+      grading_slot_title: gradingSlot?.title || undefined,
       total: newItem.quantity * newItem.unit_price
     };
 
@@ -590,7 +631,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: ''
+      term_id: '',
+      grading_slot_id: ''
     });
   };
 
@@ -723,7 +765,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <TableHead className="w-20">Price</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Color</TableHead>
-                  <TableHead>Term</TableHead>
+                  <TableHead>Term/Slot</TableHead>
                   <TableHead className="w-24">Total</TableHead>
                   <TableHead className="w-12">Actions</TableHead>
                 </TableRow>
@@ -760,7 +802,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
                       <TableCell>{item.color_variant || '-'}</TableCell>
-                      <TableCell>{item.term_name || '-'}</TableCell>
+                      <TableCell>{item.term_name || item.grading_slot_title || '-'}</TableCell>
                       <TableCell className="font-medium">
                         ${item.total.toFixed(2)}
                       </TableCell>
@@ -886,6 +928,27 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         </Select>
                       ) : (
                         <span className="text-muted-foreground text-xs">No terms</span>
+                      )
+                    ) : selectedCategory?.name === 'Grading Fees' ? (
+                      getFilteredGradingSlots().length > 0 ? (
+                        <Select 
+                          value={newItem.grading_slot_id} 
+                          onValueChange={(value) => handleNewItemChange('grading_slot_id', value)}
+                          disabled={gradingSlotsLoading}
+                        >
+                          <SelectTrigger className="h-8 w-36">
+                            <SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getFilteredGradingSlots().map((slot) => (
+                              <SelectItem key={slot.id} value={slot.id}>
+                                {slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No slots</span>
                       )
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
