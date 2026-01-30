@@ -51,12 +51,59 @@ interface ProductWithVariants {
     sizes?: string[];
     colors?: string[];
   };
+  requires_belt_level?: boolean;
+  min_belt_level?: string;
+  max_belt_level?: string;
 }
+
+// Belt progression order for filtering products
+const BELT_LEVELS = [
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
+];
+
+// Normalize belt format: "green-tip" → "Green Tip"
+const normalizeBelt = (belt: string): string => {
+  if (!belt) return '';
+  return belt.split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
+// Get belt index for comparison
+const getBeltIndex = (belt: string): number => {
+  const normalized = normalizeBelt(belt);
+  return BELT_LEVELS.indexOf(normalized);
+};
+
+// Check if student belt is within product's belt range
+const isProductAvailableForBelt = (
+  product: ProductWithVariants,
+  studentBelt: string
+): boolean => {
+  // If product doesn't require belt level, it's available to all
+  if (!product.requires_belt_level) return true;
+  
+  const studentIndex = getBeltIndex(studentBelt);
+  if (studentIndex === -1) return true; // Unknown belt, allow all
+  
+  const minIndex = product.min_belt_level
+    ? getBeltIndex(product.min_belt_level)
+    : 0;
+  const maxIndex = product.max_belt_level
+    ? getBeltIndex(product.max_belt_level)
+    : BELT_LEVELS.length - 1;
+  
+  return studentIndex >= minIndex && studentIndex <= maxIndex;
+};
 
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -101,7 +148,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         name: `${s.first_name} ${s.last_name}`, 
         email: s.email || '',
         branch_id: s.branch_id,
-        status: s.status
+        status: s.status,
+        current_belt: s.current_belt
       })));
     } catch (error) {
       console.error('Error loading students:', error);
@@ -148,7 +196,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         sku: p.sku,
         base_price: p.base_price,
         category_id: p.category_id,
-        available_variants: p.available_variants
+        available_variants: p.available_variants,
+        requires_belt_level: p.requires_belt_level,
+        min_belt_level: p.min_belt_level,
+        max_belt_level: p.max_belt_level
       })));
     } catch (error) {
       console.error('Error loading products:', error);
@@ -476,10 +527,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
   };
 
-  // Get filtered products based on selected category
-  const filteredProducts = newItem.category_id 
-    ? products.filter(p => p.category_id === newItem.category_id)
-    : products;
+  // Get selected student's belt for filtering
+  const selectedStudent = students.find(s => s.id === formData.student_id);
+  const studentBelt = selectedStudent?.current_belt || '';
+
+  // Get filtered products based on selected category AND student belt level
+  const filteredProducts = products.filter(p => {
+    // First filter by category if selected
+    const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
+    
+    // Then filter by student belt level (only if student is selected)
+    const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
+    
+    return matchesCategory && matchesBelt;
+  });
 
   // Get selected product's variants
   const selectedProduct = products.find(p => p.id === newItem.product_id);
