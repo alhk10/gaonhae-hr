@@ -13,12 +13,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createGradingSlot, type CreateGradingSlotData } from '@/services/gradingService';
+import { getProducts } from '@/services/productService';
 import { Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
-// Belt levels for multi-select
-const BELT_LEVELS = [
-  'White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Red', 'Black'
-];
+interface GradingProduct {
+  id: string;
+  name: string;
+  min_belt_level: string | null;
+  max_belt_level: string | null;
+}
 
 interface AddGradingSlotDialogProps {
   trigger: React.ReactNode;
@@ -29,6 +33,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
+  const [gradingProducts, setGradingProducts] = useState<GradingProduct[]>([]);
   
   const [formData, setFormData] = useState<CreateGradingSlotData>({
     branch_id: '',
@@ -45,6 +50,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
   useEffect(() => {
     if (open) {
       loadBranches();
+      loadGradingProducts();
     }
   }, [open]);
 
@@ -62,6 +68,32 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
     }
   };
 
+  const loadGradingProducts = async () => {
+    try {
+      // Fetch products that have belt level requirements (grading fees)
+      const response = await getProducts(1, 100, 'active');
+      const gradingProds = response.products.filter(p => 
+        p.requires_belt_level === true
+      ).map(p => ({
+        id: p.id,
+        name: p.name,
+        min_belt_level: p.min_belt_level || null,
+        max_belt_level: p.max_belt_level || null
+      }));
+      setGradingProducts(gradingProds);
+    } catch (error) {
+      console.error('Error loading grading products:', error);
+    }
+  };
+
+  // Format belt transition display
+  const formatBeltTransition = (product: GradingProduct) => {
+    if (product.min_belt_level && product.max_belt_level) {
+      return `${product.min_belt_level} >> ${product.max_belt_level}`;
+    }
+    return product.name;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -72,6 +104,11 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
 
     if (!formData.grading_date) {
       toast.error('Please select a grading date');
+      return;
+    }
+
+    if (!formData.belt_levels || formData.belt_levels.length === 0) {
+      toast.error('Please select at least one belt level requirement');
       return;
     }
 
@@ -108,11 +145,11 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const toggleBeltLevel = (belt: string) => {
+  const toggleBeltLevel = (productId: string) => {
     const currentBelts = formData.belt_levels || [];
-    const newBelts = currentBelts.includes(belt)
-      ? currentBelts.filter(b => b !== belt)
-      : [...currentBelts, belt];
+    const newBelts = currentBelts.includes(productId)
+      ? currentBelts.filter(b => b !== productId)
+      : [...currentBelts, productId];
     handleInputChange('belt_levels', newBelts);
   };
 
@@ -121,7 +158,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Grading Slot</DialogTitle>
           <DialogDescription>
@@ -209,20 +246,30 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
           </div>
 
           <div className="space-y-2">
-            <Label>Belt Levels</Label>
-            <div className="flex flex-wrap gap-2">
-              {BELT_LEVELS.map((belt) => (
-                <Button
-                  key={belt}
-                  type="button"
-                  variant={(formData.belt_levels || []).includes(belt) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => toggleBeltLevel(belt)}
-                >
-                  {belt}
-                </Button>
-              ))}
-            </div>
+            <Label>Belt Level Requirements *</Label>
+            {gradingProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No grading products found. Create products with belt level requirements first.
+              </p>
+            ) : (
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                {gradingProducts.map((product) => (
+                  <div key={product.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={product.id}
+                      checked={(formData.belt_levels || []).includes(product.id)}
+                      onCheckedChange={() => toggleBeltLevel(product.id)}
+                    />
+                    <label
+                      htmlFor={product.id}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {formatBeltTransition(product)}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
