@@ -217,7 +217,6 @@ const GradingManagement: React.FC = () => {
                     <TableHead>Time</TableHead>
                     <TableHead>Branch</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Examiner</TableHead>
                     <TableHead>Belt Levels</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Status</TableHead>
@@ -234,10 +233,10 @@ const GradingManagement: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {slot.start_time && slot.end_time ? (
+                        {slot.start_time ? (
                           <div className="flex items-center text-sm">
                             <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                            {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                            {slot.start_time.slice(0, 5)}
                           </div>
                         ) : '-'}
                       </TableCell>
@@ -250,7 +249,6 @@ const GradingManagement: React.FC = () => {
                           </div>
                         ) : '-'}
                       </TableCell>
-                      <TableCell>{slot.examiner_name || '-'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(slot.belt_levels || []).slice(0, 3).map(belt => (

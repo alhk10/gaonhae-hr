@@ -17,7 +17,11 @@ import { Loader2 } from 'lucide-react';
 
 // Belt levels for multi-select
 const BELT_LEVELS = [
-  'White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Red', 'Black'
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
 ];
 
 interface AddGradingSlotDialogProps {
@@ -34,9 +38,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
     branch_id: '',
     grading_date: '',
     start_time: '',
-    end_time: '',
     location: '',
-    examiner_name: '',
     belt_levels: [],
     max_capacity: 20,
     notes: ''
@@ -95,9 +97,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
       branch_id: '',
       grading_date: '',
       start_time: '',
-      end_time: '',
       location: '',
-      examiner_name: '',
       belt_levels: [],
       max_capacity: 20,
       notes: ''
@@ -169,11 +169,12 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="end_time">End Time</Label>
+              <Label htmlFor="max_capacity">Max Capacity</Label>
               <Input
-                type="time"
-                value={formData.end_time || ''}
-                onChange={(e) => handleInputChange('end_time', e.target.value)}
+                type="number"
+                min="1"
+                value={formData.max_capacity || 20}
+                onChange={(e) => handleInputChange('max_capacity', parseInt(e.target.value) || 20)}
               />
             </div>
           </div>
@@ -185,27 +186,6 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
               onChange={(e) => handleInputChange('location', e.target.value)}
               placeholder="e.g., Main Hall, Studio A"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="examiner_name">Examiner</Label>
-              <Input
-                value={formData.examiner_name || ''}
-                onChange={(e) => handleInputChange('examiner_name', e.target.value)}
-                placeholder="Examiner name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="max_capacity">Max Capacity</Label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.max_capacity || 20}
-                onChange={(e) => handleInputChange('max_capacity', parseInt(e.target.value) || 20)}
-              />
-            </div>
           </div>
 
           <div className="space-y-2">
