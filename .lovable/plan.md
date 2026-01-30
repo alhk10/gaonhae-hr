@@ -1,266 +1,200 @@
 
-# Plan: Invoice Dialog Improvements & Grading Management System
+
+# Plan: Filter Products by Student Belt Level
 
 ## Overview
-This plan addresses three distinct enhancements:
-1. Remove SKU from product dropdown in Create Invoice dialog
-2. Move "Add Item" form inline after the last row of items
-3. Create a new Grading Management page with grading slot setup functionality
+Filter the product dropdown in the Create Invoice dialog to only show products that match the selected student's current belt level. Products with belt level requirements will only appear if the student's belt falls within the product's min/max belt range.
 
 ---
 
-## Part 1: Remove SKU from Product Dropdown
+## Current State Analysis
 
-### Current Behavior
-The product dropdown shows: `{product.name} ({product.sku})`
+### Data Structures
+- **Students**: Store `current_belt` in lowercase-hyphenated format (e.g., "green-tip", "foundation-1")
+- **Products**: Have three belt-related fields:
+  - `requires_belt_level` (boolean): Whether the product has belt restrictions
+  - `min_belt_level` (text): Minimum belt required (e.g., "Foundation 1", "Green Tip")
+  - `max_belt_level` (text): Maximum belt allowed
 
-### Change
-Show only: `{product.name}`
+### Belt Progression Order
+```text
+Foundation 1 → Foundation 2 → Foundation 3 → White → Yellow Tip → Yellow → 
+Green Tip → Green → Blue Tip → Blue → Red Tip → Red → Black Tip → Poom 1 → Poom 2 → Poom 3 → Poom 4 →  Dan 1 → Dan 2 → Dan 3 → Dan 4 → Dan 5
 
-### File to Modify
-- `src/components/sales/CreateInvoiceDialog.tsx` (line 703)
+Poom 1, Poom 2, Poom 3, Poom 4 are for students below age 15. Once they turn 15 they will be Dan 1, Dan 2, Dan 3, Dan 4 respectively.
+```
 
 ---
 
-## Part 2: Add Item Inline After Last Row
+## Changes Required
 
-### Current Behavior
-The "Add Item" form appears as a collapsible card **above** the items table, toggled by a button in the header.
+### 1. Extend ProductWithVariants Interface
+Add belt level fields to the `ProductWithVariants` interface in CreateInvoiceDialog:
 
-### New Behavior
-- Remove the collapsible card at the top
-- Add a new row **at the bottom of the items table** for inline item entry
-- The add item inputs (Category, Product, Quantity, Price, Size, Color, Term, Add button) will appear as table cells in a final row
-- When there are no items, show the inline form row directly in an otherwise empty table
-- Clicking "Add" will add the item and clear the inline form for the next item
-
-### New Layout
-```
-Invoice Items
-┌─────────────────────────────────────────────────────────────┐
-│ Product     | Term    | Qty | Price  | Size | Color | Actions │
-├─────────────────────────────────────────────────────────────┤
-│ Item 1      | Term 1  | 12  | $100   | -    | -     | [🗑]    │
-│ Item 2      | -       | 1   | $50    | M    | Red   | [🗑]    │
-├─────────────────────────────────────────────────────────────┤
-│ [Cat ▼] [Product ▼] [1] [$0] [Size ▼] [Color ▼] [Term ▼] [+Add] │  <-- Inline form
-└─────────────────────────────────────────────────────────────┘
-Subtotal: $XX.XX
-Tax (X%): $XX.XX
-Total: $XX.XX
+```typescript
+interface ProductWithVariants {
+  id: string;
+  name: string;
+  sku: string;
+  base_price: number;
+  category_id?: string;
+  available_variants?: {
+    sizes?: string[];
+    colors?: string[];
+  };
+  // Add these new fields:
+  requires_belt_level?: boolean;
+  min_belt_level?: string;
+  max_belt_level?: string;
+}
 ```
 
-### File to Modify
+### 2. Update loadProducts Function
+Include belt level fields when loading products:
+
+```typescript
+setProducts(response.products.map(p => ({ 
+  id: p.id, 
+  name: p.name, 
+  sku: p.sku,
+  base_price: p.base_price,
+  category_id: p.category_id,
+  available_variants: p.available_variants,
+  requires_belt_level: p.requires_belt_level,
+  min_belt_level: p.min_belt_level,
+  max_belt_level: p.max_belt_level
+})));
+```
+
+### 3. Store Selected Student's Belt Level
+Update student loading to include `current_belt` and track selected student:
+
+```typescript
+// Update students state type
+const [students, setStudents] = useState<Array<{
+  id: string, 
+  name: string, 
+  email: string, 
+  branch_id?: string, 
+  status?: string,
+  current_belt?: string  // Add this
+}>>([]);
+
+// Update loadStudents to include current_belt
+setStudents(response.students.map(s => ({ 
+  id: s.id, 
+  name: `${s.first_name} ${s.last_name}`, 
+  email: s.email || '',
+  branch_id: s.branch_id,
+  status: s.status,
+  current_belt: s.current_belt  // Add this
+})));
+```
+
+### 4. Add Belt Level Comparison Helper
+Create a utility function to compare belt levels:
+
+```typescript
+const BELT_LEVELS = [
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
+];
+
+// Normalize belt format: "green-tip" → "Green Tip"
+const normalizeBelt = (belt: string): string => {
+  if (!belt) return '';
+  return belt.split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
+// Get belt index for comparison
+const getBeltIndex = (belt: string): number => {
+  const normalized = normalizeBelt(belt);
+  return BELT_LEVELS.indexOf(normalized);
+};
+
+// Check if student belt is within product's belt range
+const isProductAvailableForBelt = (
+  product: ProductWithVariants, 
+  studentBelt: string
+): boolean => {
+  // If product doesn't require belt level, it's available to all
+  if (!product.requires_belt_level) return true;
+  
+  const studentIndex = getBeltIndex(studentBelt);
+  if (studentIndex === -1) return true; // Unknown belt, allow all
+  
+  const minIndex = product.min_belt_level 
+    ? getBeltIndex(product.min_belt_level) 
+    : 0;
+  const maxIndex = product.max_belt_level 
+    ? getBeltIndex(product.max_belt_level) 
+    : BELT_LEVELS.length - 1;
+  
+  return studentIndex >= minIndex && studentIndex <= maxIndex;
+};
+```
+
+### 5. Update Filtered Products Logic
+Modify the `filteredProducts` computation to include belt filtering:
+
+```typescript
+// Get selected student's belt
+const selectedStudent = students.find(s => s.id === formData.student_id);
+const studentBelt = selectedStudent?.current_belt || '';
+
+// Filter products by category AND belt level
+const filteredProducts = products.filter(p => {
+  // First filter by category if selected
+  const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
+  
+  // Then filter by student belt level
+  const matchesBelt = isProductAvailableForBelt(p, studentBelt);
+  
+  return matchesCategory && matchesBelt;
+});
+```
+
+---
+
+## Filtering Logic Summary
+
+| Scenario | Product Shows? |
+|----------|----------------|
+| Product has `requires_belt_level = false` | Yes (available to all) |
+| Student belt within product's min-max range | Yes |
+| Student belt below product's min level | No |
+| Student belt above product's max level | No |
+| No student selected | Yes (show all products) |
+| Student has unknown/empty belt | Yes (show all products) |
+
+---
+
+## Example Filtering
+
+**Student**: Current belt = "green-tip" (index 6)
+
+| Product | Min Belt | Max Belt | Visible? |
+|---------|----------|----------|----------|
+| Foundation 1 >> Foundation 2 | Foundation 1 (0) | Foundation 1 (0) | No |
+| Green Tip >> Green | Green Tip (6) | Green Tip (6) | Yes |
+| Green >> Blue Tip | Green (7) | Green (7) | No |
+| 4x Weekend (no belt req) | - | - | Yes |
+
+---
+
+## File to Modify
 - `src/components/sales/CreateInvoiceDialog.tsx`
 
----
+## Implementation Steps
+1. Add BELT_LEVELS constant and helper functions
+2. Extend ProductWithVariants interface with belt fields
+3. Update students state type to include current_belt
+4. Update loadStudents to fetch current_belt
+5. Update loadProducts to include belt level fields
+6. Update filteredProducts computation with belt filtering
 
-## Part 3: Grading Management System
-
-### Concept
-Gradings need to be scheduled as "slots" that students can be assigned to. This enables:
-- Setting up grading examination dates, times, and locations
-- Tagging grading fees (products) to specific grading slots
-- Tracking which students are registered for which grading
-
-### Database Schema
-
-**New Table: `grading_slots`**
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| branch_id | TEXT | Branch where grading takes place |
-| grading_date | DATE | Date of the grading examination |
-| start_time | TIME | Start time |
-| end_time | TIME | End time |
-| location | TEXT | Specific location/venue |
-| examiner_name | TEXT | Name of examiner |
-| belt_levels | TEXT[] | Array of belt levels being examined |
-| max_capacity | INTEGER | Maximum students allowed |
-| status | TEXT | active, cancelled, completed |
-| notes | TEXT | Additional notes |
-| created_at | TIMESTAMP | Created timestamp |
-| updated_at | TIMESTAMP | Updated timestamp |
-
-**New Table: `grading_registrations`**
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| grading_slot_id | UUID | Reference to grading slot |
-| student_id | UUID | Reference to student |
-| invoice_item_id | UUID | Reference to invoice item (grading fee) |
-| current_belt | TEXT | Student's current belt at registration |
-| target_belt | TEXT | Belt they're testing for |
-| result | TEXT | pass, fail, conditional_pass, null (pending) |
-| certificate_issued | BOOLEAN | Whether certificate has been issued |
-| notes | TEXT | Examiner notes |
-| created_at | TIMESTAMP | Created timestamp |
-
-### New Files
-
-**Page: `src/pages/sales/GradingManagement.tsx`**
-- List of upcoming and past grading slots
-- Filters by branch, date range, status
-- Cards or table view of grading slots
-- Quick stats: upcoming gradings, students registered, completion rate
-
-**Component: `src/components/sales/AddGradingSlotDialog.tsx`**
-- Form to create new grading slot
-- Fields: Branch, Date, Start/End Time, Location, Examiner, Belt Levels (multi-select), Capacity, Notes
-
-**Component: `src/components/sales/EditGradingSlotDialog.tsx`**
-- Form to edit existing grading slot
-- Same fields as add dialog
-
-**Component: `src/components/sales/GradingSlotDetails.tsx`**
-- View slot details
-- List of registered students
-- Ability to mark results (pass/fail)
-- Issue certificates
-
-**Service: `src/services/gradingService.ts`**
-- CRUD operations for grading slots
-- Registration management
-- Result recording
-
-### Navigation Updates
-- Add "Grading" menu item to sidebar under Sales module
-- Route: `/sales/grading`
-
-### Integration Points
-- When creating an invoice with a grading fee product, optionally allow selection of a grading slot
-- Student grading history will pull from both existing `student_grading_history` and new `grading_registrations` tables
-
----
-
-## Technical Implementation Details
-
-### Part 1 - SKU Removal
-```tsx
-// Line 703 in CreateInvoiceDialog.tsx
-// Before:
-{product.name} ({product.sku})
-
-// After:
-{product.name}
-```
-
-### Part 2 - Inline Add Item
-The table structure will be modified to always show a final row with input fields:
-
-```tsx
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>Category</TableHead>
-      <TableHead>Product</TableHead>
-      <TableHead>Quantity</TableHead>
-      <TableHead>Unit Price</TableHead>
-      <TableHead>Size</TableHead>
-      <TableHead>Color</TableHead>
-      <TableHead>Term</TableHead>
-      <TableHead>Total</TableHead>
-      <TableHead>Actions</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {/* Existing items */}
-    {items.map((item, index) => (
-      <TableRow key={index}>...</TableRow>
-    ))}
-    
-    {/* Inline add item row - always visible */}
-    <TableRow className="bg-muted/30">
-      <TableCell><Select>Category...</Select></TableCell>
-      <TableCell><Select>Product...</Select></TableCell>
-      <TableCell><Input type="number" /></TableCell>
-      <TableCell><Input type="number" /></TableCell>
-      <TableCell>{sizeOptions.length > 0 && <Select>...</Select>}</TableCell>
-      <TableCell>{colorOptions.length > 0 && <Select>...</Select>}</TableCell>
-      <TableCell>{isClasses && <Select>Term...</Select>}</TableCell>
-      <TableCell>-</TableCell>
-      <TableCell><Button>Add</Button></TableCell>
-    </TableRow>
-  </TableBody>
-</Table>
-```
-
-### Part 3 - Grading System Files
-
-**Migration file structure:**
-```sql
--- Create grading_slots table
-CREATE TABLE public.grading_slots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  branch_id TEXT NOT NULL REFERENCES branches(id),
-  grading_date DATE NOT NULL,
-  start_time TIME,
-  end_time TIME,
-  location TEXT,
-  examiner_name TEXT,
-  belt_levels TEXT[],
-  max_capacity INTEGER DEFAULT 20,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'completed')),
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Create grading_registrations table
-CREATE TABLE public.grading_registrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  grading_slot_id UUID NOT NULL REFERENCES grading_slots(id) ON DELETE CASCADE,
-  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  invoice_item_id UUID REFERENCES invoice_items(id),
-  current_belt TEXT NOT NULL,
-  target_belt TEXT NOT NULL,
-  result TEXT CHECK (result IN ('pass', 'fail', 'conditional_pass')),
-  certificate_issued BOOLEAN DEFAULT false,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  UNIQUE(grading_slot_id, student_id)
-);
-
--- Enable RLS
-ALTER TABLE grading_slots ENABLE ROW LEVEL SECURITY;
-ALTER TABLE grading_registrations ENABLE ROW LEVEL SECURITY;
-
--- Create policies for authenticated users
-CREATE POLICY "Allow authenticated read" ON grading_slots FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated insert" ON grading_slots FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow authenticated update" ON grading_slots FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Allow authenticated delete" ON grading_slots FOR DELETE TO authenticated USING (true);
-
-CREATE POLICY "Allow authenticated read" ON grading_registrations FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated insert" ON grading_registrations FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow authenticated update" ON grading_registrations FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Allow authenticated delete" ON grading_registrations FOR DELETE TO authenticated USING (true);
-```
-
----
-
-## Files to Create/Modify Summary
-
-| Action | File | Description |
-|--------|------|-------------|
-| Modify | `src/components/sales/CreateInvoiceDialog.tsx` | Remove SKU, inline add item row |
-| Create | `src/pages/sales/GradingManagement.tsx` | Main grading management page |
-| Create | `src/components/sales/AddGradingSlotDialog.tsx` | Dialog to create grading slots |
-| Create | `src/components/sales/EditGradingSlotDialog.tsx` | Dialog to edit grading slots |
-| Create | `src/components/sales/GradingSlotCard.tsx` | Card component for slot display |
-| Create | `src/services/gradingService.ts` | Service for grading CRUD operations |
-| Create | Migration file | Database schema for grading tables |
-| Modify | `src/App.tsx` | Add route for `/sales/grading` |
-| Modify | `src/components/layout/Sidebar.tsx` | Add "Grading" menu item |
-| Modify | `src/integrations/supabase/types.ts` | Updated with new table types |
-
----
-
-## Execution Order
-1. Create database migration for grading tables
-2. Update Supabase types
-3. Modify CreateInvoiceDialog (SKU removal + inline add item)
-4. Create grading service
-5. Create grading UI components
-6. Create GradingManagement page
-7. Update routing and navigation
