@@ -1,6 +1,6 @@
 /**
- * Add Grading Slot Dialog
- * Form for creating new grading examination slots
+ * Grading Slot Dialog
+ * Form for creating and editing grading examination slots
  */
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { createGradingSlot, type CreateGradingSlotData } from '@/services/gradingService';
+import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type GradingSlot } from '@/services/gradingService';
 import { Loader2 } from 'lucide-react';
 
 // Belt levels for multi-select
@@ -24,12 +24,19 @@ const BELT_LEVELS = [
   'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
 ];
 
-interface AddGradingSlotDialogProps {
+interface GradingSlotDialogProps {
   trigger: React.ReactNode;
-  onSlotCreated?: () => void;
+  onSlotSaved?: () => void;
+  editSlot?: GradingSlot | null;
+  mode?: 'add' | 'edit';
 }
 
-const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, onSlotCreated }) => {
+const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({ 
+  trigger, 
+  onSlotSaved, 
+  editSlot = null,
+  mode = 'add'
+}) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
@@ -47,8 +54,19 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
   useEffect(() => {
     if (open) {
       loadBranches();
+      if (editSlot && mode === 'edit') {
+        setFormData({
+          branch_id: editSlot.branch_id,
+          grading_date: editSlot.grading_date,
+          start_time: editSlot.start_time || '',
+          title: editSlot.title || '',
+          belt_levels: editSlot.belt_levels || [],
+          max_capacity: editSlot.max_capacity || 20,
+          notes: editSlot.notes || ''
+        });
+      }
     }
-  }, [open]);
+  }, [open, editSlot, mode]);
 
   const loadBranches = async () => {
     try {
@@ -79,14 +97,19 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
 
     setLoading(true);
     try {
-      await createGradingSlot(formData);
-      toast.success('Grading slot created successfully');
+      if (mode === 'edit' && editSlot) {
+        await updateGradingSlot(editSlot.id, formData);
+        toast.success('Grading slot updated successfully');
+      } else {
+        await createGradingSlot(formData);
+        toast.success('Grading slot created successfully');
+      }
       setOpen(false);
       resetForm();
-      onSlotCreated?.();
+      onSlotSaved?.();
     } catch (error) {
-      console.error('Error creating grading slot:', error);
-      toast.error('Failed to create grading slot');
+      console.error('Error saving grading slot:', error);
+      toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} grading slot`);
     } finally {
       setLoading(false);
     }
@@ -145,6 +168,8 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
     handleInputChange('belt_levels', newBelts);
   };
 
+  const isEditMode = mode === 'edit';
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -152,9 +177,9 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Grading Slot</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit Grading Slot' : 'Add Grading Slot'}</DialogTitle>
           <DialogDescription>
-            Create a new grading examination slot for students
+            {isEditMode ? 'Update grading slot details' : 'Create a new grading examination slot for students'}
           </DialogDescription>
         </DialogHeader>
 
@@ -251,7 +276,7 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create Slot
+              {isEditMode ? 'Save Changes' : 'Create Slot'}
             </Button>
           </DialogFooter>
         </form>
@@ -260,4 +285,6 @@ const AddGradingSlotDialog: React.FC<AddGradingSlotDialogProps> = ({ trigger, on
   );
 };
 
-export default AddGradingSlotDialog;
+// Keep backward compatible export
+export default GradingSlotDialog;
+export { GradingSlotDialog };
