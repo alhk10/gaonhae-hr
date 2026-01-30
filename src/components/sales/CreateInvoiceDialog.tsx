@@ -12,16 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
 
@@ -68,9 +66,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [branchTerms, setBranchTerms] = useState<Term[]>([]);
   const [termLoading, setTermLoading] = useState(false);
   const [termError, setTermError] = useState<string | null>(null);
-  
-  // Add item form visibility state
-  const [showAddItem, setShowAddItem] = useState(false);
   
   const [formData, setFormData] = useState({
     student_id: '',
@@ -230,7 +225,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
     setBranchTerms([]);
     setTermError(null);
-    setShowAddItem(false);
   };
 
   const handleInputChange = async (field: string, value: any) => {
@@ -543,7 +537,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       color_variant: '',
       term_id: ''
     });
-    setShowAddItem(false); // Collapse form after adding
   };
 
   const removeItem = (index: number) => {
@@ -647,197 +640,41 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
           {/* Invoice Items Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Invoice Items</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddItem(!showAddItem)}
-              >
-                {showAddItem ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-1" />
-                    Hide
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Item
-                  </>
-                )}
-              </Button>
-            </div>
+            <h3 className="text-lg font-medium">Invoice Items</h3>
 
-            {/* Collapsible Add Item Form */}
-            <Collapsible open={showAddItem} onOpenChange={setShowAddItem}>
-              <CollapsibleContent>
-                <Card className="border-dashed">
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                      <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All categories" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Product *</Label>
-                        <Select value={newItem.product_id} onValueChange={handleProductChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredProducts.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name} ({product.sku})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Quantity</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={newItem.quantity}
-                          onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Unit Price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={newItem.unit_price}
-                          onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
-                          disabled={selectedProduct && selectedProduct.base_price > 0}
-                          className={selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
-                        />
-                      </div>
-
-                      {sizeOptions.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Size</Label>
-                          <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select size" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {sizeOptions.map((size) => (
-                                <SelectItem key={size} value={size}>
-                                  {size}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {colorOptions.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Color</Label>
-                          <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select color" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {colorOptions.map((color) => (
-                                <SelectItem key={color} value={color}>
-                                  {color}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {/* Term Dropdown - Only for Classes category */}
-                      {selectedCategory?.name === 'Classes' && (
-                        <div className="space-y-2">
-                          <Label>Term {branchTerms.length > 0 ? '*' : ''}</Label>
-                          {branchTerms.length > 0 ? (
-                            <Select 
-                              value={newItem.term_id} 
-                              onValueChange={(value) => handleNewItemChange('term_id', value)}
-                              disabled={termLoading}
-                            >
-                              <SelectTrigger className={termError ? 'border-destructive' : ''}>
-                                <SelectValue placeholder={termLoading ? "Loading..." : "Select term"} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {branchTerms.map((term) => (
-                                  <SelectItem key={term.id} value={term.id}>
-                                    {term.name} ({term.start_date} to {term.end_date})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <p className="text-sm text-muted-foreground py-2">
-                              No active terms configured for this branch
-                            </p>
-                          )}
-                          {termError && (
-                            <p className="text-sm text-destructive">{termError}</p>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <Label>&nbsp;</Label>
-                        <Button type="button" onClick={addItem} className="w-full">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Items Table */}
-            {items.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead className="w-12">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, index) => (
+            {/* Items Table with Inline Add Row */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="w-20">Qty</TableHead>
+                  <TableHead className="w-24">Price</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Term</TableHead>
+                  <TableHead className="w-24">Total</TableHead>
+                  <TableHead className="w-12">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Existing Items */}
+                {items.map((item, index) => {
+                  const itemProduct = products.find(p => p.id === item.product_id);
+                  const itemCategory = categories.find(c => c.id === itemProduct?.category_id);
+                  return (
                     <TableRow key={index}>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {itemCategory?.name || '-'}
+                      </TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell>{item.term_name || '-'}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                          className="w-20"
+                          className="w-16 h-8"
                         />
                       </TableCell>
                       <TableCell>
@@ -847,11 +684,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-20 h-8"
                         />
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
                       <TableCell>{item.color_variant || '-'}</TableCell>
+                      <TableCell>{item.term_name || '-'}</TableCell>
                       <TableCell className="font-medium">
                         ${item.total.toFixed(2)}
                       </TableCell>
@@ -867,16 +705,139 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                  );
+                })}
 
-            {items.length === 0 && !showAddItem && (
-              <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-                <p>No items added yet.</p>
-                <p className="text-sm">Click "Add Item" to add products to this invoice.</p>
-              </div>
+                {/* Inline Add Item Row */}
+                <TableRow className="bg-muted/30">
+                  <TableCell>
+                    <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
+                      <SelectTrigger className="h-8 w-24">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Select value={newItem.product_id} onValueChange={handleProductChange}>
+                      <SelectTrigger className="h-8 w-32">
+                        <SelectValue placeholder="Product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredProducts.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newItem.quantity}
+                      onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
+                      className="w-16 h-8"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newItem.unit_price}
+                      onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
+                      disabled={selectedProduct && selectedProduct.base_price > 0}
+                      className={`w-20 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {sizeOptions.length > 0 ? (
+                      <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
+                        <SelectTrigger className="h-8 w-20">
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sizeOptions.map((size) => (
+                            <SelectItem key={size} value={size}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {colorOptions.length > 0 ? (
+                      <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
+                        <SelectTrigger className="h-8 w-20">
+                          <SelectValue placeholder="Color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {colorOptions.map((color) => (
+                            <SelectItem key={color} value={color}>
+                              {color}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {selectedCategory?.name === 'Classes' ? (
+                      branchTerms.length > 0 ? (
+                        <Select 
+                          value={newItem.term_id} 
+                          onValueChange={(value) => handleNewItemChange('term_id', value)}
+                          disabled={termLoading}
+                        >
+                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}>
+                            <SelectValue placeholder={termLoading ? "..." : "Term"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branchTerms.map((term) => (
+                              <SelectItem key={term.id} value={term.id}>
+                                {term.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No terms</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                  <TableCell>
+                    <Button 
+                      type="button" 
+                      onClick={addItem} 
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={!newItem.product_id}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+
+            {termError && selectedCategory?.name === 'Classes' && (
+              <p className="text-sm text-destructive">{termError}</p>
             )}
 
             {/* Totals Section - After Invoice Items */}
