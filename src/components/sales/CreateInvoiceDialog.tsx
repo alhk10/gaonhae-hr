@@ -161,31 +161,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
   
-  // Get filtered grading slots based on selected branch and student's current belt
-  const getFilteredGradingSlots = (): GradingSlot[] => {
-    let filtered = gradingSlots;
-    
-    // Filter by branch if selected
-    if (formData.branch_id) {
-      filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
-    }
-    
-    // STRICT filter by student's current belt level - only show matching slots
-    if (studentBelt) {
-      const normalizedStudentBelt = normalizeBelt(studentBelt);
-      filtered = filtered.filter(slot => {
-        // If slot has no belt_levels defined, don't show it (requires explicit belt match)
-        if (!slot.belt_levels || slot.belt_levels.length === 0) return false;
-        // Check if student's belt is in the slot's allowed belt levels
-        return slot.belt_levels.some(beltLevel => 
-          normalizeBelt(beltLevel) === normalizedStudentBelt
-        );
-      });
-    }
-    
-    return filtered;
-  };
-
   const loadStudents = async () => {
     try {
       const response = await getStudents(1, 1000);
@@ -581,6 +556,31 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Get selected student's belt for filtering
   const selectedStudent = students.find(s => s.id === formData.student_id);
   const studentBelt = selectedStudent?.current_belt || '';
+
+  // Get filtered grading slots based on selected branch and student's current belt
+  const getFilteredGradingSlots = (): GradingSlot[] => {
+    let filtered = gradingSlots;
+    
+    // Filter by branch if selected
+    if (formData.branch_id) {
+      filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
+    }
+    
+    // STRICT filter by student's current belt level - only show matching slots
+    if (studentBelt) {
+      const normalizedStudentBelt = normalizeBelt(studentBelt);
+      filtered = filtered.filter(slot => {
+        // If slot has no belt_levels defined, don't show it (requires explicit belt match)
+        if (!slot.belt_levels || slot.belt_levels.length === 0) return false;
+        // Check if student's belt is in the slot's allowed belt levels
+        return slot.belt_levels.some(beltLevel => 
+          normalizeBelt(beltLevel) === normalizedStudentBelt
+        );
+      });
+    }
+    
+    return filtered;
+  };
 
   // Get filtered products based on selected category AND student belt level
   const filteredProducts = products.filter(p => {
