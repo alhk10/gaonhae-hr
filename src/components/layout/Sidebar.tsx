@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Briefcase,
   FileSpreadsheet,
+  Award,
   FileCheck
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
@@ -125,6 +126,7 @@ const Sidebar = () => {
           { icon: ShoppingCart, label: 'Sales Dashboard', path: '/sales' },
           { icon: Package, label: 'Products & Inventory', path: '/sales/products' },
           { icon: Receipt, label: 'Invoices & Payments', path: '/sales/invoices' },
+          { icon: Award, label: 'Grading', path: '/sales/grading' },
           { icon: TrendingUp, label: 'Sales Reports', path: '/sales/reports' }
         );
       }

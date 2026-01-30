@@ -1149,6 +1149,132 @@ export type Database = {
         }
         Relationships: []
       }
+      grading_registrations: {
+        Row: {
+          certificate_issued: boolean | null
+          created_at: string | null
+          created_by: string | null
+          current_belt: string
+          grading_slot_id: string
+          id: string
+          invoice_item_id: string | null
+          notes: string | null
+          result: string | null
+          student_id: string
+          target_belt: string
+        }
+        Insert: {
+          certificate_issued?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          current_belt: string
+          grading_slot_id: string
+          id?: string
+          invoice_item_id?: string | null
+          notes?: string | null
+          result?: string | null
+          student_id: string
+          target_belt: string
+        }
+        Update: {
+          certificate_issued?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          current_belt?: string
+          grading_slot_id?: string
+          id?: string
+          invoice_item_id?: string | null
+          notes?: string | null
+          result?: string | null
+          student_id?: string
+          target_belt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_registrations_grading_slot_id_fkey"
+            columns: ["grading_slot_id"]
+            isOneToOne: false
+            referencedRelation: "grading_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_registrations_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_registrations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grading_slots: {
+        Row: {
+          belt_levels: string[] | null
+          branch_id: string
+          created_at: string | null
+          created_by: string | null
+          end_time: string | null
+          examiner_name: string | null
+          grading_date: string
+          id: string
+          location: string | null
+          max_capacity: number | null
+          notes: string | null
+          start_time: string | null
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          belt_levels?: string[] | null
+          branch_id: string
+          created_at?: string | null
+          created_by?: string | null
+          end_time?: string | null
+          examiner_name?: string | null
+          grading_date: string
+          id?: string
+          location?: string | null
+          max_capacity?: number | null
+          notes?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          belt_levels?: string[] | null
+          branch_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          end_time?: string | null
+          examiner_name?: string | null
+          grading_date?: string
+          id?: string
+          location?: string | null
+          max_capacity?: number | null
+          notes?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_slots_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           cost_per_unit: number | null
