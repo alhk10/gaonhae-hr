@@ -1,77 +1,136 @@
 
-# Plan: Exclude Partner Claims from Payroll Processing
+# Plan: Refine CreateInvoiceDialog Layout
 
-## Problem
-Currently, all approved claims (including partner claims like Transport, Office Stationeries, Training Equipment, and Other Business Expense) are being added to employees' payroll calculations. Partner claims should be excluded because they:
-- Are business expenses that flow to Branch Profit & Loss
-- Are not personal reimbursable claims meant to be included in employee net pay
+## Overview
+This plan addresses three UI improvements to the Create Invoice dialog to streamline the interface and improve user experience.
 
-## Solution Overview
-Filter out partner claim types when calculating approved claims total in the payroll service.
+## Changes Required
+
+### 1. Remove Email from Student Dropdown
+**Current:** Student dropdown shows `{student.name} ({student.email})`
+**Change:** Show only `{student.name}`
+
+**Location:** Line 632-633 in the student Select dropdown
 
 ---
 
-## Implementation Steps
+### 2. Replace "Add Items" Section with a + Button in Invoice Items Header
+**Current:** There's a separate card section called "Add Items" with all the input fields for adding new items
 
-### Step 1: Update `src/services/payrollService.ts`
+**Change:** 
+- Remove the standalone "Add Items" card section (lines 642-785)
+- Add a collapsible "add item row" inside the Invoice Items section
+- Add a `+` button in the "Invoice Items" section header that shows/hides the add item inputs
+- The add item form fields will appear inline within the Invoice Items section when the + button is clicked
 
-Add a filter to exclude partner claim types when summing approved claims for payroll.
-
-**Changes:**
-- Import or define the `PARTNER_CLAIM_TYPES` array (same as in `claimsService.ts`)
-- Modify the `approvedClaimsTotal` calculation to exclude claims with types matching partner claim types
-
-**Before:**
-```typescript
-const approvedClaimsTotal = claims
-  .filter(claim => claim.status === 'Approved')
-  .reduce((sum, claim) => sum + claim.amount, 0);
+**New Layout:**
 ```
-
-**After:**
-```typescript
-// Partner claim types that should NOT be included in payroll (they go to Branch P&L)
-const PARTNER_CLAIM_TYPES = [
-  'Transport',
-  'Office Stationeries', 
-  'Training Equipment',
-  'Other Business Expense'
-];
-
-const approvedClaimsTotal = claims
-  .filter(claim => 
-    claim.status === 'Approved' && 
-    !PARTNER_CLAIM_TYPES.includes(claim.type)
-  )
-  .reduce((sum, claim) => sum + claim.amount, 0);
+Invoice Items                     [+ Add]
+┌─────────────────────────────────────────┐
+│ [Add item row - shown when + clicked]   │
+├─────────────────────────────────────────┤
+│ Product | Term | Qty | Price | Total    │
+│ Item 1  | ...  | ... | ...   | ...      │
+│ Item 2  | ...  | ... | ...   | ...      │
+└─────────────────────────────────────────┘
+Subtotal: $XX.XX
+Tax (X%): $XX.XX
+Total: $XX.XX
 ```
 
 ---
 
-## Technical Details
+### 3. Move Subtotal, Tax, and Total After Invoice Items Section
+**Current:** 
+- A "Subtotal" appears after the items table (lines 850-858)
+- Another set of Subtotal, Tax, and Total appears after the Notes section (lines 889-906)
 
-### Partner Claim Types to Exclude
-Based on the `SubmitPartnersClaim.tsx` page, these are the types used:
-- `Transport`
-- `Office Stationeries`
-- `Training Equipment`
-- `Other Business Expense`
-
-### Regular Employee Claim Types (Still Included)
-These will continue to be included in payroll:
-- Medical
-- Transport (employee personal transport - if different naming)
-- Training
-- Entertainment
-- Others
-
-### Files Modified
-1. **`src/services/payrollService.ts`** - Add partner claim type filter to `approvedClaimsTotal` calculation
+**Change:**
+- Remove the duplicate Subtotal after the items table
+- Keep the full totals section (Subtotal, Tax, Total) but move it immediately after the Invoice Items section, before the Notes section
 
 ---
 
-## Testing Notes
-After implementation:
-1. Partner/Senior Partner employees with approved partner claims should see $0 in the Claims column for payroll
-2. Regular employees with standard approved claims should still see their claims included
-3. Verify the payroll net pay calculation excludes partner claim amounts
+## Technical Implementation
+
+### File: `src/components/sales/CreateInvoiceDialog.tsx`
+
+1. **Line 633** - Remove email from student display:
+   ```tsx
+   {student.name}  // Remove: ({student.email})
+   ```
+
+2. **Add state for showing/hiding add item form:**
+   ```tsx
+   const [showAddItem, setShowAddItem] = useState(false);
+   ```
+
+3. **Restructure JSX layout:**
+   - Remove the "Add Items" section header and Card wrapper
+   - Move the add item form inputs into the "Invoice Items" section
+   - Add a + button in the Invoice Items header
+   - Show add item form conditionally based on `showAddItem` state
+   - Move totals section (Subtotal, Tax, Total) directly after the items table
+   - Remove duplicate subtotal display
+
+4. **New Invoice Items section structure:**
+   ```tsx
+   <div className="space-y-4">
+     <div className="flex items-center justify-between">
+       <h3 className="text-lg font-medium">Invoice Items</h3>
+       <Button 
+         type="button" 
+         variant="outline" 
+         size="sm"
+         onClick={() => setShowAddItem(!showAddItem)}
+       >
+         <Plus className="w-4 h-4 mr-1" />
+         Add Item
+       </Button>
+     </div>
+     
+     {/* Collapsible Add Item Form */}
+     {showAddItem && (
+       <Card className="border-dashed">
+         {/* Add item form fields here */}
+       </Card>
+     )}
+     
+     {/* Items Table */}
+     {items.length > 0 && (
+       <Table>...</Table>
+     )}
+     
+     {/* Totals - moved here from after Notes */}
+     {items.length > 0 && (
+       <div className="flex justify-end">
+         <div className="w-64 space-y-2">
+           <div className="flex justify-between">
+             <span>Subtotal:</span>
+             <span>${subtotal.toFixed(2)}</span>
+           </div>
+           <div className="flex justify-between text-muted-foreground">
+             <span>Tax ({taxRate}%):</span>
+             <span>${taxAmount.toFixed(2)}</span>
+           </div>
+           <div className="flex justify-between font-bold text-lg border-t pt-2">
+             <span>Total:</span>
+             <span>${total.toFixed(2)}</span>
+           </div>
+         </div>
+       </div>
+     )}
+   </div>
+   ```
+
+---
+
+## Summary of Changes
+| Change | Before | After |
+|--------|--------|-------|
+| Student dropdown | Name (email) | Name only |
+| Add Items section | Separate card above items | + button in Items header, collapsible form |
+| Subtotal display | Duplicate (after items + after notes) | Single display after items |
+| Totals location | After Notes section | After Invoice Items section |
+
+All existing functionality (add item, remove item, edit quantity/price, term selection, validation) will remain intact.
