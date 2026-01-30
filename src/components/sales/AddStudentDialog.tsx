@@ -44,6 +44,13 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     'Canada', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Switzerland'
   ];
 
+  // Common languages spoken
+  const commonLanguages = [
+    'English', 'Mandarin', 'Malay', 'Tamil', 'Cantonese', 'Hokkien', 'Teochew',
+    'Japanese', 'Korean', 'Thai', 'Vietnamese', 'Indonesian', 'Hindi', 'Bengali',
+    'Tagalog', 'French', 'German', 'Spanish', 'Arabic', 'Russian'
+  ];
+
   // Belt progression system
   const beltLevels = [
     'Foundation 1', 'Foundation 2', 'Foundation 3',
@@ -62,6 +69,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     { value: 'others', label: 'Others' }
   ];
 
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     // Referral Source
     referral_source: '',
@@ -74,12 +86,15 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     display_name: '',
     date_of_birth: '',
     gender: '',
-    nationality: '',
     nric_passport: '',
     phone: '',
     email: '',
     address: '',
     postal_code: '',
+    
+    // Additional Information
+    nationality: '',
+    language_spoken: '',
     
     // Emergency Contact Information
     emergency_contact_name: '',
@@ -98,6 +113,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     
     // Administrative
     branch_id: '',
+    registered_date: getTodayDate(),
     status: 'active',
     notes: ''
   });
@@ -164,12 +180,13 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         display_name: '',
         date_of_birth: '',
         gender: '',
-        nationality: '',
         nric_passport: '',
         phone: '',
         email: '',
         address: '',
         postal_code: '',
+        nationality: '',
+        language_spoken: '',
         emergency_contact_name: '',
         emergency_contact_phone: '',
         emergency_contact_relationship: '',
@@ -182,6 +199,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         medical_conditions: '',
         dietary_restrictions: '',
         branch_id: '',
+        registered_date: getTodayDate(),
         status: 'active',
         notes: ''
       });
@@ -220,7 +238,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
               Where did you hear about us?
             </h3>
             <div className="space-y-1">
-              <Label htmlFor="referral_source" className="text-xs">Referral Source</Label>
               <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Select an option" />
@@ -303,20 +320,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="nationality" className="text-xs">Nationality</Label>
-                  <SearchableSelect
-                    value={formData.nationality}
-                    onValueChange={(value) => handleInputChange('nationality', value)}
-                    options={commonNationalities}
-                    placeholder="Select or type nationality"
-                    searchPlaceholder="Search nationalities..."
-                    allowAddNew={true}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
                   <Label htmlFor="nric_passport" className="text-xs">NRIC/Passport</Label>
                   <Input
                     id="nric_passport"
@@ -326,6 +329,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     className="h-9"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="date_of_birth" className="text-xs">Date of Birth</Label>
                   <Input
@@ -336,9 +342,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     className="h-9"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="gender" className="text-xs">Gender</Label>
                   <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
@@ -353,6 +356,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="phone" className="text-xs">Phone</Label>
                   <Input
@@ -363,9 +369,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     className="h-9"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="email" className="text-xs">Email</Label>
                   <Input
@@ -375,6 +378,20 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="student@example.com"
                     className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="address" className="text-xs">Address</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Full address"
+                    rows={2}
+                    className="min-h-[60px]"
                   />
                 </div>
                 <div className="space-y-1">
@@ -388,16 +405,36 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   />
                 </div>
               </div>
+            </div>
+          </section>
 
+          {/* Additional Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <User className="w-4 h-4" />
+              Additional Information
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="address" className="text-xs">Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  placeholder="Full address"
-                  rows={2}
-                  className="min-h-[60px]"
+                <Label htmlFor="nationality" className="text-xs">Nationality</Label>
+                <SearchableSelect
+                  value={formData.nationality}
+                  onValueChange={(value) => handleInputChange('nationality', value)}
+                  options={commonNationalities}
+                  placeholder="Select or type nationality"
+                  searchPlaceholder="Search nationalities..."
+                  allowAddNew={true}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="language_spoken" className="text-xs">Language Spoken</Label>
+                <SearchableSelect
+                  value={formData.language_spoken}
+                  onValueChange={(value) => handleInputChange('language_spoken', value)}
+                  options={commonLanguages}
+                  placeholder="Select or type language"
+                  searchPlaceholder="Search languages..."
+                  allowAddNew={true}
                 />
               </div>
             </div>
@@ -586,7 +623,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
               Administrative
             </h3>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="branch_id" className="text-xs">Primary Branch</Label>
                   <Select 
@@ -605,6 +642,16 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="registered_date" className="text-xs">Registered Date</Label>
+                  <Input
+                    id="registered_date"
+                    type="date"
+                    value={formData.registered_date}
+                    onChange={(e) => handleInputChange('registered_date', e.target.value)}
+                    className="h-9"
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="status" className="text-xs">Status</Label>
