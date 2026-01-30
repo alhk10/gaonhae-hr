@@ -63,26 +63,31 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   ];
 
   const [formData, setFormData] = useState({
+    // Referral Source
+    referral_source: '',
+    
     // Personal Information
     first_name: '',
     last_name: '',
     preferred_name: '',
     certificate_name: '',
     display_name: '',
-    referral_source: '',
     date_of_birth: '',
     gender: '',
     nationality: '',
     nric_passport: '',
-    
-    // Contact Information
-    email: '',
     phone: '',
+    email: '',
     address: '',
     postal_code: '',
+    
+    // Emergency Contact Information
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
+    emergency_contact_2_name: '',
+    emergency_contact_2_phone: '',
+    emergency_contact_2_relationship: '',
     
     // Training Information
     current_belt: '',
@@ -151,23 +156,26 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       toast.success('Student added successfully');
       setIsOpen(false);
       setFormData({
+        referral_source: '',
         first_name: '',
         last_name: '',
         preferred_name: '',
         certificate_name: '',
         display_name: '',
-        referral_source: '',
         date_of_birth: '',
         gender: '',
         nationality: '',
         nric_passport: '',
-        email: '',
         phone: '',
+        email: '',
         address: '',
         postal_code: '',
         emergency_contact_name: '',
         emergency_contact_phone: '',
         emergency_contact_relationship: '',
+        emergency_contact_2_name: '',
+        emergency_contact_2_phone: '',
+        emergency_contact_2_relationship: '',
         current_belt: '',
         previous_experience: '',
         training_goals: '',
@@ -205,8 +213,31 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Personal Information Section */}
+          {/* Referral Source Section */}
           <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <User className="w-4 h-4" />
+              Where did you hear about us?
+            </h3>
+            <div className="space-y-1">
+              <Label htmlFor="referral_source" className="text-xs">Referral Source</Label>
+              <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select an option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {referralSourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+
+          {/* Personal Information Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <User className="w-4 h-4" />
               Personal Information
@@ -272,23 +303,29 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="referral_source" className="text-xs">Where did you find out about us?</Label>
-                  <Select value={formData.referral_source} onValueChange={(value) => handleInputChange('referral_source', value)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select an option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {referralSourceOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="nationality" className="text-xs">Nationality</Label>
+                  <SearchableSelect
+                    value={formData.nationality}
+                    onValueChange={(value) => handleInputChange('nationality', value)}
+                    options={commonNationalities}
+                    placeholder="Select or type nationality"
+                    searchPlaceholder="Search nationalities..."
+                    allowAddNew={true}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="nric_passport" className="text-xs">NRIC/Passport</Label>
+                  <Input
+                    id="nric_passport"
+                    value={formData.nric_passport}
+                    onChange={(e) => handleInputChange('nric_passport', e.target.value)}
+                    placeholder="NRIC or Passport Number"
+                    className="h-9"
+                  />
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor="date_of_birth" className="text-xs">Date of Birth</Label>
                   <Input
@@ -299,6 +336,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     className="h-9"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="gender" className="text-xs">Gender</Label>
                   <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
@@ -312,53 +352,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="nationality" className="text-xs">Nationality</Label>
-                  <SearchableSelect
-                    value={formData.nationality}
-                    onValueChange={(value) => handleInputChange('nationality', value)}
-                    options={commonNationalities}
-                    placeholder="Select or type nationality"
-                    searchPlaceholder="Search nationalities..."
-                    allowAddNew={true}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="nric_passport" className="text-xs">NRIC/Passport</Label>
-                  <Input
-                    id="nric_passport"
-                    value={formData.nric_passport}
-                    onChange={(e) => handleInputChange('nric_passport', e.target.value)}
-                    placeholder="NRIC or Passport Number"
-                    className="h-9"
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Contact Information Section */}
-          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Mail className="w-4 h-4" />
-              Contact Information
-            </h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="email" className="text-xs">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="student@example.com"
-                    className="h-9"
-                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="phone" className="text-xs">Phone</Label>
@@ -374,14 +367,14 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="address" className="text-xs">Address</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    placeholder="Full address"
-                    rows={2}
-                    className="min-h-[60px]"
+                  <Label htmlFor="email" className="text-xs">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="student@example.com"
+                    className="h-9"
                   />
                 </div>
                 <div className="space-y-1">
@@ -396,8 +389,30 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <Label htmlFor="address" className="text-xs">Address</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="Full address"
+                  rows={2}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Emergency Contact Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Mail className="w-4 h-4" />
+              Emergency Contact Information
+            </h3>
+            <div className="space-y-3">
+              {/* Emergency Contact 1 */}
               <div className="rounded-md bg-background/50 p-3 space-y-3">
-                <h4 className="text-xs font-medium">Emergency Contact</h4>
+                <h4 className="text-xs font-medium">Emergency Contact 1</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="emergency_contact_name" className="text-xs">Name</Label>
@@ -424,6 +439,52 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                     <Select 
                       value={formData.emergency_contact_relationship} 
                       onValueChange={(value) => handleInputChange('emergency_contact_relationship', value)}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select relationship" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="parent">Parent</SelectItem>
+                        <SelectItem value="guardian">Guardian</SelectItem>
+                        <SelectItem value="spouse">Spouse</SelectItem>
+                        <SelectItem value="sibling">Sibling</SelectItem>
+                        <SelectItem value="friend">Friend</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Contact 2 */}
+              <div className="rounded-md bg-background/50 p-3 space-y-3">
+                <h4 className="text-xs font-medium">Emergency Contact 2</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_name" className="text-xs">Name</Label>
+                    <Input
+                      id="emergency_contact_2_name"
+                      value={formData.emergency_contact_2_name}
+                      onChange={(e) => handleInputChange('emergency_contact_2_name', e.target.value)}
+                      placeholder="Emergency contact name"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_phone" className="text-xs">Phone</Label>
+                    <Input
+                      id="emergency_contact_2_phone"
+                      value={formData.emergency_contact_2_phone}
+                      onChange={(e) => handleInputChange('emergency_contact_2_phone', e.target.value)}
+                      placeholder="+65 9123 4567"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="emergency_contact_2_relationship" className="text-xs">Relationship</Label>
+                    <Select 
+                      value={formData.emergency_contact_2_relationship} 
+                      onValueChange={(value) => handleInputChange('emergency_contact_2_relationship', value)}
                     >
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Select relationship" />
