@@ -772,11 +772,19 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       processedIdsInBatch.add(employee.id);
       processedIdsInBatch.add(employee.id);
 
-      // Get claims for this employee
+      // Get claims for this employee - exclude partner claim types that go to Branch P&L
+      const PARTNER_CLAIM_TYPES = [
+        'Transport',
+        'Office Stationeries', 
+        'Training Equipment',
+        'Other Business Expense'
+      ];
       const employeeClaims = payrollOptimizedData?.claims?.[employee.id] || claimsData?.claims?.[employee.id] || [];
-      const totalClaims = employeeClaims.reduce((sum: number, claim: any) => sum + (claim.amount || 0), 0);
+      const totalClaims = employeeClaims
+        .filter((claim: any) => !PARTNER_CLAIM_TYPES.includes(claim.type))
+        .reduce((sum: number, claim: any) => sum + (claim.amount || 0), 0);
       
-      console.log(`    ✓ Claims: ${totalClaims} (${employeeClaims.length} items)`);
+      console.log(`    ✓ Claims: ${totalClaims} (${employeeClaims.length} items, partner claims excluded)`);
 
       if (employee.type === 'Full-Time') {
         console.log(`    ✓ Adding as Full-Time...`);

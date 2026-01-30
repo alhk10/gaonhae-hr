@@ -688,12 +688,22 @@ const PayrollProcessing = () => {
     }
   };
 
+  // Partner claim types that should NOT be included in payroll (they go to Branch P&L)
+  const PARTNER_CLAIM_TYPES = [
+    'Transport',
+    'Office Stationeries', 
+    'Training Equipment',
+    'Other Business Expense'
+  ];
+
   const getApprovedClaimsTotal = (employeeId: string): number => {
     const claims = employeeClaims[employeeId] || [];
     const total = claims
-      .filter(claim => claim.status === 'Approved')
+      .filter(claim => 
+        claim.status === 'Approved' && 
+        !PARTNER_CLAIM_TYPES.includes(claim.type)
+      )
       .reduce((sum, claim) => sum + claim.amount, 0);
-    
     
     return total;
   };
