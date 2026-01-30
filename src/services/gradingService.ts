@@ -17,6 +17,7 @@ export interface GradingSlot {
   max_capacity: number;
   status: 'active' | 'cancelled' | 'completed';
   notes: string | null;
+  title: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -52,6 +53,7 @@ export interface CreateGradingSlotData {
   belt_levels?: string[];
   max_capacity?: number;
   notes?: string;
+  title?: string;
 }
 
 export interface UpdateGradingSlotData extends Partial<CreateGradingSlotData> {

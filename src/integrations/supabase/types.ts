@@ -1228,6 +1228,7 @@ export type Database = {
           notes: string | null
           start_time: string | null
           status: string | null
+          title: string | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -1245,6 +1246,7 @@ export type Database = {
           notes?: string | null
           start_time?: string | null
           status?: string | null
+          title?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -1262,6 +1264,7 @@ export type Database = {
           notes?: string | null
           start_time?: string | null
           status?: string | null
+          title?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }

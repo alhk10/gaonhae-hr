@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getGradingSlots, updateGradingSlot, deleteGradingSlot, type GradingSlot } from '@/services/gradingService';
 import AddGradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Plus, Calendar, Users, MapPin, Clock, Edit, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import {
   AlertDialog,
@@ -213,10 +213,10 @@ const GradingManagement: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Title</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Branch</TableHead>
-                    <TableHead>Location</TableHead>
                     <TableHead>Belt Levels</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Status</TableHead>
@@ -226,7 +226,12 @@ const GradingManagement: React.FC = () => {
                 <TableBody>
                   {gradingSlots.map((slot) => (
                     <TableRow key={slot.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium max-w-[250px]">
+                        <span className="truncate block" title={slot.title || '-'}>
+                          {slot.title || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
                           {format(parseISO(slot.grading_date), 'dd MMM yyyy')}
@@ -241,14 +246,6 @@ const GradingManagement: React.FC = () => {
                         ) : '-'}
                       </TableCell>
                       <TableCell>{slot.branch_name}</TableCell>
-                      <TableCell>
-                        {slot.location ? (
-                          <div className="flex items-center text-sm">
-                            <MapPin className="w-3 h-3 mr-1 text-muted-foreground" />
-                            {slot.location}
-                          </div>
-                        ) : '-'}
-                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(slot.belt_levels || []).slice(0, 3).map(belt => (
