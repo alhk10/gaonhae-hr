@@ -3,7 +3,7 @@
  * Form for recording new payments against invoices
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { createPayment, type CreatePaymentData } from '@/services/paymentService';
 import { getInvoices } from '@/services/invoiceService';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
 
 interface CreatePaymentDialogProps {
@@ -29,6 +30,8 @@ interface InvoiceOption {
   total_amount: number;
   balance_due: number;
   status: string;
+  branch_id?: string;
+  branch_country?: string;
 }
 
 const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({ 
@@ -72,13 +75,33 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
         inv.status !== 'paid' && inv.status !== 'cancelled' && inv.balance_due > 0
       );
       
+      // Get branch countries for unpaid invoices
+      const branchIds = [...new Set(unpaidInvoices.filter(inv => inv.branch_id).map(inv => inv.branch_id))];
+      let branchCountries: Record<string, string> = {};
+      
+      if (branchIds.length > 0) {
+        const { data: branches } = await supabase
+          .from('branches')
+          .select('id, country')
+          .in('id', branchIds as string[]);
+        
+        if (branches) {
+          branchCountries = branches.reduce((acc, branch) => {
+            acc[branch.id] = branch.country || 'Singapore';
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+      
       setInvoices(unpaidInvoices.map(inv => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         student_name: inv.student_name || 'Unknown Student',
         total_amount: inv.total_amount,
         balance_due: inv.balance_due,
-        status: inv.status
+        status: inv.status,
+        branch_id: inv.branch_id,
+        branch_country: inv.branch_id ? branchCountries[inv.branch_id] : 'Singapore'
       })));
     } catch (error) {
       console.error('Error loading invoices:', error);
@@ -167,6 +190,37 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   };
 
   const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
+  
+  // Determine country from selected invoice
+  const selectedCountry = selectedInvoice?.branch_country || 'Singapore';
+  const isSingapore = selectedCountry === 'Singapore';
+  const isAustralia = selectedCountry === 'Australia';
+  
+  // Payment methods with country-based filtering
+  const paymentMethods = useMemo(() => {
+    const methods = [
+      { value: 'paynow', label: 'PayNow', hideFor: ['Australia'] },
+      { value: 'cash', label: 'Cash', hideFor: ['Singapore'] },
+      { value: 'bank_transfer', label: 'Bank Transfer', hideFor: [] },
+      { value: 'credit_card', label: 'Credit Card', hideFor: [] },
+      { value: 'digital_wallet', label: 'Digital Wallet', hideFor: [] },
+      { value: 'cheque', label: 'Cheque', hideFor: [] },
+    ];
+    
+    return methods.filter(method => !method.hideFor.includes(selectedCountry));
+  }, [selectedCountry]);
+  
+  // Set default payment method when invoice changes
+  useEffect(() => {
+    if (selectedInvoice) {
+      const defaultMethod = isSingapore ? 'paynow' : 'bank_transfer';
+      // Only update if current method is not available for this country
+      const currentMethodAvailable = paymentMethods.some(m => m.value === formData.payment_method);
+      if (!currentMethodAvailable) {
+        handleInputChange('payment_method', defaultMethod);
+      }
+    }
+  }, [selectedInvoice?.id, isSingapore, paymentMethods]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -308,11 +362,11 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="credit_card">Credit Card</SelectItem>
-                  <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
