@@ -14,7 +14,7 @@ export interface Payment {
   payment_number: string;
   amount: number;
   payment_date: string;
-  payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'cheque' | 'digital_wallet';
+  payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'cheque' | 'digital_wallet' | 'paynow';
   reference_number?: string;
   proof_of_payment_url?: string;
   notes?: string;
