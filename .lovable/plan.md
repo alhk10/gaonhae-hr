@@ -1,93 +1,142 @@
 
-# Plan: Convert Country Letterhead from URL to Long Text Field
+# Plan: Update Invoice PDF Layout - QR Code and Footer Changes
 
 ## Summary
 
-Convert the Country Letterhead field from a URL input (for image loading) to a multi-line text field that stores and displays company information directly in the invoice PDF.
+Update the invoice PDF generator to:
+1. Remove the "Scan to Pay" header text
+2. Move the QR code to the right side
+3. Increase QR code size by 5% (from 40x40 to 42x42)
+4. Display template default notes on the left (next to QR code)
+5. Use template footer text instead of hardcoded "Thank you for your business!"
 
 ---
 
-## Current Behavior
+## Current Layout
 
-- The `letterhead_url` field stores an image URL
-- The PDF generator attempts to load this URL as an image
-- If the image fails to load, it falls back to hardcoded text
+```text
+┌─────────────────────────────────────────────────┐
+│ [Invoice Header, Items, Totals, etc.]           │
+├─────────────────────────────────────────────────┤
+│ Scan to Pay        ← To be removed              │
+│ ┌────────┐                                      │
+│ │ QR     │                                      │
+│ │ Code   │         ← Currently on LEFT          │
+│ └────────┘                                      │
+├─────────────────────────────────────────────────┤
+│ Notes: [invoice notes]                          │
+├─────────────────────────────────────────────────┤
+│       Thank you for your business!   ← Hardcoded│
+│       Generated on 01 Feb 2026 10:30            │
+└─────────────────────────────────────────────────┘
+```
 
-## New Behavior
+## New Layout
 
-- The field becomes a multi-line text area for entering formatted company information
-- The PDF generator will render this text directly in the header
-- Singapore templates will default to:
-  ```
-  GAONHAE TAEKWONDO | T18LL1687K
-  271 Bukit Timah Road #02-08 Singapore 259708
-  www.gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com
-  ```
+```text
+┌─────────────────────────────────────────────────┐
+│ [Invoice Header, Items, Totals, etc.]           │
+├─────────────────────────────────────────────────┤
+│ Notes:                          ┌────────────┐  │
+│ [Template default notes]        │   QR       │  │
+│                                 │   Code     │  │
+│                                 │   (42x42)  │  │
+│ [Invoice-specific notes]        └────────────┘  │
+│                                     ↑ RIGHT     │
+├─────────────────────────────────────────────────┤
+│       [Template footer_text]    ← From template │
+│       Generated on 01 Feb 2026 10:30            │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Update Invoice Template List UI
+### Step 1: Update Template Data Query
 
-**File: `src/components/sales/InvoiceTemplateList.tsx`**
+**File: `src/components/sales/InvoiceManagementList.tsx`**
 
-Changes:
-1. Rename label from "Country Letterhead URL" to "Country Letterhead"
-2. Change the `<Input>` element to `<Textarea>` with multiple rows
-3. Update placeholder text to show example format
-4. When country is "SG" and field is empty, auto-fill with default Singapore letterhead text
+Update the template query (around line 244-249) to include `default_notes` and `footer_text`:
 
-### Step 2: Update PDF Generator
+```sql
+SELECT letterhead_url, paynow_qr_url, country, default_notes, footer_text
+FROM invoice_templates
+WHERE country = :countryCode AND is_active = true
+LIMIT 1
+```
+
+Also update the template object being passed to include these new fields.
+
+### Step 2: Update InvoiceTemplate Interface
 
 **File: `src/utils/invoicePDFGenerator.ts`**
 
-Changes:
-1. Modify the letterhead logic to treat `letterhead_url` as plain text instead of an image URL
-2. Render each line of the letterhead text at the top-left of the PDF
-3. Keep proper spacing and formatting for multi-line text
-4. Remove the image loading attempt for letterhead (keep the fallback text logic as backup)
+Add `default_notes` and `footer_text` to the `InvoiceTemplate` interface:
+
+```typescript
+export interface InvoiceTemplate {
+  letterhead_url?: string;
+  paynow_qr_url?: string;
+  country?: string;
+  default_notes?: string;  // NEW
+  footer_text?: string;    // NEW
+}
+```
+
+### Step 3: Update PDF Generation Logic
+
+**File: `src/utils/invoicePDFGenerator.ts`**
+
+Changes to the PayNow QR section (lines 354-373):
+
+| Change | Details |
+|--------|---------|
+| Remove "Scan to Pay" header | Delete lines 364-367 |
+| Move QR code to right side | Position: `pageWidth - margin - qrSize` instead of `margin` |
+| Increase QR size by 5% | Change from 40x40 to 42x42 |
+| Add default notes on left | Render `template.default_notes` at left margin, same Y position as QR |
+
+### Step 4: Update Footer Section
+
+**File: `src/utils/invoicePDFGenerator.ts`**
+
+Change the footer (lines 396-401):
+
+| Current | New |
+|---------|-----|
+| `"Thank you for your business!"` (hardcoded) | `template.footer_text` or fallback to hardcoded text |
 
 ---
 
 ## Technical Details
 
-### UI Changes (InvoiceTemplateList.tsx)
+### QR Code Positioning
 
-```
-Current (line 360-369):
-┌─────────────────────────────────────────┐
-│ Country Letterhead URL                  │
-│ ┌─────────────────────────────────────┐ │
-│ │ https://example.com/letterhead.png  │ │ ← Single-line Input
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
+```typescript
+// Current (left-aligned)
+doc.addImage(qrData.data, 'PNG', margin, yPos, 40, 40);
 
-New:
-┌─────────────────────────────────────────┐
-│ Country Letterhead                      │
-│ ┌─────────────────────────────────────┐ │
-│ │ GAONHAE TAEKWONDO | T18LL1687K     │ │ ← Multi-line Textarea
-│ │ 271 Bukit Timah Road...             │ │
-│ │ www.gaonhaetaekwondo.com | ...      │ │
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
+// New (right-aligned, 5% larger)
+const qrSize = 42; // 40 * 1.05 = 42
+const qrX = pageWidth - margin - qrSize;
+doc.addImage(qrData.data, 'PNG', qrX, yPos, qrSize, qrSize);
 ```
 
-### PDF Rendering Changes (invoicePDFGenerator.ts)
+### Notes Layout (Left of QR)
 
-The PDF header will render the letterhead text with:
-- Font size: 9pt for consistent, compact display
-- Line spacing: 5pt between lines
-- Position: Top-left aligned starting at margin
-- Format: Split by newlines and render each line sequentially
+The default notes will be rendered in a column to the left of the QR code:
+- Max width: `pageWidth - margin * 2 - qrSize - 10` (leaving 10pt gap)
+- Position: Left margin
+- Font: 9pt normal
 
-### Default Text for Singapore
+### Footer Text Logic
 
-```text
-GAONHAE TAEKWONDO | T18LL1687K
-271 Bukit Timah Road #02-08 Singapore 259708
-www.gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com
+```typescript
+// Get footer text from template or use fallback
+const footerText = invoice.template?.footer_text?.trim() 
+  || 'Thank you for your business!';
+doc.text(footerText, pageWidth / 2, footerY, { align: 'center' });
 ```
 
 ---
@@ -96,19 +145,20 @@ www.gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com
 
 | File | Changes |
 |------|---------|
-| `src/components/sales/InvoiceTemplateList.tsx` | Change Input to Textarea, update label, add default for SG |
-| `src/utils/invoicePDFGenerator.ts` | Render letterhead as text instead of image |
+| `src/components/sales/InvoiceManagementList.tsx` | Add `default_notes`, `footer_text` to template query and data |
+| `src/utils/invoicePDFGenerator.ts` | Update interface, QR positioning, notes layout, footer text |
 
 ---
 
-## Database Considerations
+## Visual Summary
 
-No database schema changes required - the `letterhead_url` column is already of type `text` which can store multi-line content. Existing data (if any URLs) will still work since the PDF generator will have fallback logic.
+Before:
+- "Scan to Pay" header above QR
+- QR code on left (40x40)
+- Hardcoded "Thank you for your business!"
 
----
-
-## Backward Compatibility
-
-- Existing templates with image URLs will show the raw URL text in the PDF header (which is acceptable since they'll need to be updated to the new format)
-- The PDF fallback logic for empty/invalid letterhead will continue to work
-- Templates can be gradually updated by superadmins to use the new text format
+After:
+- No header above QR
+- QR code on right (42x42)
+- Template default notes on left
+- Template footer text (with fallback)
