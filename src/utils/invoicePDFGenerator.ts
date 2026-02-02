@@ -99,8 +99,18 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
-  // Render letterhead text (multi-line company info)
+  // Load and add logo
+  const logoData = await loadImage('/images/company-logo.jpg');
+  const logoWidth = 18;
+  const logoHeight = 18;
+  
+  if (logoData) {
+    doc.addImage(logoData, 'JPEG', margin, yPos, logoWidth, logoHeight);
+  }
+  
+  // Render letterhead text (multi-line company info) to the right of logo
   const letterheadText = invoice.template?.letterhead_url;
+  const textStartX = margin + (logoData ? logoWidth + 5 : 0); // Offset if logo exists
   
   if (letterheadText && letterheadText.trim()) {
     // Render letterhead as multi-line text
@@ -113,7 +123,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       if (index > 0) {
         doc.setFont('helvetica', 'normal');
       }
-      doc.text(line.trim(), margin, yPos + 5 + (index * 5));
+      doc.text(line.trim(), textStartX, yPos + 5 + (index * 5));
     });
   } else {
     // Fallback: Draw default text manually
