@@ -107,7 +107,7 @@ const LoginForm = () => {
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">Gaonhae HR</CardTitle>
               <CardDescription className="text-gray-600">
-                Singapore HR Management System
+                Employee & Student Portal
               </CardDescription>
             </div>
           </CardHeader>
