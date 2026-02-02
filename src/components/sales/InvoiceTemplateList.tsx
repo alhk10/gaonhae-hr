@@ -49,7 +49,8 @@ const InvoiceTemplateList: React.FC = () => {
     logo_url: '',
     letterhead_url: '',
     default_notes: '',
-    default_internal_notes: ''
+    default_internal_notes: '',
+    footer_text: ''
   });
 
   useEffect(() => {
@@ -80,7 +81,8 @@ const InvoiceTemplateList: React.FC = () => {
         logo_url: template.logo_url || '',
         letterhead_url: template.letterhead_url || '',
         default_notes: template.default_notes || '',
-        default_internal_notes: template.default_internal_notes || ''
+        default_internal_notes: template.default_internal_notes || '',
+        footer_text: template.footer_text || ''
       });
     } else {
       setEditingTemplate(null);
@@ -92,7 +94,8 @@ const InvoiceTemplateList: React.FC = () => {
         logo_url: '',
         letterhead_url: '',
         default_notes: '',
-        default_internal_notes: ''
+        default_internal_notes: '',
+        footer_text: ''
       });
     }
     setDialogOpen(true);
@@ -195,7 +198,8 @@ const InvoiceTemplateList: React.FC = () => {
           logo_url: formData.logo_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
-          default_internal_notes: formData.default_internal_notes
+          default_internal_notes: formData.default_internal_notes,
+          footer_text: formData.footer_text
         });
         toast.success('Template updated successfully');
       } else {
@@ -207,7 +211,8 @@ const InvoiceTemplateList: React.FC = () => {
           logo_url: formData.logo_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
-          default_internal_notes: formData.default_internal_notes
+          default_internal_notes: formData.default_internal_notes,
+          footer_text: formData.footer_text
         });
         toast.success('Template created successfully');
       }
@@ -588,6 +593,17 @@ const InvoiceTemplateList: React.FC = () => {
                 value={formData.default_internal_notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, default_internal_notes: e.target.value }))}
                 placeholder="Internal notes (not visible to customers)"
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="footer_text">Footer</Label>
+              <Textarea
+                id="footer_text"
+                value={formData.footer_text}
+                onChange={(e) => setFormData(prev => ({ ...prev, footer_text: e.target.value }))}
+                placeholder="Footer text to display at the bottom of invoices"
                 rows={2}
               />
             </div>
