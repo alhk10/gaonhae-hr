@@ -39,6 +39,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
+const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -322,6 +323,16 @@ function App() {
                       element={
                         <AuthGuard>
                           <Settings />
+                        </AuthGuard>
+                      } 
+                    />
+                    
+                    {/* Branch Dashboard Route */}
+                    <Route 
+                      path="/branch-dashboard" 
+                      element={
+                        <AuthGuard>
+                          <BranchDashboardPage />
                         </AuthGuard>
                       } 
                     />

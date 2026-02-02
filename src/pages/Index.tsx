@@ -8,14 +8,16 @@ import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import DashboardSwitcher from '@/components/dashboard/DashboardSwitcher';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
+import StudentDashboard from '@/components/dashboard/StudentDashboard';
 
 const Index = () => {
-  const { user, userrole, requiresPasswordChange, isLoading, login } = useAuth();
+  const { user, userrole, userType, requiresPasswordChange, isLoading, login } = useAuth();
 
   console.log('Index: Rendering with state:', { 
     user: !!user, 
     userEmail: user?.email,
     userrole,
+    userType,
     requiresPasswordChange, 
     isLoading 
   });
@@ -29,8 +31,8 @@ const Index = () => {
   }, []);
 
   React.useEffect(() => {
-    console.log('Index: Auth state changed:', { user: !!user, userrole, isLoading });
-  }, [user, userrole, isLoading]);
+    console.log('Index: Auth state changed:', { user: !!user, userrole, userType, isLoading });
+  }, [user, userrole, userType, isLoading]);
 
   if (isLoading) {
     console.log('Index: Showing enhanced loading state');
@@ -61,11 +63,17 @@ const Index = () => {
     );
   }
 
-  console.log('Index: User authenticated, showing dashboard for role:', userrole);
+  console.log('Index: User authenticated, showing dashboard for role:', userrole, 'type:', userType);
 
   const renderDashboard = () => {
     try {
-      console.log('Index: Starting dashboard render for role:', userrole);
+      console.log('Index: Starting dashboard render for role:', userrole, 'type:', userType);
+      
+      // Students get their own dashboard without sidebar
+      if (userType === 'student') {
+        console.log('Index: Loading StudentDashboard for student user');
+        return <StudentDashboard />;
+      }
       
       let dashboard;
       switch (userrole) {
@@ -107,6 +115,15 @@ const Index = () => {
       );
     }
   };
+
+  // Students get a simplified layout without sidebar
+  if (userType === 'student') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {renderDashboard()}
+      </div>
+    );
+  }
 
   try {
     console.log('Index: Starting ResponsiveLayout render');

@@ -28,11 +28,14 @@ const STATIC_EMPLOYEE_FALLBACKS: Record<string, any> = {
   'taysk1210@gmail.com': { id: 'EMP1763042329199', name: 'Tay Sai Kok', type: 'Casual', position: '', department: 'Main Office' },
 };
 
+export type UserType = 'employee' | 'student';
+
 export interface SessionUserData {
   id: string;
   email: string;
   name: string;
   employeeId?: string;
+  studentId?: string;
   department?: string;
   position?: string;
   role?: string;
@@ -41,6 +44,7 @@ export interface SessionUserData {
 export interface SessionResult {
   user: SessionUserData | null;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
+  userType: UserType;
   userDetails: any;
   adminAccess: any;
   pageAccess: any;
@@ -58,7 +62,27 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   logger.debug('Processing user session', { email, authUserId });
 
   try {
-    // Step 1: Get employee data (passing auth user ID for caching)
+    // Step 1: Check if user is a student first
+    const studentData = await getStudentByAuthId(authUserId);
+    if (studentData) {
+      logger.info('User is a student', { email, studentId: studentData.id });
+      return {
+        user: {
+          id: authUserId,
+          email: email,
+          name: studentData.name,
+          studentId: studentData.id,
+        },
+        userrole: null,
+        userType: 'student',
+        userDetails: studentData,
+        adminAccess: null,
+        pageAccess: null,
+        isSuperadmin: false
+      };
+    }
+
+    // Step 2: Get employee data (passing auth user ID for caching)
     let userData = await getUserData(email, authUserId).catch(() => null);
 
     // If no userData from service, try local static fallback
@@ -84,6 +108,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
             role: 'superadmin',
           },
           userrole: 'superadmin',
+          userType: 'employee',
           userDetails: null,
           adminAccess: null,
           pageAccess: null,
@@ -102,6 +127,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           employeeId: employeeData?.id
         },
         userrole: 'employee',
+        userType: 'employee',
         userDetails: employeeData || null,
         adminAccess: null,
         pageAccess: {
@@ -129,6 +155,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           position: userData.position
         },
         userrole: 'superadmin',
+        userType: 'employee',
         userDetails: userData,
         adminAccess: null,
         pageAccess: null,
@@ -164,6 +191,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         position: userData.position
       },
       userrole: hasAdminPermissions ? 'admin' : 'employee',
+      userType: 'employee',
       userDetails: userData,
       adminAccess,
       pageAccess,
@@ -187,6 +215,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           position: staticFallback.position
         },
         userrole: 'employee',
+        userType: 'employee',
         userDetails: { ...staticFallback, email },
         adminAccess: null,
         pageAccess: {
@@ -211,6 +240,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           name: email,
         },
         userrole: 'superadmin',
+        userType: 'employee',
         userDetails: null,
         adminAccess: null,
         pageAccess: null,
@@ -228,6 +258,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         employeeId: employeeData?.id
       },
       userrole: 'employee',
+      userType: 'employee',
       userDetails: employeeData || null,
       adminAccess: null,
       pageAccess: {
@@ -267,5 +298,30 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
     logger.error('Employee basic data lookup failed', error);
     // Return static fallback on error
     return STATIC_EMPLOYEE_FALLBACKS[email] || null;
+  }
+};
+
+// Get student by auth user ID
+const getStudentByAuthId = async (authUserId: string): Promise<{ id: string; name: string; email: string } | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('student_auth')
+      .select('student_id, students!inner(id, name, email)')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    const student = data.students as any;
+    return {
+      id: student.id,
+      name: student.name,
+      email: student.email || ''
+    };
+  } catch (error) {
+    logger.error('Student lookup failed', error);
+    return null;
   }
 };

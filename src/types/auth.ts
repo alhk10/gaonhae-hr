@@ -1,3 +1,4 @@
+export type UserType = 'employee' | 'student';
 
 export interface User {
   id: string;
@@ -6,6 +7,7 @@ export interface User {
   role: 'superadmin' | 'manager' | 'employee';
   department?: string;
   employeeId?: string;
+  studentId?: string;
   managerId?: string;
 }
 
@@ -17,6 +19,7 @@ export interface AuthContextType {
   requiresPasswordChange: boolean;
   updatePassword: (newPassword: string) => Promise<boolean>;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
+  userType: UserType | null;
   userDetails: any;
   adminAccess: any;
   pageAccess: any;

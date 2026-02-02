@@ -21,12 +21,14 @@ import {
   Briefcase,
   FileSpreadsheet,
   Award,
-  FileCheck
+  FileCheck,
+  Building2
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSalesModuleAccess } from '@/hooks/useSalesModuleAccess';
+import { useBranchAccess } from '@/hooks/useBranchAccess';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -39,13 +41,14 @@ import { systemValidator } from '@/utils/systemTestValidator';
 
 const Sidebar = () => {
   const authData = useAuth();
-  const { user, userrole } = authData;
+  const { user, userrole, userType } = authData;
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { hasAccess: hasSalesAccess } = useSalesModuleAccess();
+  const { accessibleBranches, hasAccess: hasBranchAccess } = useBranchAccess();
 
   // Log auth state for debugging
   logAuthState('Sidebar Component', authData);
@@ -100,8 +103,12 @@ const Sidebar = () => {
   }, [user, userrole]);
 
   const getMenuItems = useCallback((): MenuItem[] => {
-    console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email);
+    console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email, 'userType:', userType);
     
+    // Students don't see the sidebar menu (they have their own portal)
+    if (userType === 'student') {
+      return [];
+    }
     
     // Superladmin gets full admin access with validation
     if (validateSuperadminAccess(userrole, user?.email)) {
@@ -211,6 +218,12 @@ const Sidebar = () => {
       }
     }
 
+    // Add Branch Dashboard if employee has branch access
+    if (hasBranchAccess) {
+      console.log('Sidebar: Employee has branch dashboard access');
+      menuItems.push({ icon: Building2, label: 'Branch Dashboard', path: '/branch-dashboard' });
+    }
+
     // Add regular employee page access items - prioritize authData.pageAccess as it's more reliable
     const employeePageAccess = authData.pageAccess || currentEmployee?.pageAccess;
     const employeePosition = currentEmployee?.position?.toLowerCase() || '';
@@ -256,7 +269,7 @@ const Sidebar = () => {
     }
 
     return menuItems;
-  }, [userrole, currentEmployee, hasSalesAccess]);
+  }, [userrole, userType, currentEmployee, hasSalesAccess, hasBranchAccess]);
 
   const menuItems = getMenuItems();
 
