@@ -19,20 +19,18 @@ import {
   Plus, 
   MoreHorizontal,
   Eye,
-  Edit,
   Trash2,
   Send,
   DollarSign,
   Calendar,
-  FileText,
-  History
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
-import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import ViewEditInvoiceDialog from './ViewEditInvoiceDialog';
+import CreatePaymentDialog from './CreatePaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
@@ -381,34 +379,33 @@ const InvoiceManagementList: React.FC = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <InvoiceChangeLogDialog
-                            invoiceId={invoice.id}
-                            invoiceNumber={invoice.invoice_number}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Edit Invoice"
-                            disabled={!canEdit(invoice.branch_id || '')}
-                            onClick={() => {
-                              setSelectedInvoiceId(invoice.id);
-                              setDialogMode('edit');
-                              setViewDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Invoice"
-                            onClick={() => handleDeleteInvoice(invoice.id, invoice.branch_id || undefined)}
-                            disabled={!canDelete(invoice.branch_id || '')}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                            <CreatePaymentDialog
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Add Payment"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                              }
+                              preSelectedInvoiceId={invoice.id}
+                              onPaymentCreated={loadInvoices}
+                            />
+                          )}
+                          {isSuperadmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Delete Invoice"
+                              onClick={() => handleDeleteInvoice(invoice.id, invoice.branch_id || undefined)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
