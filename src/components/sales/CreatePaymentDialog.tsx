@@ -251,9 +251,6 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       { value: 'paynow', label: 'PayNow', hideFor: ['Australia'] },
       { value: 'cash', label: 'Cash', hideFor: ['Singapore'] },
       { value: 'bank_transfer', label: 'Bank Transfer', hideFor: [] },
-      { value: 'credit_card', label: 'Credit Card', hideFor: [] },
-      { value: 'digital_wallet', label: 'Digital Wallet', hideFor: [] },
-      { value: 'cheque', label: 'Cheque', hideFor: [] },
     ];
     
     return methods.filter(method => !method.hideFor.includes(selectedCountry));
