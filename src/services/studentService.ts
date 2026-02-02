@@ -430,9 +430,18 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       .eq('id', studentId)
       .single();
 
+    // Sanitize date fields - convert empty strings to null
+    const sanitizedData = { ...studentData };
+    const dateFields = ['date_of_birth', 'trial_date', 'enrollment_date', 'registered_date'];
+    for (const field of dateFields) {
+      if (field in sanitizedData && sanitizedData[field as keyof typeof sanitizedData] === '') {
+        (sanitizedData as any)[field] = null;
+      }
+    }
+
     const { data, error } = await supabase
       .from('students')
-      .update(studentData)
+      .update(sanitizedData)
       .eq('id', studentId)
       .select()
       .single();
