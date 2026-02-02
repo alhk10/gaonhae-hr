@@ -26,6 +26,8 @@ export interface InvoiceTemplate {
   branch_id?: string;
   country?: string;
   paynow_qr_url?: string;
+  logo_url?: string;
+  letterhead_url?: string;
   created_by?: string;
   updated_by?: string;
   created_at: string;
@@ -42,6 +44,8 @@ export interface CreateTemplateData {
   branch_id?: string;
   country?: string;
   paynow_qr_url?: string;
+  logo_url?: string;
+  letterhead_url?: string;
 }
 
 export interface UpdateTemplateData {
@@ -55,6 +59,8 @@ export interface UpdateTemplateData {
   branch_id?: string;
   country?: string;
   paynow_qr_url?: string;
+  logo_url?: string;
+  letterhead_url?: string;
 }
 
 /**
@@ -133,6 +139,8 @@ export const createInvoiceTemplate = async (templateData: CreateTemplateData): P
         branch_id: templateData.branch_id,
         country: templateData.country || 'SG',
         paynow_qr_url: templateData.paynow_qr_url,
+        logo_url: templateData.logo_url,
+        letterhead_url: templateData.letterhead_url,
         is_active: true
       }])
       .select()
