@@ -818,11 +818,13 @@ export async function getTrials(
  */
 export async function convertTrialToStudent(studentId: string): Promise<Student> {
   try {
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('students')
       .update({ 
         status: 'active',
-        enrollment_date: new Date().toISOString().split('T')[0],
+        enrollment_date: today,
+        registered_date: today,
         updated_at: new Date().toISOString()
       })
       .eq('id', studentId)
