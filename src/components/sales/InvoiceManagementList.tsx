@@ -485,12 +485,7 @@ const InvoiceManagementList: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Invoice Management</h2>
-          <p className="text-muted-foreground">
-            Create and manage student invoices
-          </p>
-        </div>
+        <h2 className="text-2xl font-bold text-foreground">Invoice Management</h2>
         <div className="flex gap-2">
           <Button variant="outline" disabled>
             <Download className="w-4 h-4 mr-2" />
@@ -512,11 +507,7 @@ const InvoiceManagementList: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-          <CardDescription>Search and filter invoices</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -596,12 +587,6 @@ const InvoiceManagementList: React.FC = () => {
 
       {/* Invoice Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>
-            {totalInvoices} total invoice(s)
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           {loading ? (
             <div className="space-y-4">
