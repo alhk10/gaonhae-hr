@@ -1612,6 +1612,7 @@ export type Database = {
       invoice_templates: {
         Row: {
           branch_id: string | null
+          country: string | null
           created_at: string
           created_by: string | null
           default_internal_notes: string | null
@@ -1621,12 +1622,14 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          paynow_qr_url: string | null
           template_items: Json | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           branch_id?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           default_internal_notes?: string | null
@@ -1636,12 +1639,14 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          paynow_qr_url?: string | null
           template_items?: Json | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           branch_id?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           default_internal_notes?: string | null
@@ -1651,6 +1656,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          paynow_qr_url?: string | null
           template_items?: Json | null
           updated_at?: string
           updated_by?: string | null
