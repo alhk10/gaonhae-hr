@@ -1,0 +1,321 @@
+import jsPDF from 'jspdf';
+import { format } from 'date-fns';
+
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+  tax_rate: number;
+  tax_amount: number;
+}
+
+export interface InvoiceData {
+  id: string;
+  invoice_number: string;
+  issue_date: string | null;
+  due_date: string | null;
+  subtotal: number;
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  amount_paid: number;
+  balance_due: number;
+  notes: string | null;
+  status: string | null;
+  student?: {
+    name: string;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    whatsapp?: string | null;
+  };
+  items?: InvoiceItem[];
+  branch?: {
+    name: string;
+    address?: string;
+  };
+}
+
+const COMPANY_INFO = {
+  name: 'GAONHAE TAEKWONDO LLP',
+  address: 'Singapore',
+  phone: '+65 9XXX XXXX',
+  email: 'info@gaonhae.com',
+  uen: 'T24LL0001A'
+};
+
+const loadCompanyLogo = (): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = '/images/company-logo.jpg';
+  });
+};
+
+const formatCurrency = (amount: number): string => {
+  return `$${amount.toFixed(2)}`;
+};
+
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return '-';
+  try {
+    return format(new Date(dateString), 'dd MMM yyyy');
+  } catch {
+    return dateString;
+  }
+};
+
+export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  let yPos = 20;
+
+  // Load and add company logo
+  const logoData = await loadCompanyLogo();
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
+  }
+
+  // Company header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
+  doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
+
+  // Invoice title on the right
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
+
+  yPos += 40;
+
+  // Draw a line
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+
+  // Invoice details section
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Invoice Number:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(invoice.invoice_number, margin + 35, yPos);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Issue Date:', pageWidth - margin - 60, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatDate(invoice.issue_date), pageWidth - margin - 25, yPos);
+
+  yPos += 7;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Status:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(invoice.status || 'Draft', margin + 35, yPos);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Due Date:', pageWidth - margin - 60, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatDate(invoice.due_date), pageWidth - margin - 25, yPos);
+
+  yPos += 15;
+
+  // Bill To section
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Bill To:', margin, yPos);
+  yPos += 7;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  if (invoice.student) {
+    doc.text(invoice.student.name, margin, yPos);
+    yPos += 5;
+    if (invoice.student.address) {
+      doc.text(invoice.student.address, margin, yPos);
+      yPos += 5;
+    }
+    if (invoice.student.phone) {
+      doc.text(`Phone: ${invoice.student.phone}`, margin, yPos);
+      yPos += 5;
+    }
+    if (invoice.student.email) {
+      doc.text(`Email: ${invoice.student.email}`, margin, yPos);
+      yPos += 5;
+    }
+  }
+
+  yPos += 10;
+
+  // Items table header
+  const tableStartY = yPos;
+  const colWidths = {
+    description: 80,
+    qty: 20,
+    price: 30,
+    tax: 25,
+    total: 35
+  };
+  
+  // Table header background
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, yPos - 5, pageWidth - margin * 2, 10, 'F');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Description', margin + 2, yPos);
+  doc.text('Qty', margin + colWidths.description, yPos, { align: 'center' });
+  doc.text('Unit Price', margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
+  doc.text('Tax', margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+  doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
+
+  yPos += 8;
+
+  // Table rows
+  doc.setFont('helvetica', 'normal');
+  if (invoice.items && invoice.items.length > 0) {
+    invoice.items.forEach((item) => {
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.text(item.description.substring(0, 45), margin + 2, yPos);
+      doc.text(item.quantity.toString(), margin + colWidths.description, yPos, { align: 'center' });
+      doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
+      doc.text(`${item.tax_rate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+      doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
+      
+      yPos += 7;
+    });
+  } else {
+    doc.text('No items', margin + 2, yPos);
+    yPos += 7;
+  }
+
+  // Draw line after items
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+
+  // Totals section (aligned right)
+  const totalsX = pageWidth - margin - 80;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text('Subtotal:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
+  yPos += 6;
+
+  doc.text('Tax:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
+  yPos += 6;
+
+  if (invoice.discount_amount > 0) {
+    doc.text('Discount:', totalsX, yPos);
+    doc.text(`-${formatCurrency(invoice.discount_amount)}`, pageWidth - margin - 2, yPos, { align: 'right' });
+    yPos += 6;
+  }
+
+  // Total line
+  doc.setDrawColor(100, 100, 100);
+  doc.line(totalsX - 5, yPos - 2, pageWidth - margin, yPos - 2);
+  yPos += 4;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Total:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Amount Paid:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.amount_paid), pageWidth - margin - 2, yPos, { align: 'right' });
+  yPos += 6;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Balance Due:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.balance_due), pageWidth - margin - 2, yPos, { align: 'right' });
+
+  yPos += 20;
+
+  // Notes section
+  if (invoice.notes) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Notes:', margin, yPos);
+    yPos += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    // Word wrap notes
+    const splitNotes = doc.splitTextToSize(invoice.notes, pageWidth - margin * 2);
+    doc.text(splitNotes, margin, yPos);
+  }
+
+  // Footer
+  const footerY = doc.internal.pageSize.getHeight() - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(128, 128, 128);
+  doc.text('Thank you for your business!', pageWidth / 2, footerY, { align: 'center' });
+  doc.text(`Generated on ${format(new Date(), 'dd MMM yyyy HH:mm')}`, pageWidth / 2, footerY + 5, { align: 'center' });
+
+  return doc;
+};
+
+export const downloadInvoicePDF = async (invoice: InvoiceData): Promise<void> => {
+  const doc = await generateInvoicePDF(invoice);
+  doc.save(`Invoice_${invoice.invoice_number}.pdf`);
+};
+
+export const getInvoicePDFBlob = async (invoice: InvoiceData): Promise<Blob> => {
+  const doc = await generateInvoicePDF(invoice);
+  return doc.output('blob');
+};
+
+export const getInvoicePDFBase64 = async (invoice: InvoiceData): Promise<string> => {
+  const doc = await generateInvoicePDF(invoice);
+  return doc.output('datauristring').split(',')[1];
+};
+
+export const shareInvoiceViaWhatsApp = async (
+  invoice: InvoiceData,
+  whatsappNumber: string
+): Promise<void> => {
+  // First download the PDF
+  await downloadInvoicePDF(invoice);
+  
+  // Clean the phone number (remove spaces, dashes, etc.)
+  const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
+  
+  // Prepare the message
+  const message = encodeURIComponent(
+    `Hello! Here is your invoice ${invoice.invoice_number} for ${formatCurrency(invoice.total_amount)}. ` +
+    `Balance due: ${formatCurrency(invoice.balance_due)}. Please find the PDF attachment.`
+  );
+  
+  // Open WhatsApp Web
+  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+};

@@ -7,7 +7,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { CalendarDays, Phone, Mail, MapPin, Award, Clock } from 'lucide-react';
+import { CalendarDays, Phone, Mail, MapPin, Award, Clock, MessageCircle } from 'lucide-react';
 import { Student } from '@/services/studentService';
 import { format } from 'date-fns';
 
@@ -93,6 +93,13 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Phone className="w-4 h-4" />
                   <span>{student.phone}</span>
+                </div>
+              )}
+              
+              {student.whatsapp && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{student.whatsapp}</span>
                 </div>
               )}
               

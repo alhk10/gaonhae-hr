@@ -22,8 +22,12 @@ import {
 } from 'lucide-react';
 import { getInvoiceStats } from '@/services/invoiceService';
 import { getPaymentStats, type PaymentStats } from '@/services/paymentService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const InvoiceManagement: React.FC = () => {
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
+  
   const [invoiceStats, setInvoiceStats] = useState({
     totalInvoices: 0,
     totalRevenue: 0,
@@ -153,10 +157,12 @@ const InvoiceManagement: React.FC = () => {
                 <CreditCard className="h-4 w-4" />
                 Payments
               </TabsTrigger>
-              <TabsTrigger value="templates" className="flex items-center gap-2">
-                <FileStack className="h-4 w-4" />
-                Templates
-              </TabsTrigger>
+              {isSuperadmin && (
+                <TabsTrigger value="templates" className="flex items-center gap-2">
+                  <FileStack className="h-4 w-4" />
+                  Templates
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="invoices">
@@ -167,9 +173,11 @@ const InvoiceManagement: React.FC = () => {
               <PaymentManagementList />
             </TabsContent>
 
-            <TabsContent value="templates">
-              <InvoiceTemplateList />
-            </TabsContent>
+            {isSuperadmin && (
+              <TabsContent value="templates">
+                <InvoiceTemplateList />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </ResponsiveLayout>
