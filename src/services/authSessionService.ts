@@ -304,11 +304,18 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
 // Get student by auth user ID
 const getStudentByAuthId = async (authUserId: string): Promise<{ id: string; name: string; email: string } | null> => {
   try {
-    const { data, error } = await supabase
+    // Add timeout to prevent hanging
+    const lookupPromise = supabase
       .from('student_auth')
-      .select('student_id, students!inner(id, name, email)')
+      .select('student_id, students!inner(id, first_name, last_name, email)')
       .eq('auth_user_id', authUserId)
       .maybeSingle();
+    
+    const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'Student auth lookup timeout' } }), 2000)
+    );
+    
+    const { data, error } = await Promise.race([lookupPromise, timeout]);
     
     if (error || !data) {
       return null;
@@ -317,7 +324,7 @@ const getStudentByAuthId = async (authUserId: string): Promise<{ id: string; nam
     const student = data.students as any;
     return {
       id: student.id,
-      name: student.name,
+      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
       email: student.email || ''
     };
   } catch (error) {
