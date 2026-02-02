@@ -3,7 +3,7 @@
  * Form for recording new payments against invoices
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { createPayment, type CreatePaymentData } from '@/services/paymentService';
 import { getInvoices } from '@/services/invoiceService';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
+import { Loader2, Search, FileText, DollarSign, Upload, X } from 'lucide-react';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
@@ -44,6 +44,9 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const [searchingInvoices, setSearchingInvoices] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     invoice_id: preSelectedInvoiceId || '',
     amount: '',
@@ -141,13 +144,37 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
     setLoading(true);
     try {
+      let proofUrl = formData.proof_of_payment_url;
+      
+      // Upload proof file if selected
+      if (proofFile) {
+        setUploadingProof(true);
+        const fileExt = proofFile.name.split('.').pop();
+        const fileName = `${formData.invoice_id}/${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(fileName, proofFile);
+        
+        if (uploadError) {
+          throw new Error(`Failed to upload proof: ${uploadError.message}`);
+        }
+        
+        const { data: urlData } = supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(fileName);
+        
+        proofUrl = urlData.publicUrl;
+        setUploadingProof(false);
+      }
+      
       const paymentData: CreatePaymentData = {
         invoice_id: formData.invoice_id,
         amount: parseFloat(formData.amount),
         payment_date: formData.payment_date,
         payment_method: formData.payment_method,
         reference_number: formData.reference_number || undefined,
-        proof_of_payment_url: formData.proof_of_payment_url || undefined,
+        proof_of_payment_url: proofUrl || undefined,
         notes: formData.notes || undefined
       };
 
@@ -162,6 +189,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       toast.error(error instanceof Error ? error.message : 'Failed to record payment');
     } finally {
       setLoading(false);
+      setUploadingProof(false);
     }
   };
 
@@ -176,6 +204,27 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       notes: ''
     });
     setSearchQuery('');
+    setProofFile(null);
+  };
+
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      setProofFile(file);
+    }
+  };
+
+  const removeFile = () => {
+    setProofFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -221,6 +270,13 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       }
     }
   }, [selectedInvoice?.id, isSingapore, paymentMethods]);
+
+  // Default amount to invoice balance when invoice is selected
+  useEffect(() => {
+    if (selectedInvoice && !formData.amount) {
+      handleInputChange('amount', selectedInvoice.balance_due.toString());
+    }
+  }, [selectedInvoice?.id]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -382,14 +438,45 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="proof_of_payment_url">Proof of Payment URL</Label>
-              <Input
-                id="proof_of_payment_url"
-                type="url"
-                value={formData.proof_of_payment_url}
-                onChange={(e) => handleInputChange('proof_of_payment_url', e.target.value)}
-                placeholder="https://..."
-              />
+              <Label>Proof of Payment</Label>
+              <div className="space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="proof-upload"
+                />
+                {proofFile ? (
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm truncate">{proofFile.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={removeFile}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Proof of Payment
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Accepted formats: Images, PDF (max 5MB)
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -413,9 +500,9 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !formData.invoice_id || !formData.amount}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Record Payment
+            <Button type="submit" disabled={loading || uploadingProof || !formData.invoice_id || !formData.amount}>
+              {(loading || uploadingProof) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {uploadingProof ? 'Uploading...' : 'Record Payment'}
             </Button>
           </DialogFooter>
         </form>
