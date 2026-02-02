@@ -362,17 +362,11 @@ const InvoiceTemplateList: React.FC = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Edit Template' : 'Create Template'}
             </DialogTitle>
-            <DialogDescription>
-              {editingTemplate 
-                ? 'Update the template details below' 
-                : 'Create a new invoice template with default settings'
-              }
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
