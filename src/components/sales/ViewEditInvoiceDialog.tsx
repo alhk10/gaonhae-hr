@@ -18,9 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { getInvoiceById, updateInvoiceStatus, type Invoice, type InvoiceItem } from '@/services/invoiceService';
 import { getPaymentsByInvoice, type Payment } from '@/services/paymentService';
+import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2 } from 'lucide-react';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 
@@ -50,6 +51,12 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     due_date: '',
     status: '' as Invoice['status']
   });
+  
+  // Delete request dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -116,6 +123,30 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       toast.error('Failed to update invoice');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenDeleteDialog = (payment: Payment) => {
+    setPaymentToDelete(payment);
+    setDeleteReason('');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSubmitDeleteRequest = async () => {
+    if (!paymentToDelete) return;
+    
+    try {
+      setIsSubmittingDelete(true);
+      await createDeletionRequest(paymentToDelete.id, deleteReason || undefined);
+      toast.success('Deletion request submitted for superadmin approval');
+      setDeleteDialogOpen(false);
+      setPaymentToDelete(null);
+      setDeleteReason('');
+    } catch (error) {
+      console.error('Error submitting deletion request:', error);
+      toast.error('Failed to submit deletion request');
+    } finally {
+      setIsSubmittingDelete(false);
     }
   };
 
@@ -414,6 +445,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                       <TableHead>Method</TableHead>
                       <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -431,6 +463,17 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatCurrency(payment.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            title="Request Delete"
+                            onClick={() => handleOpenDeleteDialog(payment)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -469,6 +512,58 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           </DialogFooter>
         )}
       </DialogContent>
+
+      {/* Delete Request Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Payment Deletion</DialogTitle>
+            <DialogDescription>
+              This deletion request will be sent to a superadmin for approval.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {paymentToDelete && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Payment #:</span>
+                  <span className="font-medium">{paymentToDelete.payment_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-medium text-green-600">{formatCurrency(paymentToDelete.amount)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
+                <Textarea
+                  id="delete-reason"
+                  placeholder="Please provide a reason for this deletion request..."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleSubmitDeleteRequest}
+              disabled={isSubmittingDelete}
+            >
+              {isSubmittingDelete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
