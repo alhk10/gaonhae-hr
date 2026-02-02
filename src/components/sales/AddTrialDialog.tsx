@@ -81,6 +81,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     // Contact Information
     phone: '',
     email: '',
+    whatsapp: '',
     
     // Emergency Contact
     emergency_contact_name: '',
@@ -120,6 +121,13 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
         }
       }
       
+      // Auto-update whatsapp when phone changes
+      if (field === 'phone') {
+        if (!prev.whatsapp || prev.whatsapp === prev.phone) {
+          updated.whatsapp = value;
+        }
+      }
+      
       return updated;
     });
   };
@@ -137,6 +145,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       current_belt: '',
       phone: '',
       email: '',
+      whatsapp: '',
       emergency_contact_name: '',
       emergency_contact_phone: '',
       emergency_contact_relationship: '',
@@ -371,6 +380,15 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     placeholder="email@example.com"
                   />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input
+                  id="whatsapp"
+                  value={formData.whatsapp}
+                  onChange={(e) => handleInputChange('whatsapp', e.target.value)}
+                  placeholder="+65 9123 4567"
+                />
               </div>
             </CardContent>
           </Card>
