@@ -2241,6 +2241,50 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_deletion_requests: {
+        Row: {
+          created_at: string
+          id: string
+          payment_id: string
+          reason: string | null
+          requested_by: string
+          requested_by_email: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_id: string
+          reason?: string | null
+          requested_by: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_id?: string
+          reason?: string | null
+          requested_by?: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_deletion_requests_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           created_at: string | null
