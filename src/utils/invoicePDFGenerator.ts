@@ -59,7 +59,13 @@ const COMPANY_INFO = {
   uen: 'T24LL0001A'
 };
 
-const loadImage = (url: string): Promise<string | null> => {
+interface LoadedImage {
+  data: string;
+  width: number;
+  height: number;
+}
+
+const loadImage = (url: string): Promise<LoadedImage | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -70,7 +76,11 @@ const loadImage = (url: string): Promise<string | null> => {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
+        resolve({
+          data: canvas.toDataURL('image/png'),
+          width: img.width,
+          height: img.height
+        });
       } else {
         resolve(null);
       }
@@ -99,18 +109,23 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
-  // Load and add logo
-  const logoData = await loadImage('/images/company-logo.jpg');
-  const logoWidth = 18;
-  const logoHeight = 18;
+  // Load and add logo with proper aspect ratio
+  const logoResult = await loadImage('/images/company-logo.jpg');
+  const targetLogoHeight = 18; // Fixed height, width calculated to maintain aspect ratio
+  let logoWidth = 0;
+  let logoHeight = 0;
   
-  if (logoData) {
-    doc.addImage(logoData, 'JPEG', margin, yPos, logoWidth, logoHeight);
+  if (logoResult) {
+    // Calculate width to maintain aspect ratio
+    const aspectRatio = logoResult.width / logoResult.height;
+    logoHeight = targetLogoHeight;
+    logoWidth = targetLogoHeight * aspectRatio;
+    doc.addImage(logoResult.data, 'JPEG', margin, yPos, logoWidth, logoHeight);
   }
   
   // Render letterhead text (multi-line company info) to the right of logo
   const letterheadText = invoice.template?.letterhead_url;
-  const textStartX = margin + (logoData ? logoWidth + 5 : 0); // Offset if logo exists
+  const textStartX = margin + (logoResult ? logoWidth + 5 : 0); // Offset if logo exists
   
   if (letterheadText && letterheadText.trim()) {
     // Render letterhead as multi-line text
@@ -352,7 +367,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       yPos += 5;
       
       // Add QR code image
-      doc.addImage(qrData, 'PNG', margin, yPos, 40, 40);
+      doc.addImage(qrData.data, 'PNG', margin, yPos, 40, 40);
       yPos += 50;
     }
   }
