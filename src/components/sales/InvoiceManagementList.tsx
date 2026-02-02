@@ -54,10 +54,12 @@ import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 const InvoiceManagementList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [students, setStudents] = useState<Array<{id: string, name: string}>>([]);
+  const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [studentFilter, setStudentFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const { accessibleBranches, isSuperadmin, canEdit, canDelete, canCreate, hasAccess } = useInvoiceAccess();
   
@@ -90,7 +92,8 @@ const InvoiceManagementList: React.FC = () => {
   useEffect(() => {
     loadInvoices();
     loadStudents();
-  }, [currentPage, searchQuery, statusFilter, studentFilter]);
+    loadBranches();
+  }, [currentPage, searchQuery, statusFilter, studentFilter, branchFilter]);
 
   const loadStudents = async () => {
     try {
@@ -98,6 +101,17 @@ const InvoiceManagementList: React.FC = () => {
       setStudents(response.students.map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` })));
     } catch (error) {
       console.error('Error loading students:', error);
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const { data } = await supabase.from('branches').select('id, name').order('name');
+      if (data) {
+        setBranches(data.map(b => ({ id: b.id, name: b.name })));
+      }
+    } catch (error) {
+      console.error('Error loading branches:', error);
     }
   };
 
@@ -119,6 +133,11 @@ const InvoiceManagementList: React.FC = () => {
         filteredInvoices = response.invoices.filter(
           inv => inv.branch_id && accessibleBranchIds.includes(inv.branch_id)
         );
+      }
+      
+      // Apply branch filter if selected
+      if (branchFilter && branchFilter !== 'all') {
+        filteredInvoices = filteredInvoices.filter(inv => inv.branch_id === branchFilter);
       }
       
       setInvoices(filteredInvoices);
@@ -487,12 +506,7 @@ const InvoiceManagementList: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Invoice Management</h2>
-          <p className="text-muted-foreground">
-            Create and manage student invoices
-          </p>
-        </div>
+        <h2 className="text-2xl font-bold text-foreground">Invoice Management</h2>
         <div className="flex gap-2">
           <Button variant="outline" disabled>
             <Download className="w-4 h-4 mr-2" />
@@ -514,11 +528,7 @@ const InvoiceManagementList: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-          <CardDescription>Search and filter invoices</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -533,7 +543,7 @@ const InvoiceManagementList: React.FC = () => {
             </div>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-full md:w-40">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -545,8 +555,22 @@ const InvoiceManagementList: React.FC = () => {
               </SelectContent>
             </Select>
 
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-full md:w-40">
+                <SelectValue placeholder="All Branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={studentFilter} onValueChange={setStudentFilter}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-full md:w-40">
                 <SelectValue placeholder="All Students" />
               </SelectTrigger>
               <SelectContent>
@@ -564,6 +588,7 @@ const InvoiceManagementList: React.FC = () => {
               onClick={() => {
                 setSearchQuery('');
                 setStatusFilter('all');
+                setBranchFilter('all');
                 setStudentFilter('all');
               }}
             >

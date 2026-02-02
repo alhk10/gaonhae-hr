@@ -75,12 +75,7 @@ const InvoiceManagement: React.FC = () => {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Invoices & Payments</h1>
-              <p className="text-muted-foreground">
-                Manage invoices, payments, and templates
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold text-foreground">Invoices & Payments</h1>
           </div>
 
           {/* Quick Stats */}
