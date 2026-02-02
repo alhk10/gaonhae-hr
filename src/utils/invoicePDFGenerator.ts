@@ -18,7 +18,6 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceTemplate {
-  logo_url?: string;
   letterhead_url?: string;
   paynow_qr_url?: string;
   country?: string;
@@ -81,12 +80,6 @@ const loadImage = (url: string): Promise<string | null> => {
   });
 };
 
-const loadCompanyLogo = (templateLogoUrl?: string): Promise<string | null> => {
-  // Use template logo if provided, otherwise use default
-  const logoUrl = templateLogoUrl || '/images/company-logo.jpg';
-  return loadImage(logoUrl);
-};
-
 const formatCurrency = (amount: number): string => {
   return `$${amount.toFixed(2)}`;
 };
@@ -115,21 +108,15 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Use full letterhead image - spans left side of header
     doc.addImage(letterheadData, 'PNG', margin, yPos, 80, 20);
   } else {
-    // Fallback: Load logo and draw text manually
-    const logoData = await loadCompanyLogo(invoice.template?.logo_url);
-    if (logoData) {
-      doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
-    }
-
-    // Company header
+    // Fallback: Draw text manually (no logo)
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
+    doc.text(COMPANY_INFO.name, margin, yPos + 8);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
-    doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
+    doc.text(COMPANY_INFO.address, margin, yPos + 15);
+    doc.text(`UEN: ${COMPANY_INFO.uen}`, margin, yPos + 21);
   }
 
   // Invoice title on the right
