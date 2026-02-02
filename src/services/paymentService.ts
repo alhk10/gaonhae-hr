@@ -349,27 +349,40 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
       throw new Error(`Failed to delete payment: ${deleteError.message}`);
     }
 
-    // Update invoice balance
+    // Update invoice balance - recalculate from actual remaining payments for accuracy
+    const { data: remainingPayments } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('invoice_id', payment.invoice_id);
+
+    const actualAmountPaid = (remainingPayments || []).reduce(
+      (sum, p) => sum + Number(p.amount), 0
+    );
+
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .select('total_amount, amount_paid, balance_due')
+      .select('total_amount')
       .eq('id', payment.invoice_id)
       .single();
 
     if (invoice && !invoiceError) {
-      const newAmountPaid = Math.max(0, invoice.amount_paid - payment.amount);
-      const newBalanceDue = invoice.total_amount - newAmountPaid;
+      const newBalanceDue = invoice.total_amount - actualAmountPaid;
       const newStatus = newBalanceDue > 0 ? 'unpaid' : 'paid';
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('invoices')
         .update({
-          amount_paid: newAmountPaid,
+          amount_paid: actualAmountPaid,
           balance_due: newBalanceDue,
           status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', payment.invoice_id);
+
+      if (updateError) {
+        logger.error('Failed to update invoice after payment deletion', updateError);
+        throw new Error(`Failed to update invoice: ${updateError.message}`);
+      }
     }
 
     // Log the payment removal

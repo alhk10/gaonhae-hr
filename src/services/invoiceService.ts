@@ -6,13 +6,18 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
-import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE } from '@/config/constants';
+import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
   const percentage = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
   return percentage / 100;
+};
+
+// Check if tax is included in price for a country (e.g., Australia = true, Singapore = false)
+const getIsTaxIncludedForCountry = (country: string | null): boolean => {
+  return country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
 };
 
 export interface Invoice {
@@ -237,15 +242,26 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     }
     
     const taxRate = getTaxRateForCountry(branchCountry);
+    const isTaxIncluded = getIsTaxIncludedForCountry(branchCountry);
     
-    // Calculate totals
+    // Calculate totals based on tax inclusion setting
     let subtotal = 0;
     let taxAmount = 0;
     
     for (const item of invoiceData.items) {
-      const itemTotal = item.quantity * item.unit_price;
-      subtotal += itemTotal;
-      taxAmount += itemTotal * taxRate;
+      const itemPrice = item.quantity * item.unit_price;
+      
+      if (isTaxIncluded) {
+        // Tax-inclusive (e.g., Australia): price already includes tax
+        const itemSubtotal = itemPrice / (1 + taxRate);
+        const itemTax = itemPrice - itemSubtotal;
+        subtotal += itemSubtotal;
+        taxAmount += itemTax;
+      } else {
+        // Tax-exclusive (e.g., Singapore): add tax on top
+        subtotal += itemPrice;
+        taxAmount += itemPrice * taxRate;
+      }
     }
     
     const totalAmount = subtotal + taxAmount;
@@ -286,10 +302,25 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       throw new Error(`Failed to create invoice: ${invoiceError.message}`);
     }
 
-    // Create invoice items
+    // Create invoice items with proper tax calculation
     const itemsToInsert = invoiceData.items.map(item => {
-      const itemTotal = item.quantity * item.unit_price;
-      const itemTaxAmount = itemTotal * taxRate;
+      const itemPrice = item.quantity * item.unit_price;
+      
+      let itemSubtotal: number;
+      let itemTaxAmount: number;
+      let itemTotal: number;
+      
+      if (isTaxIncluded) {
+        // Tax-inclusive: price is the total, calculate backwards
+        itemTotal = itemPrice;
+        itemSubtotal = itemPrice / (1 + taxRate);
+        itemTaxAmount = itemPrice - itemSubtotal;
+      } else {
+        // Tax-exclusive: add tax on top
+        itemSubtotal = itemPrice;
+        itemTaxAmount = itemPrice * taxRate;
+        itemTotal = itemSubtotal + itemTaxAmount;
+      }
       
       return {
         invoice_id: invoice.id,
@@ -299,7 +330,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         unit_price: item.unit_price,
         tax_rate: taxRate,
         tax_amount: itemTaxAmount,
-        total_amount: itemTotal + itemTaxAmount,
+        total_amount: itemTotal,
         size_variant: item.size_variant,
         metadata: item.metadata
       };
