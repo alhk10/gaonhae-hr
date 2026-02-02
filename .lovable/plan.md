@@ -1,13 +1,33 @@
 
-
-# Change Invoice Template Fields and PDF Integration
+# Fix Invoice Status and PDF Generation Issues
 
 ## Overview
-This change modifies the invoice template management to:
-1. **Change Country Letterhead from file upload to text field** - Users will enter a URL manually instead of uploading
-2. **Remove the Logo field entirely** - No longer needed
-3. **Remove the Description field** - Simplify the template form
-4. **Update PDF generation** - Ensure all fields work correctly with the new approach
+This plan addresses two main issues:
+1. **Invoice status not updating after payment deletion** - Status remains "Paid" even when payments are deleted
+2. **PDF generation issues** - Wrong tax rate display and letterhead not loading for Australia invoices
+
+---
+
+## Issues Identified
+
+### Issue 1: Payment Deletion Status Bug
+| Location | Problem |
+|----------|---------|
+| `src/services/paymentService.ts` line 362 | Sets status to `'sent'` when balance is due after payment deletion |
+| Impact | Invoice shows "Paid" even though no payments exist |
+| Fix | Change `'sent'` to `'unpaid'` |
+
+### Issue 2: Tax Rate Display Bug
+| Location | Problem |
+|----------|---------|
+| `src/utils/invoicePDFGenerator.ts` line 240 | Displays `tax_rate` directly with `%` sign |
+| Impact | Shows "0.1%" instead of "10%" for Australia invoices |
+| Fix | Multiply by 100 for display: `(item.tax_rate * 100).toFixed(1)%` |
+
+### Issue 3: Letterhead Not Loading (Investigation Needed)
+| Symptom | PDF shows fallback text header instead of Australia letterhead |
+| Possible Causes | CORS issues, URL not loading, or template not matched correctly |
+| Data Check | Australia template URL exists: `letterhead-1770010766036.png` |
 
 ---
 
@@ -15,191 +35,111 @@ This change modifies the invoice template management to:
 
 | File | Changes |
 |------|---------|
-| `src/components/sales/InvoiceTemplateList.tsx` | Remove logo upload UI, change letterhead to text input, remove description field |
-| `src/utils/invoicePDFGenerator.ts` | Remove logo fallback logic since logo field is removed |
-| `src/services/invoiceTemplateService.ts` | Update interfaces to make logo_url optional/unused |
-| `src/components/sales/InvoiceManagementList.tsx` | Remove logo_url from template query |
+| `src/services/paymentService.ts` | Change status from `'sent'` to `'unpaid'` on payment deletion |
+| `src/utils/invoicePDFGenerator.ts` | Fix tax rate display (multiply by 100), add debug logging for letterhead |
 
 ---
 
-## 1. InvoiceTemplateList.tsx Changes
+## Implementation Details
 
-### Remove from state and form:
-- Remove `logo_url` from formData
-- Remove `logoFileInputRef` ref
-- Change `letterhead_url` from image upload to text input
-- Remove `description` field entirely
+### 1. Fix Payment Deletion Status (paymentService.ts)
 
-### Remove from UploadType:
-```text
-Before: type UploadType = 'qr' | 'logo' | 'letterhead';
-After:  type UploadType = 'qr';
+**Line 362 - Current code:**
+```typescript
+const newStatus = newBalanceDue > 0 ? 'sent' : 'paid';
 ```
 
-### Remove logo upload UI section:
-- Delete entire logo upload section (lines 414-464)
-- Delete `logoFileInputRef` ref declaration
-- Remove logo from `handleUploadImage` field mapping
-- Remove logo from `handleRemoveImage` field mapping
-- Remove logo icon indicator from table row
-
-### Change letterhead section:
-```text
-Before: File upload with preview
-After:  Simple text input for URL
+**Change to:**
+```typescript
+const newStatus = newBalanceDue > 0 ? 'unpaid' : 'paid';
 ```
 
-### Remove description field:
-- Delete the Description textarea section
-- Remove from formData initialization
-- Remove from handleOpenDialog
-- Remove from handleSave
-
-### Remove from table display:
-- Remove Description column from templates table header
-- Remove Description cell from table rows
+This ensures that when a payment is deleted and balance is due, the invoice correctly shows as "Unpaid".
 
 ---
 
-## 2. PDF Generator Changes
+### 2. Fix Tax Rate Display (invoicePDFGenerator.ts)
 
-### Update header rendering logic:
-Since logo is being removed, simplify the fallback:
-
-```text
-Before:
-- Try letterhead_url -> if exists, use it
-- Else try logo_url -> if exists, draw logo + manual text
-- Else draw only manual text
-
-After:
-- Try letterhead_url -> if exists, use it
-- Else draw only manual text (no logo)
+**Line 240 - Current code:**
+```typescript
+doc.text(`${item.tax_rate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
 ```
 
-### Remove logo-related code:
-- Remove `loadCompanyLogo` function
-- Remove logo fallback in header section
-- Simplify the else branch to just draw text
+**Change to:**
+```typescript
+const displayTaxRate = (item.tax_rate * 100).toFixed(1);
+doc.text(`${displayTaxRate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+```
+
+This converts the decimal tax rate (0.1) to a percentage (10.0%) for proper display.
 
 ---
 
-## 3. InvoiceManagementList.tsx Changes
+### 3. Debug Letterhead Loading
 
-### Update template query:
-```text
-Before: .select('logo_url, letterhead_url, paynow_qr_url, country')
-After:  .select('letterhead_url, paynow_qr_url, country')
+Add console logging to help diagnose why letterhead isn't loading:
+
+**In the PDF generator, before the letterhead conditional:**
+```typescript
+console.log('PDF Generation - Template:', {
+  letterhead_url: invoice.template?.letterhead_url,
+  country: invoice.template?.country
+});
+
+const letterheadData = invoice.template?.letterhead_url 
+  ? await loadImage(invoice.template.letterhead_url) 
+  : null;
+
+console.log('PDF Generation - Letterhead loaded:', !!letterheadData);
 ```
 
-### Update template object construction:
-```text
-Before: 
-template: {
-  logo_url: template.logo_url || undefined,
-  letterhead_url: template.letterhead_url || undefined,
-  ...
-}
-
-After:
-template: {
-  letterhead_url: template.letterhead_url || undefined,
-  ...
-}
-```
+If the letterhead URL is correct but not loading, this may indicate a CORS or storage access issue.
 
 ---
 
-## 4. Service Layer Changes
+## Data Fix Required
 
-### invoiceTemplateService.ts:
-- Remove `logo_url` from save/update operations
-- Keep in interface for backward compatibility (won't break existing data)
+Mingyu's invoice (INV-2026-00001) needs a status correction:
+- Current: `status = 'paid'`, `amount_paid = 352.00`, `balance_due = 0.00`
+- After payment deletion: Should be `status = 'unpaid'`, `amount_paid = 0.00`, `balance_due = 352.00`
 
-### invoicePDFGenerator.ts interface:
-```text
-Before:
-export interface InvoiceTemplate {
-  logo_url?: string;
-  letterhead_url?: string;
-  paynow_qr_url?: string;
-  country?: string;
-}
+The database shows:
+- No payments exist for this invoice (payments table query returned empty)
+- But `amount_paid = 352.00` and `status = 'paid'`
 
-After:
-export interface InvoiceTemplate {
-  letterhead_url?: string;
-  paynow_qr_url?: string;
-  country?: string;
-}
-```
+This indicates the payment deletion didn't properly update the invoice. After fixing the code, you may need to manually correct this invoice's status and amounts in the database.
 
 ---
 
-## 5. UI Changes Summary
+## Technical Summary
 
-### Create/Edit Template Dialog
-
-**Before:**
-```text
-| Template Name *         |
-| Description             |
-| Country                 |
-| [Logo Upload]           |
-| [Letterhead Upload]     |
-| [PayNow QR Upload]      |
-| Default Notes           |
-| Internal Notes          |
-| Footer                  |
-```
-
-**After:**
-```text
-| Template Name *         |
-| Country                 |
-| Country Letterhead URL  | <-- Text input
-| [PayNow QR Upload]      |
-| Default Notes           |
-| Internal Notes          |
-| Footer                  |
-```
-
-### Templates Table
-
-**Before:**
-| Name | Description | Country | Status | Created | Actions |
-
-**After:**
-| Name | Country | Status | Created | Actions |
+| Change | File | Line | Before | After |
+|--------|------|------|--------|-------|
+| Status on payment delete | `paymentService.ts` | 362 | `'sent'` | `'unpaid'` |
+| Tax rate display | `invoicePDFGenerator.ts` | 240 | `item.tax_rate%` | `(item.tax_rate * 100).toFixed(1)%` |
+| Debug logging | `invoicePDFGenerator.ts` | 102 | (none) | Add console.log for template data |
 
 ---
 
-## 6. Database Notes
+## Expected Outcome
 
-- The `logo_url` and `description` columns will remain in the database for backward compatibility
-- Existing data will not be deleted from the database
-- The UI simply stops using/displaying these fields
-- Existing images in storage will remain (can be manually cleaned later if needed)
+After implementation:
+1. Deleting a payment will correctly update invoice status to "Unpaid"
+2. PDF invoices will display tax rates correctly (10% instead of 0.1%)
+3. Console logs will help diagnose the letterhead loading issue
 
 ---
 
-## 7. Implementation Order
+## Manual Database Fix for Mingyu's Invoice
 
-1. Update `InvoiceTemplateList.tsx`:
-   - Remove logo upload UI and refs
-   - Change letterhead to text input
-   - Remove description field
-   - Update form state and handlers
-   - Remove description column from table
+Since the payment was already deleted without the fix, run this SQL to correct the invoice:
 
-2. Update `invoicePDFGenerator.ts`:
-   - Remove logo_url from interface
-   - Remove loadCompanyLogo function
-   - Simplify header rendering to only use letterhead or text
-
-3. Update `InvoiceManagementList.tsx`:
-   - Remove logo_url from template query and mapping
-
-4. Update `invoiceTemplateService.ts`:
-   - Remove logo_url from create/update data interfaces
-
+```sql
+UPDATE invoices 
+SET 
+  amount_paid = 0,
+  balance_due = total_amount,
+  status = 'unpaid',
+  updated_at = NOW()
+WHERE id = '4359efa0-1a69-46e9-8e14-b53c51524750';
+```
