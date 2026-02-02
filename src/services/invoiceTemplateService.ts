@@ -24,6 +24,8 @@ export interface InvoiceTemplate {
   template_items: TemplateItem[];
   is_active: boolean;
   branch_id?: string;
+  country?: string;
+  paynow_qr_url?: string;
   created_by?: string;
   updated_by?: string;
   created_at: string;
@@ -38,6 +40,8 @@ export interface CreateTemplateData {
   default_internal_notes?: string;
   template_items?: TemplateItem[];
   branch_id?: string;
+  country?: string;
+  paynow_qr_url?: string;
 }
 
 export interface UpdateTemplateData {
@@ -49,6 +53,8 @@ export interface UpdateTemplateData {
   template_items?: TemplateItem[];
   is_active?: boolean;
   branch_id?: string;
+  country?: string;
+  paynow_qr_url?: string;
 }
 
 /**
@@ -125,6 +131,8 @@ export const createInvoiceTemplate = async (templateData: CreateTemplateData): P
         default_internal_notes: templateData.default_internal_notes,
         template_items: JSON.parse(JSON.stringify(templateData.template_items || [])),
         branch_id: templateData.branch_id,
+        country: templateData.country || 'SG',
+        paynow_qr_url: templateData.paynow_qr_url,
         is_active: true
       }])
       .select()
