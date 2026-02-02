@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Plus, Calendar, Edit, Trash2, GraduationCap, Clock, AlertCircle, X } from 'lucide-react';
+import { Plus, Calendar, Edit, Trash2, GraduationCap, Clock, AlertCircle, X, Copy } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import { useBranches } from '@/hooks/useBranches';
 import {
@@ -251,6 +251,27 @@ export function TermCalendarManagement() {
     }
   };
 
+  const handleDuplicateTerm = (term: Term) => {
+    // Pre-fill form with term data for duplication
+    setEditingTerm(null); // Not editing, creating new
+    setTermForm({
+      branch_id: term.branch_id,
+      year: term.year?.toString() || new Date().getFullYear().toString(),
+      term_number: term.term_number?.toString() || '1',
+      name: `${term.name} (Copy)`,
+      start_date: term.start_date,
+      end_date: term.end_date,
+      grace_days: term.grace_days?.toString() || '7',
+      is_active: term.is_active,
+    });
+    // Copy breaks but without IDs so they get created as new
+    setTempBreaks((term.breaks || []).map(b => ({
+      ...b,
+      id: '', // Empty ID = new break
+    })));
+    setTermDialogOpen(true);
+  };
+
   const openBreakDialog = () => {
     setBreakForm(initialBreakForm);
     setBreakDialogOpen(true);
@@ -424,6 +445,9 @@ export function TermCalendarManagement() {
                       </div>
                       
                       <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleDuplicateTerm(term)} title="Duplicate">
+                          <Copy className="w-4 h-4" />
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => openEditDialog(term)}>
                           <Edit className="w-4 h-4" />
                         </Button>
