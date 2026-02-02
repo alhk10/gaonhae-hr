@@ -38,11 +38,18 @@ interface AttendanceRecord {
   clock_out_location?: string;
 }
 
-const EmployeeDashboard = () => {
+interface EmployeeDashboardProps {
+  simulatedEmployeeId?: string;
+}
+
+const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployeeId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  
+  // Use simulated employee ID if provided (for superadmin viewing as employee)
+  const effectiveEmployeeId = simulatedEmployeeId || user?.employeeId;
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
@@ -57,24 +64,26 @@ const EmployeeDashboard = () => {
     fetchAttendanceData();
     fetchEmployeeData();
     checkSlotBooking();
-    checkLocationOnLoad();
-  }, [user?.employeeId]);
+    if (!simulatedEmployeeId) {
+      checkLocationOnLoad();
+    }
+  }, [effectiveEmployeeId]);
 
   useEffect(() => {
     if (attendanceData.length >= 0) {
       checkClockStatus();
     }
-  }, [attendanceData, user?.employeeId]);
+  }, [attendanceData, effectiveEmployeeId]);
 
   const checkLocationOnLoad = async () => {
-    if (!user?.employeeId) return;
+    if (!effectiveEmployeeId) return;
     
     setIsCheckingLocation(true);
     setLocationError('');
     
     try {
-      console.log('Dashboard: Starting location check for user:', user.employeeId);
-      const locationCheck = await isWithinBranchRange(3000, user.employeeId);
+      console.log('Dashboard: Starting location check for user:', effectiveEmployeeId);
+      const locationCheck = await isWithinBranchRange(3000, effectiveEmployeeId);
       console.log('Dashboard: Location check result:', locationCheck);
       
       setLocationCheckPassed(locationCheck.withinRange);
@@ -101,13 +110,13 @@ const EmployeeDashboard = () => {
   };
 
   const fetchAttendanceData = async () => {
-    if (!user?.employeeId) return;
+    if (!effectiveEmployeeId) return;
     
     try {
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
-        .eq('employee_id', user.employeeId)
+        .eq('employee_id', effectiveEmployeeId)
         .order('date', { ascending: false });
 
       if (error) {
@@ -121,12 +130,12 @@ const EmployeeDashboard = () => {
   };
 
   const checkClockStatus = async () => {
-    if (!user?.employeeId) return;
+    if (!effectiveEmployeeId) return;
 
     const today = new Date().toISOString().split('T')[0];
     
     try {
-      const supabaseStatus = await getClockInOutStatus(user.employeeId);
+      const supabaseStatus = await getClockInOutStatus(effectiveEmployeeId);
       console.log('Dashboard: Supabase clock status:', supabaseStatus);
       
       const todayRecord = attendanceData.find(record => record.date === today);
@@ -165,10 +174,10 @@ const EmployeeDashboard = () => {
   };
 
   const fetchEmployeeData = async () => {
-    if (!user?.employeeId) return;
+    if (!effectiveEmployeeId) return;
     
     try {
-      const employee = await getEmployeeById(user.employeeId);
+      const employee = await getEmployeeById(effectiveEmployeeId);
       if (employee) {
         setEmployeeData(employee);
         console.log('Dashboard: Employee type:', employee.type);
@@ -179,14 +188,14 @@ const EmployeeDashboard = () => {
   };
 
   const checkSlotBooking = async () => {
-    if (!user?.employeeId) return;
+    if (!effectiveEmployeeId) return;
     
     try {
       const today = new Date().toISOString().split('T')[0];
-      const allSlotBookings = await getEmployeeSlotBookings(user.employeeId);
+      const allSlotBookings = await getEmployeeSlotBookings(effectiveEmployeeId);
       
       const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 
-        booking.employeeId === user.employeeId && 
+        booking.employeeId === effectiveEmployeeId && 
         booking.date === today && 
         booking.status === 'approved'
       );
@@ -200,9 +209,9 @@ const EmployeeDashboard = () => {
   };
 
   const { data: employeeClaims = [], error: claimsError } = useQuery({
-    queryKey: ['employee-claims', user?.employeeId],
-    queryFn: () => getEmployeeClaims(user?.employeeId || ''),
-    enabled: !!user?.employeeId,
+    queryKey: ['employee-claims', effectiveEmployeeId],
+    queryFn: () => getEmployeeClaims(effectiveEmployeeId || ''),
+    enabled: !!effectiveEmployeeId,
     retry: 3,
     staleTime: 5 * 60 * 1000,
   });
@@ -213,11 +222,11 @@ const EmployeeDashboard = () => {
   });
 
   const calculateLeaveBalance = () => {
-    if (!user?.employeeId || employeeData?.type === 'Casual') return { remaining: 0 };
+    if (!effectiveEmployeeId || employeeData?.type === 'Casual') return { remaining: 0 };
     
     const currentYear = new Date().getFullYear();
     const employeeLeaves = allLeaveRequests.filter(leave => 
-      leave.employeeId === user.employeeId && 
+      leave.employeeId === effectiveEmployeeId && 
       new Date(leave.startDate).getFullYear() === currentYear && 
       leave.status === 'Approved'
     );
@@ -267,7 +276,7 @@ const EmployeeDashboard = () => {
   ];
 
   const handleClockInOut = async () => {
-    if (!user?.employeeId) {
+    if (!effectiveEmployeeId) {
       toast.error("Employee ID not found. Please contact administrator.");
       return;
     }
@@ -276,7 +285,7 @@ const EmployeeDashboard = () => {
     if (!locationCheckPassed) {
       setIsCheckingLocation(true);
       try {
-        const locationCheck = await isWithinBranchRange(3000, user.employeeId);
+        const locationCheck = await isWithinBranchRange(3000, effectiveEmployeeId);
         if (!locationCheck.withinRange && !locationCheck.hasException) {
           toast.error(
             `You must be within 3000m of a branch to clock in/out. ` +

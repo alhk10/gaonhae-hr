@@ -5,7 +5,7 @@ import LoginForm from '@/components/auth/LoginForm';
 import LoggedOutPage from '@/components/auth/LoggedOutPage';
 import PasswordChangeModal from '@/components/auth/PasswordChangeModal';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import SuperadminDashboard from '@/components/dashboard/SuperadminDashboard';
+import DashboardSwitcher from '@/components/dashboard/DashboardSwitcher';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 
@@ -70,8 +70,8 @@ const Index = () => {
       let dashboard;
       switch (userrole) {
         case 'superadmin':
-          console.log('Index: Loading SuperadminDashboard');
-          dashboard = <SuperadminDashboard />;
+          console.log('Index: Loading DashboardSwitcher for superadmin');
+          dashboard = <DashboardSwitcher />;
           break;
         case 'admin':
           console.log('Index: Loading ManagerDashboard');
