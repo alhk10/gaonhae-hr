@@ -106,21 +106,31 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
-  // Load and add company logo (from template or default)
-  const logoData = await loadCompanyLogo(invoice.template?.logo_url);
-  if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
-  }
+  // Try to load letterhead first (includes logo + company info as pre-designed image)
+  const letterheadData = invoice.template?.letterhead_url 
+    ? await loadImage(invoice.template.letterhead_url) 
+    : null;
 
-  // Company header
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
-  doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
+  if (letterheadData) {
+    // Use full letterhead image - spans left side of header
+    doc.addImage(letterheadData, 'PNG', margin, yPos, 80, 20);
+  } else {
+    // Fallback: Load logo and draw text manually
+    const logoData = await loadCompanyLogo(invoice.template?.logo_url);
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
+    }
+
+    // Company header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
+    doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
+  }
 
   // Invoice title on the right
   doc.setFontSize(24);
