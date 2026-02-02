@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Edit,
   Save,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,17 +25,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StudentDashboardProps {
   studentId?: string;
   isSimulated?: boolean;
 }
 
-const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId, isSimulated = false }) => {
+const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStudentId, isSimulated = false }) => {
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Record<string, any>>({});
+
+  // Use prop studentId or get from current user
+  const studentId = propStudentId || user?.studentId;
 
   // Fetch student data
   const { data: student, isLoading: studentLoading } = useQuery({
@@ -171,8 +177,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId, isSimula
     );
   }
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -183,9 +193,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId, isSimula
             Manage your profile, view invoices, and track your progress
           </p>
         </div>
-        {isSimulated && (
-          <Badge variant="outline">Viewing as Admin</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {isSimulated && (
+            <Badge variant="outline">Viewing as Admin</Badge>
+          )}
+          {!isSimulated && (
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pending Changes Alert */}

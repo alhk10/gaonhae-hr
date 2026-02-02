@@ -3,7 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { processUserSession } from '@/services/authSessionService';
-import { AuthContextType } from '@/types/auth';
+import { AuthContextType, UserType } from '@/types/auth';
 import { logger } from '@/utils/logger';
 import { clearAuthCache } from '@/services/authCacheService';
 
@@ -11,6 +11,7 @@ import { clearAuthCache } from '@/services/authCacheService';
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userrole: null,
+  userType: null,
   userDetails: null,
   adminAccess: null,
   pageAccess: null,
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [userrole, setUserrole] = useState<'employee' | 'admin' | 'superadmin' | null>(null);
+  const [userType, setUserType] = useState<UserType | null>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
   const [adminAccess, setAdminAccess] = useState<any>(null);
   const [pageAccess, setPageAccess] = useState<any>(null);
@@ -39,6 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!result) {
       setUser(null);
       setUserrole(null);
+      setUserType(null);
       setUserDetails(null);
       setAdminAccess(null);
       setPageAccess(null);
@@ -48,6 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     setUser(result.user);
     setUserrole(result.userrole);
+    setUserType(result.userType);
     setUserDetails(result.userDetails);
     setAdminAccess(result.adminAccess);
     setPageAccess(result.pageAccess);
@@ -231,6 +235,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value: AuthContextType = {
     user,
     userrole,
+    userType,
     userDetails,
     adminAccess,
     pageAccess,

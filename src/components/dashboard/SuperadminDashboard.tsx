@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, FileText, Clock, Calendar, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, FileText, Clock, Calendar, Trash2, Building2, GraduationCap, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
+import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
 import PaymentDeletionApprovals from './PaymentDeletionApprovals';
@@ -48,8 +50,17 @@ const SuperadminDashboard = () => {
     refetchInterval: 60 * 1000, // Refetch every minute
   });
 
+  // Load pending student update requests count
+  const { data: pendingStudentUpdates } = useQuery({
+    queryKey: ['pending-student-updates'],
+    queryFn: getAllPendingRequests,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
   // Total pending deletions (payments + invoices)
   const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount;
+  const pendingStudentUpdatesCount = Array.isArray(pendingStudentUpdates) ? pendingStudentUpdates.length : 0;
 
   useEffect(() => {
     const calculatePayrollDue = () => {
@@ -82,6 +93,12 @@ const SuperadminDashboard = () => {
       value: totalPendingDeletions.toString(), 
       icon: Trash2, 
       color: totalPendingDeletions > 0 ? 'bg-red-500' : 'bg-gray-500' 
+    },
+    { 
+      title: 'Student Updates', 
+      value: pendingStudentUpdatesCount.toString(), 
+      icon: GraduationCap, 
+      color: pendingStudentUpdatesCount > 0 ? 'bg-purple-500' : 'bg-gray-500' 
     },
     { 
       title: 'Payroll Due', 
@@ -118,7 +135,7 @@ const SuperadminDashboard = () => {
         <p className="text-gray-600">Complete oversight of HR operations</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {statsConfig.map((stat) => (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
@@ -139,6 +156,21 @@ const SuperadminDashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Pending Student Updates Alert */}
+      {pendingStudentUpdatesCount > 0 && (
+        <Card className="border-purple-200 bg-purple-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-purple-600" />
+              <p className="text-purple-800">
+                <strong>{pendingStudentUpdatesCount}</strong> student profile update{pendingStudentUpdatesCount > 1 ? 's' : ''} pending approval. 
+                View in Branch Dashboard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -188,8 +220,8 @@ const SuperadminDashboard = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div>
-                  <p className="font-medium text-green-900">December 2024</p>
-                  <p className="text-sm text-green-700">System operational</p>
+                  <p className="font-medium text-green-900">System Operational</p>
+                  <p className="text-sm text-green-700">All services running</p>
                 </div>
                 <Badge className="bg-green-100 text-green-800">Active</Badge>
               </div>
