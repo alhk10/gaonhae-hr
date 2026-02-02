@@ -113,7 +113,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   // Load and add logo with proper aspect ratio
   const logoResult = await loadImage('/images/company-logo.jpg');
-  const targetLogoHeight = 18; // Fixed height, width calculated to maintain aspect ratio
+  const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
   
