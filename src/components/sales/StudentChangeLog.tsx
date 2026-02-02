@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, User, Calendar, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { StudentChangeLog as ChangeLogType, formatFieldName, formatAction } from '@/services/studentChangeLogService';
+import { formatBeltLevel } from '@/constants/beltLevels';
 
 interface StudentChangeLogProps {
   changeLogs: ChangeLogType[];
@@ -55,12 +56,16 @@ export const StudentChangeLog: React.FC<StudentChangeLogProps> = ({ changeLogs, 
     }
   };
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: any, fieldName?: string): string => {
     if (value === null || value === undefined || value === '') {
       return '(empty)';
     }
     if (Array.isArray(value)) {
       return value.join(', ') || '(empty)';
+    }
+    // Format belt level values (handle legacy hyphenated values)
+    if (fieldName === 'current_belt') {
+      return formatBeltLevel(String(value));
     }
     return String(value);
   };
@@ -79,9 +84,9 @@ export const StudentChangeLog: React.FC<StudentChangeLogProps> = ({ changeLogs, 
           {changeEntries.map(([field, change]: [string, any]) => (
             <div key={field} className="text-xs text-muted-foreground flex items-start gap-1 flex-wrap">
               <span className="font-medium text-foreground">{formatFieldName(field)}:</span>
-              <span className="text-destructive/70 line-through">{formatValue(change.old)}</span>
+              <span className="text-destructive/70 line-through">{formatValue(change.old, field)}</span>
               <ArrowRight className="w-3 h-3 flex-shrink-0 mt-0.5" />
-              <span className="text-primary">{formatValue(change.new)}</span>
+              <span className="text-primary">{formatValue(change.new, field)}</span>
             </div>
           ))}
         </div>

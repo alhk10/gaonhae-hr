@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
+import { BELT_LEVELS, formatBeltLevel } from '@/constants/beltLevels';
 
 interface EditStudentDialogProps {
   trigger: React.ReactNode;
@@ -47,14 +48,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     'Tagalog', 'French', 'German', 'Spanish', 'Arabic', 'Russian'
   ];
 
-  // Belt progression system
-  const beltLevels = [
-    'Foundation 1', 'Foundation 2', 'Foundation 3',
-    'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
-    'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-    'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
-    'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
-  ];
+  // Belt progression system - using shared constants from @/constants/beltLevels
 
   // Referral source options
   const referralSourceOptions = [
@@ -138,7 +132,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         emergency_contact_2_name: (student as any).emergency_contact_2_name || '',
         emergency_contact_2_phone: (student as any).emergency_contact_2_phone || '',
         emergency_contact_2_relationship: (student as any).emergency_contact_2_relationship || '',
-        current_belt: student.current_belt || '',
+        current_belt: formatBeltLevel(student.current_belt) || '',
         previous_experience: student.previous_experience || '',
         training_goals: student.training_goals || '',
         medical_conditions: student.medical_conditions || '',
@@ -565,8 +559,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                       <SelectValue placeholder="Select belt level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {beltLevels.map((belt) => (
-                        <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
+                      {BELT_LEVELS.map((belt) => (
+                        <SelectItem key={belt} value={belt}>
                           {belt}
                         </SelectItem>
                       ))}
