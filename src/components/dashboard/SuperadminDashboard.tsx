@@ -6,9 +6,11 @@ import { Users, FileText, Clock, Calendar, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
+import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
 import PaymentDeletionApprovals from './PaymentDeletionApprovals';
+import InvoiceDeletionApprovals from './InvoiceDeletionApprovals';
 
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
@@ -30,13 +32,24 @@ const SuperadminDashboard = () => {
     enabled: !!dashboardStats, // Only load after stats are loaded
   });
 
-  // Load pending deletion requests count
-  const { data: pendingDeletionsCount = 0 } = useQuery({
+  // Load pending payment deletion requests count
+  const { data: pendingPaymentDeletionsCount = 0 } = useQuery({
     queryKey: ['pending-deletion-count'],
     queryFn: getPendingDeletionRequestsCount,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Refetch every minute
   });
+
+  // Load pending invoice deletion requests count
+  const { data: pendingInvoiceDeletionsCount = 0 } = useQuery({
+    queryKey: ['pending-invoice-deletion-count'],
+    queryFn: getPendingInvoiceDeletionRequestsCount,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+  });
+
+  // Total pending deletions (payments + invoices)
+  const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount;
 
   useEffect(() => {
     const calculatePayrollDue = () => {
@@ -66,9 +79,9 @@ const SuperadminDashboard = () => {
     },
     { 
       title: 'Pending Deletions', 
-      value: pendingDeletionsCount.toString(), 
+      value: totalPendingDeletions.toString(), 
       icon: Trash2, 
-      color: pendingDeletionsCount > 0 ? 'bg-red-500' : 'bg-gray-500' 
+      color: totalPendingDeletions > 0 ? 'bg-red-500' : 'bg-gray-500' 
     },
     { 
       title: 'Payroll Due', 
@@ -192,8 +205,13 @@ const SuperadminDashboard = () => {
       </div>
 
       {/* Payment Deletion Approvals */}
-      {pendingDeletionsCount > 0 && (
+      {pendingPaymentDeletionsCount > 0 && (
         <PaymentDeletionApprovals />
+      )}
+
+      {/* Invoice Deletion Approvals */}
+      {pendingInvoiceDeletionsCount > 0 && (
+        <InvoiceDeletionApprovals />
       )}
 
       {/* Class Weekly Planner */}

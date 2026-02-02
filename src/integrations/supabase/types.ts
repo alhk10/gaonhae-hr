@@ -1496,6 +1496,50 @@ export type Database = {
           },
         ]
       }
+      invoice_deletion_requests: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          reason: string | null
+          requested_by: string
+          requested_by_email: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          reason?: string | null
+          requested_by: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          reason?: string | null
+          requested_by?: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_deletion_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string
