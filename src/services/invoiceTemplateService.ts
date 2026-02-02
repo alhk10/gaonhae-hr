@@ -21,6 +21,7 @@ export interface InvoiceTemplate {
   default_payment_terms_days: number;
   default_notes?: string;
   default_internal_notes?: string;
+  footer_text?: string;
   template_items: TemplateItem[];
   is_active: boolean;
   branch_id?: string;
@@ -40,6 +41,7 @@ export interface CreateTemplateData {
   default_payment_terms_days?: number;
   default_notes?: string;
   default_internal_notes?: string;
+  footer_text?: string;
   template_items?: TemplateItem[];
   branch_id?: string;
   country?: string;
@@ -54,6 +56,7 @@ export interface UpdateTemplateData {
   default_payment_terms_days?: number;
   default_notes?: string;
   default_internal_notes?: string;
+  footer_text?: string;
   template_items?: TemplateItem[];
   is_active?: boolean;
   branch_id?: string;
@@ -135,6 +138,7 @@ export const createInvoiceTemplate = async (templateData: CreateTemplateData): P
         default_payment_terms_days: templateData.default_payment_terms_days || 30,
         default_notes: templateData.default_notes,
         default_internal_notes: templateData.default_internal_notes,
+        footer_text: templateData.footer_text,
         template_items: JSON.parse(JSON.stringify(templateData.template_items || [])),
         branch_id: templateData.branch_id,
         country: templateData.country || 'SG',

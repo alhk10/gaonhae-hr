@@ -151,7 +151,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('Status:', margin, yPos);
   doc.setFont('helvetica', 'normal');
-  doc.text(invoice.status || 'Draft', margin + 35, yPos);
+  // Capitalize first letter of status
+  const statusText = invoice.status ? invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1) : 'Draft';
+  doc.text(statusText, margin + 35, yPos);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Due Date:', pageWidth - margin - 60, yPos);
@@ -231,20 +233,20 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       
       yPos += 6;
 
-      // Add term info if available (gray, smaller text)
-      if (item.term_info) {
-        doc.setFontSize(8);
+      // Add grading info if available (gray, smaller text - 9pt)
+      if (item.grading_info) {
+        doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
-        doc.text(`  ${item.term_info}`, margin + 2, yPos);
+        doc.text(`  Grading: ${item.grading_info}`, margin + 2, yPos);
         doc.setTextColor(0, 0, 0);
         yPos += 5;
       }
 
-      // Add grading info if available (gray, smaller text)
-      if (item.grading_info) {
-        doc.setFontSize(8);
+      // Add term info if available (gray, smaller text - 9pt)
+      if (item.term_info) {
+        doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
-        doc.text(`  Grading: ${item.grading_info}`, margin + 2, yPos);
+        doc.text(`  ${item.term_info}`, margin + 2, yPos);
         doc.setTextColor(0, 0, 0);
         yPos += 5;
       }

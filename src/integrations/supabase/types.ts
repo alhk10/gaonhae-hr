@@ -1619,6 +1619,7 @@ export type Database = {
           default_notes: string | null
           default_payment_terms_days: number | null
           description: string | null
+          footer_text: string | null
           id: string
           is_active: boolean | null
           letterhead_url: string | null
@@ -1638,6 +1639,7 @@ export type Database = {
           default_notes?: string | null
           default_payment_terms_days?: number | null
           description?: string | null
+          footer_text?: string | null
           id?: string
           is_active?: boolean | null
           letterhead_url?: string | null
@@ -1657,6 +1659,7 @@ export type Database = {
           default_notes?: string | null
           default_payment_terms_days?: number | null
           description?: string | null
+          footer_text?: string | null
           id?: string
           is_active?: boolean | null
           letterhead_url?: string | null
