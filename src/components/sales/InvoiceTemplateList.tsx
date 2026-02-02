@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,14 +22,14 @@ import {
   deleteInvoiceTemplate,
   type InvoiceTemplate 
 } from '@/services/invoiceTemplateService';
-import { Plus, Edit, Trash2, FileText, Loader2, Upload, X, QrCode, Image } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Loader2, Upload, X, QrCode } from 'lucide-react';
 
 const COUNTRY_OPTIONS = [
   { value: 'SG', label: 'Singapore' },
   { value: 'AU', label: 'Australia' }
 ];
 
-type UploadType = 'qr' | 'logo' | 'letterhead';
+type UploadType = 'qr';
 
 const InvoiceTemplateList: React.FC = () => {
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([]);
@@ -39,14 +39,10 @@ const InvoiceTemplateList: React.FC = () => {
   const [uploadingType, setUploadingType] = useState<UploadType | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<InvoiceTemplate | null>(null);
   const qrFileInputRef = useRef<HTMLInputElement>(null);
-  const logoFileInputRef = useRef<HTMLInputElement>(null);
-  const letterheadFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     country: 'SG',
     paynow_qr_url: '',
-    logo_url: '',
     letterhead_url: '',
     default_notes: '',
     default_internal_notes: '',
@@ -75,10 +71,8 @@ const InvoiceTemplateList: React.FC = () => {
       setEditingTemplate(template);
       setFormData({
         name: template.name,
-        description: template.description || '',
         country: template.country || 'SG',
         paynow_qr_url: template.paynow_qr_url || '',
-        logo_url: template.logo_url || '',
         letterhead_url: template.letterhead_url || '',
         default_notes: template.default_notes || '',
         default_internal_notes: template.default_internal_notes || '',
@@ -88,10 +82,8 @@ const InvoiceTemplateList: React.FC = () => {
       setEditingTemplate(null);
       setFormData({
         name: '',
-        description: '',
         country: 'SG',
         paynow_qr_url: '',
-        logo_url: '',
         letterhead_url: '',
         default_notes: '',
         default_internal_notes: '',
@@ -132,40 +124,19 @@ const InvoiceTemplateList: React.FC = () => {
         .from('invoice-qr-codes')
         .getPublicUrl(fileName);
 
-      const fieldMap: Record<UploadType, string> = {
-        qr: 'paynow_qr_url',
-        logo: 'logo_url',
-        letterhead: 'letterhead_url'
-      };
-
-      setFormData(prev => ({ ...prev, [fieldMap[type]]: publicUrl }));
-      
-      const labelMap: Record<UploadType, string> = {
-        qr: 'QR code',
-        logo: 'Logo',
-        letterhead: 'Letterhead'
-      };
-      toast.success(`${labelMap[type]} uploaded successfully`);
+      setFormData(prev => ({ ...prev, paynow_qr_url: publicUrl }));
+      toast.success('QR code uploaded successfully');
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
       toast.error(`Failed to upload ${type}`);
     } finally {
       setUploadingType(null);
-      // Reset file inputs
       if (qrFileInputRef.current) qrFileInputRef.current.value = '';
-      if (logoFileInputRef.current) logoFileInputRef.current.value = '';
-      if (letterheadFileInputRef.current) letterheadFileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveImage = async (type: UploadType) => {
-    const fieldMap: Record<UploadType, keyof typeof formData> = {
-      qr: 'paynow_qr_url',
-      logo: 'logo_url',
-      letterhead: 'letterhead_url'
-    };
-    
-    const url = formData[fieldMap[type]];
+  const handleRemoveQR = async () => {
+    const url = formData.paynow_qr_url;
     if (url) {
       try {
         const urlParts = url.split('/');
@@ -175,10 +146,10 @@ const InvoiceTemplateList: React.FC = () => {
           .from('invoice-qr-codes')
           .remove([fileName]);
       } catch (error) {
-        console.error(`Error deleting ${type}:`, error);
+        console.error('Error deleting QR:', error);
       }
     }
-    setFormData(prev => ({ ...prev, [fieldMap[type]]: '' }));
+    setFormData(prev => ({ ...prev, paynow_qr_url: '' }));
   };
 
   const handleSave = async () => {
@@ -192,10 +163,8 @@ const InvoiceTemplateList: React.FC = () => {
       if (editingTemplate) {
         await updateInvoiceTemplate(editingTemplate.id, {
           name: formData.name,
-          description: formData.description,
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
-          logo_url: formData.logo_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
@@ -205,10 +174,8 @@ const InvoiceTemplateList: React.FC = () => {
       } else {
         await createInvoiceTemplate({
           name: formData.name,
-          description: formData.description,
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
-          logo_url: formData.logo_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
@@ -295,7 +262,6 @@ const InvoiceTemplateList: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
                   <TableHead>Country</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -308,20 +274,12 @@ const InvoiceTemplateList: React.FC = () => {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {template.name}
-                        {template.logo_url && (
-                          <span title="Has Logo">
-                            <Image className="h-4 w-4 text-muted-foreground" />
-                          </span>
-                        )}
                         {template.paynow_qr_url && (
                           <span title="Has PayNow QR">
                             <QrCode className="h-4 w-4 text-muted-foreground" />
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {template.description || '-'}
                     </TableCell>
                     <TableCell>{getCountryLabel(template.country)}</TableCell>
                     <TableCell>
@@ -381,17 +339,6 @@ const InvoiceTemplateList: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Optional description for this template"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
               <Select
                 value={formData.country}
@@ -410,110 +357,15 @@ const InvoiceTemplateList: React.FC = () => {
               </Select>
             </div>
 
-            {/* Logo Upload */}
+            {/* Country Letterhead URL */}
             <div className="space-y-2">
-              <Label>Logo</Label>
-              <input
-                ref={logoFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleUploadImage(e, 'logo')}
+              <Label htmlFor="letterhead_url">Country Letterhead URL</Label>
+              <Input
+                id="letterhead_url"
+                value={formData.letterhead_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, letterhead_url: e.target.value }))}
+                placeholder="https://example.com/letterhead.png"
               />
-              {formData.logo_url ? (
-                <div className="flex items-center gap-4 p-3 border rounded-md">
-                  <img
-                    src={formData.logo_url}
-                    alt="Logo"
-                    className="w-16 h-16 object-contain border rounded"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Logo uploaded</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveImage('logo')}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => logoFileInputRef.current?.click()}
-                  disabled={uploadingType === 'logo'}
-                >
-                  {uploadingType === 'logo' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Logo
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-
-            {/* Country Letterhead Upload */}
-            <div className="space-y-2">
-              <Label>Country Letterhead</Label>
-              <input
-                ref={letterheadFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleUploadImage(e, 'letterhead')}
-              />
-              {formData.letterhead_url ? (
-                <div className="flex items-center gap-4 p-3 border rounded-md">
-                  <img
-                    src={formData.letterhead_url}
-                    alt="Letterhead"
-                    className="w-20 h-16 object-contain border rounded"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Letterhead uploaded</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveImage('letterhead')}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => letterheadFileInputRef.current?.click()}
-                  disabled={uploadingType === 'letterhead'}
-                >
-                  {uploadingType === 'letterhead' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Letterhead
-                    </>
-                  )}
-                </Button>
-              )}
             </div>
 
             {/* PayNow QR Code Upload */}
@@ -540,7 +392,7 @@ const InvoiceTemplateList: React.FC = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleRemoveImage('qr')}
+                    onClick={handleRemoveQR}
                     className="text-destructive hover:text-destructive"
                   >
                     <X className="h-4 w-4" />
