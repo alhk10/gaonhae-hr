@@ -236,10 +236,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   // Items table header
   const tableStartY = yPos;
   const colWidths = {
-    description: 80,
-    qty: 20,
-    price: 30,
-    tax: 25,
+    description: 95,
+    qty: 25,
+    price: 35,
     total: 35
   };
   
@@ -251,8 +250,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('Description', margin + 2, yPos);
   doc.text('Qty', margin + colWidths.description, yPos, { align: 'center' });
-  doc.text('Unit Price', margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
-  doc.text('Tax', margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+  doc.text('Unit Price', margin + colWidths.description + colWidths.qty + 15, yPos, { align: 'right' });
   doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
 
   yPos += 8;
@@ -269,11 +267,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(item.description.substring(0, 45), margin + 2, yPos);
+      doc.text(item.description.substring(0, 50), margin + 2, yPos);
       doc.text(item.quantity.toString(), margin + colWidths.description, yPos, { align: 'center' });
-      doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
-      const displayTaxRate = (item.tax_rate * 100).toFixed(1);
-      doc.text(`${displayTaxRate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+      doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 15, yPos, { align: 'right' });
       doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
       
       yPos += 6;
