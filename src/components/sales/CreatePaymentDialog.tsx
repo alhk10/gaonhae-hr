@@ -136,6 +136,11 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       return;
     }
 
+    if (!proofFile) {
+      toast.error('Please upload proof of payment');
+      return;
+    }
+
     const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
     if (selectedInvoice && parseFloat(formData.amount) > selectedInvoice.balance_due) {
       toast.error(`Payment amount cannot exceed balance due of ${formatCurrencyValue(selectedInvoice.balance_due)}`);
@@ -435,7 +440,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label>Proof of Payment</Label>
+              <Label>Proof of Payment *</Label>
               <div className="space-y-2">
                 <input
                   ref={fileInputRef}
