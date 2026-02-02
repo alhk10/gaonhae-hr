@@ -1,118 +1,13 @@
 
 
-# Use Country Letterhead in Invoice PDF Generation
+# Change Invoice Template Fields and PDF Integration
 
 ## Overview
-This change updates the invoice PDF generator to use the template's letterhead image (which includes the logo, company name, country, and UEN in a pre-designed layout) instead of manually constructing the header from separate elements.
-
----
-
-## Current State
-
-### How it works now:
-1. The PDF generator loads `template.logo_url` and draws just the logo image
-2. Then it manually writes company text: name, country, UEN using `doc.text()`
-3. The `letterhead_url` is defined in the interface but **never used**
-
-### Template data in database:
-| Country | letterhead_url |
-|---------|----------------|
-| SG | `letterhead-1770010314926.png` |
-| AU | `letterhead-1770010766036.png` |
-
----
-
-## Proposed Change
-
-### Use letterhead image as header:
-- If `template.letterhead_url` exists: Load and display it as the header (replacing logo + text)
-- If no letterhead: Fall back to current behavior (logo + manual text)
-
-### Benefits:
-- Consistent branding with pre-designed layout
-- Country-specific letterheads automatically applied
-- No need to hardcode company info text
-
----
-
-## Implementation Details
-
-### File: `src/utils/invoicePDFGenerator.ts`
-
-#### 1. Add letterhead loading function:
-```typescript
-const loadLetterhead = (letterheadUrl?: string): Promise<string | null> => {
-  if (!letterheadUrl) return Promise.resolve(null);
-  return loadImage(letterheadUrl);
-};
-```
-
-#### 2. Update header rendering logic:
-
-**Before:**
-```typescript
-// Load and add company logo
-const logoData = await loadCompanyLogo(invoice.template?.logo_url);
-if (logoData) {
-  doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
-}
-
-// Company header (manual text)
-doc.setFontSize(16);
-doc.text(COMPANY_INFO.name, margin + 35, yPos + 8);
-doc.setFontSize(9);
-doc.text(COMPANY_INFO.address, margin + 35, yPos + 15);
-doc.text(`UEN: ${COMPANY_INFO.uen}`, margin + 35, yPos + 21);
-```
-
-**After:**
-```typescript
-// Try to load letterhead first (includes logo + company info)
-const letterheadData = await loadImage(invoice.template?.letterhead_url || '');
-
-if (letterheadData) {
-  // Use full letterhead image - spans left side of header
-  // Letterhead dimensions: approximately 100mm wide x 25mm tall
-  doc.addImage(letterheadData, 'PNG', margin, yPos, 80, 20);
-} else {
-  // Fallback: Load logo and draw text manually
-  const logoData = await loadCompanyLogo(invoice.template?.logo_url);
-  if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
-  }
-  
-  // Company header
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
-  doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
-}
-```
-
----
-
-## Layout Comparison
-
-### Current PDF Header:
-```text
-+------------------------------------------+
-|  [Logo]  GAONHAE TAEKWONDO LLP   INVOICE |
-|          Singapore                       |
-|          UEN: T24LL0001A                 |
-+------------------------------------------+
-```
-
-### New PDF Header (with letterhead):
-```text
-+------------------------------------------+
-|  [====== Letterhead Image ======] INVOICE |
-|  (Contains logo + company info)          |
-+------------------------------------------+
-```
+This change modifies the invoice template management to:
+1. **Change Country Letterhead from file upload to text field** - Users will enter a URL manually instead of uploading
+2. **Remove the Logo field entirely** - No longer needed
+3. **Remove the Description field** - Simplify the template form
+4. **Update PDF generation** - Ensure all fields work correctly with the new approach
 
 ---
 
@@ -120,17 +15,191 @@ if (letterheadData) {
 
 | File | Changes |
 |------|---------|
-| `src/utils/invoicePDFGenerator.ts` | Update header section to prioritize letterhead image over manual text rendering |
+| `src/components/sales/InvoiceTemplateList.tsx` | Remove logo upload UI, change letterhead to text input, remove description field |
+| `src/utils/invoicePDFGenerator.ts` | Remove logo fallback logic since logo field is removed |
+| `src/services/invoiceTemplateService.ts` | Update interfaces to make logo_url optional/unused |
+| `src/components/sales/InvoiceManagementList.tsx` | Remove logo_url from template query |
 
 ---
 
-## Technical Notes
+## 1. InvoiceTemplateList.tsx Changes
 
-1. **Image Sizing**: The letterhead will be rendered at approximately 80mm x 20mm to fit well in the header area while leaving space for the "INVOICE" title on the right
+### Remove from state and form:
+- Remove `logo_url` from formData
+- Remove `logoFileInputRef` ref
+- Change `letterhead_url` from image upload to text input
+- Remove `description` field entirely
 
-2. **Fallback Behavior**: If letterhead is not available, the current logo + text approach will be used as fallback
+### Remove from UploadType:
+```text
+Before: type UploadType = 'qr' | 'logo' | 'letterhead';
+After:  type UploadType = 'qr';
+```
 
-3. **Cross-Origin**: The existing `loadImage()` function already handles CORS for Supabase storage URLs
+### Remove logo upload UI section:
+- Delete entire logo upload section (lines 414-464)
+- Delete `logoFileInputRef` ref declaration
+- Remove logo from `handleUploadImage` field mapping
+- Remove logo from `handleRemoveImage` field mapping
+- Remove logo icon indicator from table row
 
-4. **yPos Adjustment**: May need slight adjustment to `yPos` increment after letterhead vs after logo+text to maintain consistent spacing
+### Change letterhead section:
+```text
+Before: File upload with preview
+After:  Simple text input for URL
+```
+
+### Remove description field:
+- Delete the Description textarea section
+- Remove from formData initialization
+- Remove from handleOpenDialog
+- Remove from handleSave
+
+### Remove from table display:
+- Remove Description column from templates table header
+- Remove Description cell from table rows
+
+---
+
+## 2. PDF Generator Changes
+
+### Update header rendering logic:
+Since logo is being removed, simplify the fallback:
+
+```text
+Before:
+- Try letterhead_url -> if exists, use it
+- Else try logo_url -> if exists, draw logo + manual text
+- Else draw only manual text
+
+After:
+- Try letterhead_url -> if exists, use it
+- Else draw only manual text (no logo)
+```
+
+### Remove logo-related code:
+- Remove `loadCompanyLogo` function
+- Remove logo fallback in header section
+- Simplify the else branch to just draw text
+
+---
+
+## 3. InvoiceManagementList.tsx Changes
+
+### Update template query:
+```text
+Before: .select('logo_url, letterhead_url, paynow_qr_url, country')
+After:  .select('letterhead_url, paynow_qr_url, country')
+```
+
+### Update template object construction:
+```text
+Before: 
+template: {
+  logo_url: template.logo_url || undefined,
+  letterhead_url: template.letterhead_url || undefined,
+  ...
+}
+
+After:
+template: {
+  letterhead_url: template.letterhead_url || undefined,
+  ...
+}
+```
+
+---
+
+## 4. Service Layer Changes
+
+### invoiceTemplateService.ts:
+- Remove `logo_url` from save/update operations
+- Keep in interface for backward compatibility (won't break existing data)
+
+### invoicePDFGenerator.ts interface:
+```text
+Before:
+export interface InvoiceTemplate {
+  logo_url?: string;
+  letterhead_url?: string;
+  paynow_qr_url?: string;
+  country?: string;
+}
+
+After:
+export interface InvoiceTemplate {
+  letterhead_url?: string;
+  paynow_qr_url?: string;
+  country?: string;
+}
+```
+
+---
+
+## 5. UI Changes Summary
+
+### Create/Edit Template Dialog
+
+**Before:**
+```text
+| Template Name *         |
+| Description             |
+| Country                 |
+| [Logo Upload]           |
+| [Letterhead Upload]     |
+| [PayNow QR Upload]      |
+| Default Notes           |
+| Internal Notes          |
+| Footer                  |
+```
+
+**After:**
+```text
+| Template Name *         |
+| Country                 |
+| Country Letterhead URL  | <-- Text input
+| [PayNow QR Upload]      |
+| Default Notes           |
+| Internal Notes          |
+| Footer                  |
+```
+
+### Templates Table
+
+**Before:**
+| Name | Description | Country | Status | Created | Actions |
+
+**After:**
+| Name | Country | Status | Created | Actions |
+
+---
+
+## 6. Database Notes
+
+- The `logo_url` and `description` columns will remain in the database for backward compatibility
+- Existing data will not be deleted from the database
+- The UI simply stops using/displaying these fields
+- Existing images in storage will remain (can be manually cleaned later if needed)
+
+---
+
+## 7. Implementation Order
+
+1. Update `InvoiceTemplateList.tsx`:
+   - Remove logo upload UI and refs
+   - Change letterhead to text input
+   - Remove description field
+   - Update form state and handlers
+   - Remove description column from table
+
+2. Update `invoicePDFGenerator.ts`:
+   - Remove logo_url from interface
+   - Remove loadCompanyLogo function
+   - Simplify header rendering to only use letterhead or text
+
+3. Update `InvoiceManagementList.tsx`:
+   - Remove logo_url from template query and mapping
+
+4. Update `invoiceTemplateService.ts`:
+   - Remove logo_url from create/update data interfaces
 
