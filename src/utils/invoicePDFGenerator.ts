@@ -99,24 +99,24 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
-  // Debug: Log template data for troubleshooting
-  console.log('PDF Generation - Template:', {
-    letterhead_url: invoice.template?.letterhead_url,
-    country: invoice.template?.country
-  });
-
-  // Try to load letterhead first (includes logo + company info as pre-designed image)
-  const letterheadData = invoice.template?.letterhead_url 
-    ? await loadImage(invoice.template.letterhead_url) 
-    : null;
+  // Render letterhead text (multi-line company info)
+  const letterheadText = invoice.template?.letterhead_url;
   
-  console.log('PDF Generation - Letterhead loaded:', !!letterheadData);
-
-  if (letterheadData) {
-    // Use full letterhead image - spans left side of header
-    doc.addImage(letterheadData, 'PNG', margin, yPos, 80, 20);
+  if (letterheadText && letterheadText.trim()) {
+    // Render letterhead as multi-line text
+    const lines = letterheadText.split('\n');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    
+    lines.forEach((line, index) => {
+      // First line bold, rest normal
+      if (index > 0) {
+        doc.setFont('helvetica', 'normal');
+      }
+      doc.text(line.trim(), margin, yPos + 5 + (index * 5));
+    });
   } else {
-    // Fallback: Draw text manually (no logo)
+    // Fallback: Draw default text manually
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text(COMPANY_INFO.name, margin, yPos + 8);

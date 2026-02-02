@@ -357,15 +357,29 @@ const InvoiceTemplateList: React.FC = () => {
               </Select>
             </div>
 
-            {/* Country Letterhead URL */}
+            {/* Country Letterhead */}
             <div className="space-y-2">
-              <Label htmlFor="letterhead_url">Country Letterhead URL</Label>
-              <Input
+              <Label htmlFor="letterhead_url">Country Letterhead</Label>
+              <Textarea
                 id="letterhead_url"
                 value={formData.letterhead_url}
                 onChange={(e) => setFormData(prev => ({ ...prev, letterhead_url: e.target.value }))}
-                placeholder="https://example.com/letterhead.png"
+                placeholder={`COMPANY NAME | UEN\nAddress Line\nWebsite | Email`}
+                rows={3}
               />
+              {formData.country === 'SG' && !formData.letterhead_url && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({
+                    ...prev,
+                    letterhead_url: 'GAONHAE TAEKWONDO | T18LL1687K\n271 Bukit Timah Road #02-08 Singapore 259708\nwww.gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com'
+                  }))}
+                >
+                  Use Singapore Default
+                </Button>
+              )}
             </div>
 
             {/* PayNow QR Code Upload */}
