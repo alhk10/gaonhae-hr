@@ -185,12 +185,27 @@ const InvoiceManagementList: React.FC = () => {
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'paid': return 'default';
-      case 'sent': return 'secondary';
-      case 'draft': return 'outline';
+      case 'unpaid': return 'destructive';
+      case 'draft': return 'destructive'; // Map draft to unpaid styling
       case 'overdue': return 'destructive';
       case 'cancelled': return 'secondary';
       default: return 'outline';
     }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-800 border-green-200';
+      case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
+      case 'draft': return 'bg-red-100 text-red-800 border-red-200'; // Map draft to unpaid styling
+      default: return '';
+    }
+  };
+
+  const getDisplayStatus = (status: string) => {
+    // Map 'draft' to 'Unpaid' for display
+    if (status === 'draft') return 'Unpaid';
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const formatDate = (dateString?: string) => {
@@ -522,8 +537,7 @@ const InvoiceManagementList: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -664,8 +678,11 @@ const InvoiceManagementList: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(invoice.status)}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        <Badge 
+                          variant={getStatusBadgeVariant(invoice.status)}
+                          className={getStatusBadgeClass(invoice.status)}
+                        >
+                          {getDisplayStatus(invoice.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(invoice.issue_date)}</TableCell>

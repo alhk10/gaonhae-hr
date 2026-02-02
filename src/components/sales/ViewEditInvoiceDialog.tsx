@@ -153,12 +153,27 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'paid': return 'default';
-      case 'sent': return 'secondary';
-      case 'draft': return 'outline';
+      case 'unpaid': return 'destructive';
+      case 'draft': return 'destructive'; // Map draft to unpaid styling
       case 'overdue': return 'destructive';
       case 'cancelled': return 'secondary';
       default: return 'outline';
     }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-800 border-green-200';
+      case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
+      case 'draft': return 'bg-red-100 text-red-800 border-red-200'; // Map draft to unpaid styling
+      default: return '';
+    }
+  };
+
+  const getDisplayStatus = (status: string) => {
+    // Map 'draft' to 'Unpaid' for display
+    if (status === 'draft') return 'Unpaid';
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const formatDate = (dateString?: string) => {
@@ -205,8 +220,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={getStatusBadgeVariant(invoice.status)}>
-                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+              <Badge 
+                variant={getStatusBadgeVariant(invoice.status)}
+                className={getStatusBadgeClass(invoice.status)}
+              >
+                {getDisplayStatus(invoice.status)}
               </Badge>
               <InvoiceChangeLogDialog
                 invoiceId={invoice.id}
@@ -298,15 +316,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
-                  value={editData.status}
+                  value={editData.status === 'draft' ? 'unpaid' : editData.status}
                   onValueChange={(value) => setEditData(prev => ({ ...prev, status: value as Invoice['status'] }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -316,21 +333,6 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             )}
 
             <Separator />
-
-            <div className="space-y-2">
-              <Label>Notes (visible to customer)</Label>
-              {mode === 'edit' ? (
-                <Textarea
-                  value={editData.notes}
-                  onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={3}
-                />
-              ) : (
-                <div className="text-sm text-muted-foreground p-2 bg-muted rounded">
-                  {invoice.notes || 'No notes'}
-                </div>
-              )}
-            </div>
 
             <div className="space-y-2">
               <Label>Internal Notes</Label>
