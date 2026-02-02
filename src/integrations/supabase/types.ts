@@ -873,6 +873,58 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_branch_access: {
+        Row: {
+          branch_id: string
+          can_approve_changes: boolean | null
+          can_view_dashboard: boolean | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          branch_id: string
+          can_approve_changes?: boolean | null
+          can_view_dashboard?: boolean | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          branch_id?: string
+          can_approve_changes?: boolean | null
+          can_view_dashboard?: boolean | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_branch_access_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_branch_access_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_branch_access_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_invoice_access: {
         Row: {
           branch_id: string
@@ -3117,6 +3169,41 @@ export type Database = {
           },
         ]
       }
+      student_auth: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string | null
+          email: string
+          id: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_auth_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_change_logs: {
         Row: {
           action: string
@@ -3484,6 +3571,67 @@ export type Database = {
             columns: ["timetable_id"]
             isOneToOne: false
             referencedRelation: "branch_timetables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_update_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          requested_at: string | null
+          requested_changes: Json
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          requested_at?: string | null
+          requested_changes: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          requested_at?: string | null
+          requested_changes?: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_update_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_update_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_update_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -4069,6 +4217,7 @@ export type Database = {
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
       get_current_employee_id: { Args: never; Returns: string }
+      get_current_student_id: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
       get_eligible_employees_with_entitlements: {
         Args: { reference_year?: number }
@@ -4089,7 +4238,9 @@ export type Database = {
         }[]
       }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
+      has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
+      is_student: { Args: never; Returns: boolean }
       is_superadmin: { Args: { user_email: string }; Returns: boolean }
       log_booking_attempt: {
         Args: {
