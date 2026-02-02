@@ -226,13 +226,13 @@ const Sidebar = () => {
       if (pageAccess.applyLeave && !isPartnerPosition) {
         menuItems.push({ icon: Calendar, label: 'Apply Leave', path: '/apply-leave' });
       }
-      // Change Submit Claim to Submit Partners Claim for partners
+      // Submit Claim - Partners now go to same page but see different tab
       if (pageAccess.submitClaim) {
-        if (isPartnerPosition) {
-          menuItems.push({ icon: Briefcase, label: 'Submit Partners Claim', path: '/submit-partners-claim' });
-        } else {
-          menuItems.push({ icon: FileText, label: 'Submit Claim', path: '/submit-claim' });
-        }
+        menuItems.push({ 
+          icon: isPartnerPosition ? Briefcase : FileText, 
+          label: isPartnerPosition ? 'Partners Claim' : 'Submit Claim', 
+          path: '/submit-claim' 
+        });
       }
       if (pageAccess.payslips) {
         menuItems.push({ icon: DollarSign, label: 'Payslips', path: '/payslips' });

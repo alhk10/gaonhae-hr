@@ -37,7 +37,6 @@ const PayslipManagement = lazy(() => import('./pages/PayslipManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const SubmitPartnersClaim = lazy(() => import('./pages/SubmitPartnersClaim'));
 const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 
@@ -328,16 +327,6 @@ function App() {
                     />
                     
                     {/* Partner-only Routes */}
-                    <Route 
-                      path="/submit-partners-claim" 
-                      element={
-                        <AuthGuard>
-                          <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
-                            <SubmitPartnersClaim />
-                          </PositionAccessGuard>
-                        </AuthGuard>
-                      } 
-                    />
                     <Route 
                       path="/branch-profit-loss" 
                       element={

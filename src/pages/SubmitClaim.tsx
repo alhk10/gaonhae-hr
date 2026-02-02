@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Settings } from 'lucide-react';
+import { History, FileText, Calendar, User, AlertCircle, RefreshCw, Settings, Briefcase } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +17,7 @@ import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ClaimsManagementContent from '@/components/claim/ClaimsManagementContent';
+import PartnerClaimContent from '@/components/claim/PartnerClaimContent';
 
 
 const SubmitClaim = () => {
@@ -41,6 +42,7 @@ const SubmitClaim = () => {
 
   // Check if user can manage claims (Senior Partner or Superadmin)
   const isSeniorPartner = currentEmployee?.position?.toLowerCase() === 'senior partner';
+  const isPartner = currentEmployee?.position?.toLowerCase() === 'partner' || isSeniorPartner;
   const canManageClaims = userrole === 'superadmin' || isSeniorPartner;
 
   console.log('SubmitClaim: Component rendered with user:', user?.email);
@@ -286,46 +288,83 @@ const SubmitClaim = () => {
     );
   }
 
+  // Calculate tab configuration based on role
+  const getTabConfig = () => {
+    if (isPartner) {
+      // Partners only see Partners Claim and Claim History (plus Manage Claims for senior partners)
+      const tabs = [
+        { value: 'partners', label: 'Partners Claim', icon: Briefcase },
+        { value: 'history', label: 'Claim History', icon: History }
+      ];
+      if (canManageClaims) {
+        tabs.push({ value: 'manage', label: 'Manage Claims', icon: Settings });
+      }
+      return { tabs, defaultTab: 'partners' };
+    } else {
+      // Regular employees see Submit Claim and Claim History (plus Manage Claims if admin)
+      const tabs = [
+        { value: 'submit', label: 'Submit Claim', icon: FileText },
+        { value: 'history', label: 'Claim History', icon: History }
+      ];
+      if (canManageClaims) {
+        tabs.push({ value: 'manage', label: 'Manage Claims', icon: Settings });
+      }
+      return { tabs, defaultTab: 'submit' };
+    }
+  };
+
+  const tabConfig = getTabConfig();
+
   return (
     <ResponsiveLayout>
       <div className={`space-y-4 md:space-y-8 ${isMobile ? 'px-1' : 'max-w-7xl mx-auto'}`}>
 
-        <div className="flex items-center justify-end">
-          <Button 
-            onClick={handleSubmitClaim} 
-            disabled={isSubmitting || !receiptUrl}
-            className={`bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3 text-lg font-semibold'}`}
-            size={isMobile ? "default" : "lg"}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Submitting...
-              </>
-            ) : (
-              <>
-                <FileText className="w-5 h-5 mr-2" />
-                Submit Claim
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Submit button only shown for non-partners */}
+        {!isPartner && (
+          <div className="flex items-center justify-end">
+            <Button 
+              onClick={handleSubmitClaim} 
+              disabled={isSubmitting || !receiptUrl}
+              className={`bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3 text-lg font-semibold'}`}
+              size={isMobile ? "default" : "lg"}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5 mr-2" />
+                  Submit Claim
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
-        <Tabs defaultValue="submit" className="w-full">
-          <TabsList className={`grid w-full ${canManageClaims ? 'grid-cols-3' : 'grid-cols-2'} ${isMobile ? 'mb-4' : 'mb-6'}`}>
-            <TabsTrigger value="submit" className={isMobile ? 'text-sm' : ''}>Submit Claim</TabsTrigger>
-            <TabsTrigger value="history" className={isMobile ? 'text-sm' : ''}>Claim History</TabsTrigger>
-            {canManageClaims && (
-              <TabsTrigger value="manage" className={isMobile ? 'text-sm' : ''}>
-                <Settings className="w-4 h-4 mr-1" />
-                Manage Claims
+        <Tabs defaultValue={tabConfig.defaultTab} className="w-full">
+          <TabsList className={`grid w-full grid-cols-${tabConfig.tabs.length} ${isMobile ? 'mb-4' : 'mb-6'}`}>
+            {tabConfig.tabs.map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className={isMobile ? 'text-sm' : ''}>
+                <tab.icon className="w-4 h-4 mr-1" />
+                {tab.label}
               </TabsTrigger>
-            )}
+            ))}
           </TabsList>
 
-          <TabsContent value="submit" className={`space-y-4 md:space-y-6`}>
-            <Card className="shadow-lg border-0 bg-white">
-              <CardContent className={`space-y-4 md:space-y-6 ${isMobile ? 'p-4' : 'p-8'}`}>
+          {/* Partners Claim Tab (only for partners) */}
+          {isPartner && (
+            <TabsContent value="partners" className="space-y-4 md:space-y-6">
+              <PartnerClaimContent currentEmployee={currentEmployee} />
+            </TabsContent>
+          )}
+
+          {/* Regular Submit Claim Tab (only for non-partners) */}
+          {!isPartner && (
+            <TabsContent value="submit" className={`space-y-4 md:space-y-6`}>
+              <Card className="shadow-lg border-0 bg-white">
+                <CardContent className={`space-y-4 md:space-y-6 ${isMobile ? 'p-4' : 'p-8'}`}>
                 {/* Employee Info Debug */}
                 {currentEmployee && (
                   <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
@@ -429,6 +468,7 @@ const SubmitClaim = () => {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
 
           <TabsContent value="history" className={`space-y-4 md:space-y-6`}>
             <Card className="shadow-lg border-0 bg-white">
