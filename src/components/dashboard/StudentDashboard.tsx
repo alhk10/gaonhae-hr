@@ -10,9 +10,6 @@ import {
   GraduationCap, 
   DollarSign, 
   Calendar, 
-  User, 
-  FileText,
-  Clock,
   AlertCircle,
   Edit,
   Save,
@@ -26,6 +23,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
+import StudentClassSchedule from './StudentClassSchedule';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -465,17 +463,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </TabsContent>
 
         <TabsContent value="schedule">
-          <Card>
-            <CardHeader>
-              <CardTitle>Class Schedule</CardTitle>
-              <CardDescription>Your enrolled classes and upcoming sessions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-muted-foreground py-8">
-                Class schedule coming soon
-              </p>
-            </CardContent>
-          </Card>
+          <StudentClassSchedule 
+            studentId={studentId!} 
+            branchId={student?.branch_id} 
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -129,7 +129,10 @@ export const approveRequest = async (
   // Get the request first
   const { data: request, error: fetchError } = await supabase
     .from('student_update_requests')
-    .select('*')
+    .select(`
+      *,
+      students!inner(first_name, last_name, email)
+    `)
     .eq('id', requestId)
     .single();
 
@@ -169,6 +172,26 @@ export const approveRequest = async (
     return false;
   }
 
+  // Send email notification
+  const studentData = request.students as any;
+  if (studentData?.email) {
+    try {
+      await supabase.functions.invoke('send-approval-email', {
+        body: {
+          recipientEmail: studentData.email,
+          recipientName: `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim(),
+          type: 'approved',
+          requestType: 'student_update',
+          reviewNotes,
+          changesDescription: Object.keys(changes).join(', '),
+        },
+      });
+    } catch (emailError) {
+      console.error('Failed to send approval email:', emailError);
+      // Don't fail the approval if email fails
+    }
+  }
+
   return true;
 };
 
@@ -180,6 +203,21 @@ export const rejectRequest = async (
   reviewerId: string,
   reviewNotes: string
 ): Promise<boolean> => {
+  // Get the request with student info for email
+  const { data: request, error: fetchError } = await supabase
+    .from('student_update_requests')
+    .select(`
+      *,
+      students!inner(first_name, last_name, email)
+    `)
+    .eq('id', requestId)
+    .single();
+
+  if (fetchError || !request) {
+    console.error('Error fetching request:', fetchError);
+    return false;
+  }
+
   const { error } = await supabase
     .from('student_update_requests')
     .update({
@@ -193,6 +231,30 @@ export const rejectRequest = async (
   if (error) {
     console.error('Error rejecting request:', error);
     return false;
+  }
+
+  // Send email notification
+  const studentData = request.students as any;
+  if (studentData?.email) {
+    try {
+      const changes = typeof request.requested_changes === 'object' && request.requested_changes !== null
+        ? request.requested_changes as Record<string, any>
+        : {};
+      
+      await supabase.functions.invoke('send-approval-email', {
+        body: {
+          recipientEmail: studentData.email,
+          recipientName: `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim(),
+          type: 'rejected',
+          requestType: 'student_update',
+          reviewNotes,
+          changesDescription: Object.keys(changes).join(', '),
+        },
+      });
+    } catch (emailError) {
+      console.error('Failed to send rejection email:', emailError);
+      // Don't fail the rejection if email fails
+    }
   }
 
   return true;
