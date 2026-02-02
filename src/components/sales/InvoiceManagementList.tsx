@@ -34,16 +34,21 @@ import {
   DollarSign,
   Calendar,
   FileText,
-  Loader2
+  Loader2,
+  FileDown,
+  MessageCircle,
+  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@/services/invoiceService';
+import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice, getInvoiceById } from '@/services/invoiceService';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
-import { getStudents } from '@/services/studentService';
+import { getStudents, getStudentById } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
 import ViewEditInvoiceDialog from './ViewEditInvoiceDialog';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { downloadInvoicePDF, shareInvoiceViaWhatsApp, getInvoicePDFBase64, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 const InvoiceManagementList: React.FC = () => {
@@ -72,6 +77,15 @@ const InvoiceManagementList: React.FC = () => {
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+  
+  // Email dialog state
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [invoiceForEmail, setInvoiceForEmail] = useState<Invoice | null>(null);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  
+  // PDF loading state
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadInvoices();
@@ -182,6 +196,153 @@ const InvoiceManagementList: React.FC = () => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-SG');
+  };
+
+  // Prepare invoice data for PDF generation
+  const prepareInvoiceDataForPDF = async (invoice: Invoice): Promise<InvoiceData> => {
+    // Get full invoice details with items
+    const fullInvoice = await getInvoiceById(invoice.id);
+    
+    // Get student details
+    let studentData;
+    try {
+      studentData = await getStudentById(invoice.student_id);
+    } catch {
+      studentData = null;
+    }
+    
+    return {
+      id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      issue_date: invoice.issue_date || null,
+      due_date: invoice.due_date || null,
+      subtotal: invoice.subtotal,
+      tax_amount: invoice.tax_amount,
+      discount_amount: invoice.discount_amount,
+      total_amount: invoice.total_amount,
+      amount_paid: invoice.amount_paid,
+      balance_due: invoice.balance_due,
+      notes: invoice.notes,
+      status: invoice.status,
+      student: studentData ? {
+        name: `${studentData.first_name} ${studentData.last_name}`,
+        address: studentData.address,
+        phone: studentData.phone,
+        email: studentData.email,
+        whatsapp: studentData.whatsapp
+      } : undefined,
+      items: fullInvoice?.items?.map(item => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_amount: item.total_amount,
+        tax_rate: item.tax_rate,
+        tax_amount: item.tax_amount
+      })) || []
+    };
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      setPdfLoadingId(invoice.id);
+      const invoiceData = await prepareInvoiceDataForPDF(invoice);
+      await downloadInvoicePDF(invoiceData);
+      toast.success('Invoice PDF downloaded');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  // Handle WhatsApp share
+  const handleShareWhatsApp = async (invoice: Invoice) => {
+    try {
+      setPdfLoadingId(invoice.id);
+      
+      // Get student details to get WhatsApp number
+      let studentData;
+      try {
+        studentData = await getStudentById(invoice.student_id);
+      } catch {
+        studentData = null;
+      }
+      
+      const whatsappNumber = studentData?.whatsapp || studentData?.phone;
+      if (!whatsappNumber) {
+        toast.error('No WhatsApp or phone number found for this student');
+        return;
+      }
+      
+      const invoiceData = await prepareInvoiceDataForPDF(invoice);
+      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber);
+      toast.success('PDF downloaded. Please attach it to the WhatsApp chat.');
+    } catch (error) {
+      console.error('Error sharing via WhatsApp:', error);
+      toast.error('Failed to share via WhatsApp');
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
+  // Handle email dialog open
+  const handleOpenEmailDialog = async (invoice: Invoice) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id);
+      setEmailAddress(studentData?.email || '');
+    } catch {
+      setEmailAddress('');
+    }
+    setInvoiceForEmail(invoice);
+    setEmailDialogOpen(true);
+  };
+
+  // Handle send email
+  const handleSendEmail = async () => {
+    if (!invoiceForEmail || !emailAddress) {
+      toast.error('Email address is required');
+      return;
+    }
+    
+    try {
+      setIsSendingEmail(true);
+      
+      // Prepare invoice data and generate PDF
+      const invoiceData = await prepareInvoiceDataForPDF(invoiceForEmail);
+      const pdfBase64 = await getInvoicePDFBase64(invoiceData);
+      
+      // Get student data
+      let studentName = invoiceForEmail.student_name || 'Customer';
+      
+      // Call edge function to send email
+      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
+        body: {
+          recipientEmail: emailAddress,
+          invoiceNumber: invoiceForEmail.invoice_number,
+          studentName,
+          totalAmount: invoiceForEmail.total_amount,
+          balanceDue: invoiceForEmail.balance_due,
+          pdfBase64
+        }
+      });
+      
+      if (error) {
+        throw new Error(error.message || 'Failed to send email');
+      }
+      
+      toast.success(`Invoice sent to ${emailAddress}`);
+      setEmailDialogOpen(false);
+      setInvoiceForEmail(null);
+      setEmailAddress('');
+    } catch (error: any) {
+      console.error('Error sending email:', error);
+      toast.error(error.message || 'Failed to send email');
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   return (
@@ -402,6 +563,39 @@ const InvoiceManagementList: React.FC = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Download PDF"
+                            onClick={() => handleDownloadPDF(invoice)}
+                            disabled={pdfLoadingId === invoice.id}
+                          >
+                            {pdfLoadingId === invoice.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Share via WhatsApp"
+                            onClick={() => handleShareWhatsApp(invoice)}
+                            disabled={pdfLoadingId === invoice.id}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Send via Email"
+                            onClick={() => handleOpenEmailDialog(invoice)}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
                           {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
                             <CreatePaymentDialog
                               trigger={
@@ -532,6 +726,61 @@ const InvoiceManagementList: React.FC = () => {
             >
               {isSubmittingDelete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Confirmation Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Invoice via Email</DialogTitle>
+            <DialogDescription>
+              Send the invoice PDF to the specified email address.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {invoiceForEmail && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Invoice #:</span>
+                  <span className="font-medium">{invoiceForEmail.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Student:</span>
+                  <span className="font-medium">{invoiceForEmail.student_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Amount:</span>
+                  <span className="font-medium">{formatCurrency(invoiceForEmail.total_amount)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email-address">Email Address *</Label>
+                <Input
+                  id="email-address"
+                  type="email"
+                  placeholder="Enter email address..."
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendEmail}
+              disabled={isSendingEmail || !emailAddress}
+            >
+              {isSendingEmail && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Send Email
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -80,6 +80,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     gender: '',
     nric_passport: '',
     phone: '',
+    whatsapp: '',
     email: '',
     address: '',
     postal_code: '',
@@ -125,6 +126,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         gender: student.gender || '',
         nric_passport: student.nric_passport || '',
         phone: student.phone || '',
+        whatsapp: student.whatsapp || '',
         email: student.email || '',
         address: student.address || '',
         postal_code: student.postal_code || '',
@@ -352,13 +354,23 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="phone" className="text-xs">Phone</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="+65 9123 4567"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="whatsapp" className="text-xs">WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    value={formData.whatsapp}
+                    onChange={(e) => handleInputChange('whatsapp', e.target.value)}
                     placeholder="+65 9123 4567"
                     className="h-9"
                   />

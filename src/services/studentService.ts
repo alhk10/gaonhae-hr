@@ -21,6 +21,7 @@ export interface Student {
   nationality?: string;
   nric_passport?: string;
   phone?: string;
+  whatsapp?: string;
   email?: string;
   address?: string;
   postal_code?: string;
