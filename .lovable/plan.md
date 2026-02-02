@@ -1,13 +1,118 @@
 
-# Invoice Status Updates and Notes Field Removal
+
+# Use Country Letterhead in Invoice PDF Generation
 
 ## Overview
-This plan implements several changes to the invoice system:
-1. **Replace "Draft" status with "Unpaid"** - Conceptually clearer for users
-2. **Remove "Sent" status** - No longer needed in the workflow
-3. **Apply color coding** - Paid (Green), Unpaid (Red)
-4. **Capitalize "Paid" correctly** - Already implemented but needs consistency
-5. **Remove "Notes (visible to customer)" field** - Only keep Internal Notes
+This change updates the invoice PDF generator to use the template's letterhead image (which includes the logo, company name, country, and UEN in a pre-designed layout) instead of manually constructing the header from separate elements.
+
+---
+
+## Current State
+
+### How it works now:
+1. The PDF generator loads `template.logo_url` and draws just the logo image
+2. Then it manually writes company text: name, country, UEN using `doc.text()`
+3. The `letterhead_url` is defined in the interface but **never used**
+
+### Template data in database:
+| Country | letterhead_url |
+|---------|----------------|
+| SG | `letterhead-1770010314926.png` |
+| AU | `letterhead-1770010766036.png` |
+
+---
+
+## Proposed Change
+
+### Use letterhead image as header:
+- If `template.letterhead_url` exists: Load and display it as the header (replacing logo + text)
+- If no letterhead: Fall back to current behavior (logo + manual text)
+
+### Benefits:
+- Consistent branding with pre-designed layout
+- Country-specific letterheads automatically applied
+- No need to hardcode company info text
+
+---
+
+## Implementation Details
+
+### File: `src/utils/invoicePDFGenerator.ts`
+
+#### 1. Add letterhead loading function:
+```typescript
+const loadLetterhead = (letterheadUrl?: string): Promise<string | null> => {
+  if (!letterheadUrl) return Promise.resolve(null);
+  return loadImage(letterheadUrl);
+};
+```
+
+#### 2. Update header rendering logic:
+
+**Before:**
+```typescript
+// Load and add company logo
+const logoData = await loadCompanyLogo(invoice.template?.logo_url);
+if (logoData) {
+  doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
+}
+
+// Company header (manual text)
+doc.setFontSize(16);
+doc.text(COMPANY_INFO.name, margin + 35, yPos + 8);
+doc.setFontSize(9);
+doc.text(COMPANY_INFO.address, margin + 35, yPos + 15);
+doc.text(`UEN: ${COMPANY_INFO.uen}`, margin + 35, yPos + 21);
+```
+
+**After:**
+```typescript
+// Try to load letterhead first (includes logo + company info)
+const letterheadData = await loadImage(invoice.template?.letterhead_url || '');
+
+if (letterheadData) {
+  // Use full letterhead image - spans left side of header
+  // Letterhead dimensions: approximately 100mm wide x 25mm tall
+  doc.addImage(letterheadData, 'PNG', margin, yPos, 80, 20);
+} else {
+  // Fallback: Load logo and draw text manually
+  const logoData = await loadCompanyLogo(invoice.template?.logo_url);
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
+  }
+  
+  // Company header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(COMPANY_INFO.name, logoData ? margin + 35 : margin, yPos + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(COMPANY_INFO.address, logoData ? margin + 35 : margin, yPos + 15);
+  doc.text(`UEN: ${COMPANY_INFO.uen}`, logoData ? margin + 35 : margin, yPos + 21);
+}
+```
+
+---
+
+## Layout Comparison
+
+### Current PDF Header:
+```text
++------------------------------------------+
+|  [Logo]  GAONHAE TAEKWONDO LLP   INVOICE |
+|          Singapore                       |
+|          UEN: T24LL0001A                 |
++------------------------------------------+
+```
+
+### New PDF Header (with letterhead):
+```text
++------------------------------------------+
+|  [====== Letterhead Image ======] INVOICE |
+|  (Contains logo + company info)          |
++------------------------------------------+
+```
 
 ---
 
@@ -15,159 +120,17 @@ This plan implements several changes to the invoice system:
 
 | File | Changes |
 |------|---------|
-| `src/components/sales/InvoiceManagementList.tsx` | Update status options, badge colors, remove notes field |
-| `src/components/sales/ViewEditInvoiceDialog.tsx` | Update status dropdown, badge colors, remove notes section |
-| `src/utils/invoicePDFGenerator.ts` | Add color coding for status text (green for Paid, red for Unpaid) |
+| `src/utils/invoicePDFGenerator.ts` | Update header section to prioritize letterhead image over manual text rendering |
 
 ---
 
-## 1. Status Changes
+## Technical Notes
 
-### Status Mapping
-| Old Status | New Status |
-|------------|------------|
-| draft | unpaid |
-| sent | (removed) |
-| paid | paid |
-| overdue | overdue |
-| cancelled | cancelled |
+1. **Image Sizing**: The letterhead will be rendered at approximately 80mm x 20mm to fit well in the header area while leaving space for the "INVOICE" title on the right
 
-### Badge Color Coding
-| Status | Color Style |
-|--------|-------------|
-| Paid | Green (`bg-green-100 text-green-800`) |
-| Unpaid | Red (`bg-red-100 text-red-800`) |
-| Overdue | Red (destructive) - existing |
-| Cancelled | Gray (secondary) - existing |
+2. **Fallback Behavior**: If letterhead is not available, the current logo + text approach will be used as fallback
 
----
+3. **Cross-Origin**: The existing `loadImage()` function already handles CORS for Supabase storage URLs
 
-## 2. InvoiceManagementList.tsx Changes
+4. **yPos Adjustment**: May need slight adjustment to `yPos` increment after letterhead vs after logo+text to maintain consistent spacing
 
-### Update `getStatusBadgeVariant()` function:
-```typescript
-const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case 'paid': return 'default';      // Will use custom green
-    case 'unpaid': return 'destructive'; // Will use custom red
-    case 'overdue': return 'destructive';
-    case 'cancelled': return 'secondary';
-    default: return 'outline';
-  }
-};
-```
-
-### Add custom badge class function:
-```typescript
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'paid': return 'bg-green-100 text-green-800 border-green-200';
-    case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
-    default: return '';
-  }
-};
-```
-
-### Update Status Filter Dropdown:
-Remove "Draft" and "Sent", add "Unpaid":
-```text
-- All Statuses
-- Unpaid     (replaces Draft)
-- Paid
-- Overdue
-- Cancelled
-```
-
----
-
-## 3. ViewEditInvoiceDialog.tsx Changes
-
-### Update Status Edit Dropdown:
-```text
-SelectContent:
-  - Unpaid     (value="unpaid")
-  - Paid       (value="paid")
-  - Overdue    (value="overdue")
-  - Cancelled  (value="cancelled")
-```
-
-### Update Badge Styling:
-Apply same color logic as list view:
-- Paid = Green badge
-- Unpaid = Red badge
-
-### Remove Notes Field:
-Delete the entire section for "Notes (visible to customer)" from both view and edit modes. Keep only "Internal Notes".
-
-**Before:**
-```text
-| Notes (visible to customer) |
-| [textarea or display]       |
-|                             |
-| Internal Notes              |
-| [textarea or display]       |
-```
-
-**After:**
-```text
-| Internal Notes              |
-| [textarea or display]       |
-```
-
----
-
-## 4. PDF Generator Changes
-
-### Update Status Text Coloring:
-In `invoicePDFGenerator.ts`, add color to the status text:
-
-```typescript
-// Before drawing status text
-if (invoice.status === 'paid') {
-  doc.setTextColor(34, 139, 34); // Forest green
-} else if (invoice.status === 'unpaid') {
-  doc.setTextColor(220, 53, 69);  // Red
-}
-
-// Draw status text
-doc.text(statusText, margin + 35, yPos);
-
-// Reset color
-doc.setTextColor(0, 0, 0);
-```
-
-### Map Draft to Unpaid in Display:
-Since existing data may have 'draft' status, map it to display as "Unpaid":
-```typescript
-let statusText = invoice.status || 'Unpaid';
-if (statusText === 'draft') statusText = 'unpaid';
-statusText = statusText.charAt(0).toUpperCase() + statusText.slice(1);
-```
-
----
-
-## 5. Summary of UI Changes
-
-### Invoice List View
-- Status badge: Paid (green), Unpaid (red), Overdue (red), Cancelled (gray)
-- Filter dropdown: Unpaid, Paid, Overdue, Cancelled
-
-### Invoice View/Edit Dialog
-- Status badge in header: Colored appropriately
-- Status dropdown in edit mode: Unpaid, Paid, Overdue, Cancelled options
-- Notes field: Removed entirely
-- Internal Notes: Remains unchanged
-
-### Invoice PDF
-- Status text "Paid" in green color
-- Status text "Unpaid" in red color
-- "Draft" displays as "Unpaid"
-
----
-
-## Database Consideration
-The existing `draft` values in the database will continue to work. The UI will:
-- Display "draft" as "Unpaid"
-- When editing, selecting "Unpaid" will save as "unpaid"
-
-No database migration is required - this is a display-layer change only.
