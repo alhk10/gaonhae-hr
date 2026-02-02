@@ -343,10 +343,8 @@ const EmployeeDashboard = () => {
   };
 
   const handleSubmitClaim = () => {
-    const isPartner = employeeData?.position?.toLowerCase() === 'partner' || 
-                      employeeData?.position?.toLowerCase() === 'senior partner';
-    console.log('Navigating to claim page, isPartner:', isPartner);
-    navigate(isPartner ? '/submit-partners-claim' : '/submit-claim');
+    console.log('Navigating to claim page');
+    navigate('/submit-claim');
   };
 
   const handleViewPayslip = () => {
