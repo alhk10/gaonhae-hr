@@ -3514,6 +3514,7 @@ export type Database = {
           trial_time: string | null
           updated_at: string
           updated_by: string | null
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
@@ -3555,6 +3556,7 @@ export type Database = {
           trial_time?: string | null
           updated_at?: string
           updated_by?: string | null
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
@@ -3596,6 +3598,7 @@ export type Database = {
           trial_time?: string | null
           updated_at?: string
           updated_by?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
