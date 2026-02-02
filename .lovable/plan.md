@@ -1,306 +1,124 @@
 
+# Plan: Standardize Belt Level Options and Display Format
 
-# Fix Invoice Tax Calculation and Payment Deletion Status
+## Summary
 
-## Overview
-This plan addresses two critical issues:
-1. **Invoice status not updating after payment deletion** - The database shows status is still "Paid" even with 0 payments
-2. **Tax-inclusive calculations not applied** - Australia (Morley) branch invoices should show tax-inclusive pricing, but they currently show tax-exclusive
+The Trial and Student dialogs currently have inconsistent belt level options and the values are stored differently in the database. This plan will:
+1. Align both dialogs to use the same belt level options
+2. Store belt values without hyphens (use spaces for readability)
+3. Add a display utility to format belt levels nicely in the UI
 
 ---
 
-## Issue 1: Payment Deletion Status Bug
+## Current Issues
 
-### Problem
-Mingyu's invoice (INV-2026-00001) shows:
-- Status: "Paid"
-- Payments: 0
-- Paid: $352.00
-- Balance Due: $0.00
+### 1. Inconsistent Belt Values
+- **Trial dialog** saves values as-is (e.g., `"Foundation 2"`)
+- **Student/Edit dialogs** transform values to lowercase with hyphens (e.g., `"foundation-2"`)
 
-The payment was deleted, but the invoice amounts and status were not updated.
+### 2. Different Belt Options
+- Trial has `White Tip, Brown, Brown Tip`
+- Student has `Yellow Tip, Black Tip, Poom 1-4`
 
-### Root Cause
-The code fix (`'sent'` to `'unpaid'`) was applied in the previous change, but:
-1. Mingyu's invoice was affected **before** the fix was deployed
-2. The `deletePayment` function doesn't verify the update succeeded
+---
 
-### Solution
-1. Add error handling to verify invoice update succeeds
-2. Recalculate invoice amounts based on actual payments (safety recalculation)
-3. Manual database fix for Mingyu's invoice
+## Implementation Steps
 
-### Files to Modify
+### Step 1: Create a Shared Belt Constants File
 
-**`src/services/paymentService.ts`**
-- Add verification that invoice update succeeded
-- Add fallback recalculation using actual payments in database
+Create a new constants file to define the standard belt levels used across the application.
+
+**New file: `src/constants/beltLevels.ts`**
+
+This will contain:
+- A single source of truth for all belt level options
+- A utility function to format belt values for display (removing hyphens, proper casing)
 
 ```text
-Current flow:
-1. Fetch payment details
-2. Delete payment from database
-3. Calculate new amounts (using old invoice values - payment amount)
-4. Update invoice (no error checking)
-
-Fixed flow:
-1. Fetch payment details
-2. Delete payment from database
-3. Query actual remaining payments for invoice
-4. Sum payment amounts to get accurate amount_paid
-5. Calculate balance_due and status based on actual data
-6. Update invoice with error checking
-7. Throw error if update fails
+Belt levels to include:
+  - Foundation 1, Foundation 2, Foundation 3
+  - White, White Tip
+  - Yellow, Yellow Tip
+  - Green, Green Tip
+  - Blue, Blue Tip
+  - Red, Red Tip
+  - Brown, Brown Tip
+  - Poom 1, Poom 2, Poom 3, Poom 4
+  - Dan 1, Dan 2, Dan 3, Dan 4, Dan 5
 ```
+
+### Step 2: Update AddTrialDialog.tsx
+
+- Import belt levels from the new constants file
+- Keep saving values directly (as-is with spaces, e.g., `"Foundation 2"`)
+
+### Step 3: Update AddStudentDialog.tsx
+
+- Import belt levels from the new constants file
+- Remove the `.toLowerCase().replace(/\s+/g, '-')` transformation
+- Save values directly with spaces (e.g., `"Foundation 2"` instead of `"foundation-2"`)
+
+### Step 4: Update EditStudentDialog.tsx
+
+- Import belt levels from the new constants file
+- Remove the `.toLowerCase().replace(/\s+/g, '-')` transformation
+- Save values directly with spaces
+
+### Step 5: Add Display Formatting for Change Log
+
+Update `StudentChangeLog.tsx` to properly format belt level values:
+- Convert any existing hyphenated values to proper display format
+- Example: `"foundation-2"` displays as `"Foundation 2"`
 
 ---
 
-## Issue 2: Tax-Inclusive Calculation Bug
+## Technical Details
 
-### Problem
-Ethan and Mingyu are Morley (Australia) students. Their invoices should use tax-inclusive pricing (price includes GST), but they're showing tax-exclusive calculations.
+### Belt Level Options (Standard List)
 
-### Current Behavior
-Looking at Mingyu's invoice items:
-| Description | Unit Price | Tax | Total |
-|-------------|-----------|-----|-------|
-| Green Tip >> Green | $70.00 | $7.00 | $77.00 |
-| 1x Weekday | $25.00 | $25.00 | $275.00 |
-
-Tax is being **added on top** (exclusive), but Australia should have tax **included** in price.
-
-### Expected Behavior (Tax-Inclusive)
-For tax-inclusive, if price is $70.00 with 10% GST:
-- Total = $70.00 (as entered)
-- Subtotal (pre-tax) = $70.00 / 1.10 = $63.64
-- Tax = $70.00 - $63.64 = $6.36
-
-### Root Cause
-The `createInvoice` function in `invoiceService.ts` always uses tax-exclusive calculation:
-```typescript
-// Current (wrong for Australia):
-const itemTotal = item.quantity * item.unit_price;
-subtotal += itemTotal;
-taxAmount += itemTotal * taxRate;  // Always adds tax on top
-```
-
-The `CreateInvoiceDialog` has correct calculation logic but doesn't pass the `isInclusive` flag to the service.
-
-### Solution
-Update `invoiceService.ts` to:
-1. Fetch branch's tax_included setting
-2. Apply correct calculation based on inclusive vs exclusive
-3. Store the calculated values correctly
-
-### Files to Modify
-
-**`src/services/invoiceService.ts`**
-- Import `COUNTRY_TAX_INCLUDED` and `DEFAULT_TAX_INCLUDED` from constants
-- Add helper function to get tax inclusion setting
-- Update `createInvoice` to handle both tax-inclusive and tax-exclusive calculations
-
-```text
-New logic in createInvoice:
-
-// Get tax configuration
-const taxRate = getTaxRateForCountry(branchCountry);
-const isInclusive = getIsTaxIncludedForCountry(branchCountry);
-
-// Calculate item totals
-for (const item of invoiceData.items) {
-  const itemPrice = item.quantity * item.unit_price;
-  
-  if (isInclusive) {
-    // Tax-inclusive (Australia): price already includes tax
-    const itemSubtotal = itemPrice / (1 + taxRate);
-    const itemTax = itemPrice - itemSubtotal;
-    subtotal += itemSubtotal;
-    taxAmount += itemTax;
-    // Store original price as total
-  } else {
-    // Tax-exclusive (Singapore): add tax on top
-    subtotal += itemPrice;
-    taxAmount += itemPrice * taxRate;
-  }
-}
-
-const totalAmount = isInclusive ? (subtotal + taxAmount) : (subtotal + taxAmount);
-```
-
-Also update invoice items insertion to store correct values per item.
-
----
-
-## Implementation Details
-
-### File 1: `src/services/paymentService.ts`
-
-#### Change 1: Improve deletePayment reliability (lines 352-373)
-
-Replace the invoice update logic with:
+The unified belt level list will include all ranks from beginner to advanced:
 
 ```typescript
-// Update invoice balance - recalculate from actual payments
-const { data: remainingPayments } = await supabase
-  .from('payments')
-  .select('amount')
-  .eq('invoice_id', payment.invoice_id);
-
-const actualAmountPaid = (remainingPayments || []).reduce(
-  (sum, p) => sum + Number(p.amount), 0
-);
-
-const { data: invoice, error: invoiceError } = await supabase
-  .from('invoices')
-  .select('total_amount')
-  .eq('id', payment.invoice_id)
-  .single();
-
-if (invoice && !invoiceError) {
-  const newBalanceDue = invoice.total_amount - actualAmountPaid;
-  const newStatus = newBalanceDue > 0 ? 'unpaid' : 'paid';
-
-  const { error: updateError } = await supabase
-    .from('invoices')
-    .update({
-      amount_paid: actualAmountPaid,
-      balance_due: newBalanceDue,
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', payment.invoice_id);
-
-  if (updateError) {
-    logger.error('Failed to update invoice after payment deletion', updateError);
-    throw new Error(`Failed to update invoice: ${updateError.message}`);
-  }
-}
+export const BELT_LEVELS = [
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'White Tip',
+  'Yellow', 'Yellow Tip',
+  'Green', 'Green Tip',
+  'Blue', 'Blue Tip',
+  'Red', 'Red Tip',
+  'Brown', 'Brown Tip',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
+];
 ```
 
----
-
-### File 2: `src/services/invoiceService.ts`
-
-#### Change 1: Add tax inclusion helper (after line 16)
+### Display Formatting Utility
 
 ```typescript
-import { COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
-
-const getIsTaxIncludedForCountry = (country: string | null): boolean => {
-  return country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+export const formatBeltLevel = (belt: string): string => {
+  if (!belt) return '';
+  // Convert hyphenated values to display format
+  // e.g., "foundation-2" -> "Foundation 2"
+  return belt
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
 };
 ```
 
-#### Change 2: Update createInvoice calculation (lines 228-252)
+### Files to Modify
 
-Replace the calculation logic with:
-
-```typescript
-// Get branch country for tax rate and inclusion
-let branchCountry: string | null = null;
-if (invoiceData.branch_id) {
-  const { data: branch } = await supabase
-    .from('branches')
-    .select('country')
-    .eq('id', invoiceData.branch_id)
-    .single();
-  branchCountry = branch?.country || null;
-}
-
-const taxRate = getTaxRateForCountry(branchCountry);
-const isTaxIncluded = getIsTaxIncludedForCountry(branchCountry);
-
-// Calculate totals based on tax inclusion setting
-let subtotal = 0;
-let taxAmount = 0;
-
-for (const item of invoiceData.items) {
-  const itemPrice = item.quantity * item.unit_price;
-  
-  if (isTaxIncluded) {
-    // Tax-inclusive (e.g., Australia): price already includes tax
-    const itemSubtotal = itemPrice / (1 + taxRate);
-    const itemTax = itemPrice - itemSubtotal;
-    subtotal += itemSubtotal;
-    taxAmount += itemTax;
-  } else {
-    // Tax-exclusive (e.g., Singapore): add tax on top
-    subtotal += itemPrice;
-    taxAmount += itemPrice * taxRate;
-  }
-}
-
-const totalAmount = subtotal + taxAmount;
-const balanceDue = totalAmount;
-```
-
-#### Change 3: Update invoice items insertion (lines 290-306)
-
-Update to handle tax inclusion:
-
-```typescript
-const itemsToInsert = invoiceData.items.map(item => {
-  const itemPrice = item.quantity * item.unit_price;
-  
-  let itemSubtotal: number;
-  let itemTaxAmount: number;
-  let itemTotal: number;
-  
-  if (isTaxIncluded) {
-    // Tax-inclusive: price is the total, calculate backwards
-    itemTotal = itemPrice;
-    itemSubtotal = itemPrice / (1 + taxRate);
-    itemTaxAmount = itemPrice - itemSubtotal;
-  } else {
-    // Tax-exclusive: add tax on top
-    itemSubtotal = itemPrice;
-    itemTaxAmount = itemPrice * taxRate;
-    itemTotal = itemSubtotal + itemTaxAmount;
-  }
-  
-  return {
-    invoice_id: invoice.id,
-    product_id: item.product_id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    tax_rate: taxRate,
-    tax_amount: itemTaxAmount,
-    total_amount: itemTotal,
-    size_variant: item.size_variant,
-    metadata: item.metadata
-  };
-});
-```
+| File | Changes |
+|------|---------|
+| `src/constants/beltLevels.ts` | **New file** - Central belt constants and formatter |
+| `src/components/sales/AddTrialDialog.tsx` | Use shared constants, remove local list |
+| `src/components/sales/AddStudentDialog.tsx` | Use shared constants, remove hyphen transformation |
+| `src/components/sales/EditStudentDialog.tsx` | Use shared constants, remove hyphen transformation |
+| `src/components/sales/StudentChangeLog.tsx` | Apply formatting to belt values in display |
 
 ---
 
-## Database Fix for Mingyu's Invoice
+## Backward Compatibility
 
-Run this SQL to correct the current data:
-
-```sql
-UPDATE invoices 
-SET 
-  amount_paid = 0,
-  balance_due = total_amount,
-  status = 'unpaid',
-  updated_at = NOW()
-WHERE id = '4359efa0-1a69-46e9-8e14-b53c51524750';
-```
-
----
-
-## Summary of Changes
-
-| File | Change |
-|------|--------|
-| `src/services/paymentService.ts` | Recalculate invoice amounts from actual payments, add update verification |
-| `src/services/invoiceService.ts` | Add tax-inclusion logic for Australia branches |
-
-## Expected Outcome
-
-1. **Future payment deletions**: Will correctly update invoice status, amount_paid, and balance_due
-2. **New Australia invoices**: Will use tax-inclusive calculations (price includes GST)
-3. **Mingyu's invoice**: Will show correct "Unpaid" status after manual database fix
-
+Existing students with hyphenated belt values (e.g., `"foundation-2"`) will:
+- Display correctly due to the format utility converting hyphens to spaces
+- Continue to work in the edit dialog since we'll match against formatted values
