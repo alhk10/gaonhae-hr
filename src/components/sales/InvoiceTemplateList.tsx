@@ -360,11 +360,12 @@ const InvoiceTemplateList: React.FC = () => {
             {/* Country Letterhead URL */}
             <div className="space-y-2">
               <Label htmlFor="letterhead_url">Country Letterhead URL</Label>
-              <Input
+              <Textarea
                 id="letterhead_url"
                 value={formData.letterhead_url}
                 onChange={(e) => setFormData(prev => ({ ...prev, letterhead_url: e.target.value }))}
                 placeholder="https://example.com/letterhead.png"
+                rows={2}
               />
             </div>
 
