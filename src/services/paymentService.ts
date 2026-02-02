@@ -359,7 +359,7 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
     if (invoice && !invoiceError) {
       const newAmountPaid = Math.max(0, invoice.amount_paid - payment.amount);
       const newBalanceDue = invoice.total_amount - newAmountPaid;
-      const newStatus = newBalanceDue > 0 ? 'sent' : 'paid';
+      const newStatus = newBalanceDue > 0 ? 'unpaid' : 'paid';
 
       await supabase
         .from('invoices')

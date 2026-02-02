@@ -99,10 +99,18 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
+  // Debug: Log template data for troubleshooting
+  console.log('PDF Generation - Template:', {
+    letterhead_url: invoice.template?.letterhead_url,
+    country: invoice.template?.country
+  });
+
   // Try to load letterhead first (includes logo + company info as pre-designed image)
   const letterheadData = invoice.template?.letterhead_url 
     ? await loadImage(invoice.template.letterhead_url) 
     : null;
+  
+  console.log('PDF Generation - Letterhead loaded:', !!letterheadData);
 
   if (letterheadData) {
     // Use full letterhead image - spans left side of header
@@ -237,7 +245,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.text(item.description.substring(0, 45), margin + 2, yPos);
       doc.text(item.quantity.toString(), margin + colWidths.description, yPos, { align: 'center' });
       doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
-      doc.text(`${item.tax_rate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
+      const displayTaxRate = (item.tax_rate * 100).toFixed(1);
+      doc.text(`${displayTaxRate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
       doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
       
       yPos += 6;
