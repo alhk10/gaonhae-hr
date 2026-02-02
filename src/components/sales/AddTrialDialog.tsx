@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Phone, User, Clock, AlertCircle } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
+import { BELT_LEVELS } from '@/constants/beltLevels';
 
 interface AddTrialDialogProps {
   open?: boolean;
@@ -49,14 +50,8 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     { value: 'other', label: 'Other' }
   ];
 
-  // Belt level options
-  const beltLevelOptions = [
-    'Foundation 1', 'Foundation 2', 'Foundation 3',
-    'White', 'White Tip', 'Yellow', 'Yellow Tip',
-    'Green', 'Green Tip', 'Blue', 'Blue Tip',
-    'Red', 'Red Tip', 'Brown', 'Brown Tip',
-    'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
-  ];
+  // Belt level options - using shared constants
+  // Import is at the top of the file
 
   // Gender options
   const genderOptions = [
@@ -340,7 +335,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     <SelectValue placeholder="Select belt level" />
                   </SelectTrigger>
                   <SelectContent>
-                    {beltLevelOptions.map((belt) => (
+                    {BELT_LEVELS.map((belt) => (
                       <SelectItem key={belt} value={belt}>
                         {belt}
                       </SelectItem>

@@ -15,6 +15,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
+import { BELT_LEVELS } from '@/constants/beltLevels';
 
 interface AddStudentDialogProps {
   trigger?: React.ReactNode;
@@ -52,14 +53,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     'Tagalog', 'French', 'German', 'Spanish', 'Arabic', 'Russian'
   ];
 
-  // Belt progression system
-  const beltLevels = [
-    'Foundation 1', 'Foundation 2', 'Foundation 3',
-    'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
-    'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-    'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
-    'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
-  ];
+  // Belt progression system - using shared constants from @/constants/beltLevels
   
   // Referral source options
   const referralSourceOptions = [
@@ -573,8 +567,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                       <SelectValue placeholder="Select belt level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {beltLevels.map((belt) => (
-                        <SelectItem key={belt} value={belt.toLowerCase().replace(/\s+/g, '-')}>
+                      {BELT_LEVELS.map((belt) => (
+                        <SelectItem key={belt} value={belt}>
                           {belt}
                         </SelectItem>
                       ))}
