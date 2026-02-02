@@ -1,158 +1,161 @@
 
-# Invoice Template Enhancements Plan
+# Update Invoice PDF According to Templates
 
 ## Overview
-This plan modifies the Invoice Template creation/edit dialog to:
-1. **Add PayNow QR Code Upload** - Allow uploading a QR code image for customers to scan and pay
-2. **Add Country field** - Add a country selector for regional invoice settings
-3. **Remove Payment Terms** - Remove the payment terms field from the UI
+This plan updates the invoice PDF generator to:
+1. Use template data (logo, letterhead, QR code, country) based on branch country
+2. Add term information after class-related items (e.g., "1x Weekday")
+3. Add grading slot information after belt-related items (e.g., "Green Tip >> Green")
+4. Adjust text sizes: Increase "Balance Due" by 1pt, decrease "Total" by 1pt
 
 ---
 
-## 1. Database Changes
+## Current State Analysis
 
-### New Columns for `invoice_templates` Table
-| Column | Type | Description |
-|--------|------|-------------|
-| `paynow_qr_url` | TEXT | URL to the uploaded PayNow QR code image |
-| `country` | TEXT | Country code (e.g., 'SG', 'AU') |
+### Invoice Item Metadata
+Invoice items store contextual info in the `metadata` JSONB field:
+- **Classes**: `{ term_id: "uuid" }` - Links to `term_calendars` table
+- **Grading**: `{ grading_slot_id: "uuid" }` - Links to `grading_slots` table
 
-### Storage Bucket
-Create a new storage bucket `invoice-qr-codes` for storing PayNow QR code images.
+### Templates by Country
+Templates are stored in `invoice_templates` with `country` field:
+- Singapore template: `country = 'SG'`
+- Australia template: `country = 'AU'`
+
+Template contains: `logo_url`, `letterhead_url`, `paynow_qr_url`, `default_notes`
+
+### Data Flow
+1. Invoice has `branch_id`
+2. Branch has `country` field (e.g., "Singapore", "Australia")
+3. Template matches by country code
 
 ---
 
-## 2. File Changes
+## Implementation Details
 
-### Database Migration
-**New file:** `supabase/migrations/[timestamp]_add_template_paynow_qr.sql`
-- Add `paynow_qr_url` column to `invoice_templates`
-- Add `country` column to `invoice_templates`
-- Create `invoice-qr-codes` storage bucket with appropriate RLS policies
+### 1. Update InvoiceData Interface
+Add new fields to support template and item metadata:
 
-### Service Layer Updates
-**File:** `src/services/invoiceTemplateService.ts`
-- Update `InvoiceTemplate` interface to include `paynow_qr_url` and `country`
-- Update `CreateTemplateData` and `UpdateTemplateData` interfaces
+```typescript
+export interface InvoiceItem {
+  // ... existing fields
+  metadata?: {
+    term_id?: string;
+    grading_slot_id?: string;
+  };
+  term_info?: string;      // e.g., "Term 1 2026 (19 Jan - 10 Apr 2026)"
+  grading_info?: string;   // e.g., "11 Apr 2026 at 08:40"
+}
 
-### Component Updates
-**File:** `src/components/sales/InvoiceTemplateList.tsx`
+export interface InvoiceData {
+  // ... existing fields
+  template?: {
+    logo_url?: string;
+    letterhead_url?: string;
+    paynow_qr_url?: string;
+    country?: string;
+  };
+}
+```
 
-**Remove:**
-- Payment Terms input field
-- Payment Terms column from the table
+### 2. Update PDF Generator (`invoicePDFGenerator.ts`)
 
-**Add:**
-- Country dropdown (Singapore, Australia options)
-- PayNow QR Code upload section with:
-  - Hidden file input
-  - Upload button
-  - Preview of uploaded QR code
-  - Remove button for existing QR
+**Logo Changes:**
+- Load logo from template `logo_url` instead of hardcoded path
+- If template has `letterhead_url`, use it as full header background
 
-**Form State Changes:**
+**Item Description Enhancements:**
+- After each item description, add a second line for:
+  - Term info (gray, smaller text): "Term 1 2026 (19 Jan - 10 Apr)"
+  - Grading info (gray, smaller text): "Grading: 11 Apr 2026 at 08:40"
+
+**Text Size Adjustments:**
+- "Total:" label: Change from 11pt to 10pt
+- "Balance Due:" label: Keep at 10pt but make bold text larger (was implied 10pt, now 11pt)
+
+**PayNow QR Code:**
+- Add QR code image at bottom of PDF if `template.paynow_qr_url` exists
+- Position above footer with label "Scan to Pay"
+
+### 3. Update Data Preparation (`InvoiceManagementList.tsx`)
+
+Update `prepareInvoiceDataForPDF()` to:
+1. Fetch branch country from invoice's branch_id
+2. Find matching template by country
+3. Fetch term details for items with `term_id` in metadata
+4. Fetch grading slot details for items with `grading_slot_id` in metadata
+5. Format and attach additional info to each item
+
+---
+
+## PDF Layout with Changes
+
 ```text
-Current:
-- name
-- description
-- default_payment_terms_days  <-- REMOVE
-- default_notes
-- default_internal_notes
-
-New:
-- name
-- description
-- country                     <-- ADD
-- paynow_qr_url              <-- ADD (file upload)
-- default_notes
-- default_internal_notes
++------------------------------------------+
+|  [Logo from template.logo_url]           |
+|  GAONHAE TAEKWONDO LLP                   |
+|  [Country from branch]                   |
+|  UEN: T24LL0001A                         |
+|                              INVOICE     |
++------------------------------------------+
+|  Invoice Number: INV-2026-00001          |
+|  Status: paid                            |
+|  Issue Date: 30 Jan 2026                 |
+|  Due Date: 01 Mar 2026                   |
++------------------------------------------+
+|  Bill To:                                |
+|  Mingyu Song                             |
+|  Address, Phone, Email                   |
++------------------------------------------+
+|  Description       Qty   Price   Tax   Total |
+|  --------------------------------------------|
+|  Green Tip >> Green  1   $70.00  0.1%  $77.00 |
+|    Grading: 11 Apr 2026 at 08:40             |  <-- NEW
+|  1x Weekday         10   $25.00  0.1% $275.00 |
+|    Term 1 2026 (19 Jan - 10 Apr)             |  <-- NEW
++------------------------------------------+
+|                  Subtotal:      $320.00  |
+|                  Tax:            $32.00  |
+|                  --------------------    |
+|                  Total:         $352.00  |  <-- 10pt (was 11)
+|                  Amount Paid:   $352.00  |
+|                  Balance Due:     $0.00  |  <-- 11pt (was 10)
++------------------------------------------+
+|  [PayNow QR Code]   Scan to Pay          |  <-- NEW (if exists)
++------------------------------------------+
+|  Notes: [from template.default_notes]    |
++------------------------------------------+
+|  Thank you for your business!            |
++------------------------------------------+
 ```
 
 ---
 
-## 3. Implementation Details
-
-### Country Dropdown Options
-| Value | Label |
-|-------|-------|
-| SG | Singapore |
-| AU | Australia |
-
-### QR Code Upload Flow
-```text
-User clicks "Upload QR Code"
-        |
-        v
-File picker opens (accept: image/*)
-        |
-        v
-Selected file uploaded to 'invoice-qr-codes' bucket
-        |
-        v
-Public URL stored in paynow_qr_url
-        |
-        v
-Preview displayed in form
-```
-
-### UI Layout (Dialog)
-```text
-+------------------------------------------+
-| Create Template                          |
-| Create a new invoice template...         |
-+------------------------------------------+
-|                                          |
-| Template Name *                          |
-| [________________________]               |
-|                                          |
-| Description                              |
-| [________________________]               |
-|                                          |
-| Country                                  |
-| [Singapore          ▼]                   |
-|                                          |
-| PayNow QR Code                           |
-| [Upload QR Code]  or  [QR Preview] [X]   |
-|                                          |
-| Default Notes (visible to customer)      |
-| [________________________]               |
-|                                          |
-| Default Internal Notes                   |
-| [________________________]               |
-|                                          |
-|              [Cancel]  [Create Template] |
-+------------------------------------------+
-```
-
-### Table Columns (After)
-| Name | Description | Country | Status | Created | Actions |
-|------|-------------|---------|--------|---------|---------|
-
----
-
-## 4. Files Summary
+## File Changes Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `supabase/migrations/...` | Create | Add paynow_qr_url, country columns and storage bucket |
-| `src/integrations/supabase/types.ts` | Auto-update | New column types |
-| `src/services/invoiceTemplateService.ts` | Modify | Update interfaces |
-| `src/components/sales/InvoiceTemplateList.tsx` | Modify | Remove payment terms, add country dropdown and QR upload |
+| `src/utils/invoicePDFGenerator.ts` | Modify | Update interfaces, add template support, add term/grading info lines, adjust font sizes, add QR code |
+| `src/components/sales/InvoiceManagementList.tsx` | Modify | Enhance `prepareInvoiceDataForPDF()` to fetch template, term, and grading data |
 
 ---
 
-## 5. Technical Considerations
+## Technical Notes
 
-### Backward Compatibility
-- The `default_payment_terms_days` column remains in the database
-- Only the UI input is removed
-- Existing templates retain their payment terms values
+### Loading External Images
+The PDF generator already has `loadCompanyLogo()` function. This will be refactored to a generic `loadImage(url)` function that works with any URL (including Supabase storage URLs).
 
-### File Upload Security
-- QR codes uploaded to dedicated storage bucket
-- RLS policies ensure only superadmins can upload/delete
-- Public read access for displaying on invoices
+### Term Info Format
+- Format: `{term_name} ({start_date} - {end_date})`
+- Example: "Term 1 2026 (19 Jan - 10 Apr)"
 
-### Invoice PDF Integration
-- The uploaded QR code can later be added to invoice PDFs
-- This enhancement focuses on template storage only
+### Grading Info Format
+- Format: `Grading: {date} at {time}`
+- Example: "Grading: 11 Apr 2026 at 08:40"
+
+### Font Size Reference
+- Current "Total:" = 11pt bold
+- New "Total:" = 10pt bold (reduced by 1)
+- Current "Balance Due:" = 10pt bold
+- New "Balance Due:" = 11pt bold (increased by 1)
+
