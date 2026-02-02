@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logSalesModuleAccess } from './salesModuleService';
 import { logger } from '@/utils/logger';
+import { createStudentAuth } from './studentAuthService';
 
 export interface Student {
   id: string;
@@ -407,6 +408,17 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
           relationship: studentData.emergency_contact_relationship || 'Emergency Contact',
           is_primary: true
         });
+    }
+
+    // Create student auth record if email is provided (enables student portal login)
+    if (studentData.email) {
+      try {
+        await createStudentAuth(data.id, studentData.email);
+        logger.info('Student auth record created for student portal access', { studentId: data.id, email: studentData.email });
+      } catch (authError) {
+        // Don't fail student creation if auth record creation fails
+        logger.error('Failed to create student auth record', authError);
+      }
     }
 
     await logSalesModuleAccess('create_student', true, { studentId: data.id });

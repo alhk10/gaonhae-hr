@@ -8,6 +8,7 @@ import PublicHolidayManagement from '@/components/settings/PublicHolidayManageme
 import SystemAllowanceDeductionManagement from '@/components/settings/SystemAllowanceDeductionManagement';
 import BulkUserCreationManager from '@/components/admin/BulkUserCreationManager';
 import BranchManagement from '@/components/settings/BranchManagement';
+import BranchAccessManagement from '@/components/settings/BranchAccessManagement';
 import EducationResourcesManagement from '@/components/settings/EducationResourcesManagement';
 import { NotificationSettingsManagement } from '@/components/settings/NotificationSettingsManagement';
 import { TermCalendarManagement } from '@/components/settings/TermCalendarManagement';
@@ -66,10 +67,11 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="auth-users" className="w-full">
-          <TabsList className="grid w-full grid-cols-10">
+          <TabsList className="grid w-full grid-cols-11">
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
             <TabsTrigger value="user-management">User Mgmt</TabsTrigger>
             <TabsTrigger value="employee-modules">Emp Modules</TabsTrigger>
+            <TabsTrigger value="branch-access">Branch Access</TabsTrigger>
             <TabsTrigger value="system-allowances">Allowances</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
             <TabsTrigger value="branch-management">Branches</TabsTrigger>
@@ -94,6 +96,10 @@ const Settings = () => {
               employees={employees}
               onEmployeesUpdate={handleEmployeesUpdate}
             />
+          </TabsContent>
+
+          <TabsContent value="branch-access" className="mt-6">
+            <BranchAccessManagement />
           </TabsContent>
 
           <TabsContent value="system-allowances" className="mt-6">
