@@ -21,6 +21,8 @@ export interface InvoiceTemplate {
   letterhead_url?: string;
   paynow_qr_url?: string;
   country?: string;
+  default_notes?: string;
+  footer_text?: string;
 }
 
 export interface InvoiceData {
@@ -351,45 +353,66 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   yPos += 20;
 
-  // PayNow QR Code section (if template has QR code)
-  if (invoice.template?.paynow_qr_url) {
-    const qrData = await loadImage(invoice.template.paynow_qr_url);
-    if (qrData) {
-      // Check if we need a new page
-      if (yPos > 220) {
-        doc.addPage();
-        yPos = 20;
-      }
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Scan to Pay', margin, yPos);
-      yPos += 5;
-      
-      // Add QR code image
-      doc.addImage(qrData.data, 'PNG', margin, yPos, 40, 40);
-      yPos += 50;
-    }
-  }
-
-  // Notes section
-  if (invoice.notes) {
+  // Notes and PayNow QR Code section
+  const hasQrCode = invoice.template?.paynow_qr_url;
+  const hasDefaultNotes = invoice.template?.default_notes?.trim();
+  const hasInvoiceNotes = invoice.notes?.trim();
+  
+  if (hasQrCode || hasDefaultNotes || hasInvoiceNotes) {
     // Check if we need a new page
-    if (yPos > 250) {
+    if (yPos > 220) {
       doc.addPage();
       yPos = 20;
     }
     
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Notes:', margin, yPos);
-    yPos += 6;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    const qrSize = 42; // 5% larger than original 40
+    const qrX = pageWidth - margin - qrSize; // Right-aligned
+    let qrData: LoadedImage | null = null;
     
-    // Word wrap notes
-    const splitNotes = doc.splitTextToSize(invoice.notes, pageWidth - margin * 2);
-    doc.text(splitNotes, margin, yPos);
+    // Load QR code if available
+    if (hasQrCode) {
+      qrData = await loadImage(invoice.template!.paynow_qr_url!);
+    }
+    
+    // Calculate max width for notes (leave space for QR if present)
+    const notesMaxWidth = qrData ? (qrX - margin - 10) : (pageWidth - margin * 2);
+    const notesStartY = yPos;
+    
+    // Render notes on the left
+    if (hasDefaultNotes || hasInvoiceNotes) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Notes:', margin, yPos);
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      
+      // Template default notes first
+      if (hasDefaultNotes) {
+        const splitDefaultNotes = doc.splitTextToSize(invoice.template!.default_notes!, notesMaxWidth);
+        doc.text(splitDefaultNotes, margin, yPos);
+        yPos += splitDefaultNotes.length * 4 + 4;
+      }
+      
+      // Invoice-specific notes
+      if (hasInvoiceNotes) {
+        const splitNotes = doc.splitTextToSize(invoice.notes!, notesMaxWidth);
+        doc.text(splitNotes, margin, yPos);
+        yPos += splitNotes.length * 4;
+      }
+    }
+    
+    // Add QR code on the right (aligned with notes start)
+    if (qrData) {
+      doc.addImage(qrData.data, 'PNG', qrX, notesStartY, qrSize, qrSize);
+      // Ensure yPos accounts for QR height if notes are shorter
+      const qrEndY = notesStartY + qrSize;
+      if (yPos < qrEndY) {
+        yPos = qrEndY;
+      }
+    }
+    
+    yPos += 10;
   }
 
   // Footer
@@ -397,7 +420,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(128, 128, 128);
-  doc.text('Thank you for your business!', pageWidth / 2, footerY, { align: 'center' });
+  const footerText = invoice.template?.footer_text?.trim() || 'Thank you for your business!';
+  doc.text(footerText, pageWidth / 2, footerY, { align: 'center' });
   doc.text(`Generated on ${format(new Date(), 'dd MMM yyyy HH:mm')}`, pageWidth / 2, footerY + 5, { align: 'center' });
 
   return doc;

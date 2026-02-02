@@ -243,7 +243,7 @@ const InvoiceManagementList: React.FC = () => {
     const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
     const { data: templates } = await supabase
       .from('invoice_templates')
-      .select('letterhead_url, paynow_qr_url, country')
+      .select('letterhead_url, paynow_qr_url, country, default_notes, footer_text')
       .eq('country', countryCode)
       .eq('is_active', true)
       .limit(1);
