@@ -12,6 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   Filter, 
@@ -23,10 +33,12 @@ import {
   Send,
   DollarSign,
   Calendar,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice } from '@/services/invoiceService';
+import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { getStudents } from '@/services/studentService';
 import CreateInvoiceDialog from './CreateInvoiceDialog';
 import ViewEditInvoiceDialog from './ViewEditInvoiceDialog';
@@ -54,6 +66,12 @@ const InvoiceManagementList: React.FC = () => {
   const [totalInvoices, setTotalInvoices] = useState(0);
   const pageSize = 20;
   const totalPages = Math.ceil(totalInvoices / pageSize);
+  
+  // Delete request dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   useEffect(() => {
     loadInvoices();
@@ -126,22 +144,27 @@ const InvoiceManagementList: React.FC = () => {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string, branchId?: string) => {
-    // Check delete permission for this branch
-    if (branchId && !canDelete(branchId)) {
-      toast.error('You do not have permission to delete invoices for this branch');
-      return;
-    }
-    
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
+  const handleOpenDeleteDialog = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
+    setDeleteReason('');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSubmitDeleteRequest = async () => {
+    if (!invoiceToDelete) return;
     
     try {
-      await deleteInvoice(invoiceId);
-      toast.success('Invoice deleted');
-      loadInvoices();
+      setIsSubmittingDelete(true);
+      await createInvoiceDeletionRequest(invoiceToDelete.id, deleteReason || undefined);
+      toast.success('Deletion request submitted for superadmin approval');
+      setDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+      setDeleteReason('');
     } catch (error) {
-      console.error('Error deleting invoice:', error);
-      toast.error('Failed to delete invoice');
+      console.error('Error submitting deletion request:', error);
+      toast.error('Failed to submit deletion request');
+    } finally {
+      setIsSubmittingDelete(false);
     }
   };
 
@@ -395,13 +418,13 @@ const InvoiceManagementList: React.FC = () => {
                               onPaymentCreated={loadInvoices}
                             />
                           )}
-                          {isSuperadmin && (
+                          {hasAccess && (
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Delete Invoice"
-                              onClick={() => handleDeleteInvoice(invoice.id, invoice.branch_id || undefined)}
+                              title="Request Delete"
+                              onClick={() => handleOpenDeleteDialog(invoice)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -457,6 +480,62 @@ const InvoiceManagementList: React.FC = () => {
           initialMode={dialogMode}
         />
       )}
+
+      {/* Delete Request Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Invoice Deletion</DialogTitle>
+            <DialogDescription>
+              This deletion request will be sent to a superadmin for approval.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {invoiceToDelete && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Invoice #:</span>
+                  <span className="font-medium">{invoiceToDelete.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Student:</span>
+                  <span className="font-medium">{invoiceToDelete.student_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Amount:</span>
+                  <span className="font-medium">{formatCurrency(invoiceToDelete.total_amount)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
+                <Textarea
+                  id="delete-reason"
+                  placeholder="Please provide a reason for this deletion request..."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleSubmitDeleteRequest}
+              disabled={isSubmittingDelete}
+            >
+              {isSubmittingDelete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
