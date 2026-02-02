@@ -122,8 +122,8 @@ Multi-dashboard system with four distinct dashboards:
 
 ## Remaining Tasks (Future Enhancements)
 
-- [ ] Add UI to manage employee_branch_access in Settings
-- [ ] Add student account creation when adding students in AddStudentDialog
+- [x] Add UI to manage employee_branch_access in Settings ✅
+- [x] Add student account creation when adding students in AddStudentDialog ✅
 - [ ] Add email notifications for approval workflow
 - [ ] Add Stripe payment integration for student payments
 - [ ] Add class schedule view for students
