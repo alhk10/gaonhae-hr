@@ -151,9 +151,21 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('Status:', margin, yPos);
   doc.setFont('helvetica', 'normal');
-  // Capitalize first letter of status
-  const statusText = invoice.status ? invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1) : 'Draft';
+  
+  // Map 'draft' to 'Unpaid' for display and apply color coding
+  let rawStatus = invoice.status || 'unpaid';
+  if (rawStatus === 'draft') rawStatus = 'unpaid';
+  const statusText = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  
+  // Apply color coding: Paid = Green, Unpaid = Red
+  if (rawStatus === 'paid') {
+    doc.setTextColor(34, 139, 34); // Forest green
+  } else if (rawStatus === 'unpaid') {
+    doc.setTextColor(220, 53, 69); // Red
+  }
+  
   doc.text(statusText, margin + 35, yPos);
+  doc.setTextColor(0, 0, 0); // Reset to black
 
   doc.setFont('helvetica', 'bold');
   doc.text('Due Date:', pageWidth - margin - 60, yPos);
