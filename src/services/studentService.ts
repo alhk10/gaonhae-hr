@@ -491,16 +491,26 @@ export async function deleteStudent(studentId: string): Promise<void> {
  */
 async function generateStudentNumber(): Promise<string> {
   const year = new Date().getFullYear().toString().slice(-2);
+  const prefix = `STU${year}`;
   
-  // Get the count of students created this year
-  const { count } = await supabase
+  // Get the highest student number for this year to avoid duplicates
+  const { data, error } = await supabase
     .from('students')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', `${new Date().getFullYear()}-01-01`)
-    .lt('created_at', `${new Date().getFullYear() + 1}-01-01`);
+    .select('student_number')
+    .like('student_number', `${prefix}%`)
+    .order('student_number', { ascending: false })
+    .limit(1);
 
-  const nextNumber = (count || 0) + 1;
-  return `STU${year}${nextNumber.toString().padStart(4, '0')}`;
+  let nextNumber = 1;
+  if (!error && data && data.length > 0) {
+    const lastNumber = data[0].student_number.replace(prefix, '');
+    const parsed = parseInt(lastNumber, 10);
+    if (!isNaN(parsed)) {
+      nextNumber = parsed + 1;
+    }
+  }
+  
+  return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
 }
 
 /**
