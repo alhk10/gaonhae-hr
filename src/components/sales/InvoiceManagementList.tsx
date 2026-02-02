@@ -374,7 +374,9 @@ const InvoiceManagementList: React.FC = () => {
       template: template ? {
         letterhead_url: template.letterhead_url || undefined,
         paynow_qr_url: template.paynow_qr_url || undefined,
-        country: template.country || undefined
+        country: template.country || undefined,
+        default_notes: template.default_notes || undefined,
+        footer_text: template.footer_text || undefined
       } : undefined
     };
   };
