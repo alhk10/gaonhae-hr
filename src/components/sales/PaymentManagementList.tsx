@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   Filter, 
@@ -26,7 +36,8 @@ import {
   Receipt
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getPayments, deletePayment, type Payment } from '@/services/paymentService';
+import { getPayments, type Payment } from '@/services/paymentService';
+import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import ViewEditPaymentDialog from './ViewEditPaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -44,6 +55,12 @@ const PaymentManagementList: React.FC = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit'>('view');
+  
+  // Delete request dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,16 +109,27 @@ const PaymentManagementList: React.FC = () => {
     }
   };
 
-  const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Are you sure you want to delete this payment? This will update the invoice balance.')) return;
+  const handleOpenDeleteDialog = (payment: Payment) => {
+    setPaymentToDelete(payment);
+    setDeleteReason('');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSubmitDeleteRequest = async () => {
+    if (!paymentToDelete) return;
     
     try {
-      await deletePayment(paymentId);
-      toast.success('Payment deleted and invoice balance updated');
-      loadPayments();
+      setIsSubmittingDelete(true);
+      await createDeletionRequest(paymentToDelete.id, deleteReason || undefined);
+      toast.success('Deletion request submitted for superadmin approval');
+      setDeleteDialogOpen(false);
+      setPaymentToDelete(null);
+      setDeleteReason('');
     } catch (error) {
-      console.error('Error deleting payment:', error);
-      toast.error('Failed to delete payment');
+      console.error('Error submitting deletion request:', error);
+      toast.error('Failed to submit deletion request');
+    } finally {
+      setIsSubmittingDelete(false);
     }
   };
 
@@ -374,8 +402,8 @@ const PaymentManagementList: React.FC = () => {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Payment"
-                            onClick={() => handleDeletePayment(payment.id)}
+                            title="Request Delete"
+                            onClick={() => handleOpenDeleteDialog(payment)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -430,6 +458,67 @@ const PaymentManagementList: React.FC = () => {
           initialMode={dialogMode}
         />
       )}
+
+      {/* Delete Request Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Payment Deletion</DialogTitle>
+            <DialogDescription>
+              This deletion request will be sent to a superadmin for approval.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {paymentToDelete && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Payment #:</span>
+                  <span className="font-medium">{paymentToDelete.payment_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-medium text-green-600">
+                    {formatCurrency(paymentToDelete.amount)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Invoice:</span>
+                  <span className="font-medium">{paymentToDelete.invoice_number || '-'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
+                <Textarea
+                  id="delete-reason"
+                  placeholder="Enter reason for deletion..."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isSubmittingDelete}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleSubmitDeleteRequest}
+              disabled={isSubmittingDelete}
+            >
+              {isSubmittingDelete ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

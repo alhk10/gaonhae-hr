@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, FileText, Clock, Calendar } from 'lucide-react';
+import { Users, FileText, Clock, Calendar, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
+import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
+import PaymentDeletionApprovals from './PaymentDeletionApprovals';
 
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
@@ -26,6 +28,14 @@ const SuperadminDashboard = () => {
     staleTime: 1 * 60 * 1000, // Cache for 1 minute
     retry: 2,
     enabled: !!dashboardStats, // Only load after stats are loaded
+  });
+
+  // Load pending deletion requests count
+  const { data: pendingDeletionsCount = 0 } = useQuery({
+    queryKey: ['pending-deletion-count'],
+    queryFn: getPendingDeletionRequestsCount,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
   });
 
   useEffect(() => {
@@ -55,10 +65,10 @@ const SuperadminDashboard = () => {
       color: 'bg-orange-500' 
     },
     { 
-      title: 'Active Claims', 
-      value: statsLoading ? '...' : (dashboardStats?.activeClaims?.toString() || '0'), 
-      icon: Clock, 
-      color: 'bg-green-500' 
+      title: 'Pending Deletions', 
+      value: pendingDeletionsCount.toString(), 
+      icon: Trash2, 
+      color: pendingDeletionsCount > 0 ? 'bg-red-500' : 'bg-gray-500' 
     },
     { 
       title: 'Payroll Due', 
@@ -180,6 +190,11 @@ const SuperadminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Deletion Approvals */}
+      {pendingDeletionsCount > 0 && (
+        <PaymentDeletionApprovals />
+      )}
 
       {/* Class Weekly Planner */}
       <ClassWeeklyPlanner />
