@@ -1621,6 +1621,8 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          letterhead_url: string | null
+          logo_url: string | null
           name: string
           paynow_qr_url: string | null
           template_items: Json | null
@@ -1638,6 +1640,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          letterhead_url?: string | null
+          logo_url?: string | null
           name: string
           paynow_qr_url?: string | null
           template_items?: Json | null
@@ -1655,6 +1659,8 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          letterhead_url?: string | null
+          logo_url?: string | null
           name?: string
           paynow_qr_url?: string | null
           template_items?: Json | null

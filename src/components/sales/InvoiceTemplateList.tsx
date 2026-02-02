@@ -22,26 +22,32 @@ import {
   deleteInvoiceTemplate,
   type InvoiceTemplate 
 } from '@/services/invoiceTemplateService';
-import { Plus, Edit, Trash2, FileText, Loader2, Upload, X, QrCode } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Loader2, Upload, X, QrCode, Image } from 'lucide-react';
 
 const COUNTRY_OPTIONS = [
   { value: 'SG', label: 'Singapore' },
   { value: 'AU', label: 'Australia' }
 ];
 
+type UploadType = 'qr' | 'logo' | 'letterhead';
+
 const InvoiceTemplateList: React.FC = () => {
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingType, setUploadingType] = useState<UploadType | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<InvoiceTemplate | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrFileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const letterheadFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     country: 'SG',
     paynow_qr_url: '',
+    logo_url: '',
+    letterhead_url: '',
     default_notes: '',
     default_internal_notes: ''
   });
@@ -71,6 +77,8 @@ const InvoiceTemplateList: React.FC = () => {
         description: template.description || '',
         country: template.country || 'SG',
         paynow_qr_url: template.paynow_qr_url || '',
+        logo_url: template.logo_url || '',
+        letterhead_url: template.letterhead_url || '',
         default_notes: template.default_notes || '',
         default_internal_notes: template.default_internal_notes || ''
       });
@@ -81,6 +89,8 @@ const InvoiceTemplateList: React.FC = () => {
         description: '',
         country: 'SG',
         paynow_qr_url: '',
+        logo_url: '',
+        letterhead_url: '',
         default_notes: '',
         default_internal_notes: ''
       });
@@ -88,7 +98,7 @@ const InvoiceTemplateList: React.FC = () => {
     setDialogOpen(true);
   };
 
-  const handleUploadQR = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>, type: UploadType) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -104,10 +114,10 @@ const InvoiceTemplateList: React.FC = () => {
       return;
     }
 
-    setUploading(true);
+    setUploadingType(type);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `qr-${Date.now()}.${fileExt}`;
+      const fileName = `${type}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('invoice-qr-codes')
@@ -119,34 +129,53 @@ const InvoiceTemplateList: React.FC = () => {
         .from('invoice-qr-codes')
         .getPublicUrl(fileName);
 
-      setFormData(prev => ({ ...prev, paynow_qr_url: publicUrl }));
-      toast.success('QR code uploaded successfully');
+      const fieldMap: Record<UploadType, string> = {
+        qr: 'paynow_qr_url',
+        logo: 'logo_url',
+        letterhead: 'letterhead_url'
+      };
+
+      setFormData(prev => ({ ...prev, [fieldMap[type]]: publicUrl }));
+      
+      const labelMap: Record<UploadType, string> = {
+        qr: 'QR code',
+        logo: 'Logo',
+        letterhead: 'Letterhead'
+      };
+      toast.success(`${labelMap[type]} uploaded successfully`);
     } catch (error) {
-      console.error('Error uploading QR code:', error);
-      toast.error('Failed to upload QR code');
+      console.error(`Error uploading ${type}:`, error);
+      toast.error(`Failed to upload ${type}`);
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setUploadingType(null);
+      // Reset file inputs
+      if (qrFileInputRef.current) qrFileInputRef.current.value = '';
+      if (logoFileInputRef.current) logoFileInputRef.current.value = '';
+      if (letterheadFileInputRef.current) letterheadFileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveQR = async () => {
-    if (formData.paynow_qr_url) {
-      // Extract filename from URL and delete from storage
+  const handleRemoveImage = async (type: UploadType) => {
+    const fieldMap: Record<UploadType, keyof typeof formData> = {
+      qr: 'paynow_qr_url',
+      logo: 'logo_url',
+      letterhead: 'letterhead_url'
+    };
+    
+    const url = formData[fieldMap[type]];
+    if (url) {
       try {
-        const urlParts = formData.paynow_qr_url.split('/');
+        const urlParts = url.split('/');
         const fileName = urlParts[urlParts.length - 1];
         
         await supabase.storage
           .from('invoice-qr-codes')
           .remove([fileName]);
       } catch (error) {
-        console.error('Error deleting QR code:', error);
+        console.error(`Error deleting ${type}:`, error);
       }
     }
-    setFormData(prev => ({ ...prev, paynow_qr_url: '' }));
+    setFormData(prev => ({ ...prev, [fieldMap[type]]: '' }));
   };
 
   const handleSave = async () => {
@@ -163,6 +192,8 @@ const InvoiceTemplateList: React.FC = () => {
           description: formData.description,
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
+          logo_url: formData.logo_url || undefined,
+          letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes
         });
@@ -173,6 +204,8 @@ const InvoiceTemplateList: React.FC = () => {
           description: formData.description,
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
+          logo_url: formData.logo_url || undefined,
+          letterhead_url: formData.letterhead_url || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes
         });
@@ -270,6 +303,11 @@ const InvoiceTemplateList: React.FC = () => {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {template.name}
+                        {template.logo_url && (
+                          <span title="Has Logo">
+                            <Image className="h-4 w-4 text-muted-foreground" />
+                          </span>
+                        )}
                         {template.paynow_qr_url && (
                           <span title="Has PayNow QR">
                             <QrCode className="h-4 w-4 text-muted-foreground" />
@@ -373,14 +411,121 @@ const InvoiceTemplateList: React.FC = () => {
               </Select>
             </div>
 
+            {/* Logo Upload */}
             <div className="space-y-2">
-              <Label>PayNow QR Code</Label>
+              <Label>Logo</Label>
               <input
-                ref={fileInputRef}
+                ref={logoFileInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleUploadQR}
+                onChange={(e) => handleUploadImage(e, 'logo')}
+              />
+              {formData.logo_url ? (
+                <div className="flex items-center gap-4 p-3 border rounded-md">
+                  <img
+                    src={formData.logo_url}
+                    alt="Logo"
+                    className="w-16 h-16 object-contain border rounded"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Logo uploaded</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveImage('logo')}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  disabled={uploadingType === 'logo'}
+                >
+                  {uploadingType === 'logo' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Logo
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Country Letterhead Upload */}
+            <div className="space-y-2">
+              <Label>Country Letterhead</Label>
+              <input
+                ref={letterheadFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleUploadImage(e, 'letterhead')}
+              />
+              {formData.letterhead_url ? (
+                <div className="flex items-center gap-4 p-3 border rounded-md">
+                  <img
+                    src={formData.letterhead_url}
+                    alt="Letterhead"
+                    className="w-20 h-16 object-contain border rounded"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Letterhead uploaded</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveImage('letterhead')}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => letterheadFileInputRef.current?.click()}
+                  disabled={uploadingType === 'letterhead'}
+                >
+                  {uploadingType === 'letterhead' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Letterhead
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* PayNow QR Code Upload */}
+            <div className="space-y-2">
+              <Label>PayNow QR Code</Label>
+              <input
+                ref={qrFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleUploadImage(e, 'qr')}
               />
               {formData.paynow_qr_url ? (
                 <div className="flex items-center gap-4 p-3 border rounded-md">
@@ -396,7 +541,7 @@ const InvoiceTemplateList: React.FC = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={handleRemoveQR}
+                    onClick={() => handleRemoveImage('qr')}
                     className="text-destructive hover:text-destructive"
                   >
                     <X className="h-4 w-4" />
@@ -407,10 +552,10 @@ const InvoiceTemplateList: React.FC = () => {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
+                  onClick={() => qrFileInputRef.current?.click()}
+                  disabled={uploadingType === 'qr'}
                 >
-                  {uploading ? (
+                  {uploadingType === 'qr' ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Uploading...
