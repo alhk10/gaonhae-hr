@@ -210,6 +210,98 @@ const InvoiceManagementList: React.FC = () => {
     } catch {
       studentData = null;
     }
+
+    // Get branch details to determine country for template matching
+    let branchCountry = 'Singapore';
+    if (invoice.branch_id) {
+      const { data: branchData } = await supabase
+        .from('branches')
+        .select('country')
+        .eq('id', invoice.branch_id)
+        .single();
+      if (branchData?.country) {
+        branchCountry = branchData.country;
+      }
+    }
+
+    // Find matching template by country
+    const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+    const { data: templates } = await supabase
+      .from('invoice_templates')
+      .select('logo_url, letterhead_url, paynow_qr_url, country')
+      .eq('country', countryCode)
+      .eq('is_active', true)
+      .limit(1);
+    
+    const template = templates?.[0] || null;
+
+    // Collect term_ids and grading_slot_ids from items
+    const termIds: string[] = [];
+    const gradingSlotIds: string[] = [];
+    
+    fullInvoice?.items?.forEach(item => {
+      const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+      if (metadata?.term_id) termIds.push(metadata.term_id);
+      if (metadata?.grading_slot_id) gradingSlotIds.push(metadata.grading_slot_id);
+    });
+
+    // Fetch term calendar data
+    const termMap: Record<string, { name: string; start_date: string; end_date: string }> = {};
+    if (termIds.length > 0) {
+      const { data: termsData } = await supabase
+        .from('term_calendars')
+        .select('id, name, start_date, end_date')
+        .in('id', termIds);
+      
+      termsData?.forEach(term => {
+        termMap[term.id] = {
+          name: term.name,
+          start_date: term.start_date,
+          end_date: term.end_date
+        };
+      });
+    }
+
+    // Fetch grading slot data
+    const gradingMap: Record<string, { grading_date: string; start_time: string | null }> = {};
+    if (gradingSlotIds.length > 0) {
+      const { data: gradingData } = await supabase
+        .from('grading_slots')
+        .select('id, grading_date, start_time')
+        .in('id', gradingSlotIds);
+      
+      gradingData?.forEach(slot => {
+        gradingMap[slot.id] = {
+          grading_date: slot.grading_date,
+          start_time: slot.start_time
+        };
+      });
+    }
+
+    // Format date helper
+    const formatShortDate = (dateStr: string) => {
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const formatFullDate = (dateStr: string) => {
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const formatTime = (timeStr: string | null) => {
+      if (!timeStr) return '';
+      // Time format is HH:MM:SS, convert to HH:MM
+      return timeStr.substring(0, 5);
+    };
     
     return {
       id: invoice.id,
@@ -231,15 +323,45 @@ const InvoiceManagementList: React.FC = () => {
         email: studentData.email,
         whatsapp: studentData.whatsapp
       } : undefined,
-      items: fullInvoice?.items?.map(item => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_amount: item.total_amount,
-        tax_rate: item.tax_rate,
-        tax_amount: item.tax_amount
-      })) || []
+      items: fullInvoice?.items?.map(item => {
+        const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+        let term_info: string | undefined;
+        let grading_info: string | undefined;
+
+        // Build term info string
+        if (metadata?.term_id && termMap[metadata.term_id]) {
+          const term = termMap[metadata.term_id];
+          term_info = `${term.name} (${formatShortDate(term.start_date)} - ${formatShortDate(term.end_date)})`;
+        }
+
+        // Build grading info string
+        if (metadata?.grading_slot_id && gradingMap[metadata.grading_slot_id]) {
+          const slot = gradingMap[metadata.grading_slot_id];
+          const timeStr = formatTime(slot.start_time);
+          grading_info = timeStr 
+            ? `${formatFullDate(slot.grading_date)} at ${timeStr}`
+            : formatFullDate(slot.grading_date);
+        }
+
+        return {
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+          metadata,
+          term_info,
+          grading_info
+        };
+      }) || [],
+      template: template ? {
+        logo_url: template.logo_url || undefined,
+        letterhead_url: template.letterhead_url || undefined,
+        paynow_qr_url: template.paynow_qr_url || undefined,
+        country: template.country || undefined
+      } : undefined
     };
   };
 

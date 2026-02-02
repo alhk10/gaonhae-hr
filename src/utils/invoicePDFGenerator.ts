@@ -9,6 +9,19 @@ export interface InvoiceItem {
   total_amount: number;
   tax_rate: number;
   tax_amount: number;
+  metadata?: {
+    term_id?: string;
+    grading_slot_id?: string;
+  };
+  term_info?: string;      // e.g., "Term 1 2026 (19 Jan - 10 Apr)"
+  grading_info?: string;   // e.g., "11 Apr 2026 at 08:40"
+}
+
+export interface InvoiceTemplate {
+  logo_url?: string;
+  letterhead_url?: string;
+  paynow_qr_url?: string;
+  country?: string;
 }
 
 export interface InvoiceData {
@@ -36,6 +49,7 @@ export interface InvoiceData {
     name: string;
     address?: string;
   };
+  template?: InvoiceTemplate;
 }
 
 const COMPANY_INFO = {
@@ -46,7 +60,7 @@ const COMPANY_INFO = {
   uen: 'T24LL0001A'
 };
 
-const loadCompanyLogo = (): Promise<string | null> => {
+const loadImage = (url: string): Promise<string | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -63,8 +77,14 @@ const loadCompanyLogo = (): Promise<string | null> => {
       }
     };
     img.onerror = () => resolve(null);
-    img.src = '/images/company-logo.jpg';
+    img.src = url;
   });
+};
+
+const loadCompanyLogo = (templateLogoUrl?: string): Promise<string | null> => {
+  // Use template logo if provided, otherwise use default
+  const logoUrl = templateLogoUrl || '/images/company-logo.jpg';
+  return loadImage(logoUrl);
 };
 
 const formatCurrency = (amount: number): string => {
@@ -86,8 +106,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const margin = 20;
   let yPos = 20;
 
-  // Load and add company logo
-  const logoData = await loadCompanyLogo();
+  // Load and add company logo (from template or default)
+  const logoData = await loadCompanyLogo(invoice.template?.logo_url);
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, yPos, 30, 30);
   }
@@ -196,18 +216,40 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   if (invoice.items && invoice.items.length > 0) {
     invoice.items.forEach((item) => {
       // Check if we need a new page
-      if (yPos > 250) {
+      if (yPos > 240) {
         doc.addPage();
         yPos = 20;
       }
 
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
       doc.text(item.description.substring(0, 45), margin + 2, yPos);
       doc.text(item.quantity.toString(), margin + colWidths.description, yPos, { align: 'center' });
       doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 10, yPos, { align: 'right' });
       doc.text(`${item.tax_rate}%`, margin + colWidths.description + colWidths.qty + colWidths.price + 15, yPos, { align: 'right' });
       doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
       
-      yPos += 7;
+      yPos += 6;
+
+      // Add term info if available (gray, smaller text)
+      if (item.term_info) {
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`  ${item.term_info}`, margin + 2, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+      }
+
+      // Add grading info if available (gray, smaller text)
+      if (item.grading_info) {
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`  Grading: ${item.grading_info}`, margin + 2, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+      }
+
+      yPos += 2;
     });
   } else {
     doc.text('No items', margin + 2, yPos);
@@ -223,6 +265,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const totalsX = pageWidth - margin - 80;
   
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
   doc.text('Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
@@ -242,8 +285,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.line(totalsX - 5, yPos - 2, pageWidth - margin, yPos - 2);
   yPos += 4;
 
+  // Total (reduced from 11pt to 10pt)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.text('Total:', totalsX, yPos);
   doc.text(formatCurrency(invoice.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 8;
@@ -254,14 +298,43 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text(formatCurrency(invoice.amount_paid), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
+  // Balance Due (increased from 10pt to 11pt)
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
   doc.text('Balance Due:', totalsX, yPos);
   doc.text(formatCurrency(invoice.balance_due), pageWidth - margin - 2, yPos, { align: 'right' });
 
   yPos += 20;
 
+  // PayNow QR Code section (if template has QR code)
+  if (invoice.template?.paynow_qr_url) {
+    const qrData = await loadImage(invoice.template.paynow_qr_url);
+    if (qrData) {
+      // Check if we need a new page
+      if (yPos > 220) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Scan to Pay', margin, yPos);
+      yPos += 5;
+      
+      // Add QR code image
+      doc.addImage(qrData, 'PNG', margin, yPos, 40, 40);
+      yPos += 50;
+    }
+  }
+
   // Notes section
   if (invoice.notes) {
+    // Check if we need a new page
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('Notes:', margin, yPos);
