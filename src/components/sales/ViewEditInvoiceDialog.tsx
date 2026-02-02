@@ -20,8 +20,9 @@ import { getInvoiceById, updateInvoiceStatus, type Invoice, type InvoiceItem } f
 import { getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History } from 'lucide-react';
 import CreatePaymentDialog from './CreatePaymentDialog';
+import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 
 interface ViewEditInvoiceDialogProps {
   invoiceId: string;
@@ -176,6 +177,16 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               <Badge variant={getStatusBadgeVariant(invoice.status)}>
                 {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
               </Badge>
+              <InvoiceChangeLogDialog
+                invoiceId={invoice.id}
+                invoiceNumber={invoice.invoice_number}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                }
+              />
               {mode === 'view' ? (
                 <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
                   <Edit className="h-4 w-4 mr-2" />
