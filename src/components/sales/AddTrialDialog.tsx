@@ -31,10 +31,37 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
   // Referral source options
   const referralSourceOptions = [
     { value: 'family_friends', label: 'Family & Friends' },
-    { value: 'social_media', label: 'Social Media' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'instagram', label: 'Instagram' },
     { value: 'google_search', label: 'Google Search' },
     { value: 'pass_by', label: 'Pass By' },
     { value: 'others', label: 'Others' }
+  ];
+
+  // Relationship options
+  const relationshipOptions = [
+    { value: 'father', label: 'Father' },
+    { value: 'mother', label: 'Mother' },
+    { value: 'guardian', label: 'Guardian' },
+    { value: 'spouse', label: 'Spouse' },
+    { value: 'sibling', label: 'Sibling' },
+    { value: 'friend', label: 'Friend' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  // Belt level options
+  const beltLevelOptions = [
+    'Foundation 1', 'Foundation 2', 'Foundation 3',
+    'White', 'White Tip', 'Yellow', 'Yellow Tip',
+    'Green', 'Green Tip', 'Blue', 'Blue Tip',
+    'Red', 'Red Tip', 'Brown', 'Brown Tip',
+    'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
+  ];
+
+  // Gender options
+  const genderOptions = [
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' }
   ];
 
   const [formData, setFormData] = useState({
@@ -44,9 +71,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     // Personal Information
     first_name: '',
     last_name: '',
+    preferred_name: '',
     certificate_name: '',
     display_name: '',
     date_of_birth: '',
+    gender: '',
+    current_belt: '',
     
     // Contact Information
     phone: '',
@@ -72,13 +102,16 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-update certificate_name and display_name when first/last name changes
+      // Auto-update preferred_name, certificate_name and display_name when first/last name changes
       if (field === 'first_name' || field === 'last_name') {
         const firstName = field === 'first_name' ? value : prev.first_name;
         const lastName = field === 'last_name' ? value : prev.last_name;
         const fullName = `${firstName} ${lastName}`.trim();
         
         const currentAutoName = `${prev.first_name} ${prev.last_name}`.trim();
+        if (!prev.preferred_name || prev.preferred_name === currentAutoName) {
+          updated.preferred_name = fullName;
+        }
         if (!prev.certificate_name || prev.certificate_name === currentAutoName) {
           updated.certificate_name = fullName;
         }
@@ -96,9 +129,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       branch_id: '',
       first_name: '',
       last_name: '',
+      preferred_name: '',
       certificate_name: '',
       display_name: '',
       date_of_birth: '',
+      gender: '',
+      current_belt: '',
       phone: '',
       email: '',
       emergency_contact_name: '',
@@ -222,6 +258,16 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                 </div>
               </div>
 
+              <div>
+                <Label htmlFor="preferred_name">Preferred Name</Label>
+                <Input
+                  id="preferred_name"
+                  value={formData.preferred_name}
+                  onChange={(e) => handleInputChange('preferred_name', e.target.value)}
+                  placeholder="Preferred name"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="certificate_name">Certificate Name *</Label>
@@ -245,14 +291,53 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date_of_birth">Date of Birth</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select 
+                    value={formData.gender} 
+                    onValueChange={(value) => handleInputChange('gender', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genderOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
-                <Input
-                  id="date_of_birth"
-                  type="date"
-                  value={formData.date_of_birth}
-                  onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                />
+                <Label htmlFor="current_belt">Current Belt Level</Label>
+                <Select 
+                  value={formData.current_belt} 
+                  onValueChange={(value) => handleInputChange('current_belt', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select belt level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {beltLevelOptions.map((belt) => (
+                      <SelectItem key={belt} value={belt}>
+                        {belt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -328,13 +413,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                   <SelectTrigger>
                     <SelectValue placeholder="Select relationship" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="parent">Parent</SelectItem>
-                    <SelectItem value="guardian">Guardian</SelectItem>
-                    <SelectItem value="spouse">Spouse</SelectItem>
-                    <SelectItem value="sibling">Sibling</SelectItem>
-                    <SelectItem value="friend">Friend</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                <SelectContent>
+                    {relationshipOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
