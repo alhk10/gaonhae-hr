@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +16,9 @@ import { toast } from 'sonner';
 import { 
   Users, 
   Search, 
-  Plus, 
   Eye, 
   Edit, 
-  Trash2, 
-  Filter
+  Trash2
 } from 'lucide-react';
 import { 
   getStudents, 
@@ -30,8 +28,10 @@ import {
   bulkDeleteStudents
 } from '@/services/studentService';
 import EditStudentDialog from './EditStudentDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StudentManagementList: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [total, setTotal] = useState(0);
@@ -163,22 +163,13 @@ const StudentManagementList: React.FC = () => {
 
   const totalPages = Math.ceil(total / itemsPerPage);
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Student Management</h2>
-      </div>
+  const isSuperadmin = user?.role === 'superadmin';
 
-      {/* Filters */}
+  return (
+    <div className="space-y-4">
+      {/* Filters - Compact layout without header */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters & Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Input
@@ -266,14 +257,8 @@ const StudentManagementList: React.FC = () => {
         </Card>
       )}
 
-      {/* Student List */}
+      {/* Student List - No header, just count in table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Students ({students.length})
-          </CardTitle>
-        </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
@@ -369,30 +354,32 @@ const StudentManagementList: React.FC = () => {
                             student={student}
                             onStudentUpdated={handleStudentUpdated}
                           />
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Student</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete {student.first_name} {student.last_name}? 
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteStudent(student.id)}
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {isSuperadmin && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Student</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {student.first_name} {student.last_name}? 
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteStudent(student.id)}
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
