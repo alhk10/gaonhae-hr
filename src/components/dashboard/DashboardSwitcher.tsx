@@ -46,7 +46,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
       const { data, error } = await supabase
         .from('students')
         .select('id, first_name, last_name, email, status')
-        .eq('status', 'Active')
+        .ilike('status', 'active')
         .order('first_name');
       if (error) throw error;
       return data || [];
