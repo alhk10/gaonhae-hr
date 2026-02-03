@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
-import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase, Calendar } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ProductVariantManager } from './ProductVariantManager';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -26,6 +27,8 @@ const BELT_LEVELS = [
   'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
   'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
 ];
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 interface AddProductDialogProps {
   trigger: React.ReactNode;
@@ -48,7 +51,10 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     allowed_belt_levels: [] as string[],
     requires_belt_level: false,
     is_service: false,
-    is_active: true
+    is_active: true,
+    is_lesson: false,
+    lessons_per_week: 1,
+    lesson_days: [] as string[]
   });
   
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
@@ -99,7 +105,10 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
         requires_belt_level: formData.requires_belt_level,
         is_service: formData.is_service,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        is_lesson: formData.is_lesson,
+        lessons_per_week: formData.is_lesson ? formData.lessons_per_week : undefined,
+        lesson_days: formData.is_lesson ? formData.lesson_days : undefined
       };
 
       await createProduct(productData);
@@ -127,13 +136,29 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       allowed_belt_levels: [],
       requires_belt_level: false,
       is_service: false,
-      is_active: true
+      is_active: true,
+      is_lesson: false,
+      lessons_per_week: 1,
+      lesson_days: []
     });
     setEnabledVariantTypes({ size: false, color: false });
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // Clear lesson fields when toggling off
+      if (field === 'is_lesson' && !value) {
+        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [] };
+      }
+      return { ...prev, [field]: value };
+    });
+  };
+
+  const toggleLessonDay = (day: string, checked: boolean) => {
+    const newDays = checked 
+      ? [...formData.lesson_days, day]
+      : formData.lesson_days.filter(d => d !== day);
+    setFormData(prev => ({ ...prev, lesson_days: newDays }));
   };
 
   // Count total variants configured
@@ -314,6 +339,63 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 <p className="text-xs text-muted-foreground mt-1">
                   Only students with these belt levels can see this product
                 </p>
+              </div>
+            )}
+          </section>
+
+          {/* Lesson Configuration Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Calendar className="w-4 h-4" />
+              Lesson Configuration
+            </h3>
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="is_lesson"
+                checked={formData.is_lesson} 
+                onCheckedChange={(checked) => handleInputChange('is_lesson', checked)} 
+              />
+              <Label htmlFor="is_lesson" className="text-xs">This is a lesson product</Label>
+            </div>
+            
+            {formData.is_lesson && (
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Lessons per Week</Label>
+                  <Select 
+                    value={String(formData.lessons_per_week)} 
+                    onValueChange={(value) => handleInputChange('lessons_per_week', parseInt(value))}
+                  >
+                    <SelectTrigger className="h-9 w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-xs">Which Days</Label>
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {WEEKDAYS.map(day => (
+                      <label key={day} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox 
+                          checked={formData.lesson_days.includes(day)}
+                          onCheckedChange={(checked) => toggleLessonDay(day, !!checked)}
+                        />
+                        <span className="text-xs">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {formData.lessons_per_week !== formData.lesson_days.length && formData.lesson_days.length > 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Note: Selected {formData.lesson_days.length} day(s) but lessons per week is {formData.lessons_per_week}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </section>

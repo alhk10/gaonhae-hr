@@ -2739,8 +2739,11 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          is_lesson: boolean | null
           is_recurring: boolean | null
           is_service: boolean
+          lesson_days: string[] | null
+          lessons_per_week: number | null
           max_belt_level: string | null
           metadata: Json | null
           min_belt_level: string | null
@@ -2769,8 +2772,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
+          lesson_days?: string[] | null
+          lessons_per_week?: number | null
           max_belt_level?: string | null
           metadata?: Json | null
           min_belt_level?: string | null
@@ -2799,8 +2805,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
+          lesson_days?: string[] | null
+          lessons_per_week?: number | null
           max_belt_level?: string | null
           metadata?: Json | null
           min_belt_level?: string | null
