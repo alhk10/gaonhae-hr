@@ -14,15 +14,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type GradingSlot } from '@/services/gradingService';
 import { Loader2 } from 'lucide-react';
-
-// Belt levels for multi-select
-const BELT_LEVELS = [
-  'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
-  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
-  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
-];
+import { BELT_LEVELS } from '@/constants/beltLevels';
 
 interface GradingSlotDialogProps {
   trigger: React.ReactNode;
