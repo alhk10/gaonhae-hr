@@ -371,6 +371,7 @@ const StudentDetails: React.FC = () => {
               <StudentPortalAccessManager
                 studentId={student.id}
                 studentEmail={student.email || null}
+                studentName={`${student.first_name || ''} ${student.last_name || ''}`.trim()}
                 onAccessChanged={loadStudentData}
               />
 

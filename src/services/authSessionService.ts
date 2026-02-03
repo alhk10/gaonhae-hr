@@ -62,8 +62,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   logger.debug('Processing user session', { email, authUserId });
 
   try {
-    // Step 1: Check if user is a student first
-    const studentData = await getStudentByAuthId(authUserId);
+    // Step 1: Check if user is a student first (pass email for fallback lookup)
+    const studentData = await getStudentByAuthId(authUserId, email);
     if (studentData) {
       logger.info('User is a student', { email, studentId: studentData.id });
       return {
@@ -301,13 +301,13 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
   }
 };
 
-// Get student by auth user ID
-const getStudentByAuthId = async (authUserId: string): Promise<{ id: string; name: string; email: string } | null> => {
+// Get student by auth user ID with email fallback
+const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promise<{ id: string; name: string; email: string } | null> => {
   try {
     // Add timeout to prevent hanging
     const lookupPromise = supabase
       .from('student_auth')
-      .select('student_id, students!inner(id, first_name, last_name, email)')
+      .select('student_id, email, students!inner(id, first_name, last_name, email)')
       .eq('auth_user_id', authUserId)
       .maybeSingle();
     
@@ -317,16 +317,66 @@ const getStudentByAuthId = async (authUserId: string): Promise<{ id: string; nam
     
     const { data, error } = await Promise.race([lookupPromise, timeout]);
     
-    if (error || !data) {
-      return null;
+    if (!error && data) {
+      const student = data.students as any;
+      return {
+        id: student.id,
+        name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+        email: student.email || data.email || ''
+      };
     }
     
-    const student = data.students as any;
-    return {
-      id: student.id,
-      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-      email: student.email || ''
-    };
+    // Fallback: Try to find student by email if auth_user_id lookup fails
+    // This handles cases where student_auth exists but auth_user_id was not linked
+    if (userEmail) {
+      logger.debug('Attempting email fallback for student lookup', { userEmail });
+      
+      const emailLookupPromise = supabase
+        .from('student_auth')
+        .select('student_id, auth_user_id, students!inner(id, first_name, last_name, email)')
+        .eq('email', userEmail.toLowerCase())
+        .maybeSingle();
+      
+      const { data: emailData, error: emailError } = await Promise.race([
+        emailLookupPromise,
+        new Promise<{ data: any; error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: { message: 'Email lookup timeout' } }), 2000)
+        )
+      ]);
+      
+      if (!emailError && emailData) {
+        const student = emailData.students as any;
+        
+        // If we found a match by email but auth_user_id is missing, update it
+        if (!emailData.auth_user_id && authUserId) {
+          logger.info('Linking auth_user_id to student_auth record', { 
+            studentId: student.id, 
+            authUserId 
+          });
+          
+          // Update the record with the auth_user_id (fire and forget)
+          supabase
+            .from('student_auth')
+            .update({ auth_user_id: authUserId })
+            .eq('student_id', student.id)
+            .then((result) => {
+              if (result.error) {
+                logger.warn('Failed to link auth_user_id', result.error);
+              } else {
+                logger.debug('Successfully linked auth_user_id');
+              }
+            });
+        }
+        
+        return {
+          id: student.id,
+          name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+          email: student.email || userEmail
+        };
+      }
+    }
+    
+    return null;
   } catch (error) {
     logger.error('Student lookup failed', error);
     return null;
