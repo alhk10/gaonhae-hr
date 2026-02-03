@@ -1,249 +1,128 @@
 
-# Plan: Add Quick Actions to Student Portal
+
+# Plan: Add Lesson Configuration Fields to Product Management
 
 ## Overview
 
-Add two Quick Action buttons to the Student Dashboard that enable parents/students to:
-1. **Pay School Fees** - Select lesson slots, auto-generate invoice based on previous enrollment for next available term, and proceed to payment
-2. **Pay Grading** - Select grading slot when student is ready for grading, create invoice for current belt grading
+Add lesson-specific configuration fields to the Edit Product and Add Product dialogs, enabling products to be marked as "lesson" types with configurable lessons per week and scheduled days.
 
 ---
 
-## Current Architecture Analysis
+## Database Changes
 
-### Key Data Relationships
-| Table | Purpose |
-|-------|---------|
-| `students` | Student info including `branch_id`, `current_belt` |
-| `student_class_enrollments` | Previous class enrollments (class_type, tier_name, pricing_tier_id) |
-| `term_calendars` | Available terms per branch |
-| `grading_slots` | Available grading sessions with `belt_levels` filter |
-| `invoices` / `invoice_items` | Created invoices with term/grading metadata |
+### New Columns for `products` Table
 
-### Existing Services Available
-- `classEnrollmentService.ts` - Enrollment management and pricing tiers
-- `termCalendarService.ts` - Term fetching and availability
-- `gradingService.ts` - Grading slot queries
-- `invoiceService.ts` - Invoice creation
-- `paymentService.ts` - Payment recording
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `is_lesson` | boolean | false | Marks product as a lesson/class type |
+| `lessons_per_week` | integer | null | Number of lessons per week (1-7) |
+| `lesson_days` | text[] | null | Days of the week (e.g., ['Monday', 'Wednesday']) |
+
+```sql
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS is_lesson boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS lessons_per_week integer,
+  ADD COLUMN IF NOT EXISTS lesson_days text[];
+```
 
 ---
 
-## Solution Design
+## UI Changes
 
-### UI Layout
+### New Section in Product Forms
 
-Quick Actions will appear as action cards in the **Overview tab** of the StudentDashboard, positioned after the Stats Cards:
+Add a new "Lesson Configuration" section (with Calendar icon) in both `EditProductDialog.tsx` and `AddProductDialog.tsx`:
 
 ```text
 +------------------------------------------+
-|  Student Portal - John Doe               |
-|  Manage your profile, invoices...        |
+| 📅 Lesson Configuration                  |
 +------------------------------------------+
-|  [Sessions]  [Balance]  [Current Belt]   |   <-- Stats Cards (existing)
-+------------------------------------------+
-|  +------------------+  +----------------+|
-|  | Pay School Fees  |  | Pay Grading   ||   <-- NEW Quick Actions
-|  | Renew your class |  | Register for  ||
-|  | enrollment       |  | belt exam     ||
-|  +------------------+  +----------------+|
+| [Toggle] This is a lesson product        |
+|                                          |
+| (When enabled:)                          |
+| Lessons per Week:  [1] [2] [3] [4] [5+]  |
+|                     ↑ Radio/Select       |
+|                                          |
+| Which Days:                              |
+| [x] Monday  [ ] Tuesday  [x] Wednesday   |
+| [ ] Thursday [x] Friday  [ ] Saturday    |
+| [ ] Sunday                               |
 +------------------------------------------+
 ```
 
-### Component Structure
-
-```text
-StudentDashboard.tsx
-  └── QuickActionsSection (NEW)
-        ├── PaySchoolFeesDialog (NEW)
-        │     ├── Shows previous enrollment info
-        │     ├── Term selector (next available)
-        │     ├── Class type & tier (pre-filled)
-        │     └── Creates invoice and redirects to payment
-        │
-        └── PayGradingDialog (NEW)
-              ├── Shows current belt → next belt
-              ├── Grading slot selector (filtered by belt)
-              └── Creates invoice for grading fee
-```
+### Conditional Display
+- "Lessons per Week" and "Which Days" fields only appear when `is_lesson` toggle is ON
+- Days should be multi-select checkboxes for clear UX
 
 ---
 
-## Detailed Implementation
+## Files to Modify
 
-### 1. New Component: QuickActionsSection
-
-**Location:** `src/components/dashboard/QuickActionsSection.tsx`
-
-| Feature | Implementation |
-|---------|----------------|
-| Pay School Fees button | Shows if student has branch and previous enrollment OR active terms |
-| Pay Grading button | Shows if student has current_belt and matching grading slots |
-| Disabled states | Show appropriate messages if prerequisites not met |
-
-### 2. New Component: PaySchoolFeesDialog
-
-**Location:** `src/components/dashboard/PaySchoolFeesDialog.tsx`
-
-**Workflow:**
-1. Fetch student's previous enrollment from `student_class_enrollments`
-2. Fetch next available term from `term_calendars`
-3. Pre-fill: class_type, tier_name, pricing from previous enrollment
-4. Show term info: name, dates, weeks, price
-5. Create invoice with term metadata
-6. Show payment creation form inline
-
-**Data Fetching:**
-```typescript
-// Previous enrollment
-const previousEnrollment = await getEnrollments(branchId).filter(e => e.student_id === studentId)[0];
-
-// Next available term
-const today = new Date().toISOString().split('T')[0];
-const terms = await getActiveTermsForSelection().filter(t => 
-  t.branch_id === branchId && t.start_date > today
-);
-
-// Class products
-const classProducts = await getProducts().filter(p => 
-  p.category_id === CLASSES_CATEGORY_ID
-);
-```
-
-**Form Fields:**
-- Term selector (pre-selected: next available)
-- Class type (pre-filled from previous enrollment)
-- Quantity (weeks in term)
-- Price (from pricing tier or product base_price)
-
-### 3. New Component: PayGradingDialog
-
-**Location:** `src/components/dashboard/PayGradingDialog.tsx`
-
-**Workflow:**
-1. Display current belt and target belt (next in progression)
-2. Fetch grading slots filtered by branch and current belt
-3. Allow selection of grading slot
-4. Fetch grading fee product
-5. Create invoice with grading_slot_id metadata
-6. Show payment creation form inline
-
-**Belt Progression Logic:**
-```typescript
-const BELT_PROGRESSION = [
-  'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
-  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
-  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
-];
-
-const getNextBelt = (currentBelt: string) => {
-  const idx = BELT_PROGRESSION.indexOf(normalizeBelt(currentBelt));
-  return idx >= 0 && idx < BELT_PROGRESSION.length - 1 
-    ? BELT_PROGRESSION[idx + 1] 
-    : null;
-};
-```
-
-### 4. Update StudentDashboard.tsx
-
-**Changes:**
-- Import QuickActionsSection
-- Add QuickActionsSection after Stats Cards in Overview tab
-- Pass studentId, student data, and branch info
+| File | Changes |
+|------|---------|
+| **Database Migration** | Add `is_lesson`, `lessons_per_week`, `lesson_days` columns |
+| `src/components/sales/EditProductDialog.tsx` | Add Lesson Configuration section with toggle, quantity, and day selectors |
+| `src/components/sales/AddProductDialog.tsx` | Add matching Lesson Configuration section |
+| `src/services/productService.ts` | Update `Product` interface and transform functions to include new fields |
 
 ---
 
 ## Technical Details
 
-### Categories Constants
+### Form State Structure
 
-Add to constants file:
 ```typescript
-// Product category IDs (from database)
-export const CLASSES_CATEGORY_ID = 'classes-category-uuid';
-export const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
+const [formData, setFormData] = useState({
+  // ... existing fields
+  is_lesson: false,
+  lessons_per_week: 1,
+  lesson_days: [] as string[],
+});
 ```
 
-### Invoice Creation Flow
+### Day Options
 
-Both dialogs will:
-1. Create invoice via `createInvoice()` service
-2. Return invoice ID
-3. Trigger payment creation inline (simplified payment form)
-4. On success, invalidate queries and show confirmation
+```typescript
+const WEEKDAYS = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
+  'Friday', 'Saturday', 'Sunday'
+];
+```
 
-### Payment Integration
+### UI Component
 
-**Simplified Payment Form within Dialog:**
-- Invoice auto-selected
-- Amount pre-filled to balance_due
-- Payment method selector (country-filtered)
-- Proof of payment upload (required)
-- Reference number (optional)
+The lesson days selector will use a grid of checkboxes for intuitive multi-select:
 
-### Error Handling
-
-| Scenario | Handling |
-|----------|----------|
-| No previous enrollment | Show "Contact academy to set up classes" |
-| No available terms | Hide Pay School Fees or show "No upcoming terms" |
-| No grading slots for belt | Hide Pay Grading or show "No grading sessions available" |
-| Duplicate grading invoice | Block with 60-day rule message |
-| Invoice creation fails | Toast error, keep dialog open |
-| Payment fails | Toast error, invoice already created |
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/dashboard/QuickActionsSection.tsx` | Container for quick action buttons |
-| `src/components/dashboard/PaySchoolFeesDialog.tsx` | School fees enrollment & payment flow |
-| `src/components/dashboard/PayGradingDialog.tsx` | Grading registration & payment flow |
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/dashboard/StudentDashboard.tsx` | Add QuickActionsSection to Overview tab |
-| `src/config/constants.ts` | Add category IDs for reference |
+```typescript
+<div className="grid grid-cols-4 gap-2">
+  {WEEKDAYS.map(day => (
+    <label key={day} className="flex items-center gap-2">
+      <Checkbox 
+        checked={formData.lesson_days.includes(day)}
+        onCheckedChange={(checked) => toggleDay(day, checked)}
+      />
+      <span className="text-sm">{day}</span>
+    </label>
+  ))}
+</div>
+```
 
 ---
 
 ## Validation Rules
 
-### Pay School Fees
-- Student must have branch_id
-- Term must be available for branch
-- Cannot duplicate invoice for same term (existing check)
-
-### Pay Grading
-- Student must have current_belt
-- Grading slot must match student's belt level
-- 60-day duplicate check (existing in CreateInvoiceDialog)
-- Only 1 grading per invoice (existing rule)
+| Rule | Implementation |
+|------|----------------|
+| Lessons per week valid range | 1-7 (or null if not a lesson) |
+| Days consistency | Number of selected days should ideally match `lessons_per_week` |
+| Clear on toggle off | When `is_lesson` is toggled off, clear `lessons_per_week` and `lesson_days` |
 
 ---
 
-## Security Considerations
+## Integration Points
 
-- All data fetched server-side via RLS policies
-- Invoice creation respects existing service validation
-- Payment proof upload uses existing storage bucket
-- Student can only view/pay their own invoices
-
----
-
-## UI/UX Enhancements
-
-| Feature | Benefit |
-|---------|---------|
-| Pre-filled forms | Reduces friction for renewals |
-| Previous class shown | Confirms what they're renewing |
-| Belt progression displayed | Clear expectation for grading |
-| Inline payment | Single-dialog experience |
-| Loading states | Clear feedback during operations |
+Once configured, these fields can be used by:
+- **Invoice Creation**: Pre-populate enrolled days from product configuration
+- **Class Enrollment**: Default lesson count from product settings
+- **Student Dashboard**: Show scheduled days in enrollment summary
 
