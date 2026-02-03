@@ -297,11 +297,12 @@ export const updateStudentAuthEmail = async (
  * Sync student email to student_auth table - MISMATCH-BASED
  * Always checks if student_auth.email matches the provided email and updates if needed.
  * This ensures any drift between tables is automatically corrected.
+ * Also checks for unique constraint violations and provides clear error messages.
  */
 export const syncStudentAuthEmail = async (
   studentId: string,
   newEmail: string
-): Promise<{ synced: boolean; reason: string }> => {
+): Promise<{ synced: boolean; reason: string; conflictEmail?: boolean }> => {
   if (!newEmail) {
     return { synced: false, reason: 'No email provided' };
   }
@@ -321,11 +322,26 @@ export const syncStudentAuthEmail = async (
     return { synced: true, reason: 'Already in sync' };
   }
   
-  logger.info('Email mismatch detected, syncing...', { 
+  logger.info('Email mismatch detected, checking for conflicts...', { 
     studentId, 
     studentEmail: normalizedEmail, 
     portalEmail: currentAuthEmail 
   });
+  
+  // PRE-CHECK: Verify the new email is not already used by another student
+  const emailInUse = await getStudentAuthByEmail(normalizedEmail);
+  if (emailInUse && emailInUse.student_id !== studentId) {
+    logger.error('Email already used by another student', { 
+      email: normalizedEmail, 
+      conflictStudentId: emailInUse.student_id,
+      currentStudentId: studentId
+    });
+    return { 
+      synced: false, 
+      reason: `Cannot update portal email: "${normalizedEmail}" is already in use by another student's portal account`,
+      conflictEmail: true
+    };
+  }
   
   // Perform the update to student_auth table
   const { error } = await supabase
@@ -337,6 +353,16 @@ export const syncStudentAuthEmail = async (
     .eq('student_id', studentId);
 
   if (error) {
+    // Handle unique constraint violation specifically
+    if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+      logger.error('Email unique constraint violation', { error: error.message, studentId, email: normalizedEmail });
+      return { 
+        synced: false, 
+        reason: `Cannot update portal email: "${normalizedEmail}" is already in use`,
+        conflictEmail: true
+      };
+    }
+    
     logger.error('Failed to sync student_auth email', { error: error.message, studentId });
     return { synced: false, reason: `Database error: ${error.message}` };
   }
