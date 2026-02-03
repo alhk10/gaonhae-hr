@@ -1,69 +1,81 @@
 
-# Plan: Fix Student Login and Password Reset Issues
+# Plan: Fix Student Dashboard Display for alvinleehk@gmail.com
 
 ## Problem Summary
 
-Two issues are preventing the student from logging in:
+When logging in with `alvinleehk@gmail.com` (a student account), the system displays an **Employee Dashboard** instead of the **Student Dashboard**.
 
-| Issue | Description |
-|-------|-------------|
-| **Missing Auth Account** | The `student_auth` record has `auth_user_id: null`, meaning no Supabase Auth account exists for `alvinleehk@gmail.com` |
-| **Missing Password Reset Route** | The app redirects to `/auth/reset-password` which doesn't exist (404) |
+## Root Cause Analysis
 
----
+The investigation revealed a **RLS (Row Level Security) policy issue** on the `student_auth` table:
 
-## Solution Overview
+| Finding | Details |
+|---------|---------|
+| **Database State** | `student_auth.auth_user_id` is NULL for this student |
+| **Auth User Exists** | User `b200a7b2-e4a1-4943-834f-009ac172c8d3` exists in `auth.users` |
+| **RLS Policy** | Current policy: `auth_user_id = auth.uid()` blocks SELECT when `auth_user_id` is NULL |
+| **Network Evidence** | Both queries to `student_auth` return empty arrays `[]` due to RLS blocking |
 
-1. Create a password reset page to handle the reset flow
-2. Add a route for `/auth/reset-password`
-3. Use the Portal Access Manager UI to properly create the auth account for the student
-
----
-
-## Part 1: Create Password Reset Page
-
-Create a new page that handles the password reset token from Supabase and allows users to set a new password.
-
-**New File:** `src/pages/auth/ResetPassword.tsx`
-
-```typescript
-// Password reset page that:
-// 1. Detects the access token from Supabase redirect
-// 2. Shows a form to enter new password
-// 3. Updates the password via supabase.auth.updateUser()
-// 4. Redirects to login on success
-```
-
----
-
-## Part 2: Add Route in App.tsx
-
-Add the missing route for password reset.
+### Current Flow (Broken)
 
 ```text
-<Route 
-  path="/auth/reset-password" 
-  element={<ResetPassword />} 
-/>
+1. User logs in with alvinleehk@gmail.com
+2. authSessionService calls getStudentByAuthId()
+3. Query: student_auth WHERE auth_user_id = 'b200a7b2...'
+4. RLS blocks because auth_user_id is NULL → Returns []
+5. Fallback: Query student_auth WHERE email = 'alvinleehk@gmail.com'
+6. RLS still blocks (same policy) → Returns []
+7. System concludes user is NOT a student
+8. Falls back to employee logic → Shows EmployeeDashboard
 ```
 
 ---
 
-## Part 3: Create Auth Account for Student
+## Solution
 
-The existing student's `student_auth` record has no auth account. The system needs to:
+### Part 1: Fix RLS Policy on student_auth Table
 
-1. Navigate to the student's details page
-2. Use the "Create Login Account" button in the Portal Access section
-3. This will create the Supabase Auth user and send a password reset email
+Create a new RLS policy that allows users to read their own `student_auth` record by matching their **email** OR their **auth_user_id**.
 
-Alternatively, run a SQL command to check if the auth user exists and link it if found:
+**SQL Migration:**
 
 ```sql
--- Check if auth user exists for this email
-SELECT id, email, email_confirmed_at 
-FROM auth.users 
-WHERE email = 'alvinleehk@gmail.com';
+-- Drop the restrictive policy
+DROP POLICY IF EXISTS "Students can view their own auth" ON public.student_auth;
+
+-- Create new inclusive policy that allows email OR auth_user_id matching
+CREATE POLICY "Students can view their own auth"
+ON public.student_auth
+FOR SELECT
+TO authenticated
+USING (
+  auth_user_id = auth.uid() 
+  OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
+);
+```
+
+### Part 2: Fix Existing Record
+
+After policy update, link the existing auth user to the `student_auth` record:
+
+```sql
+-- Link the auth_user_id for alvinleehk@gmail.com
+UPDATE public.student_auth 
+SET auth_user_id = 'b200a7b2-e4a1-4943-834f-009ac172c8d3'
+WHERE email = 'alvinleehk@gmail.com' AND auth_user_id IS NULL;
+```
+
+---
+
+## Expected Result After Fix
+
+```text
+1. User logs in with alvinleehk@gmail.com
+2. authSessionService calls getStudentByAuthId()
+3. Query succeeds because email matches (new RLS policy)
+4. Returns student data, userType set to 'student'
+5. Auto-links auth_user_id for future logins
+6. Index.tsx renders StudentDashboard (correct!)
 ```
 
 ---
@@ -72,46 +84,33 @@ WHERE email = 'alvinleehk@gmail.com';
 
 | Task | File | Type |
 |------|------|------|
-| Create password reset page | `src/pages/auth/ResetPassword.tsx` | Create |
-| Add reset password route | `src/App.tsx` | Modify |
-| (Optional) Create auth folder | `src/pages/auth/` | Create directory |
-
----
-
-## How The Password Reset Flow Will Work
-
-```text
-1. User clicks "Forgot Password" on login page
-2. Password reset email sent with link to /auth/reset-password
-3. User clicks link, redirected to ResetPassword page
-4. Supabase auto-validates token via URL hash
-5. User enters new password
-6. Password updated, user redirected to login
-```
-
----
-
-## For The Current Student (alvinleehk@gmail.com)
-
-After implementing the above, you'll need to:
-
-1. **Go to the student's profile page** → Portal Access section
-2. **Click "Create Login Account"** to provision the Supabase Auth user
-3. **Student will receive a password reset email** with a working link
-4. **Student can then set their password** and log in
+| Update RLS policy for student_auth | SQL Migration | Create |
+| Link auth_user_id for alvinleehk@gmail.com | SQL Migration | Create |
 
 ---
 
 ## Technical Details
 
-**Password Reset Page Component:**
-- Uses `supabase.auth.onAuthStateChange` to detect `PASSWORD_RECOVERY` event
-- Shows password input form with confirmation
-- Validates password strength (min 8 characters recommended)
-- Calls `supabase.auth.updateUser({ password })` to set new password
-- Displays success message and redirects to login
+### Why Email-Based RLS is Safe
 
-**Security Considerations:**
-- Password reset tokens are time-limited by Supabase
-- Invalid/expired tokens will show appropriate error messages
-- No route guards needed (public page for password recovery)
+The policy uses `(SELECT email FROM auth.users WHERE id = auth.uid())` which:
+- Only returns the authenticated user's email from the auth system
+- Cannot be spoofed by client-side code
+- Ensures users can only access their own `student_auth` record
+
+### Auto-Linking Mechanism
+
+The existing code in `authSessionService.ts` (lines 351-368) already handles auto-linking the `auth_user_id` once the record is found. After fixing the RLS policy, this code will work as intended:
+
+```typescript
+// If we found a match by email but auth_user_id is missing, update it
+if (!emailData.auth_user_id && authUserId) {
+  supabase
+    .from('student_auth')
+    .update({ auth_user_id: authUserId })
+    .eq('student_id', student.id)
+    .then(/* ... */);
+}
+```
+
+This means future logins will use the faster `auth_user_id` lookup path.
