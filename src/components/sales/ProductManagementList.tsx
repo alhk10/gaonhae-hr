@@ -39,6 +39,8 @@ import { ProductDetailDialog } from './ProductDetailDialog';
 import { InventoryStatusBadge } from './InventoryStatusBadge';
 import { InventoryAdjustmentDialog } from './InventoryAdjustmentDialog';
 import { BranchPricingManager } from './BranchPricingManager';
+import { useBranches } from '@/hooks/useBranches';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductManagementListProps {
   onDataChange?: () => void;
@@ -51,7 +53,9 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const { branches } = useBranches();
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -93,6 +97,21 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
         filteredProducts = filteredProducts.filter(p => p.is_active === (statusFilter === 'active'));
       }
       
+      // Filter by branch availability
+      if (branchFilter !== 'all') {
+        // Get products that are hidden at this branch (is_active = false in price_rules)
+        const { data: hiddenRules } = await supabase
+          .from('price_rules')
+          .select('product_id')
+          .eq('branch_id', branchFilter)
+          .eq('is_active', false);
+        
+        const hiddenProductIds = new Set(hiddenRules?.map(r => r.product_id) || []);
+        
+        // Filter out products that are hidden at the selected branch
+        filteredProducts = filteredProducts.filter(p => !hiddenProductIds.has(p.id));
+      }
+      
       setProducts(filteredProducts);
       setTotal(result.total);
       
@@ -117,7 +136,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
     }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, categoryFilter, statusFilter]);
+  }, [searchQuery, categoryFilter, statusFilter, branchFilter]);
 
   useEffect(() => {
     loadProducts();
@@ -263,7 +282,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Input
                 placeholder="Search products..."
@@ -288,6 +307,20 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
               </SelectContent>
             </Select>
 
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
@@ -305,6 +338,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                 onClick={() => {
                   setSearchQuery('');
                   setCategoryFilter('all');
+                  setBranchFilter('all');
                   setStatusFilter('active');
                 }}
               >
