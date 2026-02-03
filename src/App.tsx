@@ -38,6 +38,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
 
@@ -80,8 +81,9 @@ function App() {
                 <div className="min-h-screen bg-background">
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
-                    {/* Public route - Login page */}
+                    {/* Public routes */}
                     <Route path="/" element={<Index />} />
+                    <Route path="/auth/reset-password" element={<ResetPassword />} />
                     
                     {/* Protected Employee Routes */}
                     <Route 
