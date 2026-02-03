@@ -202,6 +202,27 @@ export const hasPortalAccess = async (studentId: string): Promise<boolean> => {
 };
 
 /**
+ * Update the email address in student_auth record
+ * Used when a student's email is changed in the students table
+ */
+export const updateStudentAuthEmail = async (
+  studentId: string,
+  newEmail: string
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from('student_auth')
+    .update({ email: newEmail.toLowerCase().trim() })
+    .eq('student_id', studentId);
+
+  if (error) {
+    console.error('Error updating student auth email:', error);
+    return false;
+  }
+
+  return true;
+};
+
+/**
  * Enable portal access for an existing student
  * This creates both the student_auth record AND a Supabase Auth account
  */
