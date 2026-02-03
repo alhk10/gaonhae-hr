@@ -37,6 +37,12 @@ export const createInvoiceDeletionRequest = async (
       throw new Error('User not authenticated');
     }
 
+    // Check for existing pending deletion request
+    const hasPending = await hasPendingInvoiceDeletionRequest(invoiceId);
+    if (hasPending) {
+      throw new Error('A pending deletion request already exists for this invoice');
+    }
+
     // Get employee ID from email
     const { data: employee } = await supabase
       .from('employees')
