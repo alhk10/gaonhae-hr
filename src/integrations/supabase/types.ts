@@ -4252,6 +4252,11 @@ export type Database = {
       has_sales_module_access: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
       is_superadmin: { Args: { user_email: string }; Returns: boolean }
+      is_valid_belt_level: { Args: { belt_value: string }; Returns: boolean }
+      is_valid_belt_level_array: {
+        Args: { belt_values: string[] }
+        Returns: boolean
+      }
       log_booking_attempt: {
         Args: {
           p_attempt_result: string
