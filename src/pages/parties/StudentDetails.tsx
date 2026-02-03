@@ -26,6 +26,7 @@ import { StudentEntitlements } from '@/components/sales/StudentEntitlements';
 import { StudentInvoices } from '@/components/sales/StudentInvoices';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
 import { StudentChangeLog } from '@/components/sales/StudentChangeLog';
+import StudentPortalAccessManager from '@/components/sales/StudentPortalAccessManager';
 
 // Services
 import {
@@ -263,13 +264,20 @@ const StudentDetails: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Section 2: Emergency Information */}
+          {/* Section 2: Portal Access */}
+          <StudentPortalAccessManager
+            studentId={student.id}
+            studentEmail={student.email || null}
+            onAccessChanged={loadStudentData}
+          />
+
+          {/* Section 3: Emergency Information */}
           <StudentEmergencyContacts 
             contacts={emergencyContacts} 
             loading={contactsLoading} 
           />
 
-          {/* Section 3: Sales Information */}
+          {/* Section 4: Sales Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

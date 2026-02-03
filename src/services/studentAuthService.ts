@@ -190,3 +190,71 @@ export const getStudentsWithAuth = async (): Promise<StudentAuthWithDetails[]> =
     student_status: (item.students as any)?.status
   })) || [];
 };
+
+/**
+ * Check if a student has portal access
+ */
+export const hasPortalAccess = async (studentId: string): Promise<boolean> => {
+  const auth = await getStudentAuthByStudentId(studentId);
+  return auth !== null;
+};
+
+/**
+ * Enable portal access for an existing student
+ */
+export const enablePortalAccess = async (
+  studentId: string,
+  email: string
+): Promise<{ success: boolean; error?: string }> => {
+  // Check if already has access
+  const existing = await getStudentAuthByStudentId(studentId);
+  if (existing) {
+    return { success: false, error: 'Portal access already enabled' };
+  }
+
+  // Check if email is already used by another student
+  const emailInUse = await getStudentAuthByEmail(email);
+  if (emailInUse && emailInUse.student_id !== studentId) {
+    return { success: false, error: 'Email already linked to another student' };
+  }
+
+  // Create the auth record
+  const result = await createStudentAuth(studentId, email);
+  return result ? { success: true } : { success: false, error: 'Failed to create portal access' };
+};
+
+/**
+ * Revoke portal access for a student
+ */
+export const revokePortalAccess = async (studentId: string): Promise<boolean> => {
+  return deleteStudentAuth(studentId);
+};
+
+/**
+ * Bulk enable portal access for multiple students
+ */
+export const bulkEnablePortalAccess = async (
+  students: Array<{ id: string; email: string }>
+): Promise<{ success: number; failed: number; errors: string[] }> => {
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const student of students) {
+    if (!student.email) {
+      failed++;
+      errors.push(`Student ${student.id}: No email address`);
+      continue;
+    }
+
+    const result = await enablePortalAccess(student.id, student.email);
+    if (result.success) {
+      success++;
+    } else {
+      failed++;
+      errors.push(`Student ${student.id}: ${result.error}`);
+    }
+  }
+
+  return { success, failed, errors };
+};
