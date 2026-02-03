@@ -294,6 +294,116 @@ export const updateStudentAuthEmail = async (
 };
 
 /**
+ * Sync student email to student_auth table - MISMATCH-BASED
+ * Always checks if student_auth.email matches the provided email and updates if needed.
+ * This ensures any drift between tables is automatically corrected.
+ */
+export const syncStudentAuthEmail = async (
+  studentId: string,
+  newEmail: string
+): Promise<{ synced: boolean; reason: string }> => {
+  if (!newEmail) {
+    return { synced: false, reason: 'No email provided' };
+  }
+  
+  const normalizedEmail = newEmail.toLowerCase().trim();
+  
+  // Get current student_auth record
+  const existing = await getStudentAuthByStudentId(studentId);
+  if (!existing) {
+    return { synced: false, reason: 'No student_auth record exists (no portal access)' };
+  }
+  
+  const currentAuthEmail = existing.email?.toLowerCase().trim() || '';
+  
+  // Check if already in sync
+  if (currentAuthEmail === normalizedEmail) {
+    return { synced: true, reason: 'Already in sync' };
+  }
+  
+  logger.info('Email mismatch detected, syncing...', { 
+    studentId, 
+    studentEmail: normalizedEmail, 
+    portalEmail: currentAuthEmail 
+  });
+  
+  // Perform the update to student_auth table
+  const { error } = await supabase
+    .from('student_auth')
+    .update({ 
+      email: normalizedEmail,
+      updated_at: new Date().toISOString()
+    })
+    .eq('student_id', studentId);
+
+  if (error) {
+    logger.error('Failed to sync student_auth email', { error: error.message, studentId });
+    return { synced: false, reason: `Database error: ${error.message}` };
+  }
+  
+  logger.info('student_auth email synced successfully', { 
+    studentId, 
+    oldEmail: currentAuthEmail, 
+    newEmail: normalizedEmail 
+  });
+  
+  // If there's a Supabase Auth account, update that too via edge function
+  if (existing.auth_user_id) {
+    try {
+      logger.info('Also updating Supabase Auth email', { 
+        studentId, 
+        authUserId: existing.auth_user_id, 
+        newEmail: normalizedEmail 
+      });
+      
+      const { data: updateData, error: updateError } = await supabase.functions.invoke('auth-admin', {
+        body: {
+          action: 'updateUserEmail',
+          userId: existing.auth_user_id,
+          email: normalizedEmail
+        }
+      });
+
+      if (updateError) {
+        logger.error('Failed to update Supabase Auth email', { 
+          error: updateError, 
+          studentId, 
+          authUserId: existing.auth_user_id 
+        });
+        // Don't fail - student_auth was updated
+      } else {
+        logger.info('Supabase Auth email also updated', { 
+          studentId, 
+          authUserId: existing.auth_user_id,
+          response: updateData 
+        });
+      }
+    } catch (authError) {
+      logger.error('Error calling auth-admin for email update', authError);
+    }
+  }
+  
+  return { synced: true, reason: 'Email updated (was mismatched)' };
+};
+
+/**
+ * Check if student email is synced with student_auth
+ */
+export const isEmailInSync = async (studentId: string): Promise<boolean> => {
+  const [student, studentAuth] = await Promise.all([
+    supabase.from('students').select('email').eq('id', studentId).single(),
+    getStudentAuthByStudentId(studentId)
+  ]);
+  
+  if (!student.data || !studentAuth) return true; // No auth to sync
+  
+  const studentEmail = student.data.email?.toLowerCase().trim() || '';
+  const authEmail = studentAuth.email?.toLowerCase().trim() || '';
+  
+  return studentEmail === authEmail;
+};
+
+/**
  * Enable portal access for an existing student
  * This creates both the student_auth record AND a Supabase Auth account
  */
