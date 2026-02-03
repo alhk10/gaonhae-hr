@@ -1,191 +1,162 @@
 
-
-# Implementation Plan: Inventory List and Inventory Order Form Tabs
+# Implementation Plan: Correct Belt Order System-Wide
 
 ## Overview
 
-Add two new tabs to the Product Management page:
-1. **Inventory List** - Displays all product stock levels across all branches
-2. **Inventory Order Form** - Purchase order workflow with superadmin approval that updates inventory using average cost pricing
+Update the belt hierarchy across the entire system to match the correct progression order provided. This requires changes to both the frontend constants and database validation function.
 
 ---
 
-## What Will Be Built
+## New Belt Order (22 levels)
 
-### Tab 1: Inventory List
-A comprehensive view showing:
-- Product name, SKU, and category
-- Stock levels at each branch/location
-- Total stock across all locations
-- Stock status indicators (in stock, low stock, out of stock)
-- Cost per unit
-- Filtering by product, branch, and stock status
-- Export capability
+| # | Belt Level |
+|---|------------|
+| 1 | Foundation 1 |
+| 2 | Foundation 2 |
+| 3 | Foundation 3 |
+| 4 | White |
+| 5 | Yellow Tip |
+| 6 | Yellow |
+| 7 | Green Tip |
+| 8 | Green |
+| 9 | Blue Tip |
+| 10 | Blue |
+| 11 | Red Tip |
+| 12 | Red |
+| 13 | Black Tip |
+| 14 | 1st Poom |
+| 15 | 1st Dan |
+| 16 | 2nd Poom |
+| 17 | 2nd Dan |
+| 18 | 3rd Poom |
+| 19 | 3rd Dan |
+| 20 | 4th Poom |
+| 21 | 4th Dan |
+| 22 | 5th Dan |
 
-### Tab 2: Inventory Order Form
-A purchase order system including:
-- Form to create purchase orders for products
-- Select product, branch, quantity, and unit cost
-- Submit orders for superadmin approval
-- View order history with status tracking
-- On approval: automatically add quantity to inventory and recalculate average cost
+### Key Changes from Current Order
+- Remove "White Tip" (students start at White after Foundation)
+- Remove "Brown Tip" and "Brown" (replaced by Black Tip progression)
+- Change naming from "Poom 1", "Dan 1" to "1st Poom", "1st Dan"
+- Interleave Poom and Dan levels (Poom for under-15, Dan for 15+)
+- 5th Dan has no Poom equivalent
+
+---
+
+## Files to Modify
+
+### 1. Central Constants File
+**File**: `src/constants/beltLevels.ts`
+
+Update the BELT_LEVELS array to the correct order. This is the source of truth imported by many components.
+
+### 2. Database Validation Function
+**File**: New migration to update `is_valid_belt_level` function
+
+Update the PostgreSQL function that validates belt levels against the new list. This ensures database constraints accept the new values.
+
+### 3. Branch Timetable Service
+**File**: `src/services/branchTimetableService.ts`
+
+This file has a duplicate BELT_LEVELS definition. Remove the duplicate and import from the central constants file.
+
+### 4. Add Grading Slot Dialog
+**File**: `src/components/sales/AddGradingSlotDialog.tsx`
+
+Remove local BELT_LEVELS definition and import from central constants.
+
+### 5. Edit Product Dialog
+**File**: `src/components/sales/EditProductDialog.tsx`
+
+Remove local BELT_LEVELS definition and import from central constants.
+
+### 6. Add Product Dialog
+**File**: `src/components/sales/AddProductDialog.tsx`
+
+Remove local BELT_LEVELS definition and import from central constants.
 
 ---
 
 ## Technical Details
 
-### Database Changes
-
-**New Table: `inventory_orders`**
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| order_number | text | Auto-generated order reference |
-| product_id | uuid | References products table |
-| location_id | uuid | References inventory_locations table |
-| size_variant | text | Optional size variant |
-| quantity | integer | Quantity to purchase |
-| unit_cost | numeric | Cost per unit for this order |
-| total_cost | numeric | Calculated total |
-| status | text | pending, approved, rejected, received |
-| notes | text | Order notes |
-| requested_by | text | Employee ID who created |
-| requested_by_email | text | Email of requester |
-| approved_by | text | Superadmin email |
-| approved_at | timestamptz | When approved |
-| received_at | timestamptz | When received into inventory |
-| created_at | timestamptz | Creation timestamp |
-| updated_at | timestamptz | Last update |
-
-### New Files
-
-1. **`src/components/sales/InventoryListTab.tsx`**
-   - Component displaying inventory across all branches
-   - Table with product, location, quantity, cost, status
-   - Filters for branch, category, stock status
-   - Search functionality
-
-2. **`src/components/sales/InventoryOrderFormTab.tsx`**
-   - Tab container for order management
-   - Create new order form
-   - Order history list
-
-3. **`src/components/sales/CreateInventoryOrderDialog.tsx`**
-   - Dialog for creating new purchase orders
-   - Product selector (searchable)
-   - Branch/location selector
-   - Quantity and unit cost inputs
-   - Size variant selector (if applicable)
-
-4. **`src/components/sales/InventoryOrderList.tsx`**
-   - List of orders with status badges
-   - Filters by status (pending, approved, rejected, received)
-   - Approval actions for superadmins
-
-5. **`src/components/dashboard/InventoryOrderApprovals.tsx`**
-   - Dashboard component for superadmins
-   - Shows pending orders requiring approval
-   - Approve/reject actions
-
-6. **`src/services/inventoryOrderService.ts`**
-   - Service functions for:
-     - Creating orders
-     - Fetching orders (all, pending, by user)
-     - Approving orders (with average cost calculation)
-     - Rejecting orders
-     - Marking orders as received
-
-### Modified Files
-
-1. **`src/pages/sales/ProductManagement.tsx`**
-   - Add Tabs component for tabbed navigation
-   - Tab 1: Products (existing ProductManagementList + ProductCategoriesManager)
-   - Tab 2: Inventory List (new)
-   - Tab 3: Inventory Orders (new)
-
-2. **`src/services/inventoryService.ts`**
-   - Add function to update inventory with average cost calculation
-   - `updateInventoryWithAverageCost(productId, locationId, quantity, unitCost, sizeVariant?)`
-
-3. **`src/integrations/supabase/types.ts`**
-   - Types will be auto-regenerated after migration
-
-4. **`src/components/dashboard/SuperadminDashboard.tsx`**
-   - Add InventoryOrderApprovals component to dashboard
-
-### Average Cost Calculation
-
-When an order is approved and received:
-
-```text
-New Average Cost = 
-  (Existing Quantity × Existing Cost + Order Quantity × Order Cost) 
-  ÷ (Existing Quantity + Order Quantity)
+### Updated Constants File
+```typescript
+export const BELT_LEVELS = [
+  'Foundation 1',
+  'Foundation 2', 
+  'Foundation 3',
+  'White',
+  'Yellow Tip',
+  'Yellow',
+  'Green Tip',
+  'Green',
+  'Blue Tip',
+  'Blue',
+  'Red Tip',
+  'Red',
+  'Black Tip',
+  '1st Poom',
+  '1st Dan',
+  '2nd Poom',
+  '2nd Dan',
+  '3rd Poom',
+  '3rd Dan',
+  '4th Poom',
+  '4th Dan',
+  '5th Dan'
+] as const;
 ```
 
-This ensures inventory valuation remains accurate as new stock arrives at different prices.
+### Database Migration
+Update the `is_valid_belt_level` function with the new valid belts array matching the frontend constants.
 
----
-
-## User Flow
-
-### Creating a Purchase Order
-1. User navigates to Product Management → Inventory Orders tab
-2. Clicks "Create Order" button
-3. Selects product, branch, quantity, and enters unit cost
-4. Submits order (status: "pending")
-5. Toast notification confirms submission
-
-### Approving an Order (Superadmin)
-1. Superadmin sees pending orders in dashboard or Inventory Orders tab
-2. Reviews order details (product, quantity, cost)
-3. Clicks Approve or Reject
-4. On Approve:
-   - Status changes to "approved"
-   - Inventory quantity increases
-   - Cost per unit recalculated using average cost model
-   - Movement recorded in inventory_movements table
-
-### Viewing Inventory
-1. Navigate to Product Management → Inventory List tab
-2. View all products with stock levels per branch
-3. Use filters to find specific items or low-stock products
-
----
-
-## Implementation Steps
-
-1. Create database migration for `inventory_orders` table
-2. Create inventory order service with CRUD operations
-3. Build InventoryListTab component
-4. Build CreateInventoryOrderDialog component
-5. Build InventoryOrderFormTab with order list
-6. Build InventoryOrderApprovals dashboard component
-7. Update ProductManagement page with tabs
-8. Add average cost calculation logic
-9. Update SuperadminDashboard with approval widget
-10. Update Supabase types
-
----
-
-## Component Structure
-
-```text
-ProductManagement.tsx
-├── Tabs
-│   ├── Tab: Products
-│   │   ├── ProductManagementList
-│   │   └── ProductCategoriesManager
-│   ├── Tab: Inventory List
-│   │   └── InventoryListTab
-│   └── Tab: Inventory Orders
-│       └── InventoryOrderFormTab
-│           ├── CreateInventoryOrderDialog (trigger)
-│           └── InventoryOrderList
-│               └── (Approval actions for superadmin)
-
-SuperadminDashboard.tsx
-├── ... existing components ...
-└── InventoryOrderApprovals
+### Import Pattern for Components
+Components with local definitions will be updated to:
+```typescript
+import { BELT_LEVELS } from '@/constants/beltLevels';
 ```
 
+---
+
+## Data Migration Consideration
+
+Existing data in the database may contain old belt values like:
+- "White Tip" (no longer valid)
+- "Brown Tip", "Brown" (replaced by Black Tip)
+- "Poom 1", "Poom 2", etc. (now "1st Poom", "2nd Poom")
+- "Dan 1", "Dan 2", etc. (now "1st Dan", "2nd Dan")
+
+A data migration script will update existing records to match the new naming convention:
+- "White Tip" → "White" 
+- "Brown Tip" → "Black Tip"
+- "Brown" → "Black Tip"  
+- "Poom 1" → "1st Poom"
+- "Dan 1" → "1st Dan"
+- etc.
+
+---
+
+## Implementation Sequence
+
+1. Create database migration to update existing data to new naming
+2. Update the `is_valid_belt_level` function with new valid values
+3. Update `src/constants/beltLevels.ts` with correct order
+4. Remove duplicate definitions from:
+   - `src/services/branchTimetableService.ts`
+   - `src/components/sales/AddGradingSlotDialog.tsx`
+   - `src/components/sales/EditProductDialog.tsx`
+   - `src/components/sales/AddProductDialog.tsx`
+5. Add imports from central constants to those files
+
+---
+
+## Impact Summary
+
+| Area | Change |
+|------|--------|
+| Student registration | Belt dropdown shows correct 22 options |
+| Grading slots | Belt selection uses correct hierarchy |
+| Products | Belt restrictions use correct list |
+| Timetables | Class belt requirements use correct list |
+| Next belt calculation | Progression follows correct order |
+| Database validation | Only valid belt names accepted |
