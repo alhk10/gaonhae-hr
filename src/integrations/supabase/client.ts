@@ -13,6 +13,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    // Use implicit flow for better cross-browser/email client support
+    // PKCE requires the same browser session which fails when links are opened from email apps
+    flowType: 'implicit'
   }
 });

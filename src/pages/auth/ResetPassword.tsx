@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { Eye, EyeOff, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,49 +23,38 @@ const ResetPassword = () => {
   useEffect(() => {
     const initializeRecoverySession = async () => {
       console.log('ResetPassword: Initializing recovery session...');
-      console.log('URL:', window.location.href);
+      console.log('Full URL:', window.location.href);
       console.log('Hash:', window.location.hash);
       console.log('Search:', window.location.search);
       
       try {
-        // Method 1: Check for PKCE code in URL query params (new Supabase flow)
-        const code = searchParams.get('code');
-        if (code) {
-          console.log('Found PKCE code in URL, exchanging for session...');
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          
-          if (exchangeError) {
-            console.error('PKCE exchange error:', exchangeError);
-            // If PKCE fails, it might be because the code was already used or expired
-            // Try to check if we have an existing session
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (sessionData.session) {
-              console.log('Found existing session after PKCE failure');
-              setIsRecoveryMode(true);
-              setChecking(false);
-              return;
-            }
-            setError('This password reset link has expired or already been used. Please request a new one.');
-            setChecking(false);
-            return;
-          }
-          
-          if (data.session) {
-            console.log('PKCE exchange successful, session established');
-            setIsRecoveryMode(true);
-            setChecking(false);
-            return;
-          }
-        }
-
-        // Method 2: Check for access_token in hash (older Supabase flow / implicit)
+        // With implicit flow, tokens come in the URL hash
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
+        const errorParam = hashParams.get('error');
+        const errorDescription = hashParams.get('error_description');
         
-        if (accessToken && type === 'recovery') {
+        console.log('Hash params:', { 
+          hasAccessToken: !!accessToken, 
+          type, 
+          error: errorParam,
+          errorDescription 
+        });
+
+        // Check for error in URL (e.g., expired link)
+        if (errorParam) {
+          console.error('Error in URL:', errorParam, errorDescription);
+          setError(decodeURIComponent(errorDescription || 'Invalid or expired link. Please request a new password reset.'));
+          setChecking(false);
+          return;
+        }
+
+        // Method 1: Check for tokens in hash (implicit flow)
+        if (accessToken && (type === 'recovery' || type === 'magiclink')) {
           console.log('Found recovery token in URL hash, setting session...');
+          
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || ''
@@ -74,7 +62,7 @@ const ResetPassword = () => {
           
           if (sessionError) {
             console.error('Session set error:', sessionError);
-            setError('Invalid or expired password reset link. Please request a new one.');
+            setError('This password reset link has expired or is invalid. Please request a new one.');
             setChecking(false);
             return;
           }
@@ -83,11 +71,13 @@ const ResetPassword = () => {
             console.log('Session established from hash tokens');
             setIsRecoveryMode(true);
             setChecking(false);
+            // Clear the hash to prevent issues on refresh
+            window.history.replaceState(null, '', window.location.pathname);
             return;
           }
         }
 
-        // Method 3: Check if we already have an active session (user might be in recovery state)
+        // Method 2: Check for existing session (user might already be authenticated)
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           console.log('Found existing session, allowing password reset');
@@ -97,8 +87,8 @@ const ResetPassword = () => {
         }
 
         // No valid recovery method found
-        console.log('No valid recovery method found');
-        setError('Invalid or expired password reset link. Please request a new one.');
+        console.log('No valid recovery token or session found');
+        setError('Invalid or expired password reset link. Please request a new one from the login page.');
         setChecking(false);
 
       } catch (err) {
@@ -108,7 +98,7 @@ const ResetPassword = () => {
       }
     };
 
-    // Also listen for auth state changes
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email);
@@ -119,7 +109,6 @@ const ResetPassword = () => {
           setError(null);
           setChecking(false);
         } else if (event === 'SIGNED_IN' && session) {
-          // Check if this is from a recovery flow
           console.log('SIGNED_IN event received');
           setIsRecoveryMode(true);
           setError(null);
@@ -133,7 +122,7 @@ const ResetPassword = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [searchParams]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,7 +213,10 @@ const ResetPassword = () => {
               {error}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Password reset links can only be used once and expire after a short time.
+            </p>
             <Button 
               onClick={() => navigate('/')} 
               className="w-full"
