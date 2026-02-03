@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Package, DollarSign, Users, Settings, Globe, Building2, Briefcase } from 'lucide-react';
+import { Calendar, Package, Tag, Award, Layers, Settings, Building2, Briefcase, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Product } from '@/services/productService';
 import { getProductBranchPrices, type BranchPrice } from '@/services/priceRulesService';
-import { formatCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { COUNTRY_TAX_RATES, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_RATE, DEFAULT_TAX_INCLUDED } from '@/config/constants';
+
+const getCountryDefaultTax = (country: string): number => {
+  return COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE;
+};
+
+const getCountryDefaultTaxIncluded = (country: string): boolean => {
+  return COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED;
+};
 
 interface ProductDetailDialogProps {
   product: Product | null;
@@ -46,7 +55,7 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
   };
@@ -61,15 +70,20 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
     return acc;
   }, {} as Record<string, BranchPrice[]>);
 
-  // Check if any branch has custom pricing
-  const hasCustomPricing = branchPrices.some(bp => bp.price !== null);
+  const hasVariants = product.available_variants && (
+    (product.available_variants.sizes?.length || 0) > 0 ||
+    (product.available_variants.colors?.length || 0) > 0
+  );
+
+  const hasCustomValue = (bp: BranchPrice) => 
+    bp.price !== null || bp.tax_rate !== null || bp.tax_included !== null || bp.is_hidden;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl">{product.name}</DialogTitle>
+            <DialogTitle>View Product</DialogTitle>
             <div className="flex gap-2">
               {product.is_service && (
                 <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
@@ -84,235 +98,272 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Basic Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">SKU</p>
-                  <p className="text-base">{product.sku}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Category</p>
-                  <p className="text-base">{product.category_name || 'No Category'}</p>
-                </div>
+        <div className="space-y-4">
+          {/* Basic Information Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Package className="w-4 h-4" />
+              Basic Information
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Product Name</p>
+                <p className="text-sm font-medium">{product.name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">SKU</p>
+                <p className="text-sm font-medium">{product.sku}</p>
+              </div>
+            </div>
+            {product.description && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Description</p>
+                <p className="text-sm">{product.description}</p>
+              </div>
+            )}
+          </section>
+
+          {/* Pricing & Category Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Tag className="w-4 h-4" />
+              Pricing & Category
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Category</p>
+                <p className="text-sm font-medium">{product.category_name || 'No Category'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Base Price</p>
+                <p className="text-sm font-medium">{formatCurrency(Number(product.base_price), 'SGD')}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Tax Rate</p>
+                <p className="text-sm font-medium">{product.tax_rate}%</p>
+              </div>
+            </div>
+
+            {/* Branch Pricing */}
+            <Separator className="my-3" />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs font-medium">Branch-specific Pricing</span>
               </div>
               
-              {product.description && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
-                  <p className="text-base">{product.description}</p>
+              {loadingPrices ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-xs text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[200px] overflow-y-auto pr-1">
+                  {Object.entries(groupedBranchPrices).map(([currency, branches]) => (
+                    <div key={currency}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="font-mono text-[10px]">
+                          {currency}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({getCurrencySymbol(currency)})
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        {branches.map((bp) => (
+                          <Card 
+                            key={bp.branch_id} 
+                            className={`overflow-hidden ${hasCustomValue(bp) ? 'border-primary/40 bg-primary/5' : ''} ${bp.is_hidden ? 'opacity-50' : ''}`}
+                          >
+                            <CardContent className="p-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {bp.is_hidden ? (
+                                    <EyeOff className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                  ) : (
+                                    <Eye className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                  <span className={`text-xs font-medium truncate ${bp.is_hidden ? 'line-through text-muted-foreground' : ''}`}>
+                                    {bp.branch_name}
+                                  </span>
+                                  {bp.is_hidden && (
+                                    <Badge variant="secondary" className="text-[9px] px-1">Hidden</Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-3 text-xs">
+                                  <div className="text-right">
+                                    <span className={bp.price !== null ? 'font-medium' : 'text-muted-foreground'}>
+                                      {bp.price !== null 
+                                        ? formatCurrency(bp.price, bp.branch_currency)
+                                        : formatCurrency(Number(product.base_price), bp.branch_currency)
+                                      }
+                                    </span>
+                                    {bp.price === null && (
+                                      <span className="text-[10px] text-muted-foreground ml-1">(default)</span>
+                                    )}
+                                  </div>
+                                  <div className="text-right min-w-[60px]">
+                                    <span className={bp.tax_rate !== null ? 'font-medium' : 'text-muted-foreground'}>
+                                      {bp.tax_rate ?? getCountryDefaultTax(bp.branch_country)}%
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground ml-1">
+                                      ({bp.tax_included ?? getCountryDefaultTaxIncluded(bp.branch_country) ? 'incl' : 'excl'})
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          {/* Pricing Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Pricing Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Base Price (Default)</p>
-                  <p className="text-xl font-semibold">{formatCurrency(Number(product.base_price), 'SGD')}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tax Rate</p>
-                  <p className="text-base">{product.tax_rate}%</p>
+          {/* Product Variants Section */}
+          <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Layers className="w-4 h-4" />
+              Product Variants
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              {product.requires_size && (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                  Sizes: {product.available_variants?.sizes?.length || 0}
+                </Badge>
+              )}
+              {product.requires_color && (
+                <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+                  Colors: {product.available_variants?.colors?.length || 0}
+                </Badge>
+              )}
+              {!hasVariants && !product.requires_size && !product.requires_color && (
+                <span className="text-xs text-muted-foreground">No variants configured</span>
+              )}
+            </div>
+            {product.available_variants?.sizes && product.available_variants.sizes.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Available Sizes</p>
+                <div className="flex flex-wrap gap-1">
+                  {product.available_variants.sizes.map((size) => (
+                    <Badge key={size} variant="outline" className="text-xs">
+                      {size}
+                    </Badge>
+                  ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Branch Pricing */}
-          {(hasCustomPricing || Object.keys(groupedBranchPrices).length > 0) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="w-5 h-5" />
-                  Branch Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loadingPrices ? (
-                  <p className="text-sm text-muted-foreground">Loading branch prices...</p>
-                ) : (
-                  <div className="space-y-4">
-                    {Object.entries(groupedBranchPrices).map(([currency, branches]) => (
-                      <div key={currency}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {currency}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {branches.map((bp) => (
-                            <div 
-                              key={bp.branch_id} 
-                              className="flex items-center justify-between p-2 rounded-md bg-muted/50"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-sm">{bp.branch_name}</span>
-                              </div>
-                              <span className={`text-sm font-medium ${bp.price !== null ? 'text-primary' : 'text-muted-foreground'}`}>
-                                {bp.price !== null 
-                                  ? formatCurrency(bp.price, bp.branch_currency)
-                                  : formatCurrency(Number(product.base_price), bp.branch_currency) + ' (default)'
-                                }
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Belt Level Requirements */}
-          {product.requires_belt_level && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Belt Level Requirements
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Minimum Belt Level</p>
-                    <p className="text-base">{product.min_belt_level || 'No Minimum'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Maximum Belt Level</p>
-                    <p className="text-base">{product.max_belt_level || 'No Maximum'}</p>
-                  </div>
+            )}
+            {product.available_variants?.colors && product.available_variants.colors.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Available Colors</p>
+                <div className="flex flex-wrap gap-1">
+                  {product.available_variants.colors.map((color) => (
+                    <Badge key={color} variant="outline" className="text-xs">
+                      {color}
+                    </Badge>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
+          </section>
 
-          {/* Variant Options */}
-          {product.available_variants && (
-            Object.values(product.available_variants).some((arr: any) => arr && arr.length > 0)
-          ) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Product Variants
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {product.available_variants.sizes && product.available_variants.sizes.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Sizes</p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.available_variants.sizes.map((size) => (
-                        <Badge key={size} variant="outline" className="bg-blue-500/10 text-blue-700">
-                          {size}
+          {/* Belt Level Requirements Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Award className="w-4 h-4" />
+              Belt Level Requirements
+            </h3>
+            {product.requires_belt_level ? (
+              <div className="space-y-2">
+                <Badge variant="default" className="text-xs">Required</Badge>
+                {product.allowed_belt_levels && product.allowed_belt_levels.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Allowed Belt Levels</p>
+                    <div className="flex flex-wrap gap-1">
+                      {product.allowed_belt_levels.map((belt) => (
+                        <Badge key={belt} variant="outline" className="text-xs">
+                          {belt}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
-                {product.available_variants.colors && product.available_variants.colors.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Colors</p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.available_variants.colors.map((color) => (
-                        <Badge key={color} variant="outline" className="bg-purple-500/10 text-purple-700">
-                          {color}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">No belt level restrictions</span>
+            )}
+          </section>
+
+          {/* Lesson Configuration Section */}
+          {product.is_lesson && (
+            <section className="rounded-lg bg-muted/50 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Calendar className="w-4 h-4" />
+                Lesson Configuration
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Lessons per Week</p>
+                  <p className="text-sm font-medium">{product.lessons_per_week || 1}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Available Days</p>
+                  <div className="flex flex-wrap gap-1">
+                    {product.lesson_days && product.lesson_days.length > 0 ? (
+                      product.lesson_days.map((day) => (
+                        <Badge key={day} variant="outline" className="text-xs">
+                          {day}
                         </Badge>
-                      ))}
-                    </div>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">All days</span>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Legacy Size Options (for backward compatibility) */}
-          {product.requires_size && product.available_sizes && product.available_sizes.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Size Options
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Available Sizes</p>
-                  <div className="flex flex-wrap gap-2">
-                    {product.available_sizes.map((size) => (
-                      <Badge key={size} variant="outline">
-                        {size}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* System Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                System Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Created</p>
-                  <p className="text-base">{formatDate(product.created_at)}</p>
-                  {product.created_by && (
-                    <p className="text-sm text-muted-foreground">by {product.created_by}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                  <p className="text-base">{formatDate(product.updated_at)}</p>
-                  {product.updated_by && (
-                    <p className="text-sm text-muted-foreground">by {product.updated_by}</p>
-                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Metadata */}
-          {product.metadata && Object.keys(product.metadata).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <pre className="text-sm bg-muted p-3 rounded-md overflow-auto">
-                  {JSON.stringify(product.metadata, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
+            </section>
           )}
+
+          {/* Status & Type Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Settings className="w-4 h-4" />
+              Status & Type
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {product.is_service && (
+                <Badge variant="outline" className="text-xs">
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  Service (no inventory)
+                </Badge>
+              )}
+              {product.is_lesson && (
+                <Badge variant="outline" className="text-xs">
+                  <Calendar className="w-3 h-3 mr-1" />
+                  Lesson Product
+                </Badge>
+              )}
+              <Badge variant={product.is_active ? "default" : "secondary"} className="text-xs">
+                {product.is_active ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+            <Separator />
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Created</p>
+                <p>{formatDate(product.created_at)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Last Updated</p>
+                <p>{formatDate(product.updated_at)}</p>
+              </div>
+            </div>
+          </section>
         </div>
       </DialogContent>
     </Dialog>
