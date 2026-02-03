@@ -1,129 +1,99 @@
-# Plan: Dashboard System Overhaul
 
-## Status: ✅ PHASE 1-5 COMPLETE
+# Plan: Casual Employee Dashboard Enhancements
 
----
+## Overview
+This plan addresses three improvements to the Casual Employee Dashboard:
 
-## Summary
-
-Multi-dashboard system with four distinct dashboards:
-1. **Superadmin Dashboard** ✅ - Global system oversight with ability to view all other dashboards via DashboardSwitcher
-2. **Branch Dashboard** ✅ - Branch-specific student list and sales data (for employees with branch permission)
-3. **Employee Dashboard** ✅ - Personal workspace with clock in/out functionality  
-4. **Student Dashboard** ✅ - Self-service portal for students (new user type)
+1. **Add "Book Slots" Quick Action** for Casual Employees
+2. **Remove "Next Payroll" stats card**
+3. **Fix "Hours This Month" calculation** (currently showing all-time hours with floating-point precision issues)
 
 ---
 
-## Completed Implementation
+## Changes Required
 
-### Phase 1: Database Schema ✅
-- Created `employee_branch_access` table for branch permissions
-- Created `student_update_requests` table for student profile edit approvals
-- Created `student_auth` table to link Supabase Auth users to students
-- Added RLS policies and helper functions (`is_student()`, `get_current_student_id()`, `has_branch_access()`)
+### 1. Add "Book Slots" Quick Action for Casual Employees
 
-### Phase 2: Authentication & Dashboards ✅
-- Updated `AuthContext` with `userType` field ('employee' | 'student')
-- Updated `authSessionService.ts` to detect student login via `student_auth` table
-- Students now route to `StudentDashboard` without sidebar
+Add a new quick action button that appears only for Casual employee types. This button will navigate to the Slot Booking page (`/slot-booking`).
 
-### Phase 3: Dashboard Components ✅
-- **DashboardSwitcher** - Superadmin can switch between Overview/Branch/Employee/Student views
-- **BranchDashboard** - Shows branch stats, student list, revenue, and pending approvals
-- **StudentDashboard** - Self-service portal with profile editing (approval workflow)
-- **EmployeeDashboard** - Updated to support simulated employee view for superadmin
+**Location**: Quick Actions section in `EmployeeDashboard.tsx`
 
-### Phase 4: Access Control ✅
-- Updated Sidebar to hide menu for students
-- Added Branch Dashboard link for employees with branch access
-- Created `/branch-dashboard` route with `BranchDashboardPage`
+**Behavior**:
+- Only visible when `employeeData?.type === 'Casual'`
+- Navigates to `/slot-booking` on click
+- Uses a calendar/plus icon to match the booking concept
+- Styled as outline button like other secondary actions
 
 ---
 
-## Architecture
+### 2. Remove "Next Payroll" Stats Card
 
-```
-                      ┌─────────────────────────────┐
-                      │      Login System           │
-                      │  (employees + students)     │
-                      └─────────────┬───────────────┘
-                                    │
-                ┌───────────────────┼───────────────────┐
-                │                   │                   │
-                ▼                   ▼                   ▼
-        ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-        │   Superadmin  │   │   Employee    │   │    Student    │
-        │   Dashboard   │   │   Dashboard   │   │   Dashboard   │
-        │ (Switcher)    │   └───────┬───────┘   └───────────────┘
-        └───────┬───────┘           │                   
-                │           (if has branch    
-       Can view ALL                 │  permission)      
-       dashboards                   │                   
-                │                   ▼                   
-                └──────────▶┌───────────────────┐
-                            │  Branch Dashboard │
-                            │  (by branch_id)   │
-                            └───────────────────┘
+Remove the "Next Payroll" card from the stats display for all employee types.
+
+**Location**: `personalStats` array in `EmployeeDashboard.tsx`
+
+**Current code at line 274**:
+```javascript
+{ title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' }
 ```
 
----
-
-## Key Files Created
-
-| File | Purpose |
-|------|---------|
-| `src/components/dashboard/DashboardSwitcher.tsx` | Superadmin view switcher |
-| `src/components/dashboard/BranchDashboard.tsx` | Branch-focused dashboard |
-| `src/components/dashboard/StudentDashboard.tsx` | Student self-service portal |
-| `src/components/dashboard/StudentUpdateApprovals.tsx` | Approval UI component |
-| `src/services/branchAccessService.ts` | Branch permission CRUD |
-| `src/services/studentUpdateRequestService.ts` | Student edit request workflow |
-| `src/services/studentAuthService.ts` | Student auth creation |
-| `src/hooks/useBranchAccess.ts` | React hook for branch permissions |
-| `src/pages/BranchDashboardPage.tsx` | Branch dashboard page wrapper |
+This will be removed entirely along with the `getDaysUntilNextPayroll` function.
 
 ---
 
-## Key Files Modified
+### 3. Fix "Hours This Month" Calculation
 
-| File | Changes |
-|------|---------|
-| `src/types/auth.ts` | Added UserType ('employee' \| 'student') |
-| `src/contexts/AuthContext.tsx` | Added userType state and handling |
-| `src/services/authSessionService.ts` | Student detection via student_auth table |
-| `src/pages/Index.tsx` | Routes students to StudentDashboard |
-| `src/components/layout/Sidebar.tsx` | Hides menu for students, adds Branch Dashboard for employees |
-| `src/components/dashboard/SuperadminDashboard.tsx` | Added pending student updates alert |
-| `src/App.tsx` | Added /branch-dashboard route |
+**Problem**: The current implementation fetches ALL attendance records and sums them all, instead of filtering for the current month only. Additionally, floating-point precision causes values like `508.8499999999999` to display.
 
----
+**Solution**:
+- Filter attendance data to only include records from the current month in the calculation
+- Round the displayed value to 1 decimal place for clean display
 
-## How It Works
+**Current buggy code at line 244**:
+```javascript
+const hoursThisMonth = attendanceData.reduce((total, record) => total + (record.hours_worked || 0), 0);
+```
 
-### Student Login Flow
-1. User logs in with email/password
-2. `authSessionService` checks `student_auth` table for matching auth user ID
-3. If found, user is identified as student (`userType: 'student'`)
-4. Student sees `StudentDashboard` without sidebar (has logout button)
-
-### Branch Dashboard Access
-1. Employees can be granted access via `employee_branch_access` table
-2. `useBranchAccess` hook checks permissions
-3. Employees with access see "Branch Dashboard" in sidebar
-4. Superadmins can view any branch via DashboardSwitcher
-
-### Student Profile Edit Approval
-1. Student edits profile in StudentDashboard
-2. Changes are submitted to `student_update_requests` table (status: pending)
-3. Branch manager sees request in BranchDashboard "Pending Approvals" tab
-4. Manager approves/rejects - approved changes are applied to `students` table
+**Fixed code**:
+```javascript
+const hoursThisMonth = (() => {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  const monthlyHours = attendanceData
+    .filter(record => {
+      const recordDate = new Date(record.date);
+      return recordDate.getMonth() === currentMonth && 
+             recordDate.getFullYear() === currentYear;
+    })
+    .reduce((total, record) => total + (record.hours_worked || 0), 0);
+  
+  return Math.round(monthlyHours * 10) / 10; // Round to 1 decimal
+})();
+```
 
 ---
 
-## Remaining Tasks (Future Enhancements)
+## Technical Summary
 
-- [x] Add UI to manage employee_branch_access in Settings ✅
-- [x] Add student account creation when adding students in AddStudentDialog ✅
-- [x] Add email notifications for approval workflow ✅
-- [x] Add class schedule view for students ✅
-- [ ] Add Stripe payment integration for student payments
+| Task | File | Type of Change |
+|------|------|----------------|
+| Add Book Slots button | `src/components/dashboard/EmployeeDashboard.tsx` | Add new button in Quick Actions |
+| Remove Next Payroll | `src/components/dashboard/EmployeeDashboard.tsx` | Remove stats entry + cleanup |
+| Fix Hours This Month | `src/components/dashboard/EmployeeDashboard.tsx` | Fix filter logic + precision |
+
+---
+
+## Visual Result
+
+**After implementation, Casual Employee Quick Actions will show**:
+1. Clock In/Out (with location requirement)
+2. **Book Slots** ← New action
+3. Submit Claim
+4. View Payslip
+
+**Stats cards will show**:
+- Pending Claims
+- Hours This Month (correctly calculated for current month only, rounded)
+- ~~Next Payroll~~ (removed)
