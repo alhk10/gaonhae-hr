@@ -14,7 +14,9 @@ import {
   Edit,
   Save,
   X,
-  LogOut
+  LogOut,
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +27,7 @@ import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdat
 import { useAuth } from '@/contexts/AuthContext';
 import StudentClassSchedule from './StudentClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
+import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -37,6 +40,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Record<string, any>>({});
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
@@ -188,6 +192,97 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleViewPDF = async (invoiceId: string) => {
+    try {
+      setGeneratingPdfId(invoiceId);
+      
+      // Fetch full invoice data with items and template
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .single();
+      
+      if (invoiceError) throw invoiceError;
+      
+      // Fetch invoice items
+      const { data: items, error: itemsError } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoiceId);
+      
+      if (itemsError) throw itemsError;
+      
+      // Fetch invoice template based on branch
+      let template = null;
+      if (invoiceData.branch_id) {
+        const { data: branch } = await supabase
+          .from('branches')
+          .select('country')
+          .eq('id', invoiceData.branch_id)
+          .single();
+        
+        if (branch?.country) {
+          const { data: templateData } = await supabase
+            .from('invoice_templates')
+            .select('*')
+            .eq('country', branch.country)
+            .eq('is_active', true)
+            .single();
+          
+          template = templateData;
+        }
+      }
+      
+      // Build invoice data for PDF
+      const pdfData: InvoiceData = {
+        id: invoiceData.id,
+        invoice_number: invoiceData.invoice_number,
+        issue_date: invoiceData.issue_date,
+        due_date: invoiceData.due_date,
+        subtotal: invoiceData.subtotal || 0,
+        tax_amount: invoiceData.tax_amount || 0,
+        discount_amount: invoiceData.discount_amount || 0,
+        total_amount: invoiceData.total_amount || 0,
+        amount_paid: invoiceData.amount_paid || 0,
+        balance_due: invoiceData.balance_due || 0,
+        notes: invoiceData.notes,
+        status: invoiceData.status,
+        student: student ? {
+          name: `${student.first_name} ${student.last_name}`,
+          address: student.address,
+          phone: student.phone,
+          email: student.email,
+        } : undefined,
+        items: items?.map((item): InvoiceItem => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate || 0,
+          tax_amount: item.tax_amount || 0,
+          metadata: item.metadata as InvoiceItem['metadata'],
+        })) || [],
+        template: template ? {
+          letterhead_url: template.letterhead_url,
+          paynow_qr_url: template.paynow_qr_url,
+          country: template.country,
+          default_notes: template.default_notes,
+          footer_text: template.footer_text,
+        } : undefined,
+      };
+      
+      await downloadInvoicePDF(pdfData);
+      toast.success('Invoice PDF downloaded');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setGeneratingPdfId(null);
+    }
   };
 
   return (
@@ -471,11 +566,25 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                           {format(new Date(invoice.created_at), 'dd MMM yyyy')}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                        <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
-                          {invoice.status}
-                        </Badge>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
+                          <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
+                            {invoice.status}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewPDF(invoice.id)}
+                          disabled={generatingPdfId === invoice.id}
+                        >
+                          {generatingPdfId === invoice.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   ))}
