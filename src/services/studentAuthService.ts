@@ -41,21 +41,41 @@ export const isStudentEmail = async (email: string): Promise<boolean> => {
 /**
  * Get student auth record by email
  */
+/**
+ * Get student auth record by email
+ * Returns the first match (since siblings can share emails)
+ */
 export const getStudentAuthByEmail = async (email: string): Promise<StudentAuth | null> => {
   const { data, error } = await supabase
     .from('student_auth')
     .select('*')
     .eq('email', email.toLowerCase())
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
-    if (error.code !== 'PGRST116') { // Not found is expected
-      console.error('Error fetching student auth:', error);
-    }
+    console.error('Error fetching student auth:', error);
     return null;
   }
 
   return data;
+};
+
+/**
+ * Get ALL student auth records for an email (for siblings/family)
+ */
+export const getAllStudentAuthByEmail = async (email: string): Promise<StudentAuth[]> => {
+  const { data, error } = await supabase
+    .from('student_auth')
+    .select('*')
+    .eq('email', email.toLowerCase());
+
+  if (error) {
+    console.error('Error fetching student auth records:', error);
+    return [];
+  }
+
+  return data || [];
 };
 
 /**
@@ -302,7 +322,7 @@ export const updateStudentAuthEmail = async (
 export const syncStudentAuthEmail = async (
   studentId: string,
   newEmail: string
-): Promise<{ synced: boolean; reason: string; conflictEmail?: boolean }> => {
+): Promise<{ synced: boolean; reason: string }> => {
   if (!newEmail) {
     return { synced: false, reason: 'No email provided' };
   }
@@ -322,26 +342,13 @@ export const syncStudentAuthEmail = async (
     return { synced: true, reason: 'Already in sync' };
   }
   
-  logger.info('Email mismatch detected, checking for conflicts...', { 
+  logger.info('Email mismatch detected, syncing...', { 
     studentId, 
     studentEmail: normalizedEmail, 
     portalEmail: currentAuthEmail 
   });
   
-  // PRE-CHECK: Verify the new email is not already used by another student
-  const emailInUse = await getStudentAuthByEmail(normalizedEmail);
-  if (emailInUse && emailInUse.student_id !== studentId) {
-    logger.error('Email already used by another student', { 
-      email: normalizedEmail, 
-      conflictStudentId: emailInUse.student_id,
-      currentStudentId: studentId
-    });
-    return { 
-      synced: false, 
-      reason: `Cannot update portal email: "${normalizedEmail}" is already in use by another student's portal account`,
-      conflictEmail: true
-    };
-  }
+  // NOTE: No conflict check needed - siblings CAN share emails now
   
   // Perform the update to student_auth table
   const { error } = await supabase
@@ -353,16 +360,6 @@ export const syncStudentAuthEmail = async (
     .eq('student_id', studentId);
 
   if (error) {
-    // Handle unique constraint violation specifically
-    if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
-      logger.error('Email unique constraint violation', { error: error.message, studentId, email: normalizedEmail });
-      return { 
-        synced: false, 
-        reason: `Cannot update portal email: "${normalizedEmail}" is already in use`,
-        conflictEmail: true
-      };
-    }
-    
     logger.error('Failed to sync student_auth email', { error: error.message, studentId });
     return { synced: false, reason: `Database error: ${error.message}` };
   }
@@ -437,7 +434,7 @@ export const enablePortalAccess = async (
   studentId: string,
   email: string,
   studentName?: string
-): Promise<{ success: boolean; error?: string; passwordResetSent?: boolean }> => {
+): Promise<{ success: boolean; error?: string; passwordResetSent?: boolean; siblingLinked?: boolean }> => {
   const normalizedEmail = email.toLowerCase().trim();
   
   logger.info('Enabling portal access for student', { studentId, email: normalizedEmail });
@@ -448,10 +445,43 @@ export const enablePortalAccess = async (
     return { success: false, error: 'Portal access already enabled with active account' };
   }
 
-  // Check if email is already used by another student
-  const emailInUse = await getStudentAuthByEmail(normalizedEmail);
-  if (emailInUse && emailInUse.student_id !== studentId) {
-    return { success: false, error: 'Email already linked to another student' };
+  // Check if a sibling already has an auth account with this email
+  // If so, we can reuse their auth_user_id (one login for the whole family)
+  const siblingAuth = await getStudentAuthByEmail(normalizedEmail);
+  
+  if (siblingAuth?.auth_user_id && siblingAuth.student_id !== studentId) {
+    // Parent already has a Supabase Auth account - reuse it for this student
+    logger.info('Found sibling with same email, reusing parent auth account', {
+      studentId,
+      siblingStudentId: siblingAuth.student_id,
+      authUserId: siblingAuth.auth_user_id
+    });
+    
+    if (existing) {
+      // Update existing student_auth record to link to parent's auth account
+      const { error: updateError } = await supabase
+        .from('student_auth')
+        .update({ 
+          auth_user_id: siblingAuth.auth_user_id,
+          email: normalizedEmail,
+          updated_at: new Date().toISOString()
+        })
+        .eq('student_id', studentId);
+      
+      if (updateError) {
+        logger.error('Failed to link sibling to parent auth', { error: updateError });
+        return { success: false, error: 'Failed to link to family account' };
+      }
+    } else {
+      // Create new student_auth record linked to parent's auth account
+      const result = await createStudentAuth(studentId, normalizedEmail, siblingAuth.auth_user_id);
+      if (!result) {
+        return { success: false, error: 'Failed to create portal record for sibling' };
+      }
+    }
+    
+    logger.info('Sibling linked to existing parent account', { studentId, authUserId: siblingAuth.auth_user_id });
+    return { success: true, siblingLinked: true };
   }
 
   // Get student name if not provided
