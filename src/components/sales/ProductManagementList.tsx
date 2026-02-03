@@ -475,10 +475,10 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleViewProduct(product)}
-                              title="View"
+                              onClick={() => handleEditProduct(product)}
+                              title="Edit"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Edit className="w-4 h-4" />
                             </Button>
                             {!product.is_service && (
                               <Button
