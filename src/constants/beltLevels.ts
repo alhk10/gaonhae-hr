@@ -5,12 +5,12 @@
 
 export const BELT_LEVELS = [
   'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'White Tip',
-  'Yellow', 'Yellow Tip',
-  'Green', 'Green Tip',
-  'Blue', 'Blue Tip',
-  'Red', 'Red Tip',
-  'Brown', 'Brown Tip',
+  'White Tip', 'White',
+  'Yellow Tip', 'Yellow',
+  'Green Tip', 'Green',
+  'Blue Tip', 'Blue',
+  'Red Tip', 'Red',
+  'Brown Tip', 'Brown',
   'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
   'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
 ] as const;
