@@ -1,150 +1,183 @@
 
-# Plan: Multi-Student Access for Parents
+# Plan: Robust Portal Email Synchronization
 
-## Overview
+## Problem Analysis
 
-Parents with multiple children enrolled under the same email address need to access all their students' data with a single login. Currently, the system links one email to one student via the `student_auth` table. This plan extends the architecture to support one-to-many parent-to-student relationships.
+### Root Cause Identified
+The email synchronization between `students` and `student_auth` tables is **failing silently** because:
 
-## Current Architecture
+1. **Single-trigger logic**: The sync only runs when detecting an email change in the *current* update operation
+2. **Stale comparison**: If a previous sync failed, subsequent saves (with the same email) don't re-trigger the sync
+3. **No mismatch detection**: The code doesn't check if `students.email` differs from `student_auth.email`
 
-```text
-[student_auth]
-- id (PK)
-- student_id (FK → students, UNIQUE) ← Problem: 1:1 relationship
-- auth_user_id (FK → auth.users)
-- email
+### Current State (from database)
+```
+students.email = alvinleehk@gmail.com
+student_auth.email = sangeonsong@gmail.com (OUT OF SYNC!)
 ```
 
-The `student_id` column has an implicit 1:1 relationship. When a parent logs in, the system finds the first matching `student_auth` record and shows only that student's dashboard.
+When saving with email = `alvinleehk@gmail.com`, the comparison is:
+- `oldData.email` = `alvinleehk@gmail.com` (already updated)
+- `newEmail` = `alvinleehk@gmail.com` (same)
+- **Result**: No sync triggered because they match!
+
+---
 
 ## Solution Design
 
-### 1. Database Changes
+### Approach: Mismatch-Based Sync Instead of Change-Based
 
-**Modify `student_auth` table to support multiple students per email:**
+| Current Logic | New Logic |
+|---------------|-----------|
+| Sync if `oldEmail !== newEmail` | Sync if `student_auth.email !== newEmail` |
+| Runs only on email change | Runs whenever there's a mismatch |
+| Single attempt | Automatic correction on every save |
 
-The current structure already allows multiple records with the same email (no unique constraint on email column), but the authentication flow only retrieves a single record.
+### Implementation Changes
 
-| Current Behavior | New Behavior |
-|------------------|--------------|
-| Query returns single student | Query returns all students linked to email |
-| Dashboard shows one student | Dashboard shows student selector if > 1 |
-| No switching mechanism | Student switcher component for parents |
-
-### 2. New Components
-
-| Component | Purpose |
-|-----------|---------|
-| `StudentSwitcher` | Dropdown/card selector when parent has multiple children |
-| Modified `StudentDashboard` | Accept selected student context |
-| Session context update | Store `selectedStudentId` in context/state |
-
-### 3. Authentication Flow Changes
-
-```text
-Current Flow:
-1. Login → getStudentByAuthId() → returns FIRST match → single student dashboard
-
-New Flow:
-1. Login → getStudentsByAuthId() → returns ALL matches
-2. If count = 1 → show single student dashboard (unchanged)
-3. If count > 1 → show student selector → user picks child → show their dashboard
-4. Store selection in session for navigation persistence
-```
-
-### 4. RLS Policy Updates
-
-Current RLS allows a user to see data where their email matches the student record OR auth_user_id matches. This naturally extends to multiple students - the parent will see data for ALL students that share their email.
-
-**No RLS changes needed** - existing policies already support multiple students per email.
-
-## Implementation Summary
-
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/services/authSessionService.ts` | Modify | Return array of linked students instead of single |
-| `src/contexts/AuthContext.tsx` | Modify | Add `linkedStudents` and `selectedStudentId` to context |
-| `src/components/dashboard/StudentSwitcher.tsx` | Create | UI component for switching between children |
-| `src/components/dashboard/StudentDashboard.tsx` | Modify | Accept selected student from switcher |
-| `src/pages/Index.tsx` | Modify | Render switcher when multiple students exist |
-| `src/services/studentAuthService.ts` | Modify | Add `getStudentsByEmail` to return all linked students |
+| File | Change |
+|------|--------|
+| `src/services/studentService.ts` | Always check for student_auth mismatch during update |
+| `src/services/studentAuthService.ts` | Add forced sync function with verification |
 
 ---
 
 ## Technical Details
 
-### authSessionService Changes
+### 1. studentService.ts Changes
 
-Update `getStudentByAuthId` to return all matching students:
-
-```typescript
-// Before: Returns single student
-const getStudentByAuthId = async (authUserId, email): Promise<Student | null>
-
-// After: Returns all linked students
-const getStudentsByAuthId = async (authUserId, email): Promise<Student[]>
-```
-
-### AuthContext Extension
-
-Add new properties to track multiple students:
+Replace the change-based sync with mismatch-based sync:
 
 ```typescript
-interface AuthContextType {
-  // Existing properties...
-  linkedStudents: StudentBasic[];     // All students linked to this parent
-  selectedStudentId: string | null;   // Currently viewed student
-  setSelectedStudent: (id: string) => void;
-}
-```
+// After database update succeeds...
 
-### StudentSwitcher Component
-
-New component rendered at top of student dashboard when `linkedStudents.length > 1`:
-
-- Shows currently selected child's name
-- Dropdown to switch between children
-- Persists selection in session storage for page refreshes
-- Updates dashboard data when switching
-
-### Dashboard Rendering Logic
-
-```text
-if (userType === 'student') {
-  if (linkedStudents.length > 1) {
-    return <StudentSwitcher /> + <StudentDashboard studentId={selectedStudentId} />
-  } else {
-    return <StudentDashboard studentId={linkedStudents[0].id} />
+// Sync email to student_auth if applicable
+// Always check for mismatch, not just when email changes
+const newEmail = studentData.email?.toLowerCase().trim();
+if (newEmail) {
+  try {
+    const { hasPortalAccess, syncStudentAuthEmail } = await import('./studentAuthService');
+    const hasAuth = await hasPortalAccess(studentId);
+    
+    if (hasAuth) {
+      // This function will:
+      // 1. Check if student_auth.email matches students.email
+      // 2. If not, update student_auth
+      // 3. Also update Supabase Auth if auth_user_id exists
+      await syncStudentAuthEmail(studentId, newEmail);
+    }
+  } catch (syncError) {
+    logger.error('Error syncing email to student_auth', syncError);
   }
 }
 ```
 
-### Admin Workflow for Linking Students
+### 2. New syncStudentAuthEmail Function
 
-When registering siblings:
-1. Use same parent email for multiple students
-2. Each student gets a separate `student_auth` record with same email
-3. Same `auth_user_id` links all records after first login
+Add a robust sync function that always checks and corrects mismatches:
+
+```typescript
+/**
+ * Sync student email to student_auth table
+ * Always checks for mismatch and updates if needed
+ */
+export const syncStudentAuthEmail = async (
+  studentId: string,
+  newEmail: string
+): Promise<{ synced: boolean; reason: string }> => {
+  const normalizedEmail = newEmail.toLowerCase().trim();
+  
+  // Get current student_auth record
+  const existing = await getStudentAuthByStudentId(studentId);
+  if (!existing) {
+    return { synced: false, reason: 'No student_auth record exists' };
+  }
+  
+  const currentAuthEmail = existing.email?.toLowerCase().trim() || '';
+  
+  // Check if already in sync
+  if (currentAuthEmail === normalizedEmail) {
+    return { synced: true, reason: 'Already in sync' };
+  }
+  
+  // Perform the update
+  const { error } = await supabase
+    .from('student_auth')
+    .update({ 
+      email: normalizedEmail,
+      updated_at: new Date().toISOString()
+    })
+    .eq('student_id', studentId);
+
+  if (error) {
+    logger.error('Failed to sync student_auth email', { error, studentId });
+    return { synced: false, reason: error.message };
+  }
+  
+  logger.info('student_auth email synced', { 
+    studentId, 
+    oldEmail: currentAuthEmail, 
+    newEmail: normalizedEmail 
+  });
+  
+  // If there's a Supabase Auth account, update that too
+  if (existing.auth_user_id) {
+    await updateSupabaseAuthEmail(existing.auth_user_id, normalizedEmail);
+  }
+  
+  return { synced: true, reason: 'Email updated' };
+};
+```
+
+### 3. Verification Helper
+
+Add a helper to verify sync status:
+
+```typescript
+/**
+ * Check if student email is synced with student_auth
+ */
+export const isEmailInSync = async (studentId: string): Promise<boolean> => {
+  const [student, studentAuth] = await Promise.all([
+    supabase.from('students').select('email').eq('id', studentId).single(),
+    getStudentAuthByStudentId(studentId)
+  ]);
+  
+  if (!student.data || !studentAuth) return true; // No auth to sync
+  
+  const studentEmail = student.data.email?.toLowerCase().trim() || '';
+  const authEmail = studentAuth.email?.toLowerCase().trim() || '';
+  
+  return studentEmail === authEmail;
+};
+```
 
 ---
 
-## Edge Cases Handled
+## Key Improvements
 
-| Scenario | Handling |
-|----------|----------|
-| Parent has 1 child | No switcher shown, behaves as before |
-| Parent has multiple children | Switcher shown, defaults to first alphabetically |
-| New sibling added | Automatically appears in switcher on next login |
-| Child removed/archived | Filtered from switcher, auto-switch to next child |
-| Page refresh | Selection persisted in sessionStorage |
+| Before | After |
+|--------|-------|
+| Sync only on email change | Sync whenever mismatch exists |
+| Silent failures ignored | Explicit sync result logged |
+| No retry mechanism | Auto-corrects on every save |
+| RLS might block silently | Error messages logged |
 
 ---
 
-## Impact Assessment
+## Verification Steps
 
-| Area | Impact |
-|------|--------|
-| Existing single-student logins | No change - backward compatible |
-| Authentication performance | Minimal - one extra query to count students |
-| RLS policies | None - already supports multiple students per email |
-| Admin portal | Minor enhancement to show sibling links |
+After implementation:
+1. Open student with mismatched emails
+2. Click "Edit Student" then save (without changing email)
+3. Verify Portal Email now matches Student Email
+4. Check browser console for sync confirmation
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/services/studentService.ts` | Replace change-based sync with mismatch-based sync |
+| `src/services/studentAuthService.ts` | Add `syncStudentAuthEmail` function with verification |
