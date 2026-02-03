@@ -24,7 +24,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { Term, calculateTeachingWeeks } from '@/services/termCalendarService';
-import { getClassPricingTiers, calculateEnrollmentPrice } from '@/services/classEnrollmentService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
 
@@ -53,8 +52,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
-  const [selectedClassType, setSelectedClassType] = useState<string>('');
-  const [selectedTierName, setSelectedTierName] = useState<string>('');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
   const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   
@@ -81,41 +79,68 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     enabled: !!student.branch_id,
   });
 
-  // Fetch pricing tiers
-  const { data: pricingTiers = [] } = useQuery({
-    queryKey: ['class-pricing-tiers', student.branch_id],
-    queryFn: () => getClassPricingTiers(student.branch_id!),
-    enabled: !!student.branch_id,
-  });
-
-  // Fetch class products for the branch
+  // Fetch class products from the Classes category with branch-specific pricing
   const { data: classProducts = [] } = useQuery({
-    queryKey: ['class-products', student.branch_id],
+    queryKey: ['class-products-with-pricing', student.branch_id],
     queryFn: async () => {
       if (!student.branch_id) return [];
-      const { data } = await supabase
+      
+      // First get the Classes category ID
+      const { data: categories } = await supabase
+        .from('product_categories')
+        .select('id')
+        .eq('name', 'Classes')
+        .single();
+      
+      if (!categories) return [];
+      
+      // Fetch products in the Classes category
+      const { data: products } = await supabase
         .from('products')
         .select('*')
         .eq('is_active', true)
-        .ilike('category_id', '%class%');
-      return data || [];
+        .eq('category_id', categories.id);
+      
+      if (!products || products.length === 0) return [];
+      
+      // Fetch branch-specific price rules
+      const productIds = products.map(p => p.id);
+      const { data: priceRules } = await supabase
+        .from('price_rules')
+        .select('*')
+        .in('product_id', productIds)
+        .eq('branch_id', student.branch_id)
+        .eq('is_active', true);
+      
+      const priceRuleMap = new Map(priceRules?.map(r => [r.product_id, r]) || []);
+      
+      // Map products with their effective prices for this branch
+      return products.map(product => {
+        const branchRule = priceRuleMap.get(product.id);
+        return {
+          ...product,
+          effective_price: branchRule?.price_override ?? product.base_price,
+          has_branch_price: !!branchRule?.price_override,
+        };
+      });
     },
     enabled: !!student.branch_id,
   });
 
-  // Get unique class types from pricing tiers
-  const classTypes = [...new Set(pricingTiers.map(t => t.class_type))];
-  
-  // Get tiers for selected class type
-  const tiersForClassType = pricingTiers.filter(t => t.class_type === selectedClassType);
+  // Get selected product
+  const selectedProduct = classProducts.find(p => p.id === selectedProductId);
 
-  // Auto-fill from previous enrollment
+  // Auto-fill from previous enrollment (match by product name if possible)
   useEffect(() => {
-    if (previousEnrollment && !selectedClassType) {
-      setSelectedClassType(previousEnrollment.class_type || '');
-      setSelectedTierName(previousEnrollment.tier_name || '');
+    if (previousEnrollment && !selectedProductId && classProducts.length > 0) {
+      const matchingProduct = classProducts.find(p => 
+        p.name?.toLowerCase() === previousEnrollment.tier_name?.toLowerCase()
+      );
+      if (matchingProduct) {
+        setSelectedProductId(matchingProduct.id);
+      }
     }
-  }, [previousEnrollment]);
+  }, [previousEnrollment, classProducts, selectedProductId]);
 
   // Auto-select first term
   useEffect(() => {
@@ -124,13 +149,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     }
   }, [availableTerms]);
 
-  // Calculate price
-  const selectedTier = tiersForClassType.find(t => t.tier_name === selectedTierName);
+  // Calculate price based on selected product and term weeks
   const termWeeks = selectedTerm 
     ? calculateTeachingWeeks(selectedTerm.start_date, selectedTerm.end_date, selectedTerm.breaks || [])
     : 0;
-  const calculatedPrice = selectedTier 
-    ? calculateEnrollmentPrice(termWeeks, selectedTier.price_per_week, selectedTier.price_per_lesson, selectedTier.tier_name)
+  const calculatedPrice = selectedProduct 
+    ? termWeeks * selectedProduct.effective_price
     : 0;
 
   // Payment methods based on country
@@ -151,35 +175,24 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedTerm || !selectedTier || !student.branch_id) {
+      if (!selectedTerm || !selectedProduct || !student.branch_id) {
         throw new Error('Missing required data');
-      }
-
-      // Find a matching class product
-      const classProduct = classProducts.find(p => 
-        p.name?.toLowerCase().includes(selectedClassType.toLowerCase()) ||
-        p.name?.toLowerCase().includes('class')
-      ) || classProducts[0];
-
-      if (!classProduct) {
-        throw new Error('No class product found. Please contact the academy.');
       }
 
       const invoice = await createInvoice({
         student_id: studentId,
         branch_id: student.branch_id,
         payment_terms_days: 7,
-        internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedClassType} (${selectedTier.tier_display_name})`,
+        internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedProduct.name}`,
         items: [{
-          product_id: classProduct.id,
-          description: `${selectedTerm.name} - ${selectedClassType} (${selectedTier.tier_display_name}) - ${termWeeks} weeks`,
+          product_id: selectedProduct.id,
+          description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} weeks`,
           quantity: termWeeks,
-          unit_price: selectedTier.price_per_week,
+          unit_price: selectedProduct.effective_price,
           metadata: {
             term_id: selectedTerm.id,
             term_name: selectedTerm.name,
-            class_type: selectedClassType,
-            tier_name: selectedTierName,
+            product_name: selectedProduct.name,
             weeks: termWeeks,
           },
         }],
@@ -254,6 +267,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const handleClose = () => {
     setStep('select');
     setSelectedTermId('');
+    setSelectedProductId('');
     setCreatedInvoiceId(null);
     setProofFile(null);
     setReferenceNumber('');
@@ -306,44 +320,25 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               </Select>
             </div>
 
-            {/* Class Type */}
+            {/* Pricing Tier (from Products) */}
             <div className="space-y-2">
-              <Label>Class Type *</Label>
-              <Select value={selectedClassType} onValueChange={(v) => { setSelectedClassType(v); setSelectedTierName(''); }}>
+              <Label>Pricing Tier *</Label>
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select class type" />
+                  <SelectValue placeholder="Select pricing tier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {classProducts.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} - ${product.effective_price}/week
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Pricing Tier */}
-            {selectedClassType && tiersForClassType.length > 0 && (
-              <div className="space-y-2">
-                <Label>Pricing Tier *</Label>
-                <Select value={selectedTierName} onValueChange={setSelectedTierName}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pricing tier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiersForClassType.map((tier) => (
-                      <SelectItem key={tier.id} value={tier.tier_name}>
-                        {tier.tier_display_name} - ${tier.price_per_week}/week
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {/* Summary */}
-            {selectedTerm && selectedTier && (
+            {selectedTerm && selectedProduct && (
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between text-sm">
@@ -356,7 +351,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Rate</span>
-                    <span className="font-medium">${selectedTier.price_per_week}/week</span>
+                    <span className="font-medium">${selectedProduct.effective_price}/week</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between">
                     <span className="font-semibold">Total</span>
@@ -372,7 +367,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               </Button>
               <Button
                 onClick={() => createInvoiceMutation.mutate()}
-                disabled={!selectedTermId || !selectedClassType || !selectedTierName || createInvoiceMutation.isPending}
+                disabled={!selectedTermId || !selectedProductId || createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Create Invoice & Pay
