@@ -204,19 +204,54 @@ export const hasPortalAccess = async (studentId: string): Promise<boolean> => {
 /**
  * Update the email address in student_auth record
  * Used when a student's email is changed in the students table
+ * Also updates the Supabase Auth user's email if they have an active account
  */
 export const updateStudentAuthEmail = async (
   studentId: string,
   newEmail: string
 ): Promise<boolean> => {
+  const normalizedEmail = newEmail.toLowerCase().trim();
+  
+  // First, get the current student_auth record to check if they have an auth_user_id
+  const existing = await getStudentAuthByStudentId(studentId);
+  
+  if (!existing) {
+    logger.error('No student_auth record found for student', { studentId });
+    return false;
+  }
+
+  // Update the student_auth table
   const { error } = await supabase
     .from('student_auth')
-    .update({ email: newEmail.toLowerCase().trim() })
+    .update({ email: normalizedEmail })
     .eq('student_id', studentId);
 
   if (error) {
     console.error('Error updating student auth email:', error);
     return false;
+  }
+
+  // If the student has a linked Supabase Auth account, update that too via edge function
+  if (existing.auth_user_id) {
+    try {
+      const { data: updateData, error: updateError } = await supabase.functions.invoke('auth-admin', {
+        body: {
+          action: 'updateUserEmail',
+          userId: existing.auth_user_id,
+          email: normalizedEmail
+        }
+      });
+
+      if (updateError) {
+        logger.error('Failed to update Supabase Auth email', { error: updateError });
+        // Don't fail the whole operation - student_auth was already updated
+      } else {
+        logger.info('Supabase Auth email updated successfully', { studentId, newEmail: normalizedEmail });
+      }
+    } catch (authError) {
+      logger.error('Error calling auth-admin to update email', authError);
+      // Don't fail the whole operation
+    }
   }
 
   return true;
