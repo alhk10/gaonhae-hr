@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Eye, EyeOff, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,48 +19,121 @@ const ResetPassword = () => {
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event from Supabase
+    const initializeRecoverySession = async () => {
+      console.log('ResetPassword: Initializing recovery session...');
+      console.log('URL:', window.location.href);
+      console.log('Hash:', window.location.hash);
+      console.log('Search:', window.location.search);
+      
+      try {
+        // Method 1: Check for PKCE code in URL query params (new Supabase flow)
+        const code = searchParams.get('code');
+        if (code) {
+          console.log('Found PKCE code in URL, exchanging for session...');
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (exchangeError) {
+            console.error('PKCE exchange error:', exchangeError);
+            // If PKCE fails, it might be because the code was already used or expired
+            // Try to check if we have an existing session
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session) {
+              console.log('Found existing session after PKCE failure');
+              setIsRecoveryMode(true);
+              setChecking(false);
+              return;
+            }
+            setError('This password reset link has expired or already been used. Please request a new one.');
+            setChecking(false);
+            return;
+          }
+          
+          if (data.session) {
+            console.log('PKCE exchange successful, session established');
+            setIsRecoveryMode(true);
+            setChecking(false);
+            return;
+          }
+        }
+
+        // Method 2: Check for access_token in hash (older Supabase flow / implicit)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
+        if (accessToken && type === 'recovery') {
+          console.log('Found recovery token in URL hash, setting session...');
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
+          
+          if (sessionError) {
+            console.error('Session set error:', sessionError);
+            setError('Invalid or expired password reset link. Please request a new one.');
+            setChecking(false);
+            return;
+          }
+          
+          if (data.session) {
+            console.log('Session established from hash tokens');
+            setIsRecoveryMode(true);
+            setChecking(false);
+            return;
+          }
+        }
+
+        // Method 3: Check if we already have an active session (user might be in recovery state)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('Found existing session, allowing password reset');
+          setIsRecoveryMode(true);
+          setChecking(false);
+          return;
+        }
+
+        // No valid recovery method found
+        console.log('No valid recovery method found');
+        setError('Invalid or expired password reset link. Please request a new one.');
+        setChecking(false);
+
+      } catch (err) {
+        console.error('Error initializing recovery:', err);
+        setError('An error occurred. Please try requesting a new password reset link.');
+        setChecking(false);
+      }
+    };
+
+    // Also listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email);
         
         if (event === 'PASSWORD_RECOVERY') {
-          console.log('Password recovery mode detected');
+          console.log('PASSWORD_RECOVERY event received');
           setIsRecoveryMode(true);
           setError(null);
+          setChecking(false);
         } else if (event === 'SIGNED_IN' && session) {
-          // User might be signed in after clicking the link
+          // Check if this is from a recovery flow
+          console.log('SIGNED_IN event received');
           setIsRecoveryMode(true);
           setError(null);
+          setChecking(false);
         }
       }
     );
 
-    // Check if we're in a recovery flow by looking at the URL hash
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
-    
-    if (accessToken && type === 'recovery') {
-      console.log('Recovery token found in URL');
-      setIsRecoveryMode(true);
-    } else if (!accessToken) {
-      // No token - check if user is already in a session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setIsRecoveryMode(true);
-        } else {
-          setError('Invalid or expired password reset link. Please request a new one.');
-        }
-      });
-    }
+    initializeRecoverySession();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +198,18 @@ const ResetPassword = () => {
     );
   }
 
+  // Loading state while checking auth
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Verifying reset link...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Error state - invalid/expired link
   if (!isRecoveryMode && error) {
     return (
@@ -147,18 +233,6 @@ const ResetPassword = () => {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  // Loading state while checking auth
-  if (!isRecoveryMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Verifying reset link...</p>
-        </div>
       </div>
     );
   }
