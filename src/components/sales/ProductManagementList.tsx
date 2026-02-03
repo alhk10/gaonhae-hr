@@ -480,14 +480,16 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleInventoryAdjust(product)}
-                              title="Adjust Inventory"
-                            >
-                              <Boxes className="w-4 h-4" />
-                            </Button>
+                            {!product.is_service && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleInventoryAdjust(product)}
+                                title="Adjust Inventory"
+                              >
+                                <Boxes className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
