@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase, Calendar } from 'lucide-react';
+import { Loader2, Package, Tag, Award, Layers, Settings, Briefcase, Calendar } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
 import { ProductVariantManager } from './ProductVariantManager';
-import { BranchPricingManager } from './BranchPricingManager';
+import { InlineBranchPricing } from './InlineBranchPricing';
 import { MultiSelect } from '@/components/ui/multi-select';
 
 interface EditProductDialogProps {
@@ -41,7 +42,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [showVariantManager, setShowVariantManager] = useState(false);
-  const [showBranchPricing, setShowBranchPricing] = useState(false);
+  // Removed showBranchPricing state - now inline
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -261,22 +262,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 </div>
               </div>
               
-              {/* Branch Pricing Button */}
-              <div className="pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowBranchPricing(true)}
-                  className="w-full"
-                >
-                  <Globe className="w-4 h-4 mr-2" />
-                  Manage Branch Pricing
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Set different prices for each branch with their local currency
-                </p>
-              </div>
+              {/* Inline Branch Pricing */}
+              <Separator className="my-3" />
+              <InlineBranchPricing
+                productId={product.id}
+                basePrice={formData.base_price}
+                baseTaxRate={formData.tax_rate}
+              />
             </section>
 
             {/* Product Variants Section */}
@@ -436,14 +428,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         onOpenChange={setShowVariantManager}
       />
 
-      <BranchPricingManager
-        productId={product.id}
-        productName={product.name}
-        basePrice={formData.base_price}
-        baseTaxRate={formData.tax_rate}
-        open={showBranchPricing}
-        onOpenChange={setShowBranchPricing}
-      />
     </>
   );
 };
