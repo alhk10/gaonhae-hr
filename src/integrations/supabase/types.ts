@@ -1498,6 +1498,81 @@ export type Database = {
           },
         ]
       }
+      inventory_orders: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          location_id: string
+          notes: string | null
+          order_number: string
+          product_id: string
+          quantity: number
+          received_at: string | null
+          requested_by: string
+          requested_by_email: string | null
+          size_variant: string | null
+          status: string
+          total_cost: number | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          location_id: string
+          notes?: string | null
+          order_number: string
+          product_id: string
+          quantity: number
+          received_at?: string | null
+          requested_by: string
+          requested_by_email?: string | null
+          size_variant?: string | null
+          status?: string
+          total_cost?: number | null
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          location_id?: string
+          notes?: string | null
+          order_number?: string
+          product_id?: string
+          quantity?: number
+          received_at?: string | null
+          requested_by?: string
+          requested_by_email?: string | null
+          size_variant?: string | null
+          status?: string
+          total_cost?: number | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_change_logs: {
         Row: {
           action: string
