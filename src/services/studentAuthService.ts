@@ -210,7 +210,14 @@ export const updateStudentAuthEmail = async (
   studentId: string,
   newEmail: string
 ): Promise<boolean> => {
+  if (!newEmail) {
+    logger.warn('updateStudentAuthEmail called with empty email', { studentId });
+    return false;
+  }
+  
   const normalizedEmail = newEmail.toLowerCase().trim();
+  
+  logger.info('updateStudentAuthEmail started', { studentId, newEmail: normalizedEmail });
   
   // First, get the current student_auth record to check if they have an auth_user_id
   const existing = await getStudentAuthByStudentId(studentId);
@@ -219,21 +226,39 @@ export const updateStudentAuthEmail = async (
     logger.error('No student_auth record found for student', { studentId });
     return false;
   }
+  
+  // Check if email is actually different
+  const currentEmail = existing.email?.toLowerCase().trim() || '';
+  if (currentEmail === normalizedEmail) {
+    logger.info('student_auth email already matches, skipping update', { studentId, email: normalizedEmail });
+    return true; // Not a failure, just no update needed
+  }
 
   // Update the student_auth table
   const { error } = await supabase
     .from('student_auth')
-    .update({ email: normalizedEmail })
+    .update({ 
+      email: normalizedEmail,
+      updated_at: new Date().toISOString()
+    })
     .eq('student_id', studentId);
 
   if (error) {
-    console.error('Error updating student auth email:', error);
+    logger.error('Error updating student auth email in database', { error: error.message, studentId });
     return false;
   }
+  
+  logger.info('student_auth email updated successfully', { studentId, oldEmail: currentEmail, newEmail: normalizedEmail });
 
   // If the student has a linked Supabase Auth account, update that too via edge function
   if (existing.auth_user_id) {
     try {
+      logger.info('Updating Supabase Auth email via edge function', { 
+        studentId, 
+        authUserId: existing.auth_user_id, 
+        newEmail: normalizedEmail 
+      });
+      
       const { data: updateData, error: updateError } = await supabase.functions.invoke('auth-admin', {
         body: {
           action: 'updateUserEmail',
@@ -243,15 +268,26 @@ export const updateStudentAuthEmail = async (
       });
 
       if (updateError) {
-        logger.error('Failed to update Supabase Auth email', { error: updateError });
+        logger.error('Failed to update Supabase Auth email', { 
+          error: updateError, 
+          studentId, 
+          authUserId: existing.auth_user_id 
+        });
         // Don't fail the whole operation - student_auth was already updated
       } else {
-        logger.info('Supabase Auth email updated successfully', { studentId, newEmail: normalizedEmail });
+        logger.info('Supabase Auth email updated successfully', { 
+          studentId, 
+          authUserId: existing.auth_user_id,
+          newEmail: normalizedEmail,
+          response: updateData 
+        });
       }
     } catch (authError) {
       logger.error('Error calling auth-admin to update email', authError);
       // Don't fail the whole operation
     }
+  } else {
+    logger.info('No auth_user_id linked, only student_auth table was updated', { studentId });
   }
 
   return true;

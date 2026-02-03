@@ -476,18 +476,36 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
     }
 
     // Sync email change to student_auth if applicable
-    if (studentData.email && oldData?.email !== studentData.email) {
+    // Use case-insensitive comparison and normalize both values
+    const oldEmailNormalized = oldData?.email?.toLowerCase().trim() || '';
+    const newEmailNormalized = studentData.email?.toLowerCase().trim() || '';
+    
+    if (newEmailNormalized && oldEmailNormalized !== newEmailNormalized) {
       try {
-        const { hasPortalAccess, updateStudentAuthEmail } = await import('./studentAuthService');
+        const { hasPortalAccess, updateStudentAuthEmail, getStudentAuthByStudentId } = await import('./studentAuthService');
         const hasAuth = await hasPortalAccess(studentId);
         
         if (hasAuth) {
-          await updateStudentAuthEmail(studentId, studentData.email);
-          logger.info('Synced email change to student_auth', { 
-            studentId, 
-            oldEmail: oldData?.email, 
-            newEmail: studentData.email 
-          });
+          // Get current student_auth record to compare emails
+          const studentAuth = await getStudentAuthByStudentId(studentId);
+          const authEmailNormalized = studentAuth?.email?.toLowerCase().trim() || '';
+          
+          // Only update if portal email is different from new email
+          if (authEmailNormalized !== newEmailNormalized) {
+            const updateResult = await updateStudentAuthEmail(studentId, studentData.email);
+            if (updateResult) {
+              logger.info('Synced email change to student_auth', { 
+                studentId, 
+                oldEmail: oldData?.email, 
+                newEmail: studentData.email,
+                previousAuthEmail: studentAuth?.email
+              });
+            } else {
+              logger.warn('Failed to sync email to student_auth', { studentId, newEmail: studentData.email });
+            }
+          } else {
+            logger.info('Portal email already matches, no sync needed', { studentId, email: newEmailNormalized });
+          }
         }
       } catch (syncError) {
         logger.error('Error syncing email to student_auth', syncError);
