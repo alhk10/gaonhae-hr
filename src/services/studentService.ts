@@ -475,6 +475,26 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       }
     }
 
+    // Sync email change to student_auth if applicable
+    if (studentData.email && oldData?.email !== studentData.email) {
+      try {
+        const { hasPortalAccess, updateStudentAuthEmail } = await import('./studentAuthService');
+        const hasAuth = await hasPortalAccess(studentId);
+        
+        if (hasAuth) {
+          await updateStudentAuthEmail(studentId, studentData.email);
+          logger.info('Synced email change to student_auth', { 
+            studentId, 
+            oldEmail: oldData?.email, 
+            newEmail: studentData.email 
+          });
+        }
+      } catch (syncError) {
+        logger.error('Error syncing email to student_auth', syncError);
+        // Don't fail the update if sync fails
+      }
+    }
+
     await logSalesModuleAccess('update_student', true, { studentId });
     
     return data;
