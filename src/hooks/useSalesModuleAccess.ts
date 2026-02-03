@@ -31,22 +31,15 @@ export const useSalesModuleAccess = (): SalesModuleAccessState => {
           return;
         }
 
-        // Quick checks first
-        if (!user) {
-          setHasAccess(false);
+        // TESTING MODE: Grant access to all authenticated users
+        if (user) {
+          console.log('🧪 Sales Module: Testing mode enabled - granting access');
+          setHasAccess(true);
           setIsLoading(false);
           return;
         }
 
-        if (userrole !== 'superadmin') {
-          setHasAccess(false);
-          setIsLoading(false);
-          return;
-        }
-
-        // Check with backend
-        const access = await hasSalesModuleAccess();
-        setHasAccess(access);
+        setHasAccess(false);
       } catch (err) {
         console.error('Error checking sales module access:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
