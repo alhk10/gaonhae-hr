@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
 import { ProductVariantManager } from './ProductVariantManager';
-import { InlineBranchPricing } from './InlineBranchPricing';
+import { InlineBranchPricing, InlineBranchPricingRef } from './InlineBranchPricing';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
@@ -33,6 +33,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   onProductUpdated
 }) => {
   const [loading, setLoading] = useState(false);
+  const branchPricingRef = useRef<InlineBranchPricingRef>(null);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [showVariantManager, setShowVariantManager] = useState(false);
   // Removed showBranchPricing state - now inline
@@ -129,6 +130,11 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         lessons_per_week: formData.is_lesson ? formData.lessons_per_week : null,
         lesson_days: formData.is_lesson ? formData.lesson_days : null
       });
+
+      // Save branch pricing if there are changes
+      if (branchPricingRef.current) {
+        await branchPricingRef.current.save();
+      }
 
       toast.success('Product updated successfully');
       onProductUpdated?.();
@@ -258,6 +264,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               {/* Inline Branch Pricing */}
               <Separator className="my-3" />
               <InlineBranchPricing
+                ref={branchPricingRef}
                 productId={product.id}
                 basePrice={formData.base_price}
                 baseTaxRate={formData.tax_rate}
