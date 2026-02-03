@@ -103,7 +103,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       if (!products || products.length === 0) return [];
       
-      // Fetch branch-specific price rules
+      // Fetch branch-specific price rules - only get active ones for this branch
       const productIds = products.map(p => p.id);
       const { data: priceRules } = await supabase
         .from('price_rules')
@@ -114,15 +114,17 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       const priceRuleMap = new Map(priceRules?.map(r => [r.product_id, r]) || []);
       
-      // Map products with their effective prices for this branch
-      return products.map(product => {
-        const branchRule = priceRuleMap.get(product.id);
-        return {
-          ...product,
-          effective_price: branchRule?.price_override ?? product.base_price,
-          has_branch_price: !!branchRule?.price_override,
-        };
-      });
+      // Only return products that have an active price rule for this branch
+      return products
+        .filter(product => priceRuleMap.has(product.id))
+        .map(product => {
+          const branchRule = priceRuleMap.get(product.id)!;
+          return {
+            ...product,
+            effective_price: branchRule.price_override ?? product.base_price,
+            has_branch_price: !!branchRule.price_override,
+          };
+        });
     },
     enabled: !!student.branch_id,
   });
