@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Components
 import { StudentEmergencyContacts } from '@/components/sales/StudentEmergencyContacts';
@@ -52,6 +53,8 @@ const capitalize = (str: string | null | undefined): string => {
 const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperadmin = user?.role === 'superadmin';
 
   // State
   const [student, setStudent] = useState<Student | null>(null);
@@ -264,20 +267,11 @@ const StudentDetails: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Section 2: Portal Access */}
-          <StudentPortalAccessManager
-            studentId={student.id}
-            studentEmail={student.email || null}
-            onAccessChanged={loadStudentData}
-          />
-
-          {/* Section 3: Emergency Information */}
+          {/* Section 2: Emergency Information */}
           <StudentEmergencyContacts 
             contacts={emergencyContacts} 
             loading={contactsLoading} 
           />
-
-          {/* Section 4: Sales Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -370,11 +364,23 @@ const StudentDetails: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Section 7: Change Log */}
-          <StudentChangeLog 
-            changeLogs={changeLogs} 
-            loading={changeLogsLoading} 
-          />
+          {/* Superadmin-only sections */}
+          {isSuperadmin && (
+            <>
+              {/* Section 7: Portal Access */}
+              <StudentPortalAccessManager
+                studentId={student.id}
+                studentEmail={student.email || null}
+                onAccessChanged={loadStudentData}
+              />
+
+              {/* Section 8: Change Log */}
+              <StudentChangeLog 
+                changeLogs={changeLogs} 
+                loading={changeLogsLoading} 
+              />
+            </>
+          )}
         </div>
       </ResponsiveLayout>
     </AuthGuard>
