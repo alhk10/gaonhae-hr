@@ -198,7 +198,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     try {
       setGeneratingPdfId(invoiceId);
       
-      // Fetch full invoice data with items and template
+      // Fetch full invoice data with items
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
         .select('*')
@@ -215,30 +215,100 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       
       if (itemsError) throw itemsError;
       
-      // Fetch invoice template based on branch (invoice branch or student branch as fallback)
-      let template = null;
+      // Get branch details to determine country for template matching
       const branchId = invoiceData.branch_id || student?.branch_id;
+      let branchCountry = 'Singapore';
       
       if (branchId) {
-        const { data: branch } = await supabase
+        const { data: branchData } = await supabase
           .from('branches')
           .select('country')
           .eq('id', branchId)
           .single();
-        
-        if (branch?.country) {
-          const { data: templateData } = await supabase
-            .from('invoice_templates')
-            .select('*')
-            .eq('country', branch.country)
-            .eq('is_active', true)
-            .single();
-          
-          template = templateData;
+        if (branchData?.country) {
+          branchCountry = branchData.country;
         }
       }
+
+      // Find matching template by country code (same logic as admin page)
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase
+        .from('invoice_templates')
+        .select('letterhead_url, paynow_qr_url, country, default_notes, footer_text')
+        .eq('country', countryCode)
+        .eq('is_active', true)
+        .limit(1);
       
-      // Build invoice data for PDF
+      const template = templates?.[0] || null;
+
+      // Collect term_ids and grading_slot_ids from items for additional info
+      const termIds: string[] = [];
+      const gradingSlotIds: string[] = [];
+      
+      items?.forEach(item => {
+        const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+        if (metadata?.term_id) termIds.push(metadata.term_id);
+        if (metadata?.grading_slot_id) gradingSlotIds.push(metadata.grading_slot_id);
+      });
+
+      // Fetch term calendar data
+      const termMap: Record<string, { name: string; start_date: string; end_date: string }> = {};
+      if (termIds.length > 0) {
+        const { data: termsData } = await supabase
+          .from('term_calendars')
+          .select('id, name, start_date, end_date')
+          .in('id', termIds);
+        
+        termsData?.forEach(term => {
+          termMap[term.id] = {
+            name: term.name,
+            start_date: term.start_date,
+            end_date: term.end_date
+          };
+        });
+      }
+
+      // Fetch grading slot data
+      const gradingMap: Record<string, { grading_date: string; start_time: string | null }> = {};
+      if (gradingSlotIds.length > 0) {
+        const { data: gradingData } = await supabase
+          .from('grading_slots')
+          .select('id, grading_date, start_time')
+          .in('id', gradingSlotIds);
+        
+        gradingData?.forEach(slot => {
+          gradingMap[slot.id] = {
+            grading_date: slot.grading_date,
+            start_time: slot.start_time
+          };
+        });
+      }
+
+      // Format date helpers (same as admin page)
+      const formatShortDate = (dateStr: string) => {
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        } catch {
+          return dateStr;
+        }
+      };
+
+      const formatFullDate = (dateStr: string) => {
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch {
+          return dateStr;
+        }
+      };
+
+      const formatTime = (timeStr: string | null) => {
+        if (!timeStr) return '';
+        return timeStr.substring(0, 5);
+      };
+      
+      // Build invoice data for PDF (matching admin page format)
       const pdfData: InvoiceData = {
         id: invoiceData.id,
         invoice_number: invoiceData.invoice_number,
@@ -258,22 +328,45 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           phone: student.phone,
           email: student.email,
         } : undefined,
-        items: items?.map((item): InvoiceItem => ({
-          id: item.id,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_amount: item.total_amount,
-          tax_rate: item.tax_rate || 0,
-          tax_amount: item.tax_amount || 0,
-          metadata: item.metadata as InvoiceItem['metadata'],
-        })) || [],
+        items: items?.map((item): InvoiceItem => {
+          const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+          let term_info: string | undefined;
+          let grading_info: string | undefined;
+
+          // Build term info string
+          if (metadata?.term_id && termMap[metadata.term_id]) {
+            const term = termMap[metadata.term_id];
+            term_info = `${term.name} (${formatShortDate(term.start_date)} - ${formatShortDate(term.end_date)})`;
+          }
+
+          // Build grading info string
+          if (metadata?.grading_slot_id && gradingMap[metadata.grading_slot_id]) {
+            const slot = gradingMap[metadata.grading_slot_id];
+            const timeStr = formatTime(slot.start_time);
+            grading_info = timeStr 
+              ? `${formatFullDate(slot.grading_date)} at ${timeStr}`
+              : formatFullDate(slot.grading_date);
+          }
+
+          return {
+            id: item.id,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_amount: item.total_amount,
+            tax_rate: item.tax_rate || 0,
+            tax_amount: item.tax_amount || 0,
+            metadata,
+            term_info,
+            grading_info
+          };
+        }) || [],
         template: template ? {
-          letterhead_url: template.letterhead_url,
-          paynow_qr_url: template.paynow_qr_url,
-          country: template.country,
-          default_notes: template.default_notes,
-          footer_text: template.footer_text,
+          letterhead_url: template.letterhead_url || undefined,
+          paynow_qr_url: template.paynow_qr_url || undefined,
+          country: template.country || undefined,
+          default_notes: template.default_notes || undefined,
+          footer_text: template.footer_text || undefined
         } : undefined,
       };
       
