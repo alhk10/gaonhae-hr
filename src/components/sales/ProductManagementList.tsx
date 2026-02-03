@@ -483,22 +483,6 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleEditProduct(product)}
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setBranchPricingProduct(product)}
-                              title="Branch Pricing"
-                            >
-                              <Globe className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
                               onClick={() => handleInventoryAdjust(product)}
                               title="Adjust Inventory"
                             >
