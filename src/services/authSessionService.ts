@@ -58,10 +58,41 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
 
   const authUserId = session.user.id;
   const email = session.user.email!;
+  const userMetadata = session.user.user_metadata;
   
-  logger.debug('Processing user session', { email, authUserId });
+  logger.debug('Processing user session', { email, authUserId, userMetadata });
 
   try {
+    // FAST PATH: Check user_metadata from JWT first - this is instant and avoids DB queries
+    if (userMetadata?.user_type === 'student' && userMetadata?.student_id) {
+      logger.info('Fast path: User identified as student from JWT metadata', { 
+        email, 
+        studentId: userMetadata.student_id 
+      });
+      
+      // Get student name from metadata or fallback to email
+      const studentName = userMetadata.name || email.split('@')[0];
+      
+      return {
+        user: {
+          id: authUserId,
+          email: email,
+          name: studentName,
+          studentId: userMetadata.student_id,
+        },
+        userrole: null,
+        userType: 'student',
+        userDetails: {
+          id: userMetadata.student_id,
+          name: studentName,
+          email: email
+        },
+        adminAccess: null,
+        pageAccess: null,
+        isSuperadmin: false
+      };
+    }
+
     // Step 1: Check if user is a student first (pass email for fallback lookup)
     const studentData = await getStudentByAuthId(authUserId, email);
     if (studentData) {
