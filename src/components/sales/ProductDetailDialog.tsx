@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Package, Tag, Award, Layers, Settings, Building2, Briefcase, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Calendar, Package, Tag, Award, Layers, Settings, Building2, Briefcase, Loader2, Eye, EyeOff, Pencil } from 'lucide-react';
 import { Product } from '@/services/productService';
 import { getProductBranchPrices, type BranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
@@ -21,12 +22,14 @@ interface ProductDetailDialogProps {
   product: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (product: Product) => void;
 }
 
 export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   product,
   open,
-  onOpenChange
+  onOpenChange,
+  onEdit,
 }) => {
   const [branchPrices, setBranchPrices] = useState<BranchPrice[]>([]);
   const [loadingPrices, setLoadingPrices] = useState(false);
@@ -78,13 +81,20 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   const hasCustomValue = (bp: BranchPrice) => 
     bp.price !== null || bp.tax_rate !== null || bp.tax_included !== null || bp.is_hidden;
 
+  const handleEdit = () => {
+    if (product && onEdit) {
+      onOpenChange(false);
+      onEdit(product);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>View Product</DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {product.is_service && (
                 <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
                   <Briefcase className="w-3 h-3 mr-1" />
@@ -94,6 +104,12 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
               <Badge variant={product.is_active ? "default" : "secondary"}>
                 {product.is_active ? "Active" : "Inactive"}
               </Badge>
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={handleEdit} className="h-7">
+                  <Pencil className="w-3 h-3 mr-1" />
+                  Edit
+                </Button>
+              )}
             </div>
           </div>
         </DialogHeader>

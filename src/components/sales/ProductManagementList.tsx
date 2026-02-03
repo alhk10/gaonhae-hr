@@ -566,6 +566,10 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
         product={viewingProduct}
         open={!!viewingProduct}
         onOpenChange={(open) => !open && setViewingProduct(null)}
+        onEdit={(product) => {
+          setViewingProduct(null);
+          setEditingProduct(product);
+        }}
       />
 
       {/* Inventory Adjustment Dialog */}
