@@ -1,5 +1,14 @@
 export type UserType = 'employee' | 'student';
 
+// Basic student info for multi-student switching
+export interface LinkedStudent {
+  id: string;
+  name: string;
+  email: string;
+  studentNumber?: string;
+  currentBelt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -23,4 +32,8 @@ export interface AuthContextType {
   userDetails: any;
   adminAccess: any;
   pageAccess: any;
+  // Multi-student support
+  linkedStudents: LinkedStudent[];
+  selectedStudentId: string | null;
+  setSelectedStudent: (studentId: string) => void;
 }

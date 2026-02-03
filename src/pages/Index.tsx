@@ -9,9 +9,20 @@ import DashboardSwitcher from '@/components/dashboard/DashboardSwitcher';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
+import StudentSwitcher from '@/components/dashboard/StudentSwitcher';
 
 const Index = () => {
-  const { user, userrole, userType, requiresPasswordChange, isLoading, login } = useAuth();
+  const { 
+    user, 
+    userrole, 
+    userType, 
+    requiresPasswordChange, 
+    isLoading, 
+    login,
+    linkedStudents,
+    selectedStudentId,
+    setSelectedStudent
+  } = useAuth();
 
   console.log('Index: Rendering with state:', { 
     user: !!user, 
@@ -19,7 +30,9 @@ const Index = () => {
     userrole,
     userType,
     requiresPasswordChange, 
-    isLoading 
+    isLoading,
+    linkedStudentsCount: linkedStudents?.length,
+    selectedStudentId
   });
 
   // Add error boundary logging
@@ -71,8 +84,20 @@ const Index = () => {
       
       // Students get their own dashboard without sidebar
       if (userType === 'student') {
-        console.log('Index: Loading StudentDashboard for student user');
-        return <StudentDashboard />;
+        console.log('Index: Loading StudentDashboard for student user', { 
+          linkedStudentsCount: linkedStudents?.length,
+          selectedStudentId 
+        });
+        return (
+          <>
+            <StudentSwitcher
+              linkedStudents={linkedStudents}
+              selectedStudentId={selectedStudentId}
+              onSelectStudent={setSelectedStudent}
+            />
+            <StudentDashboard studentId={selectedStudentId || undefined} />
+          </>
+        );
       }
       
       let dashboard;
