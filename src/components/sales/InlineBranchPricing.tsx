@@ -3,16 +3,15 @@
  * Displays branch-specific pricing directly within the product edit form
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Building2, Eye, EyeOff, Loader2, Save, X, AlertCircle, Check } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2, X, AlertCircle } from 'lucide-react';
 import { 
   getProductBranchPrices, 
   bulkUpdateBranchPrices, 
@@ -29,20 +28,24 @@ const getCountryDefaultTaxIncluded = (country: string): boolean => {
   return COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED;
 };
 
+export interface InlineBranchPricingRef {
+  save: () => Promise<void>;
+  hasChanges: () => boolean;
+}
+
 interface InlineBranchPricingProps {
   productId: string;
   basePrice: number;
   baseTaxRate: number;
 }
 
-export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
+export const InlineBranchPricing = forwardRef<InlineBranchPricingRef, InlineBranchPricingProps>(({
   productId,
   basePrice,
   baseTaxRate,
-}) => {
+}, ref) => {
   const [branchPrices, setBranchPrices] = useState<BranchPrice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalPrices, setOriginalPrices] = useState<BranchPrice[]>([]);
 
@@ -51,6 +54,18 @@ export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
       loadBranchPrices();
     }
   }, [productId]);
+
+  // Expose save method and hasChanges via ref
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      if (hasChanges) {
+        await bulkUpdateBranchPrices(productId, branchPrices);
+        setOriginalPrices(JSON.parse(JSON.stringify(branchPrices)));
+        setHasChanges(false);
+      }
+    },
+    hasChanges: () => hasChanges
+  }), [hasChanges, productId, branchPrices]);
 
   const loadBranchPrices = async () => {
     try {
@@ -117,21 +132,6 @@ export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
     setHasChanges(true);
   };
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      await bulkUpdateBranchPrices(productId, branchPrices);
-      toast.success('Branch pricing saved');
-      setOriginalPrices(JSON.parse(JSON.stringify(branchPrices)));
-      setHasChanges(false);
-    } catch (error) {
-      console.error('Error saving branch prices:', error);
-      toast.error('Failed to save branch prices');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleReset = () => {
     setBranchPrices(JSON.parse(JSON.stringify(originalPrices)));
     setHasChanges(false);
@@ -161,7 +161,7 @@ export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* Header with save actions */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -174,33 +174,15 @@ export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
           )}
         </div>
         {hasChanges && (
-          <div className="flex gap-1">
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleReset} 
-              disabled={saving}
-              className="h-7 text-xs"
-            >
-              Reset
-            </Button>
-            <Button 
-              type="button" 
-              variant="default" 
-              size="sm" 
-              onClick={handleSave} 
-              disabled={saving}
-              className="h-7 text-xs"
-            >
-              {saving ? (
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-              ) : (
-                <Check className="w-3 h-3 mr-1" />
-              )}
-              Save Prices
-            </Button>
-          </div>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleReset} 
+            className="h-7 text-xs"
+          >
+            Reset
+          </Button>
         )}
       </div>
 
@@ -335,6 +317,8 @@ export const InlineBranchPricing: React.FC<InlineBranchPricingProps> = ({
       </p>
     </div>
   );
-};
+});
+
+InlineBranchPricing.displayName = 'InlineBranchPricing';
 
 export default InlineBranchPricing;
