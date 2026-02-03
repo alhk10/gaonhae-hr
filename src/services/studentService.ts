@@ -490,15 +490,29 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
             email: newEmailNormalized,
             reason: syncResult.reason 
           });
+        } else if (syncResult.conflictEmail) {
+          // This is a critical error - the email is in use by another student's portal
+          // We should warn the user but NOT fail the student record update
+          logger.warn('Portal email conflict detected', { 
+            studentId, 
+            email: newEmailNormalized,
+            reason: syncResult.reason 
+          });
+          // Throw a custom error that will be caught and shown to the user
+          throw new Error(`Student saved, but portal email NOT updated: ${syncResult.reason}`);
         } else {
           logger.info('Email sync not performed', { 
             studentId, 
             reason: syncResult.reason 
           });
         }
-      } catch (syncError) {
+      } catch (syncError: any) {
+        // If it's our custom portal conflict error, re-throw it
+        if (syncError?.message?.includes('portal email')) {
+          throw syncError;
+        }
         logger.error('Error during email sync check', syncError);
-        // Don't fail the update if sync fails
+        // Don't fail the update for other sync errors
       }
     }
 
