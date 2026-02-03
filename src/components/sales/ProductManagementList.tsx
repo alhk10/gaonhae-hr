@@ -4,31 +4,24 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { 
   Package, 
-  Search, 
   Plus, 
-  Eye, 
   Edit, 
   Trash2, 
-  Filter,
-  Download,
-  Upload,
   PackagePlus,
   CheckCircle2,
   XCircle,
   Boxes,
   Briefcase,
-  Globe
+  FolderOpen
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import { getProductInventory, ProductInventory } from '@/services/inventoryService';
@@ -39,8 +32,7 @@ import { ProductDetailDialog } from './ProductDetailDialog';
 import { InventoryStatusBadge } from './InventoryStatusBadge';
 import { InventoryAdjustmentDialog } from './InventoryAdjustmentDialog';
 import { BranchPricingManager } from './BranchPricingManager';
-import { useBranches } from '@/hooks/useBranches';
-import { supabase } from '@/integrations/supabase/client';
+import ProductCategoriesDialog from './ProductCategoriesDialog';
 
 interface ProductManagementListProps {
   onDataChange?: () => void;
@@ -50,12 +42,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('active');
-  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const { branches } = useBranches();
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -66,6 +53,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const [inventory, setInventory] = useState<Record<string, ProductInventory>>({});
   const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
   
   const itemsPerPage = 20;
 
@@ -85,32 +73,10 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const result = await getProducts(
-        currentPage, 
-        itemsPerPage, 
-        searchQuery.trim() || undefined,
-        categoryFilter !== 'all' ? categoryFilter : undefined
-      );
+      const result = await getProducts(currentPage, itemsPerPage);
       
-      let filteredProducts = result.products;
-      if (statusFilter !== 'all') {
-        filteredProducts = filteredProducts.filter(p => p.is_active === (statusFilter === 'active'));
-      }
-      
-      // Filter by branch availability
-      if (branchFilter !== 'all') {
-        // Get products that are hidden at this branch (is_active = false in price_rules)
-        const { data: hiddenRules } = await supabase
-          .from('price_rules')
-          .select('product_id')
-          .eq('branch_id', branchFilter)
-          .eq('is_active', false);
-        
-        const hiddenProductIds = new Set(hiddenRules?.map(r => r.product_id) || []);
-        
-        // Filter out products that are hidden at the selected branch
-        filteredProducts = filteredProducts.filter(p => !hiddenProductIds.has(p.id));
-      }
+      // Filter to active products by default
+      const filteredProducts = result.products.filter(p => p.is_active);
       
       setProducts(filteredProducts);
       setTotal(result.total);
@@ -128,15 +94,6 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setCurrentPage(1);
-      loadProducts();
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery, categoryFilter, statusFilter, branchFilter]);
 
   useEffect(() => {
     loadProducts();
@@ -233,121 +190,29 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Product Catalog</h2>
-          <p className="text-muted-foreground">
-            Manage classes, courses, and merchandise
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => toast.info('Import feature coming soon')}
-            className="flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            Import
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => toast.info('Export feature coming soon')}
-            className="flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-          <AddProductDialog
-            trigger={
-              <Button className="flex items-center gap-2">
-                <PackagePlus className="w-4 h-4" />
-                Add Product
-              </Button>
-            }
-            onProductAdded={() => {
-              loadProducts();
-              onDataChange?.();
-            }}
-          />
-        </div>
+      {/* Header with buttons */}
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setShowCategoriesDialog(true)}
+          className="flex items-center gap-2"
+        >
+          <FolderOpen className="w-4 h-4" />
+          Categories
+        </Button>
+        <AddProductDialog
+          trigger={
+            <Button className="flex items-center gap-2">
+              <PackagePlus className="w-4 h-4" />
+              Add Product
+            </Button>
+          }
+          onProductAdded={() => {
+            loadProducts();
+            onDataChange?.();
+          }}
+        />
       </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Filter className="w-4 h-4" />
-            Filters & Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="relative">
-              <Input
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            </div>
-            
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Branch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchQuery('');
-                  setCategoryFilter('all');
-                  setBranchFilter('all');
-                  setStatusFilter('active');
-                }}
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Bulk Actions */}
       {selectedProducts.length > 0 && (
@@ -375,14 +240,6 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
                   Deactivate
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toast.info('Bulk export coming soon')}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-                <Button
                   variant="destructive"
                   size="sm"
                   onClick={handleBulkDelete}
@@ -403,9 +260,6 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
             <Package className="w-4 h-4" />
             Products ({total})
           </CardTitle>
-          <CardDescription>
-            {loading ? 'Loading...' : `Showing ${products.length} of ${total} products`}
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -569,6 +423,12 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
           )}
         </CardContent>
       </Card>
+
+      {/* Categories Dialog */}
+      <ProductCategoriesDialog
+        open={showCategoriesDialog}
+        onOpenChange={setShowCategoriesDialog}
+      />
 
       {/* Edit Product Dialog */}
       <EditProductDialog
