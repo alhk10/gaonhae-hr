@@ -3,16 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, FileText, Clock, Calendar, Trash2, Building2, GraduationCap, AlertCircle } from 'lucide-react';
+import { Users, FileText, Clock, Calendar, Trash2, Building2, GraduationCap, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
 import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
+import { getPendingOrdersCount } from '@/services/inventoryOrderService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
 import PaymentDeletionApprovals from './PaymentDeletionApprovals';
 import InvoiceDeletionApprovals from './InvoiceDeletionApprovals';
+import InventoryOrderApprovals from './InventoryOrderApprovals';
 
 const SuperadminDashboard = () => {
   const [payrollDue, setPayrollDue] = useState('');
@@ -58,6 +60,14 @@ const SuperadminDashboard = () => {
     refetchInterval: 60 * 1000,
   });
 
+  // Load pending inventory orders count
+  const { data: pendingOrdersCount = 0 } = useQuery({
+    queryKey: ['pending-orders-count'],
+    queryFn: getPendingOrdersCount,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
   // Total pending deletions (payments + invoices)
   const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount;
   const pendingStudentUpdatesCount = Array.isArray(pendingStudentUpdates) ? pendingStudentUpdates.length : 0;
@@ -99,6 +109,12 @@ const SuperadminDashboard = () => {
       value: pendingStudentUpdatesCount.toString(), 
       icon: GraduationCap, 
       color: pendingStudentUpdatesCount > 0 ? 'bg-purple-500' : 'bg-gray-500' 
+    },
+    { 
+      title: 'Purchase Orders', 
+      value: pendingOrdersCount.toString(), 
+      icon: ShoppingCart, 
+      color: pendingOrdersCount > 0 ? 'bg-orange-500' : 'bg-gray-500' 
     },
     { 
       title: 'Payroll Due', 
@@ -245,6 +261,9 @@ const SuperadminDashboard = () => {
       {pendingInvoiceDeletionsCount > 0 && (
         <InvoiceDeletionApprovals />
       )}
+
+      {/* Inventory Order Approvals */}
+      <InventoryOrderApprovals />
 
       {/* Class Weekly Planner */}
       <ClassWeeklyPlanner />
