@@ -19,14 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ProductVariantManager } from './ProductVariantManager';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MultiSelect } from '@/components/ui/multi-select';
-
-const BELT_LEVELS = [
-  'Foundation 1', 'Foundation 2', 'Foundation 3',
-  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green', 
-  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
-  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5',
-  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4'
-];
+import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -331,7 +324,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 <MultiSelect
                   values={formData.allowed_belt_levels}
                   onValuesChange={(values) => handleInputChange('allowed_belt_levels', values)}
-                  options={BELT_LEVELS}
+                  options={BELT_LEVELS_ARRAY}
                   placeholder="Select belt levels..."
                   searchPlaceholder="Search belt levels..."
                   maxDisplayed={3}

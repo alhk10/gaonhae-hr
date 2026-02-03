@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { BELT_LEVELS } from '@/constants/beltLevels';
 
 export interface ClassSchedule {
   id: string;
@@ -58,30 +59,8 @@ export const CLASS_TYPES = [
   'Kang Klass'
 ];
 
-export const BELT_LEVELS = [
-  'Foundation 1',
-  'Foundation 2',
-  'Foundation 3',
-  'White',
-  'Yellow Tip',
-  'Yellow',
-  'Green Tip',
-  'Green',
-  'Blue Tip',
-  'Blue',
-  'Red Tip',
-  'Red',
-  'Black Tip',
-  'Dan 1',
-  'Dan 2',
-  'Dan 3',
-  'Dan 4',
-  'Dan 5',
-  'Poom 1',
-  'Poom 2',
-  'Poom 3',
-  'Poom 4'
-];
+// Re-export BELT_LEVELS for backward compatibility
+export { BELT_LEVELS };
 
 export async function getClassSchedules(branchId?: string): Promise<ClassSchedule[]> {
   let query = supabase
