@@ -1,116 +1,150 @@
 
-# Plan: Fix Student Dashboard Display for alvinleehk@gmail.com
+# Plan: Multi-Student Access for Parents
 
-## Problem Summary
+## Overview
 
-When logging in with `alvinleehk@gmail.com` (a student account), the system displays an **Employee Dashboard** instead of the **Student Dashboard**.
+Parents with multiple children enrolled under the same email address need to access all their students' data with a single login. Currently, the system links one email to one student via the `student_auth` table. This plan extends the architecture to support one-to-many parent-to-student relationships.
 
-## Root Cause Analysis
-
-The investigation revealed a **RLS (Row Level Security) policy issue** on the `student_auth` table:
-
-| Finding | Details |
-|---------|---------|
-| **Database State** | `student_auth.auth_user_id` is NULL for this student |
-| **Auth User Exists** | User `b200a7b2-e4a1-4943-834f-009ac172c8d3` exists in `auth.users` |
-| **RLS Policy** | Current policy: `auth_user_id = auth.uid()` blocks SELECT when `auth_user_id` is NULL |
-| **Network Evidence** | Both queries to `student_auth` return empty arrays `[]` due to RLS blocking |
-
-### Current Flow (Broken)
+## Current Architecture
 
 ```text
-1. User logs in with alvinleehk@gmail.com
-2. authSessionService calls getStudentByAuthId()
-3. Query: student_auth WHERE auth_user_id = 'b200a7b2...'
-4. RLS blocks because auth_user_id is NULL → Returns []
-5. Fallback: Query student_auth WHERE email = 'alvinleehk@gmail.com'
-6. RLS still blocks (same policy) → Returns []
-7. System concludes user is NOT a student
-8. Falls back to employee logic → Shows EmployeeDashboard
+[student_auth]
+- id (PK)
+- student_id (FK → students, UNIQUE) ← Problem: 1:1 relationship
+- auth_user_id (FK → auth.users)
+- email
 ```
 
----
+The `student_id` column has an implicit 1:1 relationship. When a parent logs in, the system finds the first matching `student_auth` record and shows only that student's dashboard.
 
-## Solution
+## Solution Design
 
-### Part 1: Fix RLS Policy on student_auth Table
+### 1. Database Changes
 
-Create a new RLS policy that allows users to read their own `student_auth` record by matching their **email** OR their **auth_user_id**.
+**Modify `student_auth` table to support multiple students per email:**
 
-**SQL Migration:**
+The current structure already allows multiple records with the same email (no unique constraint on email column), but the authentication flow only retrieves a single record.
 
-```sql
--- Drop the restrictive policy
-DROP POLICY IF EXISTS "Students can view their own auth" ON public.student_auth;
+| Current Behavior | New Behavior |
+|------------------|--------------|
+| Query returns single student | Query returns all students linked to email |
+| Dashboard shows one student | Dashboard shows student selector if > 1 |
+| No switching mechanism | Student switcher component for parents |
 
--- Create new inclusive policy that allows email OR auth_user_id matching
-CREATE POLICY "Students can view their own auth"
-ON public.student_auth
-FOR SELECT
-TO authenticated
-USING (
-  auth_user_id = auth.uid() 
-  OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
-);
-```
+### 2. New Components
 
-### Part 2: Fix Existing Record
+| Component | Purpose |
+|-----------|---------|
+| `StudentSwitcher` | Dropdown/card selector when parent has multiple children |
+| Modified `StudentDashboard` | Accept selected student context |
+| Session context update | Store `selectedStudentId` in context/state |
 
-After policy update, link the existing auth user to the `student_auth` record:
-
-```sql
--- Link the auth_user_id for alvinleehk@gmail.com
-UPDATE public.student_auth 
-SET auth_user_id = 'b200a7b2-e4a1-4943-834f-009ac172c8d3'
-WHERE email = 'alvinleehk@gmail.com' AND auth_user_id IS NULL;
-```
-
----
-
-## Expected Result After Fix
+### 3. Authentication Flow Changes
 
 ```text
-1. User logs in with alvinleehk@gmail.com
-2. authSessionService calls getStudentByAuthId()
-3. Query succeeds because email matches (new RLS policy)
-4. Returns student data, userType set to 'student'
-5. Auto-links auth_user_id for future logins
-6. Index.tsx renders StudentDashboard (correct!)
+Current Flow:
+1. Login → getStudentByAuthId() → returns FIRST match → single student dashboard
+
+New Flow:
+1. Login → getStudentsByAuthId() → returns ALL matches
+2. If count = 1 → show single student dashboard (unchanged)
+3. If count > 1 → show student selector → user picks child → show their dashboard
+4. Store selection in session for navigation persistence
 ```
 
----
+### 4. RLS Policy Updates
+
+Current RLS allows a user to see data where their email matches the student record OR auth_user_id matches. This naturally extends to multiple students - the parent will see data for ALL students that share their email.
+
+**No RLS changes needed** - existing policies already support multiple students per email.
 
 ## Implementation Summary
 
-| Task | File | Type |
-|------|------|------|
-| Update RLS policy for student_auth | SQL Migration | Create |
-| Link auth_user_id for alvinleehk@gmail.com | SQL Migration | Create |
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/services/authSessionService.ts` | Modify | Return array of linked students instead of single |
+| `src/contexts/AuthContext.tsx` | Modify | Add `linkedStudents` and `selectedStudentId` to context |
+| `src/components/dashboard/StudentSwitcher.tsx` | Create | UI component for switching between children |
+| `src/components/dashboard/StudentDashboard.tsx` | Modify | Accept selected student from switcher |
+| `src/pages/Index.tsx` | Modify | Render switcher when multiple students exist |
+| `src/services/studentAuthService.ts` | Modify | Add `getStudentsByEmail` to return all linked students |
 
 ---
 
 ## Technical Details
 
-### Why Email-Based RLS is Safe
+### authSessionService Changes
 
-The policy uses `(SELECT email FROM auth.users WHERE id = auth.uid())` which:
-- Only returns the authenticated user's email from the auth system
-- Cannot be spoofed by client-side code
-- Ensures users can only access their own `student_auth` record
-
-### Auto-Linking Mechanism
-
-The existing code in `authSessionService.ts` (lines 351-368) already handles auto-linking the `auth_user_id` once the record is found. After fixing the RLS policy, this code will work as intended:
+Update `getStudentByAuthId` to return all matching students:
 
 ```typescript
-// If we found a match by email but auth_user_id is missing, update it
-if (!emailData.auth_user_id && authUserId) {
-  supabase
-    .from('student_auth')
-    .update({ auth_user_id: authUserId })
-    .eq('student_id', student.id)
-    .then(/* ... */);
+// Before: Returns single student
+const getStudentByAuthId = async (authUserId, email): Promise<Student | null>
+
+// After: Returns all linked students
+const getStudentsByAuthId = async (authUserId, email): Promise<Student[]>
+```
+
+### AuthContext Extension
+
+Add new properties to track multiple students:
+
+```typescript
+interface AuthContextType {
+  // Existing properties...
+  linkedStudents: StudentBasic[];     // All students linked to this parent
+  selectedStudentId: string | null;   // Currently viewed student
+  setSelectedStudent: (id: string) => void;
 }
 ```
 
-This means future logins will use the faster `auth_user_id` lookup path.
+### StudentSwitcher Component
+
+New component rendered at top of student dashboard when `linkedStudents.length > 1`:
+
+- Shows currently selected child's name
+- Dropdown to switch between children
+- Persists selection in session storage for page refreshes
+- Updates dashboard data when switching
+
+### Dashboard Rendering Logic
+
+```text
+if (userType === 'student') {
+  if (linkedStudents.length > 1) {
+    return <StudentSwitcher /> + <StudentDashboard studentId={selectedStudentId} />
+  } else {
+    return <StudentDashboard studentId={linkedStudents[0].id} />
+  }
+}
+```
+
+### Admin Workflow for Linking Students
+
+When registering siblings:
+1. Use same parent email for multiple students
+2. Each student gets a separate `student_auth` record with same email
+3. Same `auth_user_id` links all records after first login
+
+---
+
+## Edge Cases Handled
+
+| Scenario | Handling |
+|----------|----------|
+| Parent has 1 child | No switcher shown, behaves as before |
+| Parent has multiple children | Switcher shown, defaults to first alphabetically |
+| New sibling added | Automatically appears in switcher on next login |
+| Child removed/archived | Filtered from switcher, auto-switch to next child |
+| Page refresh | Selection persisted in sessionStorage |
+
+---
+
+## Impact Assessment
+
+| Area | Impact |
+|------|--------|
+| Existing single-student logins | No change - backward compatible |
+| Authentication performance | Minimal - one extra query to count students |
+| RLS policies | None - already supports multiple students per email |
+| Admin portal | Minor enhancement to show sibling links |
