@@ -18,7 +18,8 @@ import {
   Search, 
   Eye, 
   Edit, 
-  Trash2
+  Trash2,
+  KeyRound
 } from 'lucide-react';
 import { 
   getStudents, 
@@ -27,6 +28,7 @@ import {
   bulkUpdateStudentStatus, 
   bulkDeleteStudents
 } from '@/services/studentService';
+import { bulkEnablePortalAccess } from '@/services/studentAuthService';
 import EditStudentDialog from './EditStudentDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -118,6 +120,24 @@ const StudentManagementList: React.FC = () => {
         case 'delete':
           await bulkDeleteStudents(selectedStudents);
           toast.success(`${selectedStudents.length} students deleted`);
+          break;
+        case 'enable_portal':
+          const studentsWithEmails = students
+            .filter(s => selectedStudents.includes(s.id) && s.email)
+            .map(s => ({ id: s.id, email: s.email! }));
+          
+          if (studentsWithEmails.length === 0) {
+            toast.error('No selected students have email addresses');
+            return;
+          }
+          
+          const result = await bulkEnablePortalAccess(studentsWithEmails);
+          if (result.success > 0) {
+            toast.success(`Portal access enabled for ${result.success} student(s)`);
+          }
+          if (result.failed > 0) {
+            toast.error(`Failed to enable access for ${result.failed} student(s)`);
+          }
           break;
         default:
           toast.info(`Bulk ${action} - Not implemented yet`);
@@ -229,7 +249,7 @@ const StudentManagementList: React.FC = () => {
               <span className="text-sm text-muted-foreground">
                 {selectedStudents.length} student{selectedStudents.length !== 1 ? 's' : ''} selected
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -243,6 +263,14 @@ const StudentManagementList: React.FC = () => {
                   onClick={() => handleBulkAction('deactivate')}
                 >
                   Deactivate
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction('enable_portal')}
+                >
+                  <KeyRound className="w-4 h-4 mr-1" />
+                  Enable Portal Access
                 </Button>
                 <Button
                   variant="destructive"
