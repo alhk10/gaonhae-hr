@@ -378,7 +378,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-xs">Which Days</Label>
+                  <Label className="text-xs">Available Days (days students can attend)</Label>
+                  <p className="text-xs text-muted-foreground">Select which days of the week students can choose from for their lessons</p>
                   <div className="grid grid-cols-4 gap-2 pt-1">
                     {WEEKDAYS.map(day => (
                       <label key={day} className="flex items-center gap-2 cursor-pointer">
