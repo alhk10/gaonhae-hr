@@ -31,20 +31,23 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStudentId, isSimulated = false }) => {
-  const { user, userDetails, logout } = useAuth();
+  const { user, userDetails, logout, linkedStudents } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Record<string, any>>({});
 
-  // Use prop studentId, or user.studentId, or fallback to userDetails.id for students
+  // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
+  const hasMultipleStudents = linkedStudents && linkedStudents.length > 1;
   
   console.log('StudentDashboard: Initializing with', { 
     propStudentId, 
     userStudentId: user?.studentId, 
     userDetailsId: userDetails?.id,
-    resolvedStudentId: studentId 
+    resolvedStudentId: studentId,
+    linkedStudentsCount: linkedStudents?.length,
+    hasMultipleStudents
   });
 
   // Fetch student data

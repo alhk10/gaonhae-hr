@@ -3,9 +3,11 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { processUserSession } from '@/services/authSessionService';
-import { AuthContextType, UserType } from '@/types/auth';
+import { AuthContextType, UserType, LinkedStudent } from '@/types/auth';
 import { logger } from '@/utils/logger';
 import { clearAuthCache } from '@/services/authCacheService';
+
+const SESSION_STORAGE_KEY = 'selectedStudentId';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +22,9 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   logout: async () => {},
   updatePassword: async () => false,
+  linkedStudents: [],
+  selectedStudentId: null,
+  setSelectedStudent: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -31,6 +36,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [pageAccess, setPageAccess] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleUserSession = async (session: Session | null) => {
@@ -45,6 +52,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserDetails(null);
       setAdminAccess(null);
       setPageAccess(null);
+      setLinkedStudents([]);
+      setSelectedStudentId(null);
       setIsLoading(false);
       return;
     }
@@ -55,7 +64,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUserDetails(result.userDetails);
     setAdminAccess(result.adminAccess);
     setPageAccess(result.pageAccess);
+    
+    // Handle multi-student support
+    const students = result.linkedStudents || [];
+    setLinkedStudents(students);
+    
+    // Restore or set selected student
+    if (students.length > 0) {
+      const savedStudentId = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      const isValidSaved = savedStudentId && students.some(s => s.id === savedStudentId);
+      setSelectedStudentId(isValidSaved ? savedStudentId : students[0].id);
+    } else {
+      setSelectedStudentId(null);
+    }
+    
     setIsLoading(false);
+  };
+  
+  const handleSetSelectedStudent = (studentId: string) => {
+    setSelectedStudentId(studentId);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, studentId);
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; needsVerification?: boolean }> => {
@@ -244,6 +272,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     login,
     logout,
     updatePassword,
+    linkedStudents,
+    selectedStudentId,
+    setSelectedStudent: handleSetSelectedStudent,
   };
 
   return (

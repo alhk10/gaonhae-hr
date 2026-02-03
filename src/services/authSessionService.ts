@@ -30,6 +30,15 @@ const STATIC_EMPLOYEE_FALLBACKS: Record<string, any> = {
 
 export type UserType = 'employee' | 'student';
 
+// Basic student info for multi-student support
+export interface LinkedStudentInfo {
+  id: string;
+  name: string;
+  email: string;
+  studentNumber?: string;
+  currentBelt?: string;
+}
+
 export interface SessionUserData {
   id: string;
   email: string;
@@ -49,6 +58,8 @@ export interface SessionResult {
   adminAccess: any;
   pageAccess: any;
   isSuperadmin: boolean;
+  // Multi-student support
+  linkedStudents: LinkedStudentInfo[];
 }
 
 export const processUserSession = async (session: Session | null): Promise<SessionResult | null> => {
@@ -70,7 +81,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         studentId: userMetadata.student_id 
       });
       
-      // Get student name from metadata or fallback to email
+      // Get all linked students for this email
+      const linkedStudents = await getStudentsByEmail(email);
       const studentName = userMetadata.name || email.split('@')[0];
       
       return {
@@ -89,7 +101,12 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         },
         adminAccess: null,
         pageAccess: null,
-        isSuperadmin: false
+        isSuperadmin: false,
+        linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{
+          id: userMetadata.student_id,
+          name: studentName,
+          email: email
+        }]
       };
     }
 
@@ -97,6 +114,10 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     const studentData = await getStudentByAuthId(authUserId, email);
     if (studentData) {
       logger.info('User is a student', { email, studentId: studentData.id });
+      
+      // Get all linked students for this email
+      const linkedStudents = await getStudentsByEmail(email);
+      
       return {
         user: {
           id: authUserId,
@@ -109,7 +130,12 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         userDetails: studentData,
         adminAccess: null,
         pageAccess: null,
-        isSuperadmin: false
+        isSuperadmin: false,
+        linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{
+          id: studentData.id,
+          name: studentData.name,
+          email: studentData.email
+        }]
       };
     }
 
@@ -143,7 +169,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           userDetails: null,
           adminAccess: null,
           pageAccess: null,
-          isSuperadmin: true
+          isSuperadmin: true,
+          linkedStudents: []
         };
       }
 
@@ -169,7 +196,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           myAttendance: true,
           slotBookingEmployee: true
         },
-        isSuperadmin: false
+        isSuperadmin: false,
+        linkedStudents: []
       };
     }
 
@@ -190,7 +218,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         userDetails: userData,
         adminAccess: null,
         pageAccess: null,
-        isSuperadmin: true
+        isSuperadmin: true,
+        linkedStudents: []
       };
     }
 
@@ -226,7 +255,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       userDetails: userData,
       adminAccess,
       pageAccess,
-      isSuperadmin: false
+      isSuperadmin: false,
+      linkedStudents: []
     };
 
   } catch (error) {
@@ -257,7 +287,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
           myAttendance: true,
           slotBookingEmployee: true
         },
-        isSuperadmin: false
+        isSuperadmin: false,
+        linkedStudents: []
       };
     }
     
@@ -275,7 +306,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         userDetails: null,
         adminAccess: null,
         pageAccess: null,
-        isSuperadmin: true
+        isSuperadmin: true,
+        linkedStudents: []
       };
     }
 
@@ -300,7 +332,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         myAttendance: true,
         slotBookingEmployee: true
       },
-      isSuperadmin: false
+      isSuperadmin: false,
+      linkedStudents: []
     };
   }
 };
@@ -411,5 +444,43 @@ const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promi
   } catch (error) {
     logger.error('Student lookup failed', error);
     return null;
+  }
+};
+
+// Get all students linked to an email (for multi-student parent access)
+const getStudentsByEmail = async (email: string): Promise<LinkedStudentInfo[]> => {
+  try {
+    const lookupPromise = supabase
+      .from('student_auth')
+      .select('student_id, students!inner(id, first_name, last_name, email, student_number, current_belt)')
+      .eq('email', email.toLowerCase());
+    
+    const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'Multi-student lookup timeout' } }), 2000)
+    );
+    
+    const { data, error } = await Promise.race([lookupPromise, timeout]);
+    
+    if (error || !data) {
+      logger.warn('Failed to get students by email', { email, error });
+      return [];
+    }
+    
+    // Map to LinkedStudentInfo format and sort alphabetically by name
+    return data
+      .map((record: any) => {
+        const student = record.students;
+        return {
+          id: student.id,
+          name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+          email: student.email || email,
+          studentNumber: student.student_number,
+          currentBelt: student.current_belt
+        };
+      })
+      .sort((a: LinkedStudentInfo, b: LinkedStudentInfo) => a.name.localeCompare(b.name));
+  } catch (error) {
+    logger.error('Error getting students by email', error);
+    return [];
   }
 };
