@@ -3,6 +3,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { createStudentAuthAccount, ProvisioningResult } from './studentAuthProvisioningService';
+import { logger } from '@/utils/logger';
 
 export interface StudentAuth {
   id: string;
@@ -201,26 +203,81 @@ export const hasPortalAccess = async (studentId: string): Promise<boolean> => {
 
 /**
  * Enable portal access for an existing student
+ * This creates both the student_auth record AND a Supabase Auth account
  */
 export const enablePortalAccess = async (
   studentId: string,
-  email: string
-): Promise<{ success: boolean; error?: string }> => {
-  // Check if already has access
+  email: string,
+  studentName?: string
+): Promise<{ success: boolean; error?: string; passwordResetSent?: boolean }> => {
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  logger.info('Enabling portal access for student', { studentId, email: normalizedEmail });
+  
+  // Check if already has access with auth_user_id
   const existing = await getStudentAuthByStudentId(studentId);
-  if (existing) {
-    return { success: false, error: 'Portal access already enabled' };
+  if (existing && existing.auth_user_id) {
+    return { success: false, error: 'Portal access already enabled with active account' };
   }
 
   // Check if email is already used by another student
-  const emailInUse = await getStudentAuthByEmail(email);
+  const emailInUse = await getStudentAuthByEmail(normalizedEmail);
   if (emailInUse && emailInUse.student_id !== studentId) {
     return { success: false, error: 'Email already linked to another student' };
   }
 
-  // Create the auth record
-  const result = await createStudentAuth(studentId, email);
-  return result ? { success: true } : { success: false, error: 'Failed to create portal access' };
+  // Get student name if not provided
+  let name = studentName;
+  if (!name) {
+    const { data: student } = await supabase
+      .from('students')
+      .select('first_name, last_name')
+      .eq('id', studentId)
+      .single();
+    
+    if (student) {
+      name = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+    }
+  }
+
+  // Step 1: Create the Supabase Auth account
+  const authResult = await createStudentAuthAccount(studentId, normalizedEmail, name || 'Student');
+  
+  if (!authResult.success) {
+    logger.error('Failed to create auth account', { error: authResult.error });
+    return { success: false, error: authResult.error };
+  }
+
+  // Step 2: Create or update student_auth record with auth_user_id
+  if (existing) {
+    // Update existing record with auth_user_id
+    const { error: updateError } = await supabase
+      .from('student_auth')
+      .update({ auth_user_id: authResult.authUserId })
+      .eq('student_id', studentId);
+    
+    if (updateError) {
+      logger.error('Failed to update student_auth with auth_user_id', { error: updateError });
+      return { success: false, error: 'Account created but failed to link. Please contact support.' };
+    }
+  } else {
+    // Create new student_auth record
+    const result = await createStudentAuth(studentId, normalizedEmail, authResult.authUserId);
+    if (!result) {
+      return { success: false, error: 'Account created but failed to create portal record. Please contact support.' };
+    }
+  }
+
+  logger.info('Portal access enabled successfully', { 
+    studentId, 
+    authUserId: authResult.authUserId,
+    passwordResetSent: authResult.passwordResetSent 
+  });
+  
+  return { 
+    success: true, 
+    passwordResetSent: authResult.passwordResetSent 
+  };
 };
 
 /**
@@ -234,7 +291,7 @@ export const revokePortalAccess = async (studentId: string): Promise<boolean> =>
  * Bulk enable portal access for multiple students
  */
 export const bulkEnablePortalAccess = async (
-  students: Array<{ id: string; email: string }>
+  students: Array<{ id: string; email: string; name?: string }>
 ): Promise<{ success: number; failed: number; errors: string[] }> => {
   let success = 0;
   let failed = 0;
@@ -247,7 +304,12 @@ export const bulkEnablePortalAccess = async (
       continue;
     }
 
-    const result = await enablePortalAccess(student.id, student.email);
+    // Add a small delay between accounts to avoid rate limiting
+    if (success > 0 || failed > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    const result = await enablePortalAccess(student.id, student.email, student.name);
     if (result.success) {
       success++;
     } else {

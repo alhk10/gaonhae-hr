@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { KeyRound, Shield, ShieldOff, Loader2 } from 'lucide-react';
+import { KeyRound, Shield, ShieldOff, Loader2, Mail, AlertCircle } from 'lucide-react';
 import { 
   getStudentAuthByStudentId, 
   enablePortalAccess, 
@@ -20,12 +20,14 @@ import {
 interface StudentPortalAccessManagerProps {
   studentId: string;
   studentEmail: string | null;
+  studentName?: string;
   onAccessChanged?: () => void;
 }
 
 const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
   studentId,
   studentEmail,
+  studentName,
   onAccessChanged
 }) => {
   const [portalAuth, setPortalAuth] = useState<StudentAuth | null>(null);
@@ -56,10 +58,14 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
 
     try {
       setActionLoading(true);
-      const result = await enablePortalAccess(studentId, studentEmail);
+      const result = await enablePortalAccess(studentId, studentEmail, studentName);
       
       if (result.success) {
-        toast.success('Portal access enabled successfully');
+        if (result.passwordResetSent) {
+          toast.success('Portal access enabled! A password reset email has been sent to the student.');
+        } else {
+          toast.success('Portal access enabled successfully. Student should use "Forgot Password" to set their password.');
+        }
         await loadPortalStatus();
         onAccessChanged?.();
       } else {
@@ -113,6 +119,7 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
   }
 
   const hasAccess = portalAuth !== null;
+  const hasAuthAccount = portalAuth?.auth_user_id !== null;
 
   return (
     <Card>
@@ -120,8 +127,11 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="w-5 h-5" />
           Portal Access
-          <Badge variant={hasAccess ? 'default' : 'secondary'} className="ml-auto">
-            {hasAccess ? 'Enabled' : 'Not Enabled'}
+          <Badge 
+            variant={hasAccess && hasAuthAccount ? 'default' : hasAccess ? 'outline' : 'secondary'} 
+            className="ml-auto"
+          >
+            {hasAccess && hasAuthAccount ? 'Active' : hasAccess ? 'Pending Setup' : 'Not Enabled'}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -129,10 +139,25 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
         <div className="space-y-4">
           {hasAccess ? (
             <>
-              <div className="flex items-center gap-2 text-sm">
-                <Shield className="w-4 h-4 text-green-500" />
-                <span>This student can access the Student Portal</span>
-              </div>
+              {hasAuthAccount ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <Shield className="w-4 h-4 text-green-500" />
+                  <span>This student can access the Student Portal</span>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Account Setup Required</p>
+                      <p className="text-amber-700 dark:text-amber-300 mt-1">
+                        The student record exists but no login account has been created. 
+                        Click "Create Login Account" below to provision access.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Portal Email</label>
                 <p className="text-foreground">{portalAuth.email}</p>
@@ -143,6 +168,23 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
                   {new Date(portalAuth.created_at).toLocaleDateString()}
                 </p>
               </div>
+              
+              {/* Show Create Account button if no auth account exists */}
+              {!hasAuthAccount && studentEmail && (
+                <Button 
+                  onClick={handleEnableAccess}
+                  disabled={actionLoading}
+                  size="sm"
+                  className="gap-2"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  Create Login Account
+                </Button>
+              )}
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
