@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
 import StudentClassSchedule from './StudentClassSchedule';
+import QuickActionsSection from './QuickActionsSection';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -286,6 +287,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {/* Quick Actions */}
+          <QuickActionsSection
+            studentId={studentId!}
+            student={{
+              id: student.id,
+              first_name: student.first_name,
+              last_name: student.last_name,
+              branch_id: student.branch_id,
+              current_belt: student.current_belt,
+            }}
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
