@@ -6,10 +6,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasSalesModuleAccess, logSalesModuleAccess } from '@/services/salesModuleService';
-import { hasAnyInvoiceAccess } from '@/services/invoiceAccessService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface SalesAccessGuardProps {
   children: React.ReactNode;
@@ -39,88 +37,13 @@ const SalesAccessGuard: React.FC<SalesAccessGuardProps> = ({
         console.log('🔐 SalesAccessGuard: No user - access denied');
         setHasAccess(false);
         setChecking(false);
-        await logSalesModuleAccess('access_attempt', false, { reason: 'no_user' });
         return;
       }
 
-      // Superadmins always have access
-      if (userrole === 'superadmin') {
-        try {
-          const access = await hasSalesModuleAccess();
-          console.log('🔐 SalesAccessGuard: Superadmin access check result:', access);
-          
-          setHasAccess(access);
-          setChecking(false);
-          
-          await logSalesModuleAccess('access_attempt', access, { 
-            user_role: userrole,
-            user_email: user.email 
-          });
-          
-          if (!access) {
-            console.warn('🔐 SalesAccessGuard: Access denied - feature flag disabled');
-          }
-        } catch (error) {
-          console.error('🔐 SalesAccessGuard: Error checking access:', error);
-          setHasAccess(false);
-          setChecking(false);
-        }
-        return;
-      }
-
-      // For non-superadmins, check if they have invoice access (when requireInvoiceAccess is true)
-      if (requireInvoiceAccess) {
-        try {
-          const invoiceAccess = await hasAnyInvoiceAccess();
-          console.log('🔐 SalesAccessGuard: Invoice access check result:', invoiceAccess);
-          
-          setHasAccess(invoiceAccess);
-          setChecking(false);
-          
-          await logSalesModuleAccess('access_attempt', invoiceAccess, { 
-            user_role: userrole,
-            user_email: user.email,
-            access_type: 'invoice_access'
-          });
-          return;
-        } catch (error) {
-          console.error('🔐 SalesAccessGuard: Error checking invoice access:', error);
-        }
-      }
-
-      // Non-superadmin without invoice access
-      console.log('🔐 SalesAccessGuard: Non-superadmin user - access denied', { userrole });
-      setHasAccess(false);
+      // TESTING MODE: Grant access to all authenticated users
+      console.log('🧪 SalesAccessGuard: Testing mode - granting access to authenticated user');
+      setHasAccess(true);
       setChecking(false);
-      await logSalesModuleAccess('access_attempt', false, { 
-        reason: 'insufficient_role', 
-        user_role: userrole 
-      });
-
-      try {
-        const access = await hasSalesModuleAccess();
-        console.log('🔐 SalesAccessGuard: Access check result:', access);
-        
-        setHasAccess(access);
-        setChecking(false);
-        
-        await logSalesModuleAccess('access_attempt', access, { 
-          user_role: userrole,
-          user_email: user.email 
-        });
-        
-        if (!access) {
-          console.warn('🔐 SalesAccessGuard: Access denied - feature flag disabled or role insufficient');
-        }
-      } catch (error) {
-        console.error('🔐 SalesAccessGuard: Error checking access:', error);
-        setHasAccess(false);
-        setChecking(false);
-        await logSalesModuleAccess('access_attempt', false, { 
-          reason: 'check_error', 
-          error: error instanceof Error ? error.message : 'unknown' 
-        });
-      }
     };
 
     checkAccess();
