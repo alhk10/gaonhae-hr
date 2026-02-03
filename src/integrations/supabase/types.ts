@@ -4239,6 +4239,7 @@ export type Database = {
       }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
+      has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
       is_superadmin: { Args: { user_email: string }; Returns: boolean }
