@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, DollarSign, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -241,25 +241,21 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const leaveBalance = calculateLeaveBalance();
 
   const pendingClaims = employeeClaims.filter(claim => claim.status === 'Pending').length;
-  const hoursThisMonth = attendanceData.reduce((total, record) => total + (record.hours_worked || 0), 0);
-  
-  const getDaysUntilNextPayroll = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const currentDay = today.getDate();
+  const hoursThisMonth = (() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     
-    let nextPayrollDate;
-    if (currentDay <= 2) {
-      nextPayrollDate = new Date(currentYear, currentMonth, 2);
-    } else {
-      nextPayrollDate = new Date(currentYear, currentMonth + 1, 2);
-    }
+    const monthlyHours = attendanceData
+      .filter(record => {
+        const recordDate = new Date(record.date);
+        return recordDate.getMonth() === currentMonth && 
+               recordDate.getFullYear() === currentYear;
+      })
+      .reduce((total, record) => total + (record.hours_worked || 0), 0);
     
-    const diffTime = nextPayrollDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+    return Math.round(monthlyHours * 10) / 10;
+  })();
 
   const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
                             employeeData?.position?.toLowerCase() === 'senior partner';
@@ -271,7 +267,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
     ...(!isPartnerPosition ? [
       { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
-      { title: 'Next Payroll', value: `${getDaysUntilNextPayroll()} days`, icon: DollarSign, color: 'bg-purple-500' },
     ] : []),
   ];
 
@@ -543,6 +538,19 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                   <Calendar className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <div className="text-left">
                     <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Apply Leave</p>
+                  </div>
+                </Button>
+              )}
+              
+              {employeeData?.type === 'Casual' && (
+                <Button 
+                  className={`justify-start h-auto p-3 md:p-4`} 
+                  variant="outline"
+                  onClick={() => navigate('/slot-booking')}
+                >
+                  <CalendarPlus className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left">
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Book Slots</p>
                   </div>
                 </Button>
               )}
