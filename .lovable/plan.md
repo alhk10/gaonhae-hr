@@ -1,234 +1,249 @@
 
-# Plan: Enable Multi-Student Portal Access for Siblings/Family
+# Plan: Add Quick Actions to Student Portal
 
-## Current State
+## Overview
 
-### Database Constraints
-| Table | Constraint | Current | Issue |
-|-------|------------|---------|-------|
-| `students` | `email` | No unique constraint | Can share emails (siblings work) |
-| `student_auth` | `student_auth_email_key` | **UNIQUE constraint** | Blocks siblings from sharing portal email |
-| `student_auth` | `student_auth_student_id_key` | UNIQUE per student | Correct - 1 portal record per student |
+Add two Quick Action buttons to the Student Dashboard that enable parents/students to:
+1. **Pay School Fees** - Select lesson slots, auto-generate invoice based on previous enrollment for next available term, and proceed to payment
+2. **Pay Grading** - Select grading slot when student is ready for grading, create invoice for current belt grading
 
-### Current Data Conflict
-The database already has siblings sharing the same `students.email`:
-- Student A (Akhil Vel): `alvinleehk@gmail.com`
-- Student B (Mingyu Song): `alvinleehk@gmail.com`
+---
 
-But only ONE can have a `student_auth` record with that email due to the unique constraint.
+## Current Architecture Analysis
 
-### Architecture Already Supports Multi-Student
-The codebase has multi-student login infrastructure:
-- `getStudentsByEmail()` - fetches ALL students with the same email
-- `linkedStudents` - AuthContext tracks multiple students
-- `StudentSwitcher` - UI to switch between children
+### Key Data Relationships
+| Table | Purpose |
+|-------|---------|
+| `students` | Student info including `branch_id`, `current_belt` |
+| `student_class_enrollments` | Previous class enrollments (class_type, tier_name, pricing_tier_id) |
+| `term_calendars` | Available terms per branch |
+| `grading_slots` | Available grading sessions with `belt_levels` filter |
+| `invoices` / `invoice_items` | Created invoices with term/grading metadata |
 
-The ONLY blocker is the database constraint.
+### Existing Services Available
+- `classEnrollmentService.ts` - Enrollment management and pricing tiers
+- `termCalendarService.ts` - Term fetching and availability
+- `gradingService.ts` - Grading slot queries
+- `invoiceService.ts` - Invoice creation
+- `paymentService.ts` - Payment recording
 
 ---
 
 ## Solution Design
 
-### Approach: Remove Email Unique Constraint + Update Logic
+### UI Layout
+
+Quick Actions will appear as action cards in the **Overview tab** of the StudentDashboard, positioned after the Stats Cards:
 
 ```text
-+------------------+       +------------------+       +------------------+
-|     Parent       |       |   student_auth   |       |    Supabase     |
-|     Email        | 1---N | (one per student)| N---1 |     Auth User   |
-+------------------+       +------------------+       +------------------+
- parent@email.com           Record 1: Child A          Single account
-                            Record 2: Child B          shared by family
-                            (same email, diff student)
++------------------------------------------+
+|  Student Portal - John Doe               |
+|  Manage your profile, invoices...        |
++------------------------------------------+
+|  [Sessions]  [Balance]  [Current Belt]   |   <-- Stats Cards (existing)
++------------------------------------------+
+|  +------------------+  +----------------+|
+|  | Pay School Fees  |  | Pay Grading   ||   <-- NEW Quick Actions
+|  | Renew your class |  | Register for  ||
+|  | enrollment       |  | belt exam     ||
+|  +------------------+  +----------------+|
++------------------------------------------+
 ```
 
-### Key Insight
-All siblings share:
-- The same parent email (`students.email` and `student_auth.email`)
-- The same Supabase Auth account (`auth_user_id` - ONE login for the parent)
+### Component Structure
 
-Each sibling has:
-- Their own `student_auth` record (one per `student_id`)
-
----
-
-## Implementation Changes
-
-### 1. Database Migration: Remove Unique Constraint on Email
-```sql
--- Remove the unique constraint on student_auth.email
--- This allows multiple students (siblings) to share the same portal email
-ALTER TABLE public.student_auth 
-  DROP CONSTRAINT IF EXISTS student_auth_email_key;
-```
-
-### 2. Update studentAuthService.ts
-
-**Remove email conflict checks:**
-- Remove the pre-check in `syncStudentAuthEmail()` that blocks updates when email is "already in use"
-- Remove the "already linked to another student" error in `enablePortalAccess()`
-
-**Add sibling-aware provisioning:**
-```typescript
-export const enablePortalAccess = async (studentId: string, email: string) => {
-  // Check if this student already has access
-  const existing = await getStudentAuthByStudentId(studentId);
-  if (existing && existing.auth_user_id) {
-    return { success: false, error: 'Portal access already enabled' };
-  }
-
-  // Check if a sibling already has an auth account with this email
-  const siblingAuth = await getStudentAuthByEmail(normalizedEmail);
-  
-  if (siblingAuth?.auth_user_id) {
-    // Parent already has a Supabase Auth account - reuse it for this student
-    if (existing) {
-      // Update existing record to link to parent's auth account
-      await update student_auth set auth_user_id = siblingAuth.auth_user_id
-    } else {
-      // Create new record linked to parent's auth account
-      await createStudentAuth(studentId, email, siblingAuth.auth_user_id);
-    }
-    return { success: true, siblingLinked: true };
-  } else {
-    // First child - create new Supabase Auth account
-    const authResult = await createStudentAuthAccount(...);
-    // Create/update student_auth record
-  }
-};
-```
-
-### 3. Update syncStudentAuthEmail Function
-
-Remove the conflict detection that blocks email updates:
-
-```typescript
-export const syncStudentAuthEmail = async (studentId: string, newEmail: string) => {
-  // Get current student_auth record
-  const existing = await getStudentAuthByStudentId(studentId);
-  if (!existing) {
-    return { synced: false, reason: 'No portal access' };
-  }
-  
-  // Check if already in sync
-  if (existing.email === newEmail) {
-    return { synced: true, reason: 'Already in sync' };
-  }
-  
-  // REMOVED: Email conflict check - siblings can share emails
-  
-  // Update student_auth table
-  await supabase.from('student_auth')
-    .update({ email: newEmail })
-    .eq('student_id', studentId);
-    
-  // If there's a Supabase Auth account, update that too
-  // Note: All siblings sharing this auth account will use the same login email
-  if (existing.auth_user_id) {
-    await updateSupabaseAuthEmail(existing.auth_user_id, newEmail);
-  }
-  
-  return { synced: true, reason: 'Email updated' };
-};
-```
-
-### 4. Update getStudentAuthByEmail Function
-
-Change from `.single()` to return first match (since multiple records can exist):
-
-```typescript
-export const getStudentAuthByEmail = async (email: string): Promise<StudentAuth | null> => {
-  const { data, error } = await supabase
-    .from('student_auth')
-    .select('*')
-    .eq('email', email.toLowerCase())
-    .limit(1)  // Changed: Get first match, not .single()
-    .maybeSingle();
-    
-  return data;
-};
-```
-
-### 5. Add Helper to Find All Siblings with Portal Access
-
-```typescript
-export const getAllStudentAuthByEmail = async (email: string): Promise<StudentAuth[]> => {
-  const { data, error } = await supabase
-    .from('student_auth')
-    .select('*')
-    .eq('email', email.toLowerCase());
-    
-  return data || [];
-};
+```text
+StudentDashboard.tsx
+  └── QuickActionsSection (NEW)
+        ├── PaySchoolFeesDialog (NEW)
+        │     ├── Shows previous enrollment info
+        │     ├── Term selector (next available)
+        │     ├── Class type & tier (pre-filled)
+        │     └── Creates invoice and redirects to payment
+        │
+        └── PayGradingDialog (NEW)
+              ├── Shows current belt → next belt
+              ├── Grading slot selector (filtered by belt)
+              └── Creates invoice for grading fee
 ```
 
 ---
+
+## Detailed Implementation
+
+### 1. New Component: QuickActionsSection
+
+**Location:** `src/components/dashboard/QuickActionsSection.tsx`
+
+| Feature | Implementation |
+|---------|----------------|
+| Pay School Fees button | Shows if student has branch and previous enrollment OR active terms |
+| Pay Grading button | Shows if student has current_belt and matching grading slots |
+| Disabled states | Show appropriate messages if prerequisites not met |
+
+### 2. New Component: PaySchoolFeesDialog
+
+**Location:** `src/components/dashboard/PaySchoolFeesDialog.tsx`
+
+**Workflow:**
+1. Fetch student's previous enrollment from `student_class_enrollments`
+2. Fetch next available term from `term_calendars`
+3. Pre-fill: class_type, tier_name, pricing from previous enrollment
+4. Show term info: name, dates, weeks, price
+5. Create invoice with term metadata
+6. Show payment creation form inline
+
+**Data Fetching:**
+```typescript
+// Previous enrollment
+const previousEnrollment = await getEnrollments(branchId).filter(e => e.student_id === studentId)[0];
+
+// Next available term
+const today = new Date().toISOString().split('T')[0];
+const terms = await getActiveTermsForSelection().filter(t => 
+  t.branch_id === branchId && t.start_date > today
+);
+
+// Class products
+const classProducts = await getProducts().filter(p => 
+  p.category_id === CLASSES_CATEGORY_ID
+);
+```
+
+**Form Fields:**
+- Term selector (pre-selected: next available)
+- Class type (pre-filled from previous enrollment)
+- Quantity (weeks in term)
+- Price (from pricing tier or product base_price)
+
+### 3. New Component: PayGradingDialog
+
+**Location:** `src/components/dashboard/PayGradingDialog.tsx`
+
+**Workflow:**
+1. Display current belt and target belt (next in progression)
+2. Fetch grading slots filtered by branch and current belt
+3. Allow selection of grading slot
+4. Fetch grading fee product
+5. Create invoice with grading_slot_id metadata
+6. Show payment creation form inline
+
+**Belt Progression Logic:**
+```typescript
+const BELT_PROGRESSION = [
+  'Foundation 1', 'Foundation 2', 'Foundation 3',
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+  'Poom 1', 'Poom 2', 'Poom 3', 'Poom 4',
+  'Dan 1', 'Dan 2', 'Dan 3', 'Dan 4', 'Dan 5'
+];
+
+const getNextBelt = (currentBelt: string) => {
+  const idx = BELT_PROGRESSION.indexOf(normalizeBelt(currentBelt));
+  return idx >= 0 && idx < BELT_PROGRESSION.length - 1 
+    ? BELT_PROGRESSION[idx + 1] 
+    : null;
+};
+```
+
+### 4. Update StudentDashboard.tsx
+
+**Changes:**
+- Import QuickActionsSection
+- Add QuickActionsSection after Stats Cards in Overview tab
+- Pass studentId, student data, and branch info
+
+---
+
+## Technical Details
+
+### Categories Constants
+
+Add to constants file:
+```typescript
+// Product category IDs (from database)
+export const CLASSES_CATEGORY_ID = 'classes-category-uuid';
+export const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
+```
+
+### Invoice Creation Flow
+
+Both dialogs will:
+1. Create invoice via `createInvoice()` service
+2. Return invoice ID
+3. Trigger payment creation inline (simplified payment form)
+4. On success, invalidate queries and show confirmation
+
+### Payment Integration
+
+**Simplified Payment Form within Dialog:**
+- Invoice auto-selected
+- Amount pre-filled to balance_due
+- Payment method selector (country-filtered)
+- Proof of payment upload (required)
+- Reference number (optional)
+
+### Error Handling
+
+| Scenario | Handling |
+|----------|----------|
+| No previous enrollment | Show "Contact academy to set up classes" |
+| No available terms | Hide Pay School Fees or show "No upcoming terms" |
+| No grading slots for belt | Hide Pay Grading or show "No grading sessions available" |
+| Duplicate grading invoice | Block with 60-day rule message |
+| Invoice creation fails | Toast error, keep dialog open |
+| Payment fails | Toast error, invoice already created |
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/dashboard/QuickActionsSection.tsx` | Container for quick action buttons |
+| `src/components/dashboard/PaySchoolFeesDialog.tsx` | School fees enrollment & payment flow |
+| `src/components/dashboard/PayGradingDialog.tsx` | Grading registration & payment flow |
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| **Migration (new)** | Drop `student_auth_email_key` unique constraint |
-| `src/services/studentAuthService.ts` | Remove email conflict checks; add sibling-aware provisioning |
-| `src/services/studentService.ts` | Remove conflict error throwing in sync logic |
+| File | Change |
+|------|--------|
+| `src/components/dashboard/StudentDashboard.tsx` | Add QuickActionsSection to Overview tab |
+| `src/config/constants.ts` | Add category IDs for reference |
 
 ---
 
-## Behavior After Changes
+## Validation Rules
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| Add sibling with same email | Error: "Email already linked" | Creates new `student_auth` record, reuses parent's auth account |
-| Update student email to sibling's | Error: "Conflict" | Succeeds - both can share email |
-| Parent logs in | Sees one child | Sees all children with StudentSwitcher |
-| Reset password | Affects one child | Affects parent account (all siblings) |
+### Pay School Fees
+- Student must have branch_id
+- Term must be available for branch
+- Cannot duplicate invoice for same term (existing check)
 
----
-
-## Edge Case Handling
-
-### Sibling Provisioning Flow
-```text
-1. First child enabled:
-   - Create student_auth record with email
-   - Create Supabase Auth account
-   - Link auth_user_id to student_auth
-
-2. Second child enabled (same email):
-   - Create student_auth record with same email  
-   - Find existing auth_user_id from sibling
-   - Link SAME auth_user_id to new record
-   
-3. Parent logs in:
-   - Auth matches multiple student_auth records by email
-   - LinkedStudents populated with all matches
-   - StudentSwitcher shows all children
-```
-
-### Email Update Flow
-```text
-1. Admin updates Student A's email
-2. syncStudentAuthEmail runs
-3. student_auth.email updated (no conflict check)
-4. If auth_user_id exists, Supabase Auth email updated
-5. Other siblings keep their current email (independent)
-```
+### Pay Grading
+- Student must have current_belt
+- Grading slot must match student's belt level
+- 60-day duplicate check (existing in CreateInvoiceDialog)
+- Only 1 grading per invoice (existing rule)
 
 ---
 
 ## Security Considerations
 
-- `student_auth.student_id` remains unique (one portal record per student)
-- `student_auth.auth_user_id` can be shared across siblings (one login per family)
-- RLS policies already support email-based matching for multi-student access
+- All data fetched server-side via RLS policies
+- Invoice creation respects existing service validation
+- Payment proof upload uses existing storage bucket
+- Student can only view/pay their own invoices
 
 ---
 
-## Testing Steps
+## UI/UX Enhancements
 
-After implementation:
-1. Find or create two students with the same email
-2. Enable portal access for the first student
-3. Enable portal access for the second student (should succeed now)
-4. Log in with the shared email
-5. Verify StudentSwitcher shows both children
-6. Test updating email on one student and verify it syncs correctly
+| Feature | Benefit |
+|---------|---------|
+| Pre-filled forms | Reduces friction for renewals |
+| Previous class shown | Confirms what they're renewing |
+| Belt progression displayed | Clear expectation for grading |
+| Inline payment | Single-dialog experience |
+| Loading states | Clear feedback during operations |
+
