@@ -215,13 +215,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       
       if (itemsError) throw itemsError;
       
-      // Fetch invoice template based on branch
+      // Fetch invoice template based on branch (invoice branch or student branch as fallback)
       let template = null;
-      if (invoiceData.branch_id) {
+      const branchId = invoiceData.branch_id || student?.branch_id;
+      
+      if (branchId) {
         const { data: branch } = await supabase
           .from('branches')
           .select('country')
-          .eq('id', invoiceData.branch_id)
+          .eq('id', branchId)
           .single();
         
         if (branch?.country) {
