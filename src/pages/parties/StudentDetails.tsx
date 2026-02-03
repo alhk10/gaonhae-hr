@@ -53,8 +53,8 @@ const capitalize = (str: string | null | undefined): string => {
 const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isSuperadmin = user?.role === 'superadmin';
+  const { user, userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
 
   // State
   const [student, setStudent] = useState<Student | null>(null);
