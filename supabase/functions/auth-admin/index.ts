@@ -3,14 +3,16 @@
 // Actions supported:
 // - check_user: { email }
 // - update_email: { oldEmail, newEmail }
+// - updateUserEmail: { userId, email } - Update email by user ID directly
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.1";
 
 type CheckUserBody = { action: "check_user"; email: string };
 type UpdateEmailBody = { action: "update_email"; oldEmail: string; newEmail: string };
+type UpdateUserEmailBody = { action: "updateUserEmail"; userId: string; email: string };
 
-type Body = CheckUserBody | UpdateEmailBody;
+type Body = CheckUserBody | UpdateEmailBody | UpdateUserEmailBody;
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -147,6 +149,32 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, userId: user.id }), { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // New action: Update email by user ID directly (more efficient)
+    if (body.action === "updateUserEmail") {
+      const userId = (body as UpdateUserEmailBody).userId?.trim();
+      const newEmail = (body as UpdateUserEmailBody).email?.trim().toLowerCase();
+      
+      if (!userId || !newEmail) {
+        return new Response(JSON.stringify({ error: "userId and email are required" }), { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { error: updErr } = await adminClient.auth.admin.updateUserById(userId, { email: newEmail });
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, userId }), { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
