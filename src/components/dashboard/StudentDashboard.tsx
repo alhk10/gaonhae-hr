@@ -16,8 +16,10 @@ import {
   X,
   LogOut,
   FileText,
-  Loader2
+  Loader2,
+  CreditCard
 } from 'lucide-react';
+import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -522,22 +524,42 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                   <p className="text-muted-foreground text-center py-4">No invoices yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {invoices.slice(0, 3).map((invoice) => (
-                      <div key={invoice.id} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                        <div>
-                          <p className="font-medium text-sm">{invoice.invoice_number}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                          </p>
+                    {invoices.slice(0, 3).map((invoice) => {
+                      const displayStatus = invoice.status === 'draft' ? 'unpaid' : invoice.status;
+                      const isPaid = invoice.status === 'paid';
+                      return (
+                        <div key={invoice.id} className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                          <div>
+                            <p className="font-medium text-sm">{invoice.invoice_number}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
+                              <Badge 
+                                variant={isPaid ? 'default' : 'destructive'} 
+                                className={`text-xs ${isPaid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
+                              >
+                                {displayStatus}
+                              </Badge>
+                            </div>
+                            {!isPaid && invoice.balance_due > 0 && (
+                              <CreatePaymentDialog
+                                trigger={
+                                  <Button variant="outline" size="sm">
+                                    <CreditCard className="w-3 h-3" />
+                                  </Button>
+                                }
+                                preSelectedInvoiceId={invoice.id}
+                                onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                              />
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                          <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
-                            {invoice.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -654,36 +676,55 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 <p className="text-center text-muted-foreground py-8">No invoices found</p>
               ) : (
                 <div className="space-y-3">
-                  {invoices.map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{invoice.invoice_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                          <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
-                            {invoice.status}
-                          </Badge>
+                  {invoices.map((invoice) => {
+                    const displayStatus = invoice.status === 'draft' ? 'unpaid' : invoice.status;
+                    const isPaid = invoice.status === 'paid';
+                    return (
+                      <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{invoice.invoice_number}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                          </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewPDF(invoice.id)}
-                          disabled={generatingPdfId === invoice.id}
-                        >
-                          {generatingPdfId === invoice.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <FileText className="h-4 w-4" />
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
+                            <Badge 
+                              variant={isPaid ? 'default' : 'destructive'} 
+                              className={isPaid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}
+                            >
+                              {displayStatus}
+                            </Badge>
+                          </div>
+                          {!isPaid && invoice.balance_due > 0 && (
+                            <CreatePaymentDialog
+                              trigger={
+                                <Button variant="default" size="sm">
+                                  <CreditCard className="w-4 h-4 mr-1" />
+                                  Pay
+                                </Button>
+                              }
+                              preSelectedInvoiceId={invoice.id}
+                              onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                            />
                           )}
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewPDF(invoice.id)}
+                            disabled={generatingPdfId === invoice.id}
+                          >
+                            {generatingPdfId === invoice.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
