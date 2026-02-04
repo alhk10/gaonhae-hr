@@ -56,7 +56,9 @@ export const CLASS_TYPES = [
   'Competition',
   'Team Gaonhae Poomsae',
   'Team Gaonhae Kyorugi',
-  'Kang Klass'
+  'Kang Klass',
+  'Private Lesson',
+  'Combat/Self-Defense'
 ];
 
 // Re-export BELT_LEVELS for backward compatibility
