@@ -325,18 +325,24 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
             {/* Pricing Tier (from Products) */}
             <div className="space-y-2">
               <Label>Pricing Tier *</Label>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pricing tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classProducts.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - ${product.effective_price}/week
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {classProducts.length === 0 ? (
+                <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md bg-muted/30">
+                  No pricing tiers available for this branch. Please contact your administrator to configure class pricing.
+                </div>
+              ) : (
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select pricing tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classProducts.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - ${product.effective_price}/week
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* Summary */}
