@@ -29,6 +29,7 @@ export interface InvoiceTemplate {
   paynow_qr_url?: string;
   logo_url?: string;
   letterhead_url?: string;
+  bank_transfer_info?: string;
   created_by?: string;
   updated_by?: string;
   created_at: string;
@@ -48,6 +49,7 @@ export interface CreateTemplateData {
   paynow_qr_url?: string;
   logo_url?: string;
   letterhead_url?: string;
+  bank_transfer_info?: string;
 }
 
 export interface UpdateTemplateData {
@@ -64,6 +66,7 @@ export interface UpdateTemplateData {
   paynow_qr_url?: string;
   logo_url?: string;
   letterhead_url?: string;
+  bank_transfer_info?: string;
 }
 
 /**

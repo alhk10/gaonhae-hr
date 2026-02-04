@@ -44,6 +44,7 @@ const InvoiceTemplateList: React.FC = () => {
     country: 'SG',
     paynow_qr_url: '',
     letterhead_url: '',
+    bank_transfer_info: '',
     default_notes: '',
     default_internal_notes: '',
     footer_text: ''
@@ -74,6 +75,7 @@ const InvoiceTemplateList: React.FC = () => {
         country: template.country || 'SG',
         paynow_qr_url: template.paynow_qr_url || '',
         letterhead_url: template.letterhead_url || '',
+        bank_transfer_info: template.bank_transfer_info || '',
         default_notes: template.default_notes || '',
         default_internal_notes: template.default_internal_notes || '',
         footer_text: template.footer_text || ''
@@ -85,6 +87,7 @@ const InvoiceTemplateList: React.FC = () => {
         country: 'SG',
         paynow_qr_url: '',
         letterhead_url: '',
+        bank_transfer_info: '',
         default_notes: '',
         default_internal_notes: '',
         footer_text: ''
@@ -166,6 +169,7 @@ const InvoiceTemplateList: React.FC = () => {
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
+          bank_transfer_info: formData.bank_transfer_info || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
           footer_text: formData.footer_text
@@ -177,6 +181,7 @@ const InvoiceTemplateList: React.FC = () => {
           country: formData.country,
           paynow_qr_url: formData.paynow_qr_url || undefined,
           letterhead_url: formData.letterhead_url || undefined,
+          bank_transfer_info: formData.bank_transfer_info || undefined,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
           footer_text: formData.footer_text
@@ -380,6 +385,18 @@ const InvoiceTemplateList: React.FC = () => {
                   Use Singapore Default
                 </Button>
               )}
+            </div>
+
+            {/* Bank Transfer Information */}
+            <div className="space-y-2">
+              <Label htmlFor="bank_transfer_info">Bank Transfer Information</Label>
+              <Textarea
+                id="bank_transfer_info"
+                value={formData.bank_transfer_info}
+                onChange={(e) => setFormData(prev => ({ ...prev, bank_transfer_info: e.target.value }))}
+                placeholder={`Bank: DBS Bank\nAccount Name: Company Name\nAccount Number: 123-456789-0\nSwift Code: DBSSSGSG`}
+                rows={4}
+              />
             </div>
 
             {/* PayNow QR Code Upload */}
