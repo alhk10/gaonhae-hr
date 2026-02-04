@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
-import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { getPublicHolidays } from '@/services/publicHolidayService';
 
 interface ClassScheduleSelectorProps {
   branchId: string;
@@ -53,6 +54,12 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     enabled: !!branchId,
   });
 
+  // Fetch public holidays
+  const { data: publicHolidays = [] } = useQuery({
+    queryKey: ['public-holidays-for-schedule'],
+    queryFn: getPublicHolidays,
+  });
+
   // Filter classes based on student's age
   const eligibleClasses = useMemo(() => {
     return allClasses.filter((cls: any) => {
@@ -74,7 +81,27 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     });
   }, [eligibleClasses]);
 
-  // Generate weeks for the term
+  // Helper to check if a date is a public holiday
+  const isPublicHoliday = (date: Date): boolean => {
+    return publicHolidays.some(holiday => {
+      const holidayDate = parseISO(holiday.date);
+      return isSameDay(date, holidayDate);
+    });
+  };
+
+  // Helper to check if a week overlaps with a term break
+  const isWeekInBreak = (weekStart: Date, weekEnd: Date, breaks: any[]): boolean => {
+    return breaks.some(brk => {
+      const breakStart = parseISO(brk.start_date);
+      const breakEnd = parseISO(brk.end_date);
+      // Week is in break if any day of the week falls within the break period
+      return isWithinInterval(weekStart, { start: breakStart, end: breakEnd }) ||
+             isWithinInterval(weekEnd, { start: breakStart, end: breakEnd }) ||
+             (weekStart <= breakStart && weekEnd >= breakEnd);
+    });
+  };
+
+  // Generate weeks for the term (excluding term breaks and weeks that are entirely public holidays)
   const termWeeks = useMemo(() => {
     if (!term) return [];
     
@@ -86,24 +113,26 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 }); // Start on Monday
     let weekNumber = 1;
     
-    while (currentWeekStart <= termEnd && weekNumber <= 15) { // Max 15 weeks for safety
+    while (currentWeekStart <= termEnd && weekNumber <= 20) { // Max 20 weeks for safety
+      const weekEnd = addDays(currentWeekStart, 6);
+      
       // Check if this week is during a break
-      const isBreakWeek = breaks.some(brk => {
-        const breakStart = parseISO(brk.start_date);
-        const breakEnd = parseISO(brk.end_date);
-        return isWithinInterval(currentWeekStart, { start: breakStart, end: breakEnd }) ||
-               isWithinInterval(addDays(currentWeekStart, 6), { start: breakStart, end: breakEnd });
-      });
+      const isBreakWeek = isWeekInBreak(currentWeekStart, weekEnd, breaks);
       
       if (!isBreakWeek) {
-        const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
+        // Get days that are within the term period
+        const daysInTerm = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
           .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
         
-        if (days.length > 0) {
+        // Filter out public holidays from the days
+        const validDays = daysInTerm.filter(day => !isPublicHoliday(day));
+        
+        // Only add the week if there are valid days (not all are holidays)
+        if (validDays.length > 0) {
           weeks.push({
             weekNumber,
             startDate: currentWeekStart,
-            days,
+            days: validDays,
           });
           weekNumber++;
         }
@@ -113,7 +142,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     }
     
     return weeks;
-  }, [term]);
+  }, [term, publicHolidays]);
 
   // Calculate max sessions allowed (lessonsPerWeek × number of term weeks)
   const maxSessions = useMemo(() => {
