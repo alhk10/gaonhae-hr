@@ -338,16 +338,6 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="date_of_birth" className="text-xs">Date of Birth</Label>
-                  <Input
-                    id="date_of_birth"
-                    type="date"
-                    value={formData.date_of_birth}
-                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1">
                   <Label htmlFor="gender" className="text-xs">Gender</Label>
                   <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
                     <SelectTrigger className="h-9">
@@ -360,6 +350,16 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                       <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="date_of_birth" className="text-xs">Date of Birth</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                    className="h-9"
+                  />
                 </div>
               </div>
 
