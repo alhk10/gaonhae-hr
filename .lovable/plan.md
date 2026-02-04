@@ -1,170 +1,123 @@
 
-# Plan: Enhance Branch Dashboard Tab Labels with Dynamic Counts
+# Plan: Add Grading List Tab to Branch Dashboard
 
 ## Overview
-Update the Branch Dashboard tabs to show dynamic counts in brackets:
-1. **Students tab**: Show count of active students (students who have paid invoices for classes this term)
-2. **Invoice & Payment tab** (renamed from Revenue): Show sum of outstanding invoice amounts for the branch during current term
-3. **Pending Approvals tab**: Show count of pending approval requests
-
-## Data Flow
-
-| Tab | Source | Logic |
-|-----|--------|-------|
-| Students | Paid invoices + term calendars | Count students with paid lesson invoices in current term date range |
-| Invoice & Payment | Invoices table + term calendars | Sum `balance_due` for unpaid/partial invoices within current term |
-| Pending Approvals | `student_update_requests` | Already fetched, just use `pendingRequests.length` |
+Add a new "Grading List" tab to the Branch Dashboard that displays the grading list filtered for the specific branch. This will create a new component that reuses the logic from `GradingListTab.tsx` but pre-filters by the branch.
 
 ## Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/BranchDashboard.tsx` | Add queries for active students, outstanding invoices; update tab labels |
+| `src/components/dashboard/BranchGradingList.tsx` | **Create** - New component for branch-filtered grading list |
+| `src/components/dashboard/BranchDashboard.tsx` | Add new Grading List tab with count |
 
 ## Implementation Details
 
-### 1. Add Query to Get Current Term for Branch
+### 1. Create BranchGradingList Component
 
+Create a new component `src/components/dashboard/BranchGradingList.tsx` that:
+- Accepts `branchId` as a prop
+- Auto-selects the current term for the branch
+- Shows the same grading list table as `GradingListTab.tsx`
+- Removes the branch selector (since it's already filtered)
+- Keeps term selector and payment filter
+
+**Component Structure:**
 ```typescript
-const { data: currentTerm } = useQuery({
-  queryKey: ['current-term', branchId],
-  queryFn: () => getCurrentTerm(branchId),
-  enabled: !!branchId,
-});
+interface BranchGradingListProps {
+  branchId: string;
+}
+
+const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
+  // Term selector (auto-select current term)
+  // Payment filter
+  // Students table with grading status
+};
 ```
 
-### 2. Add Query for Active Students (Paid for Classes This Term)
+### 2. Update BranchDashboard
 
-Students who have paid invoices for lesson products within the current term's date range:
+Add a new tab "Grading List" with a count of students in brackets:
 
-```typescript
-const { data: activeStudentIds = [] } = useQuery({
-  queryKey: ['active-students-paid', branchId, currentTerm?.id],
-  queryFn: async () => {
-    if (!currentTerm) return [];
-    
-    // Get invoices that are paid for this branch within the term dates
-    const { data: paidInvoices } = await supabase
-      .from('invoices')
-      .select('student_id')
-      .eq('branch_id', branchId)
-      .eq('status', 'paid')
-      .gte('issue_date', currentTerm.start_date)
-      .lte('issue_date', currentTerm.end_date);
-    
-    // Get unique student IDs who have paid
-    const uniqueStudentIds = [...new Set((paidInvoices || []).map(inv => inv.student_id))];
-    return uniqueStudentIds;
-  },
-  enabled: !!branchId && !!currentTerm,
-});
-
-const activeStudentsCount = activeStudentIds.length;
-```
-
-### 3. Add Query for Outstanding Invoice Amount
-
-Sum of `balance_due` for unpaid/partial invoices in current term:
-
-```typescript
-const { data: outstandingAmount = 0 } = useQuery({
-  queryKey: ['outstanding-invoices', branchId, currentTerm?.id],
-  queryFn: async () => {
-    if (!currentTerm) return 0;
-    
-    const { data: unpaidInvoices } = await supabase
-      .from('invoices')
-      .select('balance_due')
-      .eq('branch_id', branchId)
-      .in('status', ['unpaid', 'partial', 'draft', 'sent', 'overdue'])
-      .gte('issue_date', currentTerm.start_date)
-      .lte('issue_date', currentTerm.end_date);
-    
-    return (unpaidInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
-  },
-  enabled: !!branchId && !!currentTerm,
-});
-```
-
-### 4. Update Tab Labels
-
-**Before:**
+**Tab Label:**
 ```tsx
-<TabsTrigger value="students">Students</TabsTrigger>
-<TabsTrigger value="revenue">Revenue</TabsTrigger>
-<TabsTrigger value="approvals">
-  Pending Approvals
-  {pendingRequests.length > 0 && (
-    <Badge variant="destructive" className="ml-2">{pendingRequests.length}</Badge>
-  )}
+<TabsTrigger value="grading">
+  Grading List ({gradingListCount})
 </TabsTrigger>
 ```
 
-**After:**
+**Tab Content:**
 ```tsx
-<TabsTrigger value="students">
-  Students ({activeStudentsCount})
-</TabsTrigger>
-<TabsTrigger value="invoices">
-  Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})
-</TabsTrigger>
-<TabsTrigger value="approvals">
-  Pending Approvals ({pendingRequests.length})
-</TabsTrigger>
-```
-
-### 5. Rename TabsContent Value
-
-Update the revenue tab to use `value="invoices"` and update the content title:
-
-```tsx
-<TabsContent value="invoices">
-  <Card>
-    <CardHeader>
-      <CardTitle>Invoices & Payments</CardTitle>
-      <CardDescription>Last 20 invoices for this branch</CardDescription>
-    </CardHeader>
-    ...
-  </Card>
+<TabsContent value="grading">
+  <BranchGradingList branchId={branchId} />
 </TabsContent>
 ```
 
-### 6. Import Required Dependencies
+### 3. Count Query
+
+Add a query to count students with lesson invoices for current term:
 
 ```typescript
-import { getCurrentTerm } from '@/services/termCalendarService';
-import { formatCurrency } from '@/utils/currencyUtils';
+const { data: gradingListCount = 0 } = useQuery({
+  queryKey: ['grading-list-count', branchId, currentTerm?.id],
+  queryFn: async () => {
+    if (!currentTerm) return 0;
+    
+    // Get lesson products
+    const { data: lessonProducts } = await supabase
+      .from('products')
+      .select('id')
+      .eq('is_lesson', true);
+    
+    const lessonProductIds = (lessonProducts || []).map(p => p.id);
+    if (lessonProductIds.length === 0) return 0;
+
+    // Count unique students with lesson invoices for this term
+    const { data: invoiceItems } = await supabase
+      .from('invoice_items')
+      .select('invoices!inner(student_id)')
+      .in('product_id', lessonProductIds)
+      .eq('invoices.branch_id', branchId);
+    
+    // Filter by term_id in metadata and get unique count
+    // ... return count
+  },
+  enabled: !!branchId && !!currentTerm,
+});
 ```
 
-## Technical Notes
+## Tab Order
 
-### Active Students Logic
-- A student is considered "active" if they have at least one paid invoice during the current term's date range
-- The query filters by `issue_date` within term start and end dates
-- Only counts unique students (one student with multiple paid invoices counts as 1)
+The tabs will be ordered as:
+1. Students (count)
+2. Invoice & Payment (outstanding amount)
+3. Grading List (count)
+4. Pending Approvals (count)
+5. Weekly Timetable
 
-### Outstanding Amount Logic
-- Sums `balance_due` from all non-paid invoices (draft, sent, unpaid, partial, overdue)
-- Only includes invoices issued within the current term
-- Falls back to 0 if no current term exists
+## Features Included
 
-### Branch Currency
-- Uses the branch's currency for formatting the outstanding amount
-- Falls back to SGD if not specified
+The BranchGradingList component will include:
+- Term selector (pre-selects current term)
+- Payment status filter (All/Paid/Unpaid)
+- Student table with:
+  - Student Name (clickable link)
+  - Current Belt
+  - Class Invoice status (Paid/Unpaid badge)
+  - Ready for Grading checkbox
+  - Result dropdown (Double/Pass/Fail/Confirmed)
+  - New Current Belt (calculated)
+  - Certificate view buttons
 
-## Visual Preview
+## Data Flow
 
 ```text
-+----------------+---------------------------+-----------------------+------------------+
-| Students (12)  | Invoice & Payment ($450)  | Pending Approvals (3) | Weekly Timetable |
-+----------------+---------------------------+-----------------------+------------------+
+BranchDashboard
+    ├── branchId (prop)
+    ├── currentTerm (query)
+    └── BranchGradingList
+            ├── branchId (prop, locked)
+            ├── terms (query, filtered by branch)
+            ├── selectedTerm (state, auto-selects current)
+            └── students (query, filtered by branch + term)
 ```
-
-## Edge Cases
-
-| Scenario | Behavior |
-|----------|----------|
-| No current term | Shows 0 for active students, $0 for outstanding |
-| No invoices | Shows 0 for active students, $0 for outstanding |
-| No pending approvals | Shows (0) in tab |
-| Term without lesson products | Still counts all paid invoices in term date range |
