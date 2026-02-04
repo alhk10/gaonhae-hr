@@ -294,3 +294,88 @@ export const removeGradingRegistration = async (registrationId: string): Promise
     throw error;
   }
 };
+
+// Get grading slots for a specific date range and branch (for weekly timetable display)
+export interface GradingSlotWithRegistrations extends GradingSlot {
+  registrations: Array<{
+    id: string;
+    student_id: string;
+    student_name: string;
+    current_belt: string;
+    target_belt: string;
+  }>;
+}
+
+export const getGradingSlotsForWeek = async (
+  startDate: string,
+  endDate: string,
+  branchId: string
+): Promise<GradingSlotWithRegistrations[]> => {
+  // First get the grading slots for the date range
+  const { data: slots, error: slotsError } = await supabase
+    .from('grading_slots')
+    .select('*')
+    .eq('branch_id', branchId)
+    .eq('status', 'active')
+    .gte('grading_date', startDate)
+    .lte('grading_date', endDate)
+    .order('grading_date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (slotsError) {
+    console.error('Error fetching grading slots for week:', slotsError);
+    throw slotsError;
+  }
+
+  if (!slots || slots.length === 0) {
+    return [];
+  }
+
+  // Get registrations for these slots with student info
+  const slotIds = slots.map(s => s.id);
+  const { data: registrations, error: regError } = await supabase
+    .from('grading_registrations')
+    .select(`
+      id,
+      grading_slot_id,
+      student_id,
+      current_belt,
+      target_belt,
+      students:student_id (first_name, last_name)
+    `)
+    .in('grading_slot_id', slotIds);
+
+  if (regError) {
+    console.error('Error fetching grading registrations for week:', regError);
+    throw regError;
+  }
+
+  // Map registrations to slots
+  const regsBySlot: Record<string, Array<{
+    id: string;
+    student_id: string;
+    student_name: string;
+    current_belt: string;
+    target_belt: string;
+  }>> = {};
+
+  (registrations || []).forEach(reg => {
+    if (!regsBySlot[reg.grading_slot_id]) {
+      regsBySlot[reg.grading_slot_id] = [];
+    }
+    regsBySlot[reg.grading_slot_id].push({
+      id: reg.id,
+      student_id: reg.student_id,
+      student_name: reg.students 
+        ? `${(reg.students as any).first_name} ${(reg.students as any).last_name}`
+        : 'Unknown',
+      current_belt: reg.current_belt,
+      target_belt: reg.target_belt,
+    });
+  });
+
+  return slots.map(slot => ({
+    ...slot,
+    registrations: regsBySlot[slot.id] || [],
+  })) as GradingSlotWithRegistrations[];
+};
