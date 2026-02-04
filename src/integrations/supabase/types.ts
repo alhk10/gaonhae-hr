@@ -3751,6 +3751,7 @@ export type Database = {
           nationality: string | null
           notes: string | null
           nric_passport: string | null
+          passport_no: string | null
           phone: string | null
           postal_code: string | null
           preferred_name: string | null
@@ -3793,6 +3794,7 @@ export type Database = {
           nationality?: string | null
           notes?: string | null
           nric_passport?: string | null
+          passport_no?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
@@ -3835,6 +3837,7 @@ export type Database = {
           nationality?: string | null
           notes?: string | null
           nric_passport?: string | null
+          passport_no?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
