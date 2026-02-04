@@ -262,31 +262,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                   key={`${cls.class_type}-${cls.start_time}`} 
                   className="flex-1 min-w-[120px] p-2 text-center border-l bg-muted/50"
                 >
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Checkbox
-                      checked={termWeeks.every(week => 
-                        week.days.every(day => {
-                          if (!weekdaysForClass.includes(day.getDay())) return true;
-                          const matchingClass = eligibleClasses.find((c: any) => 
-                            c.class_type === cls.class_type && 
-                            c.start_time === cls.start_time &&
-                            c.weekday === day.getDay()
-                          );
-                          return matchingClass ? isSlotSelected(matchingClass.id, day) : true;
-                        })
-                      )}
-                      onCheckedChange={() => {
-                        const classIds = eligibleClasses
-                          .filter((c: any) => 
-                            c.class_type === cls.class_type && 
-                            c.start_time === cls.start_time
-                          )
-                          .map((c: any) => c.id);
-                        classIds.forEach((id: string) => handleToggleAllForClass(id));
-                      }}
-                      className="flex-shrink-0"
-                    />
-                  </div>
                   <div className="font-medium text-xs truncate">{cls.class_type}</div>
                   <div className="text-xs text-muted-foreground">
                     {formatTime(cls.start_time)} - {formatTime(cls.end_time)}
