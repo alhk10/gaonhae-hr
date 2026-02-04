@@ -173,7 +173,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedSlot.grading_date), 'dd MMM yyyy')}`,
         items: [{
           product_id: gradingProduct.id,
-          description: `Grading Fee: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)}`,
+          description: gradingProduct.name,
           quantity: 1,
           unit_price: gradingProduct.base_price || 0,
           metadata: {
