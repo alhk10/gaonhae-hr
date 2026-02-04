@@ -195,11 +195,11 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
         <span>Select classes you want to attend (Age: {studentAge.toFixed(1)} years)</span>
       </div>
 
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="min-w-max">
+      <ScrollArea className="w-full">
+        <div className="w-full">
           {/* Header row with class columns */}
           <div className="flex border-b">
-            <div className="w-24 flex-shrink-0 p-2 font-medium text-sm bg-muted/50">
+            <div className="w-20 flex-shrink-0 p-2 font-medium text-sm bg-muted/50">
               Term
             </div>
             {uniqueClasses.map((cls: any) => {
@@ -208,7 +208,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
               return (
                 <div 
                   key={`${cls.class_type}-${cls.start_time}`} 
-                  className="w-32 flex-shrink-0 p-2 text-center border-l bg-muted/50"
+                  className="flex-1 min-w-[120px] p-2 text-center border-l bg-muted/50"
                 >
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Checkbox
@@ -256,7 +256,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
           {termWeeks.map((week) => (
             <div key={week.weekNumber} className="flex border-b hover:bg-muted/20">
               {/* Week info column */}
-              <div className="w-24 flex-shrink-0 p-2 font-medium text-sm bg-muted/30">
+              <div className="w-20 flex-shrink-0 p-2 font-medium text-sm bg-muted/30">
                 <div>Week {week.weekNumber}</div>
                 <div className="text-xs text-muted-foreground">
                   {format(week.startDate, 'dd MMM')}
@@ -276,7 +276,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                   return (
                     <div 
                       key={`${cls.class_type}-${cls.start_time}`} 
-                      className="w-32 flex-shrink-0 p-2 border-l bg-muted/10 flex items-center justify-center"
+                      className="flex-1 min-w-[120px] p-2 border-l bg-muted/10 flex items-center justify-center"
                     >
                       <span className="text-xs text-muted-foreground">-</span>
                     </div>
@@ -286,7 +286,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                 return (
                   <div 
                     key={`${cls.class_type}-${cls.start_time}`} 
-                    className="w-32 flex-shrink-0 p-1 border-l flex flex-row flex-wrap gap-1 items-center justify-center"
+                    className="flex-1 min-w-[120px] p-1 border-l flex flex-row flex-wrap gap-1 items-center justify-center"
                   >
                     {daysWithClass.map(day => {
                       const matchingClass = eligibleClasses.find((c: any) => 
