@@ -1,94 +1,169 @@
 
 
-# Add Bank Transfer Information Field
+# Revised Plan: Flexible Term Lesson Limit Validation
 
 ## Overview
-Add a new "Bank Transfer Information" field to invoice templates that will be displayed above the PayNow QR code in generated invoice PDFs. This provides customers with direct bank transfer details as an alternative payment method.
+Update the class selection logic to enforce a **total term limit** rather than a strict per-week limit. This gives users flexibility to distribute their lessons across weeks as they prefer.
+
+**Example:** A package with 1 lesson/week x 10 weeks = 10 total lessons. User may select:
+- 2 lessons in Week 1 + 0 lessons in Week 2 + 1 lesson in Week 3... (still totals 10)
+- Any distribution as long as total does not exceed 10
 
 ---
 
 ## Changes Required
 
-### 1. Database Migration
-Add a new column `bank_transfer_info` to the `invoice_templates` table.
+### 1. Rename "Pricing Tier" to "Package"
+**File:** `src/components/dashboard/PaySchoolFeesDialog.tsx`
 
-**New Column:**
-- `bank_transfer_info` (text, nullable) - Multi-line text field for bank transfer details
+Update labels and placeholders:
+- Line 417: "Pricing Tier *" → "Package *"
+- Line 420: "pricing tiers" → "packages"  
+- Line 425: Placeholder "Select pricing tier" → "Select package"
 
-### 2. Update Invoice Template List UI
-Modify `src/components/sales/InvoiceTemplateList.tsx` to add a new form field for bank transfer information.
+### 2. Pass Lesson Configuration to ClassScheduleSelector
+**File:** `src/components/dashboard/PaySchoolFeesDialog.tsx`
 
-**Changes:**
-- Add `bank_transfer_info` to the form data state
-- Add a new Textarea field in the dialog form (placed after the PayNow QR Code section)
-- Include the field in create/update operations
+Pass the selected product's lesson settings to the ClassScheduleSelector component:
+- Add `lessonsPerWeek` prop (from `selectedProduct.lessons_per_week`)
+- Add `totalTermWeeks` prop (from calculated `termWeeks`)
 
-### 3. Update Invoice Template Service
-Modify `src/services/invoiceTemplateService.ts` to handle the new field.
+### 3. Implement Term-Based Limit Validation
+**File:** `src/components/dashboard/ClassScheduleSelector.tsx`
 
-**Changes:**
-- Add `bank_transfer_info` to the `InvoiceTemplate` interface
-- Add `bank_transfer_info` to the `CreateTemplateData` interface
-- Add `bank_transfer_info` to the `UpdateTemplateData` interface
-- Include the field in create and update operations
-
-### 4. Update Invoice PDF Generator
-Modify `src/utils/invoicePDFGenerator.ts` to render bank transfer information above the PayNow QR code.
-
-**Changes:**
-- Add `bank_transfer_info` to the `InvoiceTemplate` interface
-- In the PDF generation logic, render bank transfer information in a dedicated section positioned above the QR code
-- Use clear formatting with a "Bank Transfer Details" header
-
----
-
-## Visual Layout in PDF
-
-```text
-+--------------------------------------------------+
-|  Notes:                          Bank Transfer:  |
-|  Payment instructions...         Bank: XYZ Bank  |
-|                                  Account: 123456 |
-|                                  Swift: XYZABC   |
-|                                                  |
-|                                  [PayNow QR]     |
-+--------------------------------------------------+
+**New Props:**
+```typescript
+interface ClassScheduleSelectorProps {
+  // ... existing props
+  lessonsPerWeek?: number;  // Max lessons allowed per week (from product config)
+}
 ```
+
+**Validation Logic:**
+```text
+Maximum Sessions = lessonsPerWeek × numberOfTermWeeks
+
+When user attempts to add a session:
+  IF currentSelections >= Maximum Sessions:
+    → Block selection
+    → Show toast: "Maximum X sessions reached for this package"
+  ELSE:
+    → Allow selection
+```
+
+**UI Feedback:**
+- Display selection counter in the summary: "X of Y sessions selected"
+- Show warning state when limit reached
+- Prevent further selections via click handlers once limit is reached
+- Day-of-week checkboxes will only add sessions up to the remaining available slots
+
+### 4. Handle Bulk Selection Constraints
+**File:** `src/components/dashboard/ClassScheduleSelector.tsx`
+
+When using day-of-week checkboxes (e.g., selecting all Mondays):
+- Calculate how many sessions would be added
+- If adding all would exceed the limit, only add sessions up to the limit
+- Show toast: "Added X sessions (limit reached)"
 
 ---
 
 ## Technical Details
 
-### Database Migration
-```sql
-ALTER TABLE invoice_templates 
-ADD COLUMN bank_transfer_info TEXT;
-```
+### Calculation Example
+| Package | Lessons/Week | Term Weeks | Max Sessions |
+|---------|--------------|------------|--------------|
+| 1x Week | 1 | 10 | 10 |
+| 2x Week | 2 | 10 | 20 |
+| Unlimited | 7 | 10 | 70 |
 
-### TypeScript Interface Update
+### handleToggleSlot Modification
 ```typescript
-interface InvoiceTemplate {
-  // existing fields...
-  bank_transfer_info?: string;  // NEW
-}
+const handleToggleSlot = (classId: string, date: Date) => {
+  const slotKey = `${classId}_${format(date, 'yyyy-MM-dd')}`;
+  const isRemoving = selectedSlots.includes(slotKey);
+  
+  if (isRemoving) {
+    // Always allow removal
+    onSlotsChange(selectedSlots.filter(s => s !== slotKey));
+  } else {
+    // Check term limit before adding
+    const maxSessions = (lessonsPerWeek || 7) * termWeeks.length;
+    if (selectedSlots.length >= maxSessions) {
+      toast.warning(`Maximum ${maxSessions} sessions allowed for this package`);
+      return;
+    }
+    onSlotsChange([...selectedSlots, slotKey]);
+  }
+};
 ```
 
-### PDF Rendering Logic
-The bank transfer information will be rendered:
-1. Right-aligned in the notes/QR section
-2. Above the PayNow QR code
-3. Using 9pt font with a bold "Bank Transfer" header
-4. Multi-line text support for account details
+### handleToggleDayForClass Modification
+```typescript
+const handleToggleDayForClass = (...) => {
+  // ... find matching class and slots for this day
+  
+  const allSelected = allSlotsForDay.every(slot => selectedSlots.includes(slot));
+  
+  if (allSelected) {
+    // Deselect all - always allowed
+    onSlotsChange(selectedSlots.filter(s => !allSlotsForDay.includes(s)));
+  } else {
+    // Select all - respect limit
+    const maxSessions = (lessonsPerWeek || 7) * termWeeks.length;
+    const slotsToAdd = allSlotsForDay.filter(s => !selectedSlots.includes(s));
+    const availableSlots = maxSessions - selectedSlots.length;
+    
+    if (availableSlots <= 0) {
+      toast.warning(`Maximum ${maxSessions} sessions reached`);
+      return;
+    }
+    
+    const actualSlotsToAdd = slotsToAdd.slice(0, availableSlots);
+    onSlotsChange([...selectedSlots, ...actualSlotsToAdd]);
+    
+    if (actualSlotsToAdd.length < slotsToAdd.length) {
+      toast.info(`Added ${actualSlotsToAdd.length} sessions (limit reached)`);
+    }
+  }
+};
+```
+
+### Updated Summary Display
+```typescript
+{selectedSlots.length > 0 && (
+  <div className="text-sm text-right pt-2 border-t flex justify-between items-center">
+    <span className="text-muted-foreground">
+      {lessonsPerWeek && (
+        `Limit: ${lessonsPerWeek} per week × ${termWeeks.length} weeks`
+      )}
+    </span>
+    <span className={selectedSlots.length >= maxSessions ? 'text-amber-600 font-medium' : ''}>
+      {selectedSlots.length} of {maxSessions} sessions selected
+      {selectedSlots.length >= maxSessions && ' (limit reached)'}
+    </span>
+  </div>
+)}
+```
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `supabase/migrations/` | New migration to add `bank_transfer_info` column |
-| `src/integrations/supabase/types.ts` | Will auto-update after migration |
-| `src/services/invoiceTemplateService.ts` | Add field to interfaces and operations |
-| `src/components/sales/InvoiceTemplateList.tsx` | Add form field for bank transfer info |
-| `src/utils/invoicePDFGenerator.ts` | Add `bank_transfer_info` to interface and render in PDF |
+| File | Changes |
+|------|---------|
+| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Rename labels, pass `lessonsPerWeek` prop |
+| `src/components/dashboard/ClassScheduleSelector.tsx` | Add limit validation, update UI feedback |
+
+---
+
+## User Experience Flow
+
+1. User selects a Package (e.g., "1x Week - $30/week")
+2. Term has 10 teaching weeks → Maximum 10 sessions allowed
+3. User sees class calendar with sessions
+4. Counter shows: "0 of 10 sessions selected"
+5. User selects 2 sessions in Week 1 → "2 of 10 sessions selected"
+6. User selects 0 sessions in Week 2 (compensating)
+7. When user reaches 10 selections, further clicks are blocked with toast message
+8. User can always deselect to make room for different sessions
 
