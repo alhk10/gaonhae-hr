@@ -212,29 +212,30 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                             const isSelected = isSlotSelected(cls.id, dayDate);
                             
                             return (
-                              <div key={cls.id} className="text-center">
-                                <div className="text-xs font-medium text-foreground truncate">
+                              <button
+                                key={cls.id}
+                                onClick={() => handleToggleSlot(cls.id, dayDate)}
+                                disabled={!isSelected && isAtLimit}
+                                className={`
+                                  px-2 py-2 rounded text-center transition-all w-full
+                                  ${isSelected 
+                                    ? 'bg-primary text-primary-foreground' 
+                                    : isAtLimit
+                                      ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
+                                      : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                                  }
+                                `}
+                              >
+                                <div className="text-xs font-medium truncate">
                                   {cls.class_type}
                                 </div>
-                                <div className="text-[10px] text-muted-foreground mb-1">
+                                <div className={`text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                                   {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
                                 </div>
-                                <button
-                                  onClick={() => handleToggleSlot(cls.id, dayDate)}
-                                  disabled={!isSelected && isAtLimit}
-                                  className={`
-                                    px-2 py-1 rounded text-xs font-medium transition-all w-full
-                                    ${isSelected 
-                                      ? 'bg-primary text-primary-foreground' 
-                                      : isAtLimit
-                                        ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
-                                        : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
-                                    }
-                                  `}
-                                >
+                                <div className="text-xs font-medium mt-0.5">
                                   {format(dayDate, 'EEE d')}
-                                </button>
-                              </div>
+                                </div>
+                              </button>
                             );
                           })}
                         </div>
