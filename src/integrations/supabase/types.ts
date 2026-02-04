@@ -1203,6 +1203,7 @@ export type Database = {
       }
       grading_registrations: {
         Row: {
+          certificate_ii_issued: boolean | null
           certificate_issued: boolean | null
           created_at: string | null
           created_by: string | null
@@ -1211,11 +1212,13 @@ export type Database = {
           id: string
           invoice_item_id: string | null
           notes: string | null
+          ready_for_grading: boolean | null
           result: string | null
           student_id: string
           target_belt: string
         }
         Insert: {
+          certificate_ii_issued?: boolean | null
           certificate_issued?: boolean | null
           created_at?: string | null
           created_by?: string | null
@@ -1224,11 +1227,13 @@ export type Database = {
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
+          ready_for_grading?: boolean | null
           result?: string | null
           student_id: string
           target_belt: string
         }
         Update: {
+          certificate_ii_issued?: boolean | null
           certificate_issued?: boolean | null
           created_at?: string | null
           created_by?: string | null
@@ -1237,6 +1242,7 @@ export type Database = {
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
+          ready_for_grading?: boolean | null
           result?: string | null
           student_id?: string
           target_belt?: string

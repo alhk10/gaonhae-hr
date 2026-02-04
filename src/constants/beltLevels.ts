@@ -76,3 +76,13 @@ export const getBeltLevelIndex = (belt: string): number => {
 export const compareBeltLevels = (belt1: string, belt2: string): number => {
   return getBeltLevelIndex(belt1) - getBeltLevelIndex(belt2);
 };
+
+/**
+ * Get the belt level after skipping one (for double promotions)
+ * Returns null if not possible (at or near highest level)
+ */
+export const getDoubleBeltLevel = (currentBelt: string): string | null => {
+  const nextBelt = getNextBeltLevel(currentBelt);
+  if (!nextBelt) return null;
+  return getNextBeltLevel(nextBelt);
+};

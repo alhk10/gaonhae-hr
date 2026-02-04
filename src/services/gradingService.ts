@@ -34,8 +34,10 @@ export interface GradingRegistration {
   invoice_item_id: string | null;
   current_belt: string;
   target_belt: string;
-  result: 'pass' | 'fail' | 'conditional_pass' | null;
+  result: 'pass' | 'fail' | 'double' | 'confirmed' | 'conditional_pass' | null;
   certificate_issued: boolean;
+  certificate_ii_issued: boolean;
+  ready_for_grading: boolean;
   notes: string | null;
   created_at: string;
   created_by: string | null;
