@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,14 +18,15 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, CreditCard, Upload, CheckCircle } from 'lucide-react';
+import { Loader2, Calendar, CreditCard, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInYears, differenceInMonths } from 'date-fns';
 import { Term, calculateTeachingWeeks } from '@/services/termCalendarService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
+import ClassScheduleSelector from './ClassScheduleSelector';
 
 interface PaySchoolFeesDialogProps {
   open: boolean;
@@ -36,9 +37,19 @@ interface PaySchoolFeesDialogProps {
     first_name: string;
     last_name: string;
     branch_id?: string;
+    date_of_birth?: string;
   };
   availableTerms: Term[];
   previousEnrollment: any | null;
+}
+
+// Calculate age in decimal years (e.g., 4.5 for 4 years 6 months)
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  const years = differenceInYears(today, dob);
+  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
+  return years + (monthsAfterBirthday / 12);
 }
 
 const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
@@ -53,6 +64,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
   const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
   const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   
@@ -62,7 +74,58 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const selectedTerm = availableTerms.find(t => t.id === selectedTermId);
+  // Calculate student's age
+  const studentAge = useMemo(() => {
+    if (!student.date_of_birth) return 0;
+    return calculateAge(student.date_of_birth);
+  }, [student.date_of_birth]);
+
+  // Fetch paid term IDs for this student
+  const { data: paidTermIds = [] } = useQuery({
+    queryKey: ['student-paid-terms', studentId],
+    queryFn: async () => {
+      // Get all invoice items for this student that have term_id in metadata
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id, status')
+        .eq('student_id', studentId)
+        .in('status', ['paid', 'draft']); // Both paid and unpaid invoices count
+
+      if (!invoices || invoices.length === 0) return [];
+
+      const invoiceIds = invoices.map(inv => inv.id);
+      
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('metadata')
+        .in('invoice_id', invoiceIds);
+
+      if (!items) return [];
+
+      // Extract term_ids from metadata
+      const termIds: string[] = [];
+      items.forEach(item => {
+        const metadata = item.metadata as any;
+        if (metadata?.term_id) {
+          termIds.push(metadata.term_id);
+        }
+      });
+
+      return [...new Set(termIds)]; // Unique term IDs
+    },
+    enabled: !!studentId,
+  });
+
+  // Filter available terms to show only unpaid ones
+  const unpaidTerms = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return availableTerms
+      .filter(term => !paidTermIds.includes(term.id))
+      .filter(term => term.end_date >= today) // Only future or current terms
+      .sort((a, b) => a.start_date.localeCompare(b.start_date)); // Earliest first
+  }, [availableTerms, paidTermIds]);
+
+  const selectedTerm = unpaidTerms.find(t => t.id === selectedTermId);
 
   // Fetch branch for country-specific payment methods
   const { data: branch } = useQuery({
@@ -150,12 +213,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     }
   }, [previousEnrollment, classProducts, selectedProductId]);
 
-  // Auto-select first term
+  // Auto-select first unpaid term (next available)
   useEffect(() => {
-    if (availableTerms.length > 0 && !selectedTermId) {
-      setSelectedTermId(availableTerms[0].id);
+    if (unpaidTerms.length > 0 && !selectedTermId) {
+      setSelectedTermId(unpaidTerms[0].id);
     }
-  }, [availableTerms]);
+  }, [unpaidTerms, selectedTermId]);
 
   // Calculate price based on selected product and term weeks
   const termWeeks = selectedTerm 
@@ -202,6 +265,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
             term_name: selectedTerm.name,
             product_name: selectedProduct.name,
             weeks: termWeeks,
+            selected_class_slots: selectedClassSlots,
           },
         }],
       });
@@ -262,6 +326,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     onSuccess: () => {
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
       toast.success('Payment recorded successfully!');
     },
     onError: (error: Error) => {
@@ -276,6 +341,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setStep('select');
     setSelectedTermId('');
     setSelectedProductId('');
+    setSelectedClassSlots([]);
     setCreatedInvoiceId(null);
     setProofFile(null);
     setReferenceNumber('');
@@ -284,7 +350,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Pay School Fees'}
@@ -311,68 +377,107 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               </Card>
             )}
 
-            {/* Term Selection */}
-            <div className="space-y-2">
-              <Label>Select Term *</Label>
-              <Select value={selectedTermId} onValueChange={setSelectedTermId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a term" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTerms.map((term) => (
-                    <SelectItem key={term.id} value={term.id}>
-                      {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Pricing Tier (from Products) */}
-            <div className="space-y-2">
-              <Label>Pricing Tier *</Label>
-              {classProducts.length === 0 ? (
-                <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md bg-muted/30">
-                  No pricing tiers available for this branch. Please contact your administrator to configure class pricing.
-                </div>
-              ) : (
-                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pricing tier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classProducts.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.effective_price}/week
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* Summary */}
-            {selectedTerm && selectedProduct && (
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Term</span>
-                    <span className="font-medium">{selectedTerm.name}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">{termWeeks} weeks</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Rate</span>
-                    <span className="font-medium">${selectedProduct.effective_price}/week</span>
-                  </div>
-                  <div className="border-t pt-2 flex justify-between">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-bold text-lg">${calculatedPrice.toFixed(2)}</span>
+            {/* No unpaid terms available */}
+            {unpaidTerms.length === 0 && (
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">All terms are paid</p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      You have already enrolled for all available terms. Check back later for new terms.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {unpaidTerms.length > 0 && (
+              <>
+                {/* Term Selection - Show next unpaid term */}
+                <div className="space-y-2">
+                  <Label>Select Term *</Label>
+                  <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a term" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unpaidTerms.map((term, index) => (
+                        <SelectItem key={term.id} value={term.id}>
+                          {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
+                          {index === 0 && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Pricing Tier (from Products) */}
+                <div className="space-y-2">
+                  <Label>Pricing Tier *</Label>
+                  {classProducts.length === 0 ? (
+                    <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md bg-muted/30">
+                      No pricing tiers available for this branch. Please contact your administrator to configure class pricing.
+                    </div>
+                  ) : (
+                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pricing tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classProducts.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${product.effective_price}/week
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* Class Schedule Selection */}
+                {selectedTermId && selectedProductId && student.branch_id && student.date_of_birth && (
+                  <div className="space-y-2">
+                    <Label>Select Your Classes</Label>
+                    <ClassScheduleSelector
+                      branchId={student.branch_id}
+                      studentAge={studentAge}
+                      selectedSlots={selectedClassSlots}
+                      onSlotsChange={setSelectedClassSlots}
+                    />
+                  </div>
+                )}
+
+                {/* Summary */}
+                {selectedTerm && selectedProduct && (
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Term</span>
+                        <span className="font-medium">{selectedTerm.name}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Duration</span>
+                        <span className="font-medium">{termWeeks} weeks</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Rate</span>
+                        <span className="font-medium">${selectedProduct.effective_price}/week</span>
+                      </div>
+                      {selectedClassSlots.length > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Classes Selected</span>
+                          <span className="font-medium">{selectedClassSlots.length}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between">
+                        <span className="font-semibold">Total</span>
+                        <span className="font-bold text-lg">${calculatedPrice.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
 
             <div className="flex gap-2 justify-end pt-2">
@@ -381,7 +486,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               </Button>
               <Button
                 onClick={() => createInvoiceMutation.mutate()}
-                disabled={!selectedTermId || !selectedProductId || createInvoiceMutation.isPending}
+                disabled={!selectedTermId || !selectedProductId || createInvoiceMutation.isPending || unpaidTerms.length === 0}
               >
                 {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Create Invoice & Pay
