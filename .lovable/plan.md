@@ -1,55 +1,95 @@
 
-# Plan: Show Current Term in School Fees Selection
+# Plan: Hide Past Weeks from Class Schedule Grid
 
 ## Problem Analysis
 
-The current term (Term 1 2026) is missing from the term selection dropdown in the "Pay School Fees" dialog. Looking at your screenshot, only Terms 2, 3, and 4 are showing.
+The class schedule selector in the "Pay School Fees" dialog is showing weeks that have already passed:
+- **Week 1** (Jan 19): Entirely in the past - should be hidden
+- **Week 2** (Jan 26): Entirely in the past - should be hidden  
+- **Week 3** (Feb 2): Current week (today is Feb 4) - should be shown but is currently missing
 
-**Root Cause**: In `QuickActionsSection.tsx`, the term filtering logic excludes any term where `start_date < today`:
-
-```javascript
-terms.filter(t => 
-  t.branch_id === student.branch_id && 
-  t.start_date >= today  // ❌ Excludes current term!
-);
-```
-
-Since Term 1 2026 started on 2026-01-19 and today is 2026-02-04, the condition `start_date >= today` is false, so Term 1 is excluded—even though it's still active (ending 2026-04-10).
+The root cause is in `ClassScheduleSelector.tsx` where the `termWeeks` calculation includes all weeks from the term start date without checking if they've already passed.
 
 ---
 
 ## Solution
 
-Update the filter to include terms where:
-1. The term is in the future (`start_date >= today`), OR
-2. The term is currently active (`start_date <= today AND end_date >= today`)
-
-Since `getActiveTermsForSelection()` already filters by `end_date >= today`, we simply need to remove the `start_date >= today` condition to show all active and future terms.
+Update the week filtering logic to:
+1. Skip weeks where all days have already passed
+2. Within the current week, filter out individual dates that are in the past
+3. Keep future weeks as-is
 
 ---
 
 ## Implementation Details
 
-### File: `src/components/dashboard/QuickActionsSection.tsx`
+### File: `src/components/dashboard/ClassScheduleSelector.tsx`
 
-**Change** (lines 54-58):
+**Change 1**: Add `isBefore` to the date-fns imports (line 6)
 
 **Before**:
 ```javascript
-const terms = await getActiveTermsForSelection();
-const today = new Date().toISOString().split('T')[0];
-return terms.filter(t => 
-  t.branch_id === student.branch_id && 
-  t.start_date >= today
-);
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay } from 'date-fns';
 ```
 
 **After**:
 ```javascript
-const terms = await getActiveTermsForSelection();
-// Only filter by branch - getActiveTermsForSelection() already 
-// returns terms where end_date >= today
-return terms.filter(t => t.branch_id === student.branch_id);
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
+```
+
+**Change 2**: Update `termWeeks` calculation (lines 104-145)
+
+Add filtering logic to:
+1. Filter out days that are in the past from each week's `validDays`
+2. Only include weeks that have at least one remaining future day
+
+**Updated logic**:
+```javascript
+const termWeeks = useMemo(() => {
+  if (!term) return [];
+  
+  const termStart = parseISO(term.start_date);
+  const termEnd = parseISO(term.end_date);
+  const breaks = term.breaks || [];
+  const today = startOfDay(new Date()); // Today at midnight for comparison
+  
+  const weeks: { weekNumber: number; startDate: Date; days: Date[] }[] = [];
+  let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 });
+  let weekNumber = 1;
+  
+  while (currentWeekStart <= termEnd && weekNumber <= 20) {
+    const weekEnd = addDays(currentWeekStart, 6);
+    
+    // Check if this week is during a break
+    const isBreakWeek = isWeekInBreak(currentWeekStart, weekEnd, breaks);
+    
+    if (!isBreakWeek) {
+      // Get days that are within the term period
+      const daysInTerm = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
+        .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
+      
+      // Filter out public holidays from the days
+      const daysWithoutHolidays = daysInTerm.filter(day => !isPublicHoliday(day));
+      
+      // Filter out past dates (keep today and future dates)
+      const validDays = daysWithoutHolidays.filter(day => !isBefore(day, today));
+      
+      // Only add the week if there are valid future days
+      if (validDays.length > 0) {
+        weeks.push({
+          weekNumber,
+          startDate: currentWeekStart,
+          days: validDays,
+        });
+      }
+      weekNumber++;
+    }
+    
+    currentWeekStart = addWeeks(currentWeekStart, 1);
+  }
+  
+  return weeks;
+}, [term, publicHolidays]);
 ```
 
 ---
@@ -58,14 +98,14 @@ return terms.filter(t => t.branch_id === student.branch_id);
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/QuickActionsSection.tsx` | Remove `start_date >= today` filter to include current term |
+| `src/components/dashboard/ClassScheduleSelector.tsx` | Add `isBefore`, `startOfDay` imports; filter out past dates from week display |
 
 ---
 
 ## Expected Result
 
 After this fix:
-- Term 1 2026 will appear in the dropdown (since it's still active with end_date 2026-04-10)
-- The "Remaining weeks" option will appear for Term 1 (as it's the current term)
-- Future terms (Term 2, 3, 4) will continue to show
-- Terms that have already ended will remain hidden (handled by `getActiveTermsForSelection`)
+- Week 1 (Jan 19) and Week 2 (Jan 26) will be hidden as they're entirely in the past
+- Week 3 (Feb 2) will appear as the first week, showing only Feb 4-8 (Wed-Sun) since Feb 2-3 have passed
+- Future weeks will display normally with all their operating days
+- Week numbering will still reflect the original term week numbers (Week 3, Week 4, etc.)
