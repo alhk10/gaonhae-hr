@@ -1,193 +1,136 @@
 
 
-# Revised Plan: Restructure Class Schedule Selector Layout
+# Plan: Fix Term Breaks Not Hiding in Class Schedule Selector
 
-## Overview
-Redesign the class selection grid to have **days of the week on the X-axis** and **weeks on the Y-axis**. Each cell will contain the class name and timing information directly, supporting multiple classes per day.
+## Problem Analysis
+
+The weeks of Oct 5 and Oct 12 are showing in the class schedule despite being configured as term breaks ("Mid Term Break" from 2026-10-05 to 2026-10-16). 
+
+**Root Cause**: The `getActiveTermsForSelection()` function in `termCalendarService.ts` does **not** fetch the `term_breaks` data for each term. When terms are passed to the `ClassScheduleSelector` component, the `term.breaks` property is `undefined`, causing the break filtering logic to never exclude any weeks.
+
+### Evidence from Database
+```
+Term: Term 4 2026 (id: 1a625152-ed4f-4163-9c3f-33ed935c2df2)
+Break: Mid Term Break | start_date: 2026-10-05 | end_date: 2026-10-16
+```
+
+### Current Code Issue
+```typescript
+// getActiveTermsForSelection() returns:
+return termData.map(term => ({
+  ...term,
+  branch_name: branchMap[term.branch_id] || term.branch_id,
+  grace_days: term.grace_days ?? 7
+  // ❌ Missing: breaks: [...]
+}));
+```
 
 ---
 
-## New Layout Structure
+## Solution
 
-### Layout Design
-| Term | Mon | Tue | Wed | Thu | Fri |
-|------|-----|-----|-----|-----|-----|
-| Week 1 (27 Apr) | **Junior**<br/>4:00-4:50 PM<br/>[Mon 28] | **Junior**<br/>4:00-4:50 PM<br/>[Tue 29] | **Kids**<br/>5:00-5:50 PM<br/>[Wed 30] | **Junior**<br/>4:00-4:50 PM<br/>[Thu 1] | - |
-| Week 2 (04 May) | **Junior**<br/>4:00-4:50 PM<br/>[Mon 4] | **Junior**<br/>4:00-4:50 PM<br/>[Tue 5] | **Kids**<br/>5:00-5:50 PM<br/>[Wed 6] | **Junior**<br/>4:00-4:50 PM<br/>[Thu 7] | - |
-
-**Key Features:**
-- No separate class header rows
-- Each cell shows: Class name, Time, and selectable date button
-- Multiple classes on same day stack vertically within the cell
-- Empty cells show "-" or remain blank
+Modify the `getActiveTermsForSelection()` function to also fetch and include term breaks, similar to how the `getTerms()` function already does.
 
 ---
 
 ## Implementation Details
 
-### File to Modify
-`src/components/dashboard/ClassScheduleSelector.tsx`
+### File: `src/services/termCalendarService.ts`
 
-### Key Changes
+**Changes to `getActiveTermsForSelection()` (lines 361-401)**:
 
-#### 1. Determine Operating Days
+1. After fetching the terms, also fetch all term breaks for those terms
+2. Group breaks by term_id
+3. Include the breaks array in the returned term objects
+
+### Updated Function Logic
+
 ```typescript
-const operatingDays = useMemo(() => {
-  const days = new Set(eligibleClasses.map(c => c.weekday));
-  const WEEKDAYS = [
-    { value: 1, short: 'Mon', full: 'Monday' },
-    { value: 2, short: 'Tue', full: 'Tuesday' },
-    { value: 3, short: 'Wed', full: 'Wednesday' },
-    { value: 4, short: 'Thu', full: 'Thursday' },
-    { value: 5, short: 'Fri', full: 'Friday' },
-  ];
-  return WEEKDAYS.filter(w => days.has(w.value));
-}, [eligibleClasses]);
-```
+export async function getActiveTermsForSelection(): Promise<Term[]> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('term_calendars')
+      .select('*')
+      .eq('is_active', true)
+      .gte('end_date', today)
+      .order('branch_id')
+      .order('start_date');
 
-#### 2. Get Classes for a Specific Day
-```typescript
-const getClassesForDay = (weekday: number) => {
-  return eligibleClasses.filter(c => c.weekday === weekday);
-};
-```
+    if (error) throw error;
 
-#### 3. New Grid Structure
-```
-┌──────────────┬─────────────┬─────────────┬─────────────┐
-│ Term         │    Mon      │    Tue      │    Wed      │
-├──────────────┼─────────────┼─────────────┼─────────────┤
-│ Week 1       │ Junior      │ Junior      │ Kids        │
-│ 27 Apr       │ 4:00-4:50   │ 4:00-4:50   │ 5:00-5:50   │
-│              │ [Mon 28]    │ [Tue 29]    │ [Wed 30]    │
-│              │─────────────│             │─────────────│
-│              │ Teens       │             │ Competition │
-│              │ 5:00-5:50   │             │ 6:00-6:50   │
-│              │ [Mon 28]    │             │ [Wed 30]    │
-├──────────────┼─────────────┼─────────────┼─────────────┤
-│ Week 2       │ ...         │ ...         │ ...         │
-└──────────────┴─────────────┴─────────────┴─────────────┘
-```
+    const termData = data || [];
+    
+    // Fetch branch names
+    const branchIds = [...new Set(termData.map(t => t.branch_id))];
+    let branchMap: Record<string, string> = {};
+    
+    if (branchIds.length > 0) {
+      const { data: branchesData } = await supabase
+        .from('branches')
+        .select('id, name')
+        .in('id', branchIds);
+      
+      branchMap = (branchesData || []).reduce((acc, b) => {
+        acc[b.id] = b.name;
+        return acc;
+      }, {} as Record<string, string>);
+    }
 
-#### 4. Cell Rendering Logic
-Each cell renders all classes available for that day:
-```tsx
-{operatingDays.map(dayInfo => {
-  const dayDate = week.days.find(d => d.getDay() === dayInfo.value);
-  const classesForDay = getClassesForDay(dayInfo.value);
-  
-  if (!dayDate || classesForDay.length === 0) {
-    return <td className="text-center text-muted-foreground">-</td>;
+    // NEW: Fetch term breaks for all terms
+    const termIds = termData.map(t => t.id);
+    let breaks: TermBreak[] = [];
+    
+    if (termIds.length > 0) {
+      const { data: breaksData, error: breaksError } = await supabase
+        .from('term_breaks')
+        .select('*')
+        .in('term_id', termIds)
+        .order('start_date');
+      
+      if (breaksError) {
+        logger.warn('Failed to fetch term breaks for selection', breaksError);
+      } else {
+        breaks = breaksData || [];
+      }
+    }
+
+    return termData.map(term => ({
+      ...term,
+      branch_name: branchMap[term.branch_id] || term.branch_id,
+      grace_days: term.grace_days ?? 7,
+      breaks: breaks.filter(b => b.term_id === term.id)  // NEW
+    }));
+  } catch (error) {
+    logger.error('Failed to get active terms for selection', error);
+    return [];
   }
-  
-  return (
-    <td className="p-2">
-      <div className="space-y-2">
-        {classesForDay.map(cls => {
-          const slotKey = `${cls.id}_${format(dayDate, 'yyyy-MM-dd')}`;
-          const isSelected = selectedSlots.includes(slotKey);
-          
-          return (
-            <div key={cls.id} className="text-center">
-              <div className="text-xs font-medium">{cls.class_type}</div>
-              <div className="text-xs text-muted-foreground">
-                {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
-              </div>
-              <button
-                onClick={() => handleToggleSlot(cls.id, dayDate)}
-                className={isSelected ? 'bg-primary' : 'bg-secondary'}
-                disabled={isAtLimit && !isSelected}
-              >
-                {format(dayDate, 'EEE d')}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </td>
-  );
-})}
+}
 ```
-
----
-
-## Component Structure
-
-```tsx
-<div className="space-y-4">
-  {/* Simple table grid */}
-  <div className="border rounded-lg overflow-hidden">
-    <table className="w-full">
-      <thead className="bg-muted">
-        <tr>
-          <th className="p-2 text-left">Term</th>
-          {operatingDays.map(d => (
-            <th key={d.value} className="p-2 text-center">{d.short}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {termWeeks.map(week => (
-          <tr key={week.weekNumber} className="border-t">
-            <td className="p-2">
-              <div className="font-medium">Week {week.weekNumber}</div>
-              <div className="text-xs text-muted-foreground">
-                {format(week.startDate, 'dd MMM')}
-              </div>
-            </td>
-            {operatingDays.map(dayInfo => (
-              <td key={dayInfo.value} className="p-2 border-l">
-                {/* Classes for this day stacked vertically */}
-                {renderClassesForCell(week, dayInfo)}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-  
-  {/* Summary footer */}
-  <div className="text-sm pt-2 border-t flex justify-between">
-    <span>{selectedSlots.length} of {maxSessions} sessions selected</span>
-  </div>
-</div>
-```
-
----
-
-## Visual Example
-
-### Single Class Per Day
-| Term | Mon | Tue | Wed |
-|------|-----|-----|-----|
-| Week 1<br/>27 Apr | **Junior**<br/>4:00-4:50 PM<br/>`[Mon 28]` | **Junior**<br/>4:00-4:50 PM<br/>`[Tue 29]` | - |
-
-### Multiple Classes Per Day
-| Term | Mon | Wed |
-|------|-----|-----|
-| Week 1<br/>27 Apr | **Junior**<br/>4:00-4:50 PM<br/>`[Mon 28]`<br/>───<br/>**Teens**<br/>5:00-5:50 PM<br/>`[Mon 28]` | **Kids**<br/>5:00-5:50 PM<br/>`[Wed 30]`<br/>───<br/>**Competition**<br/>6:00-6:50 PM<br/>`[Wed 30]` |
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/ClassScheduleSelector.tsx` | Complete restructure - remove class headers, embed class info in cells |
+| File | Change |
+|------|--------|
+| `src/services/termCalendarService.ts` | Update `getActiveTermsForSelection()` to fetch and include term breaks |
 
 ---
 
-## Preserved Functionality
+## Expected Result
 
-- Session limit validation (max sessions = lessonsPerWeek × termWeeks)
-- Toast warnings when limit reached
-- Selected/unselected button styling
-- Disabled state when at limit
-- Summary counter display
+After this fix:
+- Weeks that overlap with term breaks (Oct 5-16) will be correctly hidden
+- The class schedule selector will only show teaching weeks
+- No changes needed to `ClassScheduleSelector.tsx` as it already has the logic to filter break weeks
 
-## Removed Features
+---
 
-- Separate class header rows
-- Day-of-week bulk selection checkboxes (no longer practical with mixed classes per column)
+## Technical Notes
+
+- This mirrors the pattern already used in `getTerms()` function (lines 85-154) which correctly fetches breaks
+- The `ClassScheduleSelector` component's `isWeekInBreak()` helper is already correctly implemented
+- The public holiday filtering also works correctly (just no holidays configured for October 2026)
 
