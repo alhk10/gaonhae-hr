@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Building2, QrCode } from 'lucide-react';
+import { Building2, QrCode, Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface PaymentInfoDisplayProps {
   paymentMethod: string;
@@ -18,6 +19,28 @@ const PaymentInfoDisplay: React.FC<PaymentInfoDisplayProps> = ({
   bankTransferInfo,
   paynowQrUrl,
 }) => {
+  // Download QR code image
+  const handleDownloadQR = async () => {
+    if (!paynowQrUrl) return;
+    
+    try {
+      const response = await fetch(paynowQrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'paynow-qr-code.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('QR code downloaded');
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      toast.error('Failed to download QR code');
+    }
+  };
+
   // Show bank transfer info
   if (paymentMethod === 'bank_transfer' && bankTransferInfo) {
     return (
@@ -47,11 +70,23 @@ const PaymentInfoDisplay: React.FC<PaymentInfoDisplayProps> = ({
               <QrCode className="h-5 w-5 text-purple-600" />
               <p className="font-medium text-purple-900">Scan to Pay via PayNow</p>
             </div>
-            <img 
-              src={paynowQrUrl} 
-              alt="PayNow QR Code" 
-              className="w-[200px] h-[200px] object-contain border rounded bg-white p-2"
-            />
+            <div 
+              className="relative group cursor-pointer"
+              onClick={handleDownloadQR}
+              title="Click to download QR code"
+            >
+              <img 
+                src={paynowQrUrl} 
+                alt="PayNow QR Code" 
+                className="w-[250px] h-[250px] object-contain border rounded bg-white p-2 transition-opacity group-hover:opacity-90"
+              />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 rounded">
+                <div className="bg-white/90 rounded-full p-2 shadow-sm">
+                  <Download className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-purple-600">Click to download</p>
           </div>
         </CardContent>
       </Card>
