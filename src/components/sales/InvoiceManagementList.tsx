@@ -140,6 +140,18 @@ const InvoiceManagementList: React.FC = () => {
         filteredInvoices = filteredInvoices.filter(inv => inv.branch_id === branchFilter);
       }
       
+      // Sort by status: draft (displayed as "unpaid") first, then by created_at (newest first)
+      filteredInvoices.sort((a, b) => {
+        const isAUnpaid = a.status === 'draft';
+        const isBUnpaid = b.status === 'draft';
+        
+        if (isAUnpaid && !isBUnpaid) return -1;
+        if (!isAUnpaid && isBUnpaid) return 1;
+        
+        // If same status category, sort by created_at (newest first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      
       setInvoices(filteredInvoices);
       setTotalInvoices(isSuperadmin ? response.total : filteredInvoices.length);
     } catch (error) {

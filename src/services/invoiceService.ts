@@ -117,13 +117,14 @@ export const getInvoices = async (
       query = query.eq('student_id', studentFilter);
     }
 
+    // Order by status (unpaid/draft first) then by created date (newest first)
+    // Note: Supabase doesn't support custom ordering, so we sort client-side for status priority
+    query = query.order('created_at', { ascending: false });
+
     // Apply pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
     query = query.range(from, to);
-
-    // Order by created date (newest first)
-    query = query.order('created_at', { ascending: false });
 
     const { data, error, count } = await query;
 
