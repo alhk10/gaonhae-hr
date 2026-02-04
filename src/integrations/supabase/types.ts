@@ -3748,7 +3748,7 @@ export type Database = {
           languages_spoken: string[] | null
           last_name: string | null
           medical_conditions: string | null
-          nationality: string | null
+          nationality: string[] | null
           notes: string | null
           nric_passport: string | null
           passport_no: string | null
@@ -3791,7 +3791,7 @@ export type Database = {
           languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
-          nationality?: string | null
+          nationality?: string[] | null
           notes?: string | null
           nric_passport?: string | null
           passport_no?: string | null
@@ -3834,7 +3834,7 @@ export type Database = {
           languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
-          nationality?: string | null
+          nationality?: string[] | null
           notes?: string | null
           nric_passport?: string | null
           passport_no?: string | null

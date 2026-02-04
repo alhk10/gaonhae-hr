@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
@@ -91,7 +90,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     postal_code: '',
     
     // Additional Information
-    nationality: '',
+    nationality: [] as string[],
     languages_spoken: [] as string[],
     
     // Emergency Contact Information
@@ -195,7 +194,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         email: '',
         address: '',
         postal_code: '',
-        nationality: '',
+        nationality: [],
         languages_spoken: [],
         emergency_contact_name: '',
         emergency_contact_phone: '',
@@ -447,13 +446,14 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="nationality" className="text-xs">Nationality</Label>
-                <SearchableSelect
-                  value={formData.nationality}
-                  onValueChange={(value) => handleInputChange('nationality', value)}
+                <MultiSelect
+                  values={formData.nationality}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, nationality: values }))}
                   options={commonNationalities}
-                  placeholder="Select or type nationality"
+                  placeholder="Select nationalities"
                   searchPlaceholder="Search nationalities..."
                   allowAddNew={true}
+                  maxDisplayed={3}
                 />
               </div>
               <div className="space-y-1">

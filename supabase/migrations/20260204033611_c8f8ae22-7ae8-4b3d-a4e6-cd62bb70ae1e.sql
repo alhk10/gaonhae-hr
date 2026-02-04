@@ -1,0 +1,2 @@
+-- Change nationality column from text to text array to support multiple nationalities
+ALTER TABLE public.students ALTER COLUMN nationality TYPE text[] USING CASE WHEN nationality IS NOT NULL AND nationality != '' THEN ARRAY[nationality] ELSE NULL END;

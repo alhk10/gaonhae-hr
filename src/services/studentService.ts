@@ -19,7 +19,7 @@ export interface Student {
   referral_source?: string;
   date_of_birth: string;
   gender?: string;
-  nationality?: string;
+  nationality?: string[];
   nric_passport?: string;
   phone?: string;
   whatsapp?: string;
@@ -328,7 +328,7 @@ export interface CreateStudentData {
   referral_source?: string;
   date_of_birth?: string;
   gender?: string;
-  nationality?: string;
+  nationality?: string[];
   languages_spoken?: string[];
   nric_passport?: string;
   email?: string;
