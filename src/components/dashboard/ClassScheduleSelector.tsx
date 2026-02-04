@@ -112,15 +112,19 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     
     const weeks: { weekNumber: number; startDate: Date; days: Date[] }[] = [];
     let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 }); // Start on Monday
-    let weekNumber = 1;
+    let weekNumber = 0; // Start at 0, increment before use
     
-    while (currentWeekStart <= termEnd && weekNumber <= 20) { // Max 20 weeks for safety
+    while (currentWeekStart <= termEnd && weekNumber < 20) { // Max 20 weeks for safety
       const weekEnd = addDays(currentWeekStart, 6);
       
       // Check if this week is during a break
       const isBreakWeek = isWeekInBreak(currentWeekStart, weekEnd, breaks);
       
       if (!isBreakWeek) {
+        // Increment week number for all non-break weeks (even if past/hidden)
+        // This maintains correct term week numbering
+        weekNumber++;
+        
         // Get days that are within the term period
         const daysInTerm = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
           .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
@@ -139,7 +143,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
             days: validDays,
           });
         }
-        weekNumber++;
       }
       
       currentWeekStart = addWeeks(currentWeekStart, 1);
