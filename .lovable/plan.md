@@ -1,221 +1,170 @@
 
-
-# Plan: Add Color Coding for Class Types
+# Plan: Enhance Branch Dashboard Tab Labels with Dynamic Counts
 
 ## Overview
-Create a centralized utility for class type color mapping and apply consistent color coding across all timetable and class schedule components throughout the application.
+Update the Branch Dashboard tabs to show dynamic counts in brackets:
+1. **Students tab**: Show count of active students (students who have paid invoices for classes this term)
+2. **Invoice & Payment tab** (renamed from Revenue): Show sum of outstanding invoice amounts for the branch during current term
+3. **Pending Approvals tab**: Show count of pending approval requests
 
-## Color Mapping
+## Data Flow
 
-| Class Type | Color Scheme |
-|------------|--------------|
-| Private Lesson | Pale Blue (`bg-blue-100 border-blue-300 text-blue-800`) |
-| Kids | Green (`bg-green-100 border-green-300 text-green-800`) |
-| Teens & Adults | Violet (`bg-violet-100 border-violet-300 text-violet-800`) |
-| Little Gaonhae | Yellow (`bg-yellow-100 border-yellow-300 text-yellow-800`) |
-| Team Gaonhae Poomsae | Sky Blue (`bg-sky-100 border-sky-300 text-sky-800`) |
-| Team Gaonhae Kyorugi | Orange (`bg-orange-100 border-orange-300 text-orange-800`) |
-| Combat/Self-Defense | Dull Green (`bg-emerald-100 border-emerald-300 text-emerald-800`) |
-| Kang Klass | Dull Orange (`bg-amber-100 border-amber-300 text-amber-800`) |
-| Junior | Pink (`bg-pink-100 border-pink-300 text-pink-800`) |
-| Competition | Lime (`bg-lime-100 border-lime-300 text-lime-800`) |
+| Tab | Source | Logic |
+|-----|--------|-------|
+| Students | Paid invoices + term calendars | Count students with paid lesson invoices in current term date range |
+| Invoice & Payment | Invoices table + term calendars | Sum `balance_due` for unpaid/partial invoices within current term |
+| Pending Approvals | `student_update_requests` | Already fetched, just use `pendingRequests.length` |
 
-## Files to Modify
+## Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/utils/classTypeColors.ts` | **Create** - Centralized color utility with all 10 class types |
-| `src/components/dashboard/BranchWeeklyTimetable.tsx` | Apply colors to class badges |
-| `src/components/dashboard/ClassWeeklyPlanner.tsx` | Apply colors to class cards |
-| `src/components/dashboard/StudentClassSchedule.tsx` | Apply colors to class displays |
-| `src/components/settings/BranchClassScheduleManagement.tsx` | Apply colors to class badges |
+| `src/components/dashboard/BranchDashboard.tsx` | Add queries for active students, outstanding invoices; update tab labels |
 
 ## Implementation Details
 
-### 1. Create Color Utility File
-
-Create `src/utils/classTypeColors.ts`:
+### 1. Add Query to Get Current Term for Branch
 
 ```typescript
-export const CLASS_TYPE_COLORS: Record<string, {
-  bg: string;
-  border: string;
-  text: string;
-  badge: string;
-}> = {
-  'Private Lesson': {
-    bg: 'bg-blue-100 dark:bg-blue-950/30',
-    border: 'border-blue-300 dark:border-blue-700',
-    text: 'text-blue-800 dark:text-blue-200',
-    badge: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-200',
-  },
-  'Kids': {
-    bg: 'bg-green-100 dark:bg-green-950/30',
-    border: 'border-green-300 dark:border-green-700',
-    text: 'text-green-800 dark:text-green-200',
-    badge: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-200',
-  },
-  'Teens & Adults': {
-    bg: 'bg-violet-100 dark:bg-violet-950/30',
-    border: 'border-violet-300 dark:border-violet-700',
-    text: 'text-violet-800 dark:text-violet-200',
-    badge: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-900/50 dark:text-violet-200',
-  },
-  'Little Gaonhae': {
-    bg: 'bg-yellow-100 dark:bg-yellow-950/30',
-    border: 'border-yellow-300 dark:border-yellow-700',
-    text: 'text-yellow-800 dark:text-yellow-200',
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-200',
-  },
-  'Team Gaonhae Poomsae': {
-    bg: 'bg-sky-100 dark:bg-sky-950/30',
-    border: 'border-sky-300 dark:border-sky-700',
-    text: 'text-sky-800 dark:text-sky-200',
-    badge: 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-900/50 dark:text-sky-200',
-  },
-  'Team Gaonhae Kyorugi': {
-    bg: 'bg-orange-100 dark:bg-orange-950/30',
-    border: 'border-orange-300 dark:border-orange-700',
-    text: 'text-orange-800 dark:text-orange-200',
-    badge: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/50 dark:text-orange-200',
-  },
-  'Combat/Self-Defense': {
-    bg: 'bg-emerald-100 dark:bg-emerald-950/30',
-    border: 'border-emerald-300 dark:border-emerald-700',
-    text: 'text-emerald-800 dark:text-emerald-200',
-    badge: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-200',
-  },
-  'Kang Klass': {
-    bg: 'bg-amber-100 dark:bg-amber-950/30',
-    border: 'border-amber-300 dark:border-amber-700',
-    text: 'text-amber-800 dark:text-amber-200',
-    badge: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200',
-  },
-  'Junior': {
-    bg: 'bg-pink-100 dark:bg-pink-950/30',
-    border: 'border-pink-300 dark:border-pink-700',
-    text: 'text-pink-800 dark:text-pink-200',
-    badge: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/50 dark:text-pink-200',
-  },
-  'Competition': {
-    bg: 'bg-lime-100 dark:bg-lime-950/30',
-    border: 'border-lime-300 dark:border-lime-700',
-    text: 'text-lime-800 dark:text-lime-200',
-    badge: 'bg-lime-100 text-lime-800 border-lime-300 dark:bg-lime-900/50 dark:text-lime-200',
-  },
-};
-
-const DEFAULT_COLORS = {
-  bg: 'bg-gray-100 dark:bg-gray-800',
-  border: 'border-gray-300 dark:border-gray-600',
-  text: 'text-gray-800 dark:text-gray-200',
-  badge: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200',
-};
-
-export function getClassTypeColors(classType: string) {
-  return CLASS_TYPE_COLORS[classType] || DEFAULT_COLORS;
-}
-
-export function getClassTypeBadgeClasses(classType: string): string {
-  return getClassTypeColors(classType).badge;
-}
-
-export function getClassTypeCardClasses(classType: string): string {
-  const colors = getClassTypeColors(classType);
-  return `${colors.bg} ${colors.border}`;
-}
+const { data: currentTerm } = useQuery({
+  queryKey: ['current-term', branchId],
+  queryFn: () => getCurrentTerm(branchId),
+  enabled: !!branchId,
+});
 ```
 
-### 2. Update BranchWeeklyTimetable.tsx
+### 2. Add Query for Active Students (Paid for Classes This Term)
 
-Import the utility and apply colors to class type badges:
+Students who have paid invoices for lesson products within the current term's date range:
+
+```typescript
+const { data: activeStudentIds = [] } = useQuery({
+  queryKey: ['active-students-paid', branchId, currentTerm?.id],
+  queryFn: async () => {
+    if (!currentTerm) return [];
+    
+    // Get invoices that are paid for this branch within the term dates
+    const { data: paidInvoices } = await supabase
+      .from('invoices')
+      .select('student_id')
+      .eq('branch_id', branchId)
+      .eq('status', 'paid')
+      .gte('issue_date', currentTerm.start_date)
+      .lte('issue_date', currentTerm.end_date);
+    
+    // Get unique student IDs who have paid
+    const uniqueStudentIds = [...new Set((paidInvoices || []).map(inv => inv.student_id))];
+    return uniqueStudentIds;
+  },
+  enabled: !!branchId && !!currentTerm,
+});
+
+const activeStudentsCount = activeStudentIds.length;
+```
+
+### 3. Add Query for Outstanding Invoice Amount
+
+Sum of `balance_due` for unpaid/partial invoices in current term:
+
+```typescript
+const { data: outstandingAmount = 0 } = useQuery({
+  queryKey: ['outstanding-invoices', branchId, currentTerm?.id],
+  queryFn: async () => {
+    if (!currentTerm) return 0;
+    
+    const { data: unpaidInvoices } = await supabase
+      .from('invoices')
+      .select('balance_due')
+      .eq('branch_id', branchId)
+      .in('status', ['unpaid', 'partial', 'draft', 'sent', 'overdue'])
+      .gte('issue_date', currentTerm.start_date)
+      .lte('issue_date', currentTerm.end_date);
+    
+    return (unpaidInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+  },
+  enabled: !!branchId && !!currentTerm,
+});
+```
+
+### 4. Update Tab Labels
+
+**Before:**
+```tsx
+<TabsTrigger value="students">Students</TabsTrigger>
+<TabsTrigger value="revenue">Revenue</TabsTrigger>
+<TabsTrigger value="approvals">
+  Pending Approvals
+  {pendingRequests.length > 0 && (
+    <Badge variant="destructive" className="ml-2">{pendingRequests.length}</Badge>
+  )}
+</TabsTrigger>
+```
+
+**After:**
+```tsx
+<TabsTrigger value="students">
+  Students ({activeStudentsCount})
+</TabsTrigger>
+<TabsTrigger value="invoices">
+  Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})
+</TabsTrigger>
+<TabsTrigger value="approvals">
+  Pending Approvals ({pendingRequests.length})
+</TabsTrigger>
+```
+
+### 5. Rename TabsContent Value
+
+Update the revenue tab to use `value="invoices"` and update the content title:
 
 ```tsx
-import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
-
-// Update Badge component
-<Badge 
-  variant="outline" 
-  className={`text-xs w-full justify-center ${getClassTypeBadgeClasses(slot.classType)}`}
->
-  {slot.classType}
-</Badge>
+<TabsContent value="invoices">
+  <Card>
+    <CardHeader>
+      <CardTitle>Invoices & Payments</CardTitle>
+      <CardDescription>Last 20 invoices for this branch</CardDescription>
+    </CardHeader>
+    ...
+  </Card>
+</TabsContent>
 ```
 
-### 3. Update ClassWeeklyPlanner.tsx
+### 6. Import Required Dependencies
 
-Apply colors to the class type display:
-
-```tsx
-import { getClassTypeColors } from '@/utils/classTypeColors';
-
-<div className={`text-[10px] truncate font-medium ${getClassTypeColors(sc.class_type).text}`}>
-  {sc.class_type}
-</div>
+```typescript
+import { getCurrentTerm } from '@/services/termCalendarService';
+import { formatCurrency } from '@/utils/currencyUtils';
 ```
 
-### 4. Update StudentClassSchedule.tsx
+## Technical Notes
 
-Apply colors to class cards and upcoming class displays:
+### Active Students Logic
+- A student is considered "active" if they have at least one paid invoice during the current term's date range
+- The query filters by `issue_date` within term start and end dates
+- Only counts unique students (one student with multiple paid invoices counts as 1)
 
-```tsx
-import { getClassTypeCardClasses, getClassTypeColors } from '@/utils/classTypeColors';
+### Outstanding Amount Logic
+- Sums `balance_due` from all non-paid invoices (draft, sent, unpaid, partial, overdue)
+- Only includes invoices issued within the current term
+- Falls back to 0 if no current term exists
 
-// Weekly timetable card
-<div className={`p-3 border rounded-lg transition-colors ${getClassTypeCardClasses(cls.class_type)}`}>
-
-// Upcoming classes text
-<p className={`font-medium ${getClassTypeColors(cls.class_type).text}`}>
-  {cls.class_type}
-</p>
-```
-
-### 5. Update BranchClassScheduleManagement.tsx
-
-Apply colors to class type badges:
-
-```tsx
-import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
-
-<Badge 
-  variant="outline" 
-  className={getClassTypeBadgeClasses(classSchedule.class_type)}
->
-  {classSchedule.class_type}
-</Badge>
-```
+### Branch Currency
+- Uses the branch's currency for formatting the outstanding amount
+- Falls back to SGD if not specified
 
 ## Visual Preview
 
 ```text
-+-------------------+-------------------+-------------------+
-| 4:00 PM           | 5:00 PM           | 6:00 PM           |
-| [Kids]  ← Green   | [Junior] ← Pink   | [Teens] ← Violet  |
-| - Student 1       | - Student A       | - Student X       |
-+-------------------+-------------------+-------------------+
-| 7:00 PM           | 8:00 PM           |                   |
-| [Kang]  ← Amber   | [Competition] ←   |                   |
-| - Student B       |       Lime        |                   |
-+-------------------+-------------------+-------------------+
++----------------+---------------------------+-----------------------+------------------+
+| Students (12)  | Invoice & Payment ($450)  | Pending Approvals (3) | Weekly Timetable |
++----------------+---------------------------+-----------------------+------------------+
 ```
 
-## Complete Color Reference
+## Edge Cases
 
-| Class Type | Background | Border | Text |
-|------------|------------|--------|------|
-| Private Lesson | blue-100 | blue-300 | blue-800 |
-| Kids | green-100 | green-300 | green-800 |
-| Teens & Adults | violet-100 | violet-300 | violet-800 |
-| Little Gaonhae | yellow-100 | yellow-300 | yellow-800 |
-| Team Gaonhae Poomsae | sky-100 | sky-300 | sky-800 |
-| Team Gaonhae Kyorugi | orange-100 | orange-300 | orange-800 |
-| Combat/Self-Defense | emerald-100 | emerald-300 | emerald-800 |
-| Kang Klass | amber-100 | amber-300 | amber-800 |
-| Junior | pink-100 | pink-300 | pink-800 |
-| Competition | lime-100 | lime-300 | lime-800 |
-| Unknown/Default | gray-100 | gray-300 | gray-800 |
-
-## Dark Mode Support
-
-All colors include dark mode variants for proper visibility in both light and dark themes.
-
+| Scenario | Behavior |
+|----------|----------|
+| No current term | Shows 0 for active students, $0 for outstanding |
+| No invoices | Shows 0 for active students, $0 for outstanding |
+| No pending approvals | Shows (0) in tab |
+| Term without lesson products | Still counts all paid invoices in term date range |
