@@ -145,6 +145,58 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     }
   };
 
+  // Toggle all slots for a specific weekday across a class type
+  const handleToggleDayForClass = (classType: string, startTime: string, targetWeekday: number) => {
+    const matchingClass = eligibleClasses.find((c: any) => 
+      c.class_type === classType && 
+      c.start_time === startTime &&
+      c.weekday === targetWeekday
+    );
+    
+    if (!matchingClass) return;
+    
+    const allSlotsForDay: string[] = [];
+    
+    termWeeks.forEach(week => {
+      week.days.forEach(day => {
+        if (day.getDay() === targetWeekday) {
+          allSlotsForDay.push(`${matchingClass.id}_${format(day, 'yyyy-MM-dd')}`);
+        }
+      });
+    });
+    
+    const allSelected = allSlotsForDay.every(slot => selectedSlots.includes(slot));
+    
+    if (allSelected) {
+      onSlotsChange(selectedSlots.filter(s => !allSlotsForDay.includes(s)));
+    } else {
+      const newSlots = [...selectedSlots];
+      allSlotsForDay.forEach(slot => {
+        if (!newSlots.includes(slot)) {
+          newSlots.push(slot);
+        }
+      });
+      onSlotsChange(newSlots);
+    }
+  };
+
+  // Check if all slots for a specific day are selected
+  const isDayFullySelected = (classType: string, startTime: string, targetWeekday: number) => {
+    const matchingClass = eligibleClasses.find((c: any) => 
+      c.class_type === classType && 
+      c.start_time === startTime &&
+      c.weekday === targetWeekday
+    );
+    
+    if (!matchingClass) return false;
+    
+    return termWeeks.every(week => {
+      const dayInWeek = week.days.find(day => day.getDay() === targetWeekday);
+      if (!dayInWeek) return true;
+      return selectedSlots.includes(`${matchingClass.id}_${format(dayInWeek, 'yyyy-MM-dd')}`);
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -244,8 +296,26 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                       {cls.age_from}-{cls.age_to} yrs
                     </Badge>
                   )}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {weekdaysForClass.map(wd => WEEKDAYS.find(w => w.value === wd)?.short).join(', ')}
+                  {/* Day checkboxes */}
+                  <div className="flex flex-wrap items-center justify-center gap-1 mt-2">
+                    {weekdaysForClass.sort((a, b) => a - b).map(wd => {
+                      const dayName = WEEKDAYS.find(w => w.value === wd)?.short || '';
+                      const isFullySelected = isDayFullySelected(cls.class_type, cls.start_time, wd);
+                      
+                      return (
+                        <label 
+                          key={wd} 
+                          className="flex items-center gap-0.5 cursor-pointer text-xs"
+                        >
+                          <Checkbox
+                            checked={isFullySelected}
+                            onCheckedChange={() => handleToggleDayForClass(cls.class_type, cls.start_time, wd)}
+                            className="h-3 w-3"
+                          />
+                          <span className="text-muted-foreground">{dayName}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               );
