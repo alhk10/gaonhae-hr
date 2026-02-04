@@ -412,17 +412,17 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   </Select>
                 </div>
 
-                {/* Pricing Tier (from Products) */}
+                {/* Package (from Products) */}
                 <div className="space-y-2">
-                  <Label>Pricing Tier *</Label>
+                  <Label>Package *</Label>
                   {classProducts.length === 0 ? (
                     <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md bg-muted/30">
-                      No pricing tiers available for this branch. Please contact your administrator to configure class pricing.
+                      No packages available for this branch. Please contact your administrator to configure class pricing.
                     </div>
                   ) : (
                     <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select pricing tier" />
+                        <SelectValue placeholder="Select package" />
                       </SelectTrigger>
                       <SelectContent>
                         {classProducts.map((product) => (
@@ -445,6 +445,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       selectedSlots={selectedClassSlots}
                       onSlotsChange={setSelectedClassSlots}
                       term={selectedTerm}
+                      lessonsPerWeek={selectedProduct?.lessons_per_week}
                     />
                   </div>
                 )}

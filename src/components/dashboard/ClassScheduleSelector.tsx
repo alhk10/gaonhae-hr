@@ -5,9 +5,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { WEEKDAYS, formatTime } from '@/services/branchTimetableService';
-import { format, addWeeks, startOfWeek, addDays, isSameDay, isWithinInterval, parseISO } from 'date-fns';
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 
 interface ClassScheduleSelectorProps {
   branchId: string;
@@ -15,6 +16,7 @@ interface ClassScheduleSelectorProps {
   selectedSlots: string[]; // Format: "classId_YYYY-MM-DD"
   onSlotsChange: (slots: string[]) => void;
   term: Term;
+  lessonsPerWeek?: number; // Max lessons allowed per week (from product config)
 }
 
 const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
@@ -23,6 +25,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   selectedSlots,
   onSlotsChange,
   term,
+  lessonsPerWeek,
 }) => {
   // Fetch class schedules for this branch
   const { data: allClasses = [], isLoading } = useQuery({
@@ -93,6 +96,13 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     return weeks;
   }, [term]);
 
+  // Calculate max sessions allowed (lessonsPerWeek × number of term weeks)
+  // If no lessonsPerWeek is set, default to 7 (unlimited per week)
+  const maxSessions = useMemo(() => {
+    const perWeek = lessonsPerWeek || 7;
+    return perWeek * termWeeks.length;
+  }, [lessonsPerWeek, termWeeks.length]);
+
   // Get classes for a specific weekday
   const getClassesForWeekday = (weekday: number) => {
     return eligibleClasses.filter((cls: any) => cls.weekday === weekday);
@@ -101,9 +111,17 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   // Toggle a specific class on a specific date
   const handleToggleSlot = (classId: string, date: Date) => {
     const slotKey = `${classId}_${format(date, 'yyyy-MM-dd')}`;
-    if (selectedSlots.includes(slotKey)) {
+    const isRemoving = selectedSlots.includes(slotKey);
+    
+    if (isRemoving) {
+      // Always allow removal
       onSlotsChange(selectedSlots.filter(s => s !== slotKey));
     } else {
+      // Check term limit before adding
+      if (selectedSlots.length >= maxSessions) {
+        toast.warning(`Maximum ${maxSessions} sessions allowed for this package`);
+        return;
+      }
       onSlotsChange([...selectedSlots, slotKey]);
     }
   };
@@ -131,17 +149,24 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     const allSelected = allSlotsForClass.every(slot => selectedSlots.includes(slot));
     
     if (allSelected) {
-      // Deselect all
+      // Deselect all - always allowed
       onSlotsChange(selectedSlots.filter(s => !allSlotsForClass.includes(s)));
     } else {
-      // Select all
-      const newSlots = [...selectedSlots];
-      allSlotsForClass.forEach(slot => {
-        if (!newSlots.includes(slot)) {
-          newSlots.push(slot);
-        }
-      });
-      onSlotsChange(newSlots);
+      // Select all - respect limit
+      const slotsToAdd = allSlotsForClass.filter(slot => !selectedSlots.includes(slot));
+      const availableSlots = maxSessions - selectedSlots.length;
+      
+      if (availableSlots <= 0) {
+        toast.warning(`Maximum ${maxSessions} sessions reached`);
+        return;
+      }
+      
+      const actualSlotsToAdd = slotsToAdd.slice(0, availableSlots);
+      onSlotsChange([...selectedSlots, ...actualSlotsToAdd]);
+      
+      if (actualSlotsToAdd.length < slotsToAdd.length) {
+        toast.info(`Added ${actualSlotsToAdd.length} sessions (limit reached)`);
+      }
     }
   };
 
@@ -168,15 +193,24 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     const allSelected = allSlotsForDay.every(slot => selectedSlots.includes(slot));
     
     if (allSelected) {
+      // Deselect all - always allowed
       onSlotsChange(selectedSlots.filter(s => !allSlotsForDay.includes(s)));
     } else {
-      const newSlots = [...selectedSlots];
-      allSlotsForDay.forEach(slot => {
-        if (!newSlots.includes(slot)) {
-          newSlots.push(slot);
-        }
-      });
-      onSlotsChange(newSlots);
+      // Select all - respect limit
+      const slotsToAdd = allSlotsForDay.filter(s => !selectedSlots.includes(s));
+      const availableSlots = maxSessions - selectedSlots.length;
+      
+      if (availableSlots <= 0) {
+        toast.warning(`Maximum ${maxSessions} sessions reached`);
+        return;
+      }
+      
+      const actualSlotsToAdd = slotsToAdd.slice(0, availableSlots);
+      onSlotsChange([...selectedSlots, ...actualSlotsToAdd]);
+      
+      if (actualSlotsToAdd.length < slotsToAdd.length) {
+        toast.info(`Added ${actualSlotsToAdd.length} sessions (limit reached)`);
+      }
     }
   };
 
@@ -239,6 +273,8 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
       )
       .map((c: any) => c.weekday);
   };
+
+  const isAtLimit = selectedSlots.length >= maxSessions;
 
   return (
     <div className="space-y-4">
@@ -348,11 +384,14 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                         <button
                           key={day.toISOString()}
                           onClick={() => handleToggleSlot(matchingClass.id, day)}
+                          disabled={!isSelected && isAtLimit}
                           className={`
                             px-1.5 py-1 rounded text-xs font-medium transition-all
                             ${isSelected 
                               ? 'bg-primary text-primary-foreground' 
-                              : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                              : isAtLimit
+                                ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
                             }
                           `}
                         >
@@ -369,11 +408,18 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {selectedSlots.length > 0 && (
-        <div className="text-sm text-muted-foreground text-right pt-2 border-t">
-          {selectedSlots.length} session{selectedSlots.length > 1 ? 's' : ''} selected
-        </div>
-      )}
+      {/* Summary footer with limit info */}
+      <div className="text-sm pt-2 border-t flex justify-between items-center">
+        <span className="text-muted-foreground">
+          {lessonsPerWeek && termWeeks.length > 0 && (
+            <>Limit: {lessonsPerWeek}/week × {termWeeks.length} weeks</>
+          )}
+        </span>
+        <span className={isAtLimit ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
+          {selectedSlots.length} of {maxSessions} sessions selected
+          {isAtLimit && ' (limit reached)'}
+        </span>
+      </div>
     </div>
   );
 };
