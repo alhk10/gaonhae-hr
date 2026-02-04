@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Copy } from 'lucide-react';
 import {
   ClassSchedule,
   ClassScheduleInput,
@@ -177,6 +177,22 @@ export function ClassScheduleDialog({
   const removeTimeSlot = (id: string) => {
     if (timeSlots.length > 1) {
       setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+    }
+  };
+
+  const duplicateTimeSlot = (id: string) => {
+    const slotToDuplicate = timeSlots.find(slot => slot.id === id);
+    if (slotToDuplicate) {
+      const newSlot: TimeSlot = {
+        id: uuidv4(),
+        weekday: slotToDuplicate.weekday,
+        start_time: slotToDuplicate.start_time,
+        end_time: slotToDuplicate.end_time,
+      };
+      const index = timeSlots.findIndex(slot => slot.id === id);
+      const newSlots = [...timeSlots];
+      newSlots.splice(index + 1, 0, newSlot);
+      setTimeSlots(newSlots);
     }
   };
 
@@ -411,17 +427,30 @@ export function ClassScheduleDialog({
                     required
                   />
 
-                  {/* Delete button (only show if more than 1 slot and not editing) */}
-                  {!isEditing && timeSlots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTimeSlot(slot.id)}
-                      className="text-destructive hover:text-destructive shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  {/* Duplicate and Delete buttons (only show if not editing) */}
+                  {!isEditing && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => duplicateTimeSlot(slot.id)}
+                        title="Duplicate slot"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                      {timeSlots.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeTimeSlot(slot.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
