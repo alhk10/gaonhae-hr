@@ -102,9 +102,9 @@ export const getInvoices = async (
         students(first_name, last_name, email)
       `, { count: 'exact' });
 
-    // Apply search filter
+    // Apply search filter (invoice number only - student name filtering done client-side)
     if (searchQuery) {
-      query = query.or(`invoice_number.ilike.%${searchQuery}%,notes.ilike.%${searchQuery}%`);
+      query = query.or(`invoice_number.ilike.%${searchQuery}%`);
     }
 
     // Apply status filter

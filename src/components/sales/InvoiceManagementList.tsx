@@ -140,6 +140,15 @@ const InvoiceManagementList: React.FC = () => {
         filteredInvoices = filteredInvoices.filter(inv => inv.branch_id === branchFilter);
       }
       
+      // Apply client-side student name search (in addition to invoice number search done server-side)
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        filteredInvoices = filteredInvoices.filter(inv => 
+          inv.invoice_number.toLowerCase().includes(searchLower) ||
+          (inv.student_name && inv.student_name.toLowerCase().includes(searchLower))
+        );
+      }
+      
       // Sort by status: draft (displayed as "unpaid") first, then by created_at (newest first)
       filteredInvoices.sort((a, b) => {
         const isAUnpaid = a.status === 'draft';
@@ -546,7 +555,7 @@ const InvoiceManagementList: React.FC = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by invoice number or notes..."
+                  placeholder="Search by invoice number or student..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
