@@ -37,7 +37,6 @@ interface Branch {
 }
 
 const RESULT_OPTIONS = [
-  { value: '', label: 'Select...' },
   { value: 'double', label: 'Double' },
   { value: 'pass', label: 'Pass' },
   { value: 'fail', label: 'Fail' },
@@ -424,11 +423,11 @@ const GradingListTab: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={student.result || ''}
+                            value={student.result || 'none'}
                             onValueChange={(value) => {
                               updateResultMutation.mutate({
                                 studentId: student.student_id,
-                                result: value || null
+                                result: value === 'none' ? null : value
                               });
                             }}
                             disabled={!student.registration_id || updateResultMutation.isPending}
@@ -437,6 +436,7 @@ const GradingListTab: React.FC = () => {
                               <SelectValue placeholder="Select..." />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="none">Clear</SelectItem>
                               {RESULT_OPTIONS.map(opt => (
                                 <SelectItem key={opt.value} value={opt.value}>
                                   {opt.label}
