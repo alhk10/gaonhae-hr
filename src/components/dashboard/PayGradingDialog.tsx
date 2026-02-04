@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, GraduationCap, Upload, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -51,10 +51,8 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   gradingSlots,
 }) => {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
+  const [step, setStep] = useState<'select' | 'success'>('select');
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
-  const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
-  const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Payment form state
@@ -81,21 +79,45 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     enabled: !!student.branch_id,
   });
 
-  // Fetch grading fee product
+  // Fetch grading fee product based on belt transition
   const { data: gradingProduct } = useQuery({
-    queryKey: ['grading-product', student.branch_id],
+    queryKey: ['grading-product', student.current_belt, nextBelt, student.branch_id],
     queryFn: async () => {
-      // Find product in Grading Fees category or with 'grading' in name
+      if (!student.current_belt || !nextBelt) return null;
+      
+      // Build the expected product name pattern: "Foundation 1 >> Foundation 2"
+      const productName = `${formatBeltLevel(student.current_belt)} >> ${formatBeltLevel(nextBelt)}`;
+      
       const { data } = await supabase
         .from('products')
         .select('*')
         .eq('is_active', true)
-        .or('name.ilike.%grading%,category_id.eq.31514844-78dc-43f2-bf07-41d124d175e2')
-        .limit(1)
+        .eq('name', productName)
         .maybeSingle();
-      return data;
+      
+      if (!data) return null;
+      
+      // Check for branch-specific pricing override
+      if (student.branch_id) {
+        const { data: priceRule } = await supabase
+          .from('price_rules')
+          .select('price_override, is_active')
+          .eq('product_id', data.id)
+          .eq('branch_id', student.branch_id)
+          .maybeSingle();
+        
+        // If rule exists and is hidden, return null
+        if (priceRule?.is_active === false) return null;
+        
+        return {
+          ...data,
+          effective_price: priceRule?.price_override ?? data.base_price,
+        };
+      }
+      
+      return { ...data, effective_price: data.base_price };
     },
-    enabled: !!student.branch_id,
+    enabled: !!student.current_belt && !!nextBelt,
   });
 
   // Check for duplicate grading invoice (60-day rule)
@@ -141,6 +163,15 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     }
   }, [gradingSlots]);
 
+  // Set default payment method based on country
+  useEffect(() => {
+    if (branch?.country === 'Australia') {
+      setPaymentMethod('bank_transfer');
+    } else {
+      setPaymentMethod('paynow');
+    }
+  }, [branch?.country]);
+
   // Payment methods based on country
   const getPaymentMethods = () => {
     const country = branch?.country;
@@ -154,49 +185,6 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
       { value: 'bank_transfer', label: 'Bank Transfer' },
     ];
   };
-
-  // Create invoice mutation
-  const createInvoiceMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedSlot || !gradingProduct || !student.branch_id || !student.current_belt) {
-        throw new Error('Missing required data');
-      }
-
-      if (duplicateError) {
-        throw new Error(duplicateError);
-      }
-
-      const invoice = await createInvoice({
-        student_id: studentId,
-        branch_id: student.branch_id,
-        payment_terms_days: 7,
-        internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedSlot.grading_date), 'dd MMM yyyy')}`,
-        items: [{
-          product_id: gradingProduct.id,
-          description: gradingProduct.name,
-          quantity: 1,
-          unit_price: gradingProduct.base_price || 0,
-          metadata: {
-            grading_slot_id: selectedSlot.id,
-            grading_date: selectedSlot.grading_date,
-            current_belt: student.current_belt,
-            target_belt: nextBelt,
-          },
-        }],
-      });
-
-      return invoice;
-    },
-    onSuccess: (invoice) => {
-      setCreatedInvoiceId(invoice.id);
-      setInvoiceAmount(invoice.total_amount);
-      setStep('payment');
-      toast.success('Invoice created! Please complete payment.');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create invoice');
-    },
-  });
 
   // Handle file upload
   const uploadProofOfPayment = async (file: File): Promise<string> => {
@@ -217,34 +205,63 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     return publicUrl;
   };
 
-  // Create payment mutation
-  const createPaymentMutation = useMutation({
+  // Combined create invoice and payment mutation
+  const createInvoiceAndPayMutation = useMutation({
     mutationFn: async () => {
-      if (!createdInvoiceId || !proofFile) {
-        throw new Error('Missing invoice or proof of payment');
+      if (!selectedSlot || !gradingProduct || !student.branch_id || !student.current_belt) {
+        throw new Error('Missing required data');
+      }
+      if (!proofFile) {
+        throw new Error('Proof of payment is required');
+      }
+      if (duplicateError) {
+        throw new Error(duplicateError);
       }
 
+      // Step 1: Create invoice
+      const invoice = await createInvoice({
+        student_id: studentId,
+        branch_id: student.branch_id,
+        payment_terms_days: 7,
+        internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedSlot.grading_date), 'dd MMM yyyy')}`,
+        items: [{
+          product_id: gradingProduct.id,
+          description: gradingProduct.name,
+          quantity: 1,
+          unit_price: gradingProduct.effective_price || gradingProduct.base_price || 0,
+          metadata: {
+            grading_slot_id: selectedSlot.id,
+            grading_date: selectedSlot.grading_date,
+            current_belt: student.current_belt,
+            target_belt: nextBelt,
+          },
+        }],
+      });
+
+      // Step 2: Upload proof of payment
       setIsUploading(true);
       const proofUrl = await uploadProofOfPayment(proofFile);
 
-      const payment = await createPayment({
-        invoice_id: createdInvoiceId,
-        amount: invoiceAmount,
+      // Step 3: Create payment
+      await createPayment({
+        invoice_id: invoice.id,
+        amount: invoice.total_amount,
         payment_date: new Date().toISOString().split('T')[0],
         payment_method: paymentMethod as any,
         reference_number: referenceNumber || undefined,
         proof_of_payment_url: proofUrl,
       });
 
-      return payment;
+      return invoice;
     },
     onSuccess: () => {
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
-      toast.success('Payment recorded successfully!');
+      queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
+      toast.success('Invoice created and payment recorded successfully!');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to record payment');
+      toast.error(error.message || 'Failed to process');
     },
     onSettled: () => {
       setIsUploading(false);
@@ -254,11 +271,12 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   const handleClose = () => {
     setStep('select');
     setSelectedSlotId('');
-    setCreatedInvoiceId(null);
     setProofFile(null);
     setReferenceNumber('');
     onOpenChange(false);
   };
+
+  const effectivePrice = gradingProduct?.effective_price ?? gradingProduct?.base_price ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -266,12 +284,10 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Register for Grading'}
-            {step === 'payment' && 'Complete Payment'}
             {step === 'success' && 'Registration Successful'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'select' && 'Select a grading session to register'}
-            {step === 'payment' && 'Upload proof of payment to complete'}
+            {step === 'select' && 'Select a grading session and complete payment'}
             {step === 'success' && 'Your grading registration is confirmed'}
           </DialogDescription>
         </DialogHeader>
@@ -340,10 +356,73 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   )}
                   <div className="border-t pt-2 flex justify-between">
                     <span className="font-semibold">Grading Fee</span>
-                    <span className="font-bold text-lg">${gradingProduct.base_price?.toFixed(2) || '0.00'}</span>
+                    <span className="font-bold text-lg">${effectivePrice.toFixed(2)}</span>
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Payment Section */}
+            {selectedSlot && gradingProduct && !duplicateError && (
+              <div className="space-y-4 pt-2 border-t">
+                <Label className="text-base font-semibold">Payment</Label>
+                
+                {/* Payment Method */}
+                <div className="space-y-2">
+                  <Label>Payment Method *</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPaymentMethods().map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reference Number */}
+                <div className="space-y-2">
+                  <Label>Reference Number (Optional)</Label>
+                  <Input
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    placeholder="Transaction reference"
+                  />
+                </div>
+
+                {/* Proof of Payment */}
+                <div className="space-y-2">
+                  <Label>Proof of Payment *</Label>
+                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="grading-proof-upload"
+                    />
+                    <label htmlFor="grading-proof-upload" className="cursor-pointer">
+                      {proofFile ? (
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="text-sm">{proofFile.name}</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Click to upload payment screenshot or PDF
+                          </p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="flex gap-2 justify-end pt-2">
@@ -351,95 +430,20 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                 Cancel
               </Button>
               <Button
-                onClick={() => createInvoiceMutation.mutate()}
-                disabled={!selectedSlotId || !gradingProduct || !!duplicateError || createInvoiceMutation.isPending}
+                onClick={() => createInvoiceAndPayMutation.mutate()}
+                disabled={
+                  !selectedSlotId || 
+                  !gradingProduct || 
+                  !proofFile || 
+                  !!duplicateError || 
+                  createInvoiceAndPayMutation.isPending ||
+                  isUploading
+                }
               >
-                {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Invoice & Pay
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 'payment' && (
-          <div className="space-y-4">
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Amount Due</span>
-                  <span className="text-2xl font-bold">${invoiceAmount.toFixed(2)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Payment Method *</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getPaymentMethods().map((method) => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reference Number */}
-            <div className="space-y-2">
-              <Label>Reference Number (Optional)</Label>
-              <Input
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="Transaction reference"
-              />
-            </div>
-
-            {/* Proof of Payment */}
-            <div className="space-y-2">
-              <Label>Proof of Payment *</Label>
-              <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                  id="grading-proof-upload"
-                />
-                <label htmlFor="grading-proof-upload" className="cursor-pointer">
-                  {proofFile ? (
-                    <div className="flex items-center justify-center gap-2 text-primary">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>{proofFile.name}</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload payment screenshot or PDF
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={() => setStep('select')}>
-                Back
-              </Button>
-              <Button
-                onClick={() => createPaymentMutation.mutate()}
-                disabled={!proofFile || createPaymentMutation.isPending || isUploading}
-              >
-                {(createPaymentMutation.isPending || isUploading) && (
+                {(createInvoiceAndPayMutation.isPending || isUploading) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Submit Payment
+                Create Invoice & Pay
               </Button>
             </div>
           </div>
