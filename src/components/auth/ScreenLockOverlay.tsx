@@ -262,10 +262,10 @@ export const ScreenLockOverlay = ({
                   disabled={isVerifying}
                 >
                   <InputOTPGroup>
-                    <InputOTPSlot index={0} className={error ? "border-destructive" : ""} />
-                    <InputOTPSlot index={1} className={error ? "border-destructive" : ""} />
-                    <InputOTPSlot index={2} className={error ? "border-destructive" : ""} />
-                    <InputOTPSlot index={3} className={error ? "border-destructive" : ""} />
+                    <InputOTPSlot index={0} mask className={error ? "border-destructive" : ""} />
+                    <InputOTPSlot index={1} mask className={error ? "border-destructive" : ""} />
+                    <InputOTPSlot index={2} mask className={error ? "border-destructive" : ""} />
+                    <InputOTPSlot index={3} mask className={error ? "border-destructive" : ""} />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
