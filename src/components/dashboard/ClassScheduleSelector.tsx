@@ -1,13 +1,12 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, CalendarDays, AlertTriangle } from 'lucide-react';
+import { Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
-import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay } from 'date-fns';
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ClassScheduleSelectorProps {
   branchId: string;
@@ -54,24 +53,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     enabled: !!branchId,
   });
 
-  // Fetch public holidays
-  const { data: publicHolidays = [] } = useQuery({
-    queryKey: ['public-holidays-for-term', term?.id],
-    queryFn: async () => {
-      if (!term) return [];
-      
-      const { data, error } = await supabase
-        .from('public_holidays')
-        .select('*')
-        .gte('date', term.start_date)
-        .lte('date', term.end_date);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!term,
-  });
-
   // Filter classes based on student's age
   const eligibleClasses = useMemo(() => {
     return allClasses.filter((cls: any) => {
@@ -93,28 +74,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     });
   }, [eligibleClasses]);
 
-  // Helper: Check if a date falls within any term break
-  const isDateInBreak = (date: Date, breaks: Term['breaks']) => {
-    if (!breaks || breaks.length === 0) return false;
-    return breaks.some(brk => {
-      const breakStart = parseISO(brk.start_date);
-      const breakEnd = parseISO(brk.end_date);
-      return isWithinInterval(date, { start: breakStart, end: breakEnd });
-    });
-  };
-
-  // Helper: Check if a date is a public holiday
-  const isPublicHoliday = (date: Date) => {
-    return publicHolidays.some(holiday => isSameDay(parseISO(holiday.date), date));
-  };
-
-  // Helper: Get public holiday name for a date
-  const getPublicHolidayName = (date: Date) => {
-    const holiday = publicHolidays.find(h => isSameDay(parseISO(h.date), date));
-    return holiday?.name || null;
-  };
-
-  // Generate weeks for the term - excluding weeks that are entirely within breaks
+  // Generate weeks for the term
   const termWeeks = useMemo(() => {
     if (!term) return [];
     
@@ -122,28 +82,29 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     const termEnd = parseISO(term.end_date);
     const breaks = term.breaks || [];
     
-    const weeks: { weekNumber: number; startDate: Date; days: Date[]; isBreakWeek: boolean }[] = [];
+    const weeks: { weekNumber: number; startDate: Date; days: Date[] }[] = [];
     let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 }); // Start on Monday
     let weekNumber = 1;
     
-    while (currentWeekStart <= termEnd && weekNumber <= 20) { // Max 20 weeks for safety
-      // Generate all days of this week that fall within the term
-      const allDaysInWeek = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
-        .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
+    while (currentWeekStart <= termEnd && weekNumber <= 15) { // Max 15 weeks for safety
+      // Check if this week is during a break
+      const isBreakWeek = breaks.some(brk => {
+        const breakStart = parseISO(brk.start_date);
+        const breakEnd = parseISO(brk.end_date);
+        return isWithinInterval(currentWeekStart, { start: breakStart, end: breakEnd }) ||
+               isWithinInterval(addDays(currentWeekStart, 6), { start: breakStart, end: breakEnd });
+      });
       
-      // Check if ALL days in this week are within a break period
-      const isEntireWeekInBreak = allDaysInWeek.length > 0 && 
-        allDaysInWeek.every(day => isDateInBreak(day, breaks));
-      
-      if (allDaysInWeek.length > 0) {
-        weeks.push({
-          weekNumber: isEntireWeekInBreak ? -1 : weekNumber, // -1 indicates break week
-          startDate: currentWeekStart,
-          days: allDaysInWeek,
-          isBreakWeek: isEntireWeekInBreak,
-        });
+      if (!isBreakWeek) {
+        const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
+          .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
         
-        if (!isEntireWeekInBreak) {
+        if (days.length > 0) {
+          weeks.push({
+            weekNumber,
+            startDate: currentWeekStart,
+            days,
+          });
           weekNumber++;
         }
       }
@@ -154,15 +115,11 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     return weeks;
   }, [term]);
 
-  // Calculate max sessions allowed (lessonsPerWeek × number of actual teaching weeks - not break weeks)
-  const teachingWeeks = useMemo(() => {
-    return termWeeks.filter(w => !w.isBreakWeek);
-  }, [termWeeks]);
-
+  // Calculate max sessions allowed (lessonsPerWeek × number of term weeks)
   const maxSessions = useMemo(() => {
     const perWeek = lessonsPerWeek || 7;
-    return perWeek * teachingWeeks.length;
-  }, [lessonsPerWeek, teachingWeeks.length]);
+    return perWeek * termWeeks.length;
+  }, [lessonsPerWeek, termWeeks.length]);
 
   // Get classes for a specific weekday
   const getClassesForWeekday = (weekday: number) => {
@@ -228,109 +185,65 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
               </tr>
             </thead>
             <tbody>
-              {termWeeks.map((week, weekIndex) => {
-                // Display break weeks differently
-                if (week.isBreakWeek) {
-                  return (
-                    <tr key={`break-${weekIndex}`} className="border-t bg-amber-50/50">
-                      <td className="p-2 bg-amber-100/50">
-                        <div className="font-medium text-sm text-amber-700">Break</div>
-                        <div className="text-xs text-amber-600">
-                          {format(week.startDate, 'dd MMM')}
-                        </div>
-                      </td>
-                      <td colSpan={operatingDays.length} className="p-2 border-l text-center">
-                        <div className="flex items-center justify-center gap-2 text-amber-600">
-                          <AlertTriangle className="w-4 h-4" />
-                          <span className="text-sm font-medium">Term Break</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return (
-                  <tr key={week.weekNumber} className="border-t hover:bg-muted/10">
-                    <td className="p-2 bg-muted/30">
-                      <div className="font-medium text-sm">Week {week.weekNumber}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(week.startDate, 'dd MMM')}
-                      </div>
-                    </td>
-                    {operatingDays.map(dayInfo => {
-                      const dayDate = week.days.find(d => d.getDay() === dayInfo.value);
-                      const classesForDay = getClassesForWeekday(dayInfo.value);
-                      
-                      if (!dayDate || classesForDay.length === 0) {
-                        return (
-                          <td key={dayInfo.value} className="p-2 border-l text-center text-muted-foreground">
-                            -
-                          </td>
-                        );
-                      }
-
-                      // Check if this specific day is a public holiday
-                      const holidayName = getPublicHolidayName(dayDate);
-                      if (holidayName) {
-                        return (
-                          <td key={dayInfo.value} className="p-2 border-l align-top">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="bg-red-100 text-red-700 px-2 py-2 rounded text-center">
-                                    <div className="text-xs font-medium">Holiday</div>
-                                    <div className="text-[10px]">{format(dayDate, 'EEE d')}</div>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{holidayName}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </td>
-                        );
-                      }
-                      
+              {termWeeks.map(week => (
+                <tr key={week.weekNumber} className="border-t hover:bg-muted/10">
+                  <td className="p-2 bg-muted/30">
+                    <div className="font-medium text-sm">Week {week.weekNumber}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(week.startDate, 'dd MMM')}
+                    </div>
+                  </td>
+                  {operatingDays.map(dayInfo => {
+                    const dayDate = week.days.find(d => d.getDay() === dayInfo.value);
+                    const classesForDay = getClassesForWeekday(dayInfo.value);
+                    
+                    if (!dayDate || classesForDay.length === 0) {
                       return (
-                        <td key={dayInfo.value} className="p-2 border-l align-top">
-                          <div className="space-y-2">
-                            {classesForDay.map((cls: any) => {
-                              const isSelected = isSlotSelected(cls.id, dayDate);
-                              
-                              return (
-                                <button
-                                  key={cls.id}
-                                  onClick={() => handleToggleSlot(cls.id, dayDate)}
-                                  disabled={!isSelected && isAtLimit}
-                                  className={`
-                                    px-2 py-2 rounded text-center transition-all w-full
-                                    ${isSelected 
-                                      ? 'bg-primary text-primary-foreground' 
-                                      : isAtLimit
-                                        ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
-                                        : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
-                                    }
-                                  `}
-                                >
-                                  <div className="text-xs font-medium truncate">
-                                    {cls.class_type}
-                                  </div>
-                                  <div className={`text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                    {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
-                                  </div>
-                                  <div className="text-xs font-medium mt-0.5">
-                                    {format(dayDate, 'EEE d')}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                        <td key={dayInfo.value} className="p-2 border-l text-center text-muted-foreground">
+                          -
                         </td>
                       );
-                    })}
-                  </tr>
-                );
-              })}
+                    }
+                    
+                    return (
+                      <td key={dayInfo.value} className="p-2 border-l align-top">
+                        <div className="space-y-2">
+                          {classesForDay.map((cls: any) => {
+                            const isSelected = isSlotSelected(cls.id, dayDate);
+                            
+                            return (
+                              <button
+                                key={cls.id}
+                                onClick={() => handleToggleSlot(cls.id, dayDate)}
+                                disabled={!isSelected && isAtLimit}
+                                className={`
+                                  px-2 py-2 rounded text-center transition-all w-full
+                                  ${isSelected 
+                                    ? 'bg-primary text-primary-foreground' 
+                                    : isAtLimit
+                                      ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
+                                      : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                                  }
+                                `}
+                              >
+                                <div className="text-xs font-medium truncate">
+                                  {cls.class_type}
+                                </div>
+                                <div className={`text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                  {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
+                                </div>
+                                <div className="text-xs font-medium mt-0.5">
+                                  {format(dayDate, 'EEE d')}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -340,8 +253,8 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
       {/* Summary footer with limit info */}
       <div className="text-sm pt-2 border-t flex justify-between items-center">
         <span className="text-muted-foreground">
-          {lessonsPerWeek && teachingWeeks.length > 0 && (
-            <>Limit: {lessonsPerWeek}/week × {teachingWeeks.length} weeks</>
+          {lessonsPerWeek && termWeeks.length > 0 && (
+            <>Limit: {lessonsPerWeek}/week × {termWeeks.length} weeks</>
           )}
         </span>
         <span className={isAtLimit ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
