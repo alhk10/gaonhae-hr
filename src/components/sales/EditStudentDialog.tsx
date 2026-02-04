@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
@@ -81,7 +80,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     postal_code: '',
     
     // Additional Information
-    nationality: '',
+    nationality: [] as string[],
     languages_spoken: [] as string[],
     
     // Emergency Contact Information
@@ -126,7 +125,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         email: student.email || '',
         address: student.address || '',
         postal_code: student.postal_code || '',
-        nationality: student.nationality || '',
+        nationality: Array.isArray(student.nationality) ? student.nationality : (student.nationality ? [student.nationality] : []),
         languages_spoken: (student as any).languages_spoken || [],
         emergency_contact_name: student.emergency_contact_name || '',
         emergency_contact_phone: student.emergency_contact_phone || '',
@@ -439,13 +438,14 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="nationality" className="text-xs">Nationality</Label>
-                <SearchableSelect
-                  value={formData.nationality}
-                  onValueChange={(value) => handleInputChange('nationality', value)}
+                <MultiSelect
+                  values={formData.nationality}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, nationality: values }))}
                   options={commonNationalities}
-                  placeholder="Select or type nationality"
+                  placeholder="Select nationalities"
                   searchPlaceholder="Search nationalities..."
                   allowAddNew={true}
+                  maxDisplayed={3}
                 />
               </div>
               <div className="space-y-1">
