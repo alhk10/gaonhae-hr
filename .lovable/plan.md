@@ -1,264 +1,128 @@
 
-# Plan: Fix Grading Fee Lookup & Add Single-Step Invoice + Payment Flow
+# Plan: Display Payment Information in All Payment Components
 
-## Problem Analysis
+## Overview
+Enhance all payment dialogs and sections to display dynamic payment instructions (Bank Transfer info or PayNow QR code) based on the selected payment method and branch template. Additionally, hide the "Cash" payment option when accessed from the Student Portal.
 
-### Current Issues:
-1. **Incorrect pricing**: The dialog uses a generic query that fetches any product with "grading" in the name, instead of the correct belt-specific grading product
-2. **Two-step flow**: Currently, clicking "Create Invoice & Pay" creates the invoice, then takes you to a separate payment step
-3. **Missing payment section on initial screen**: User wants to see payment method, reference, and proof upload on the same screen as grading slot selection
+## Components to Update
 
-### What Should Happen:
-- The grading fee should match the student's belt progression (e.g., "Foundation 1 >> Foundation 2" = $45)
-- Payment section should appear on the selection screen, below the fee summary
-- One click completes both invoice creation and payment recording
+| Component | Purpose | Changes Required |
+|-----------|---------|-----------------|
+| `CreatePaymentDialog.tsx` | Record payment against invoices | Add template display, hide cash for portal |
+| `PayGradingDialog.tsx` | Student pays for grading registration | Add template display, hide cash for portal |
+| `PaySchoolFeesDialog.tsx` | Student pays for term enrollment | Add template display, hide cash for portal |
 
----
+## Detailed Changes
 
-## Grading Products in Database
+### 1. CreatePaymentDialog.tsx
 
-| Product Name | Base Price |
-|--------------|------------|
-| Foundation 1 >> Foundation 2 | $45.00 |
-| Foundation 2 >> Foundation 3 | $45.00 |
-| Foundation 3 >> White | $45.00 |
-| White >> Yellow Tip | $50.00 |
-| Yellow Tip >> Yellow | $60.00 |
-| Yellow >> Green Tip | $65.00 |
-| Green Tip >> Green | $70.00 |
-| Green >> Blue Tip | $75.00 |
-| Blue Tip >> Blue | $80.00 |
-| Blue >> Red Tip | $85.00 |
-| Red Tip >> Red | $90.00 |
-| Red >> Black Tip | $100.00 |
+**Add prop for Student Portal context:**
+```typescript
+interface CreatePaymentDialogProps {
+  trigger: React.ReactNode;
+  onPaymentCreated?: () => void;
+  preSelectedInvoiceId?: string;
+  isStudentPortal?: boolean; // NEW - to hide cash option
+}
+```
 
----
+**Add template fetching logic:**
+- Fetch invoice templates using `getInvoiceTemplates()`
+- Filter to find template matching the invoice's branch country
+- Map country names: `Singapore` → `SG`, `Australia` → `AU`
 
-## Solution
+**Hide Cash for Student Portal:**
+- When `isStudentPortal` is true, filter out the "cash" payment method from the dropdown
 
-### File: `src/components/dashboard/PayGradingDialog.tsx`
+**Add conditional UI after Payment Method dropdown:**
+- When "Bank Transfer" is selected and template has `bank_transfer_info`:
+  - Display a styled card with bank transfer details
+- When "PayNow" is selected and template has `paynow_qr_url`:
+  - Display a styled card with the QR code image
 
-**1. Fix Product Query**
+### 2. PayGradingDialog.tsx
 
-Replace the generic grading product query with belt-specific matching:
+**Add template fetching:**
+- Use React Query to fetch invoice templates
+- Filter by country code based on student's branch country
+
+**Hide Cash (currently not present, but ensure it stays hidden):**
+- Current code only shows PayNow and Bank Transfer for Singapore
+- Ensure "cash" is never shown in the Student Portal context
+
+**Add conditional payment info display:**
+- After the Payment Method selector, display:
+  - Bank transfer info card when "bank_transfer" is selected
+  - PayNow QR code card when "paynow" is selected
+
+### 3. PaySchoolFeesDialog.tsx
+
+**Add template fetching:**
+- Fetch templates and match by branch country code
+
+**Hide Cash (same as PayGradingDialog):**
+- Remove "cash" option completely for Student Portal flows
+
+**Add conditional payment info display:**
+- Same UI pattern as other dialogs for bank info and QR codes
+
+### 4. Update StudentDashboard.tsx
+
+**Pass Student Portal flag:**
+- When rendering `CreatePaymentDialog`, pass `isStudentPortal={true}` to hide cash option
+
+## UI Design
+
+**Bank Transfer Info Card:**
+```text
++----------------------------------+
+| 🏦 Bank Transfer Details         |
+|                                  |
+| [Multi-line bank transfer info   |
+|  from template]                  |
++----------------------------------+
+```
+- Blue-tinted background (`bg-blue-50 border-blue-200`)
+- Pre-formatted text preserving line breaks
+
+**PayNow QR Code Card:**
+```text
++----------------------------------+
+|      Scan to Pay via PayNow      |
+|                                  |
+|         [ QR Code Image ]        |
+|                                  |
++----------------------------------+
+```
+- Purple-tinted background (`bg-purple-50 border-purple-200`)
+- Centered QR code image (160x160px)
+
+## Country Code Mapping
 
 ```typescript
-// Current (incorrect)
-const { data: gradingProduct } = useQuery({
-  queryKey: ['grading-product', student.branch_id],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .or('name.ilike.%grading%,category_id.eq.xxxxx')
-      .limit(1)
-      .maybeSingle();
-    return data;
-  },
-});
-
-// New (correct)
-const { data: gradingProduct } = useQuery({
-  queryKey: ['grading-product', student.current_belt, nextBelt, student.branch_id],
-  queryFn: async () => {
-    // Build the expected product name pattern: "Foundation 1 >> Foundation 2"
-    const productName = `${formatBeltLevel(student.current_belt)} >> ${formatBeltLevel(nextBelt)}`;
-    
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .eq('name', productName)
-      .maybeSingle();
-    
-    if (!data) return null;
-    
-    // Check for branch-specific pricing override
-    if (student.branch_id) {
-      const { data: priceRule } = await supabase
-        .from('price_rules')
-        .select('price_override, is_active')
-        .eq('product_id', data.id)
-        .eq('branch_id', student.branch_id)
-        .maybeSingle();
-      
-      // If rule exists and is hidden, return null
-      if (priceRule?.is_active === false) return null;
-      
-      return {
-        ...data,
-        effective_price: priceRule?.price_override ?? data.base_price,
-      };
-    }
-    
-    return { ...data, effective_price: data.base_price };
-  },
-  enabled: !!student.current_belt && !!nextBelt,
-});
+const countryCodeMap: Record<string, string> = {
+  'Singapore': 'SG',
+  'Australia': 'AU'
+};
 ```
 
-**2. Merge Steps into Single Screen**
+Templates in the database use short codes (SG/AU), while branches use full names.
 
-Current flow:
-```
-Step 1 (select): Choose slot → Click "Create Invoice & Pay" → Creates invoice
-Step 2 (payment): Upload proof → Click "Submit Payment" → Records payment
-Step 3 (success): Done
-```
-
-New flow:
-```
-Step 1 (select): Choose slot + Payment Method + Proof Upload → Click "Create Invoice & Pay"
-  → Creates invoice AND records payment in one mutation
-Step 2 (success): Done
-```
-
-**3. UI Layout Changes**
-
-Add payment section below the grading fee summary on the initial "select" step:
-
-```tsx
-{/* Summary Section */}
-{selectedSlot && gradingProduct && (
-  <Card className="bg-primary/5 border-primary/20">
-    <CardContent className="p-4 space-y-2">
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">Date</span>
-        <span className="font-medium">{format(...)}</span>
-      </div>
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">Time</span>
-        <span className="font-medium">{...}</span>
-      </div>
-      <div className="border-t pt-2 flex justify-between">
-        <span className="font-semibold">Grading Fee</span>
-        <span className="font-bold text-lg">
-          ${gradingProduct.effective_price?.toFixed(2)}
-        </span>
-      </div>
-    </CardContent>
-  </Card>
-)}
-
-{/* NEW: Payment Section - Shown on same screen */}
-{selectedSlot && gradingProduct && (
-  <div className="space-y-4 pt-2">
-    <Label className="text-base font-semibold">Payment</Label>
-    
-    {/* Payment Method */}
-    <div className="space-y-2">
-      <Label>Payment Method *</Label>
-      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {getPaymentMethods().map((method) => (...))}
-        </SelectContent>
-      </Select>
-    </div>
-
-    {/* Reference Number */}
-    <div className="space-y-2">
-      <Label>Reference Number (Optional)</Label>
-      <Input value={referenceNumber} onChange={...} placeholder="Transaction reference" />
-    </div>
-
-    {/* Proof of Payment */}
-    <div className="space-y-2">
-      <Label>Proof of Payment *</Label>
-      <div className="border-2 border-dashed rounded-lg p-4 text-center">
-        {/* File upload UI */}
-      </div>
-    </div>
-  </div>
-)}
-```
-
-**4. Combined Mutation**
-
-Merge the separate invoice and payment mutations into one:
-
-```typescript
-const createInvoiceAndPayMutation = useMutation({
-  mutationFn: async () => {
-    if (!selectedSlot || !gradingProduct || !student.branch_id || !student.current_belt) {
-      throw new Error('Missing required data');
-    }
-    if (!proofFile) {
-      throw new Error('Proof of payment is required');
-    }
-    if (duplicateError) {
-      throw new Error(duplicateError);
-    }
-
-    // Step 1: Create invoice
-    const invoice = await createInvoice({
-      student_id: studentId,
-      branch_id: student.branch_id,
-      payment_terms_days: 7,
-      internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)}...`,
-      items: [{
-        product_id: gradingProduct.id,
-        description: gradingProduct.name,
-        quantity: 1,
-        unit_price: gradingProduct.effective_price || gradingProduct.base_price,
-        metadata: {
-          grading_slot_id: selectedSlot.id,
-          grading_date: selectedSlot.grading_date,
-          current_belt: student.current_belt,
-          target_belt: nextBelt,
-        },
-      }],
-    });
-
-    // Step 2: Upload proof of payment
-    setIsUploading(true);
-    const proofUrl = await uploadProofOfPayment(proofFile);
-
-    // Step 3: Create payment
-    await createPayment({
-      invoice_id: invoice.id,
-      amount: invoice.total_amount,
-      payment_date: new Date().toISOString().split('T')[0],
-      payment_method: paymentMethod,
-      reference_number: referenceNumber || undefined,
-      proof_of_payment_url: proofUrl,
-    });
-
-    return invoice;
-  },
-  onSuccess: () => {
-    setStep('success');
-    queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
-    toast.success('Invoice created and payment recorded successfully!');
-  },
-  // ...
-});
-```
-
-**5. Remove Two-Step Logic**
-
-- Remove the separate `createInvoiceMutation` and `createPaymentMutation`
-- Replace with single `createInvoiceAndPayMutation`
-- Remove `step === 'payment'` conditional rendering block
-- Keep only `step === 'select'` and `step === 'success'`
-
----
-
-## File Changes Summary
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/dashboard/PayGradingDialog.tsx` | - Fix grading product query to match belt transition (e.g., "Foundation 1 >> Foundation 2")<br>- Add branch-specific pricing lookup<br>- Move payment form fields to initial screen<br>- Combine invoice + payment into single mutation<br>- Remove separate "payment" step |
+| `src/components/sales/CreatePaymentDialog.tsx` | Add isStudentPortal prop, fetch template, hide cash, display payment info |
+| `src/components/dashboard/PayGradingDialog.tsx` | Fetch template, display payment info based on method |
+| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Fetch template, display payment info based on method |
+| `src/components/dashboard/StudentDashboard.tsx` | Pass isStudentPortal={true} to CreatePaymentDialog |
 
----
-
-## Expected Result
-
-After implementation:
-- Student with "Foundation 1" belt sees **$45.00** grading fee (for Foundation 1 >> Foundation 2)
-- Payment method, reference, and proof upload appear below the fee summary
-- Single "Create Invoice & Pay" click creates invoice AND records payment
-- Dialog shows success screen directly after submission
+## Testing Checklist
+- [ ] CreatePaymentDialog from Student Portal: Cash option hidden, bank info/QR shows correctly
+- [ ] CreatePaymentDialog from Invoice Management: All options available, bank info/QR shows correctly
+- [ ] PayGradingDialog: Bank info shows for bank_transfer, QR shows for paynow
+- [ ] PaySchoolFeesDialog: Bank info shows for bank_transfer, QR shows for paynow
+- [ ] Singapore branches: PayNow QR code displays correctly
+- [ ] Australia branches: Bank transfer info displays correctly
+- [ ] Template without bank_transfer_info: No card shown for bank transfer
+- [ ] Template without paynow_qr_url: No card shown for PayNow
