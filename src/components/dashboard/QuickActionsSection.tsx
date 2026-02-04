@@ -51,11 +51,9 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     queryFn: async () => {
       if (!student.branch_id) return [];
       const terms = await getActiveTermsForSelection();
-      const today = new Date().toISOString().split('T')[0];
-      return terms.filter(t => 
-        t.branch_id === student.branch_id && 
-        t.start_date >= today
-      );
+      // Only filter by branch - getActiveTermsForSelection() already 
+      // returns terms where end_date >= today
+      return terms.filter(t => t.branch_id === student.branch_id);
     },
     enabled: hasBranch,
   });
