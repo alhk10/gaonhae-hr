@@ -339,11 +339,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Pay School Fees'}
-            {step === 'success' && 'Payment Successful'}
           </DialogTitle>
           <DialogDescription>
             {step === 'select' && 'Select your term and class enrollment'}
-            {step === 'success' && 'Your enrollment has been confirmed'}
           </DialogDescription>
         </DialogHeader>
 
@@ -563,12 +561,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">Enrollment Confirmed!</h3>
-              <p className="text-muted-foreground">
-                Your payment has been recorded and your enrollment is active.
-              </p>
-            </div>
+            <h3 className="font-semibold text-lg">Enrollment Confirmed!</h3>
             <Button onClick={handleClose}>
               Done
             </Button>
