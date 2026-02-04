@@ -5,11 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  Users, 
-  DollarSign, 
   Search, 
-  TrendingUp,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Filter,
@@ -37,6 +33,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { getCurrentTerm } from '@/services/termCalendarService';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -101,21 +99,54 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  // Calculate stats
-  const activeStudents = students.filter(s => s.status === 'Active').length;
-  const totalStudents = students.length;
-  
-  const thisMonthInvoices = invoices.filter(inv => {
-    const invoiceDate = new Date(inv.created_at);
-    const now = new Date();
-    return invoiceDate.getMonth() === now.getMonth() && 
-           invoiceDate.getFullYear() === now.getFullYear();
+  // Fetch current term for this branch
+  const { data: currentTerm } = useQuery({
+    queryKey: ['current-term', branchId],
+    queryFn: () => getCurrentTerm(branchId),
+    enabled: !!branchId,
   });
-  
-  const monthlyRevenue = thisMonthInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const outstandingAmount = invoices
-    .filter(inv => inv.status === 'unpaid' || inv.status === 'partial')
-    .reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+
+  // Fetch active students (students who have paid invoices this term)
+  const { data: activeStudentIds = [] } = useQuery({
+    queryKey: ['active-students-paid', branchId, currentTerm?.id],
+    queryFn: async () => {
+      if (!currentTerm) return [];
+      
+      const { data: paidInvoices } = await supabase
+        .from('invoices')
+        .select('student_id')
+        .eq('branch_id', branchId)
+        .eq('status', 'paid')
+        .gte('issue_date', currentTerm.start_date)
+        .lte('issue_date', currentTerm.end_date);
+      
+      const uniqueStudentIds = [...new Set((paidInvoices || []).map(inv => inv.student_id))];
+      return uniqueStudentIds;
+    },
+    enabled: !!branchId && !!currentTerm,
+  });
+
+  // Fetch outstanding invoice amount for current term
+  const { data: outstandingAmount = 0 } = useQuery({
+    queryKey: ['outstanding-invoices', branchId, currentTerm?.id],
+    queryFn: async () => {
+      if (!currentTerm) return 0;
+      
+      const { data: unpaidInvoices } = await supabase
+        .from('invoices')
+        .select('balance_due')
+        .eq('branch_id', branchId)
+        .in('status', ['unpaid', 'partial', 'draft', 'sent', 'overdue'])
+        .gte('issue_date', currentTerm.start_date)
+        .lte('issue_date', currentTerm.end_date);
+      
+      return (unpaidInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+    },
+    enabled: !!branchId && !!currentTerm,
+  });
+
+  const activeStudentsCount = activeStudentIds.length;
+  const branchCurrency = branch?.currency || 'SGD';
 
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
@@ -161,14 +192,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="approvals">
-            Pending Approvals
-            {pendingRequests.length > 0 && (
-              <Badge variant="destructive" className="ml-2">{pendingRequests.length}</Badge>
-            )}
-          </TabsTrigger>
+          <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
+          <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
+          <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
           <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
         </TabsList>
 
@@ -280,10 +306,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="revenue">
+        <TabsContent value="invoices">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Invoices</CardTitle>
+              <CardTitle>Invoices & Payments</CardTitle>
               <CardDescription>Last 20 invoices for this branch</CardDescription>
             </CardHeader>
             <CardContent>
