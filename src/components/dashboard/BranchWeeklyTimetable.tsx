@@ -6,20 +6,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from 'date-fns';
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
-import { getScheduledClasses, ScheduledClass } from '@/services/classEnrollmentService';
+import { getScheduledClasses } from '@/services/classEnrollmentService';
+import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services/gradingService';
 
 interface BranchWeeklyTimetableProps {
   branchId: string;
 }
 
 interface GroupedClass {
-  timetableId: string;
+  id: string;
+  type: 'class' | 'grading';
   startTime: string;
   endTime: string;
   classType: string;
-  students: { id: string; name: string; status: string }[];
+  students: { id: string; name: string; status?: string; currentBelt?: string }[];
+  beltLevels?: string[];
 }
 
 const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId }) => {
@@ -50,15 +53,28 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
     staleTime: 60 * 1000, // 1 minute
   });
 
-  const isLoading = timetableLoading || classesLoading;
+  // Fetch grading slots for the week
+  const { data: gradingSlots = [], isLoading: gradingLoading } = useQuery({
+    queryKey: ['grading-slots-week', branchId, format(currentWeekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd')],
+    queryFn: () => getGradingSlotsForWeek(
+      format(currentWeekStart, 'yyyy-MM-dd'),
+      format(weekEnd, 'yyyy-MM-dd'),
+      branchId
+    ),
+    enabled: !!branchId,
+    staleTime: 60 * 1000, // 1 minute
+  });
 
-  // Group scheduled classes by date and time slot
+  const isLoading = timetableLoading || classesLoading || gradingLoading;
+
+  // Group scheduled classes and grading slots by date
   const groupedByDay = useMemo(() => {
     const result: Record<string, GroupedClass[]> = {};
 
     weekDays.forEach(day => {
       const dateKey = format(day, 'yyyy-MM-dd');
       const dayOfWeek = day.getDay();
+      const allSlots: GroupedClass[] = [];
       
       // Get timetable slots for this day
       const dayTimetable = timetable
@@ -68,16 +84,17 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
       // Get scheduled classes for this day
       const dayClasses = scheduledClasses.filter(sc => sc.scheduled_date === dateKey);
 
-      // Group students by time slot
-      const timeSlotGroups: GroupedClass[] = dayTimetable.map(slot => {
+      // Add regular class slots
+      dayTimetable.forEach(slot => {
         const matchingClasses = dayClasses.filter(sc => 
           sc.start_time === slot.start_time && 
           sc.end_time === slot.end_time &&
           sc.class_type === slot.class_type
         );
 
-        return {
-          timetableId: slot.id,
+        allSlots.push({
+          id: slot.id,
+          type: 'class',
           startTime: slot.start_time,
           endTime: slot.end_time,
           classType: slot.class_type,
@@ -86,14 +103,35 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
             name: sc.student_name || 'Unknown',
             status: sc.status,
           })),
-        };
+        });
       });
 
-      result[dateKey] = timeSlotGroups;
+      // Add grading slots for this day
+      const dayGradingSlots = gradingSlots.filter(gs => gs.grading_date === dateKey);
+      dayGradingSlots.forEach(grading => {
+        allSlots.push({
+          id: grading.id,
+          type: 'grading',
+          startTime: grading.start_time || '00:00',
+          endTime: grading.end_time || grading.start_time || '00:00',
+          classType: grading.title || 'Grading',
+          beltLevels: grading.belt_levels || [],
+          students: grading.registrations.map(reg => ({
+            id: reg.id,
+            name: reg.student_name,
+            currentBelt: reg.current_belt,
+          })),
+        });
+      });
+
+      // Sort all slots by start time
+      allSlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      result[dateKey] = allSlots;
     });
 
     return result;
-  }, [weekDays, timetable, scheduledClasses]);
+  }, [weekDays, timetable, scheduledClasses, gradingSlots]);
 
   const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const goToPreviousWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
@@ -179,7 +217,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                       <div className="text-lg">{format(day, 'd')}</div>
                     </div>
 
-                    {/* Class Slots */}
+                    {/* Class and Grading Slots */}
                     <div className="p-2 space-y-2 min-h-[200px]">
                       {dayClasses.length === 0 ? (
                         <p className="text-xs text-muted-foreground text-center py-4">
@@ -188,15 +226,37 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                       ) : (
                         dayClasses.map(slot => (
                           <div
-                            key={slot.timetableId}
-                            className="bg-card border rounded p-2 space-y-1"
+                            key={slot.id}
+                            className={`border rounded p-2 space-y-1 ${
+                              slot.type === 'grading' 
+                                ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' 
+                                : 'bg-card'
+                            }`}
                           >
                             <div className="text-xs font-medium text-muted-foreground">
                               {formatTimeDisplay(slot.startTime)} - {formatTimeDisplay(slot.endTime)}
                             </div>
-                            <Badge variant="secondary" className="text-xs w-full justify-center">
-                              {slot.classType}
-                            </Badge>
+                            
+                            {slot.type === 'grading' ? (
+                              <>
+                                <Badge className="text-xs w-full justify-center bg-amber-500 hover:bg-amber-600 text-white">
+                                  GRADING
+                                </Badge>
+                                {slot.beltLevels && slot.beltLevels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {slot.beltLevels.map((belt, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {belt}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs w-full justify-center">
+                                {slot.classType}
+                              </Badge>
+                            )}
                             
                             {slot.students.length === 0 ? (
                               <p className="text-xs text-muted-foreground italic text-center">
@@ -207,10 +267,17 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                                 {slot.students.map(student => (
                                   <div
                                     key={student.id}
-                                    className={`text-xs px-1.5 py-0.5 rounded truncate ${getStatusColor(student.status)}`}
-                                    title={student.name}
+                                    className={`text-xs px-1.5 py-0.5 rounded truncate ${
+                                      slot.type === 'grading' 
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                                        : getStatusColor(student.status || 'scheduled')
+                                    }`}
+                                    title={student.currentBelt ? `${student.name} (${student.currentBelt})` : student.name}
                                   >
                                     {student.name}
+                                    {student.currentBelt && (
+                                      <span className="ml-1 opacity-75">({student.currentBelt})</span>
+                                    )}
                                   </div>
                                 ))}
                               </div>
