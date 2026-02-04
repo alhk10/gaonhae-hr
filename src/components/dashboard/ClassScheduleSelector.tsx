@@ -89,16 +89,31 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     });
   };
 
-  // Helper to check if a week overlaps with a term break
-  const isWeekInBreak = (weekStart: Date, weekEnd: Date, breaks: any[]): boolean => {
-    return breaks.some(brk => {
-      const breakStart = parseISO(brk.start_date);
-      const breakEnd = parseISO(brk.end_date);
-      // Week is in break if any day of the week falls within the break period
-      return isWithinInterval(weekStart, { start: breakStart, end: breakEnd }) ||
-             isWithinInterval(weekEnd, { start: breakStart, end: breakEnd }) ||
-             (weekStart <= breakStart && weekEnd >= breakEnd);
+  // Helper to check if a week is entirely a break (all operating days are within break)
+  const isWeekInBreak = (
+    weekStart: Date,
+    operatingWeekdays: number[], // e.g., [1,2,3,4,5] for Mon-Fri
+    breaks: any[]
+  ): boolean => {
+    if (operatingWeekdays.length === 0 || breaks.length === 0) return false;
+    
+    // Get the actual dates for each operating day within this week
+    const operatingDates = operatingWeekdays.map(weekday => {
+      // weekday: 1=Mon, 2=Tue, ..., 5=Fri, 6=Sat, 0=Sun
+      // Since weekStart is Monday (weekStartsOn: 1), offset is:
+      // Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+      const dayOffset = weekday === 0 ? 6 : weekday - 1;
+      return addDays(weekStart, dayOffset);
     });
+    
+    // Week is a "break week" only if ALL operating days fall within a break period
+    return operatingDates.every(date =>
+      breaks.some(brk => {
+        const breakStart = parseISO(brk.start_date);
+        const breakEnd = parseISO(brk.end_date);
+        return isWithinInterval(date, { start: breakStart, end: breakEnd });
+      })
+    );
   };
 
   // Generate weeks for the term (excluding term breaks, public holidays, and past dates)
@@ -117,8 +132,9 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     while (currentWeekStart <= termEnd && weekNumber < 20) { // Max 20 weeks for safety
       const weekEnd = addDays(currentWeekStart, 6);
       
-      // Check if this week is during a break
-      const isBreakWeek = isWeekInBreak(currentWeekStart, weekEnd, breaks);
+      // Check if this week is during a break (only considering operating days)
+      const operatingWeekdays = operatingDays.map(d => d.value);
+      const isBreakWeek = isWeekInBreak(currentWeekStart, operatingWeekdays, breaks);
       
       if (!isBreakWeek) {
         // Increment week number for all non-break weeks (even if past/hidden)
