@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
-import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay } from 'date-fns';
+import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
@@ -101,13 +101,14 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     });
   };
 
-  // Generate weeks for the term (excluding term breaks and weeks that are entirely public holidays)
+  // Generate weeks for the term (excluding term breaks, public holidays, and past dates)
   const termWeeks = useMemo(() => {
     if (!term) return [];
     
     const termStart = parseISO(term.start_date);
     const termEnd = parseISO(term.end_date);
     const breaks = term.breaks || [];
+    const today = startOfDay(new Date()); // Today at midnight for comparison
     
     const weeks: { weekNumber: number; startDate: Date; days: Date[] }[] = [];
     let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 }); // Start on Monday
@@ -125,17 +126,20 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
           .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
         
         // Filter out public holidays from the days
-        const validDays = daysInTerm.filter(day => !isPublicHoliday(day));
+        const daysWithoutHolidays = daysInTerm.filter(day => !isPublicHoliday(day));
         
-        // Only add the week if there are valid days (not all are holidays)
+        // Filter out past dates (keep today and future dates)
+        const validDays = daysWithoutHolidays.filter(day => !isBefore(day, today));
+        
+        // Only add the week if there are valid future days
         if (validDays.length > 0) {
           weeks.push({
             weekNumber,
             startDate: currentWeekStart,
             days: validDays,
           });
-          weekNumber++;
         }
+        weekNumber++;
       }
       
       currentWeekStart = addWeeks(currentWeekStart, 1);
