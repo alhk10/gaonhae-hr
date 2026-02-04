@@ -286,7 +286,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                 return (
                   <div 
                     key={`${cls.class_type}-${cls.start_time}`} 
-                    className="w-32 flex-shrink-0 p-1 border-l flex flex-col gap-1 items-center justify-center"
+                    className="w-32 flex-shrink-0 p-1 border-l flex flex-row flex-wrap gap-1 items-center justify-center"
                   >
                     {daysWithClass.map(day => {
                       const matchingClass = eligibleClasses.find((c: any) => 
@@ -304,7 +304,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                           key={day.toISOString()}
                           onClick={() => handleToggleSlot(matchingClass.id, day)}
                           className={`
-                            w-full px-2 py-1 rounded text-xs font-medium transition-all
+                            px-1.5 py-1 rounded text-xs font-medium transition-all
                             ${isSelected 
                               ? 'bg-primary text-primary-foreground' 
                               : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
