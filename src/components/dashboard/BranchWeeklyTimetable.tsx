@@ -234,7 +234,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                             }`}
                           >
                             <div className="text-xs font-medium text-muted-foreground">
-                              {formatTimeDisplay(slot.startTime)} - {formatTimeDisplay(slot.endTime)}
+                              {formatTimeDisplay(slot.startTime)}
                             </div>
                             
                             {slot.type === 'grading' ? (
