@@ -1,128 +1,156 @@
 
-# Plan: Display Payment Information in All Payment Components
+# Plan: Enhance Branch Dashboard with Renamed Title and Weekly Timetable Tab
 
 ## Overview
-Enhance all payment dialogs and sections to display dynamic payment instructions (Bank Transfer info or PayNow QR code) based on the selected payment method and branch template. Additionally, hide the "Cash" payment option when accessed from the Student Portal.
+Update the Branch Dashboard to:
+1. Rename the header from "Branch Dashboard - Morley" to "Morley Dashboard"
+2. Remove the description text ("Manage students, view sales, and approve changes")
+3. Add a new "Weekly Timetable" tab showing classes and enrolled students by week
 
-## Components to Update
+## Changes Summary
 
-| Component | Purpose | Changes Required |
-|-----------|---------|-----------------|
-| `CreatePaymentDialog.tsx` | Record payment against invoices | Add template display, hide cash for portal |
-| `PayGradingDialog.tsx` | Student pays for grading registration | Add template display, hide cash for portal |
-| `PaySchoolFeesDialog.tsx` | Student pays for term enrollment | Add template display, hide cash for portal |
+| File | Change |
+|------|--------|
+| `src/components/dashboard/BranchDashboard.tsx` | Rename header, remove description, add Weekly Timetable tab |
+| `src/components/dashboard/BranchWeeklyTimetable.tsx` | New component for weekly class view with student enrollment |
 
-## Detailed Changes
+## UI Changes
 
-### 1. CreatePaymentDialog.tsx
+### Before
+```text
+Branch Dashboard - Morley
+Manage students, view sales, and approve changes
 
-**Add prop for Student Portal context:**
+[Stats Cards]
+[Students] [Revenue] [Pending Approvals]
+```
+
+### After
+```text
+Morley Dashboard
+
+[Stats Cards]
+[Students] [Revenue] [Pending Approvals] [Weekly Timetable]
+```
+
+## Detailed Implementation
+
+### 1. Update Header in BranchDashboard.tsx
+
+**Current:**
+```tsx
+<h2 className="text-2xl font-bold text-gray-900">
+  Branch Dashboard - {branch?.name || 'Loading...'}
+</h2>
+<p className="text-muted-foreground">
+  Manage students, view sales, and approve changes
+</p>
+```
+
+**New:**
+```tsx
+<h2 className="text-2xl font-bold text-gray-900">
+  {branch?.name || 'Loading...'} Dashboard
+</h2>
+{/* Description removed */}
+```
+
+### 2. Add Weekly Timetable Tab
+
+Add a new tab trigger after "Pending Approvals":
+```tsx
+<TabsTrigger value="timetable">
+  Weekly Timetable
+</TabsTrigger>
+```
+
+Add corresponding TabsContent:
+```tsx
+<TabsContent value="timetable">
+  <BranchWeeklyTimetable branchId={branchId} />
+</TabsContent>
+```
+
+### 3. New Component: BranchWeeklyTimetable
+
+Create a new component that displays:
+- Week navigation (previous/next week buttons, today button)
+- Week date range display (e.g., "Week of Feb 3 - Feb 9, 2026")
+- Daily columns showing:
+  - Weekday header with date
+  - Class time slots from the branch timetable
+  - Students enrolled in each class slot (grouped by class type/time)
+
+**Data Flow:**
+1. Fetch branch timetable (`branch_timetables` table) for class schedule template
+2. Fetch active enrollments for the branch (`student_class_enrollments`)
+3. Fetch scheduled classes for the week (`student_scheduled_classes`)
+4. For each weekday, display:
+   - All defined class slots from the timetable
+   - Students who have scheduled classes matching that slot
+
+**Component Structure:**
+```text
++---------------------------------------------------------------+
+|  Week Navigation                                               |
+|  [<] [Today] [>]   Week of Feb 3 - Feb 9, 2026                |
++---------------------------------------------------------------+
+| Mon 3     | Tue 4     | Wed 5     | Thu 6     | Fri 7     |...
++-----------+-----------+-----------+-----------+-----------+
+| 4:00 PM   | 4:00 PM   | 4:00 PM   | 4:00 PM   | 4:00 PM   |
+| Junior    | Junior    | Junior    | Junior    | Junior    |
+| - Kyle B  | - Ethan B |           | - Kyle B  | - Mingyu S|
+|           |           |           |           |           |
+| 5:00 PM   | 5:00 PM   | 5:00 PM   | 5:00 PM   | 5:00 PM   |
+| Kids      | Kids      | Kids      | Kids      | Kids      |
+| - Ethan B |           | - Kyle B  |           | - Ethan B |
++-----------+-----------+-----------+-----------+-----------+
+```
+
+**Props Interface:**
 ```typescript
-interface CreatePaymentDialogProps {
-  trigger: React.ReactNode;
-  onPaymentCreated?: () => void;
-  preSelectedInvoiceId?: string;
-  isStudentPortal?: boolean; // NEW - to hide cash option
+interface BranchWeeklyTimetableProps {
+  branchId: string;
 }
 ```
 
-**Add template fetching logic:**
-- Fetch invoice templates using `getInvoiceTemplates()`
-- Filter to find template matching the invoice's branch country
-- Map country names: `Singapore` → `SG`, `Australia` → `AU`
+**Data Queries:**
+1. `getClassSchedules(branchId)` - Get recurring class template
+2. `getScheduledClasses(weekStart, weekEnd, branchId)` - Get actual scheduled classes
+3. Join with student names for display
 
-**Hide Cash for Student Portal:**
-- When `isStudentPortal` is true, filter out the "cash" payment method from the dropdown
+**Visual Design:**
+- Use a grid layout with columns for each weekday
+- Each class slot shows:
+  - Time (e.g., "4:00 PM - 5:00 PM")
+  - Class type (e.g., "Junior", "Kids")
+  - List of enrolled students for that specific slot
+- Color-code by class type for visual distinction
+- Show empty placeholder if no students enrolled
+- Highlight today's column
 
-**Add conditional UI after Payment Method dropdown:**
-- When "Bank Transfer" is selected and template has `bank_transfer_info`:
-  - Display a styled card with bank transfer details
-- When "PayNow" is selected and template has `paynow_qr_url`:
-  - Display a styled card with the QR code image
+## Technical Notes
 
-### 2. PayGradingDialog.tsx
+### Dependencies
+- Uses existing services:
+  - `branchTimetableService.ts` for class schedule template
+  - `classEnrollmentService.ts` for scheduled classes
+- Uses existing UI components: Card, Button, Badge, ScrollArea
+- Uses date-fns for week calculations
 
-**Add template fetching:**
-- Use React Query to fetch invoice templates
-- Filter by country code based on student's branch country
+### State Management
+- `currentWeek`: Date state for week navigation
+- React Query for data fetching with proper cache keys
+- Derived state for grouping classes by day and time
 
-**Hide Cash (currently not present, but ensure it stays hidden):**
-- Current code only shows PayNow and Bank Transfer for Singapore
-- Ensure "cash" is never shown in the Student Portal context
+### Performance Considerations
+- Only fetch data for the displayed week
+- Use React Query caching with 1-minute stale time
+- Memoize grouped data calculations
 
-**Add conditional payment info display:**
-- After the Payment Method selector, display:
-  - Bank transfer info card when "bank_transfer" is selected
-  - PayNow QR code card when "paynow" is selected
+## Files to Create/Modify
 
-### 3. PaySchoolFeesDialog.tsx
-
-**Add template fetching:**
-- Fetch templates and match by branch country code
-
-**Hide Cash (same as PayGradingDialog):**
-- Remove "cash" option completely for Student Portal flows
-
-**Add conditional payment info display:**
-- Same UI pattern as other dialogs for bank info and QR codes
-
-### 4. Update StudentDashboard.tsx
-
-**Pass Student Portal flag:**
-- When rendering `CreatePaymentDialog`, pass `isStudentPortal={true}` to hide cash option
-
-## UI Design
-
-**Bank Transfer Info Card:**
-```text
-+----------------------------------+
-| 🏦 Bank Transfer Details         |
-|                                  |
-| [Multi-line bank transfer info   |
-|  from template]                  |
-+----------------------------------+
-```
-- Blue-tinted background (`bg-blue-50 border-blue-200`)
-- Pre-formatted text preserving line breaks
-
-**PayNow QR Code Card:**
-```text
-+----------------------------------+
-|      Scan to Pay via PayNow      |
-|                                  |
-|         [ QR Code Image ]        |
-|                                  |
-+----------------------------------+
-```
-- Purple-tinted background (`bg-purple-50 border-purple-200`)
-- Centered QR code image (160x160px)
-
-## Country Code Mapping
-
-```typescript
-const countryCodeMap: Record<string, string> = {
-  'Singapore': 'SG',
-  'Australia': 'AU'
-};
-```
-
-Templates in the database use short codes (SG/AU), while branches use full names.
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/sales/CreatePaymentDialog.tsx` | Add isStudentPortal prop, fetch template, hide cash, display payment info |
-| `src/components/dashboard/PayGradingDialog.tsx` | Fetch template, display payment info based on method |
-| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Fetch template, display payment info based on method |
-| `src/components/dashboard/StudentDashboard.tsx` | Pass isStudentPortal={true} to CreatePaymentDialog |
-
-## Testing Checklist
-- [ ] CreatePaymentDialog from Student Portal: Cash option hidden, bank info/QR shows correctly
-- [ ] CreatePaymentDialog from Invoice Management: All options available, bank info/QR shows correctly
-- [ ] PayGradingDialog: Bank info shows for bank_transfer, QR shows for paynow
-- [ ] PaySchoolFeesDialog: Bank info shows for bank_transfer, QR shows for paynow
-- [ ] Singapore branches: PayNow QR code displays correctly
-- [ ] Australia branches: Bank transfer info displays correctly
-- [ ] Template without bank_transfer_info: No card shown for bank transfer
-- [ ] Template without paynow_qr_url: No card shown for PayNow
+| File | Action |
+|------|--------|
+| `src/components/dashboard/BranchDashboard.tsx` | Modify header, add tab |
+| `src/components/dashboard/BranchWeeklyTimetable.tsx` | Create new component |
