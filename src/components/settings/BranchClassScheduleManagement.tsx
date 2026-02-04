@@ -44,6 +44,7 @@ import {
 } from '@/services/branchTimetableService';
 import { ClassScheduleDialog } from './ClassScheduleDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
 
 interface Branch {
   id: string;
@@ -385,7 +386,7 @@ function ClassCard({
             {formatTime(classSchedule.start_time)} -{' '}
             {formatTime(classSchedule.end_time)}
           </span>
-          <Badge variant="outline">{classSchedule.class_type}</Badge>
+          <Badge variant="outline" className={getClassTypeBadgeClasses(classSchedule.class_type)}>{classSchedule.class_type}</Badge>
           {!classSchedule.is_active && (
             <Badge variant="secondary">Inactive</Badge>
           )}
