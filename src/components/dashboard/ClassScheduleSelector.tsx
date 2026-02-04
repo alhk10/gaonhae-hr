@@ -278,10 +278,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="text-sm text-muted-foreground flex items-center gap-2">
-        <CalendarDays className="w-4 h-4" />
-        <span>Select classes you want to attend (Age: {studentAge.toFixed(1)} years)</span>
-      </div>
 
       <ScrollArea className="w-full">
         <div className="w-full">
@@ -302,11 +298,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                   <div className="text-xs text-muted-foreground">
                     {formatTime(cls.start_time)} - {formatTime(cls.end_time)}
                   </div>
-                  {cls.age_from && cls.age_to && (
-                    <Badge variant="outline" className="text-xs mt-1">
-                      {cls.age_from}-{cls.age_to} yrs
-                    </Badge>
-                  )}
                   {/* Day checkboxes */}
                   <div className="flex flex-wrap items-center justify-center gap-1 mt-2">
                     {weekdaysForClass.sort((a, b) => a - b).map(wd => {
