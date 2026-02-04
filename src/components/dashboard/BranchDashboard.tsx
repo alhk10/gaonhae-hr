@@ -24,6 +24,7 @@ import {
 } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
+import BranchGradingList from './BranchGradingList';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -145,6 +146,48 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
+  // Fetch grading list count (students with lesson invoices for current term)
+  const { data: gradingListCount = 0 } = useQuery({
+    queryKey: ['grading-list-count', branchId, currentTerm?.id],
+    queryFn: async () => {
+      if (!currentTerm) return 0;
+      
+      // Get lesson products
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
+      if (lessonProductIds.length === 0) return 0;
+
+      // Get invoice items with lesson products for this branch
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select(`
+          metadata,
+          invoices!inner (
+            student_id,
+            branch_id
+          )
+        `)
+        .in('product_id', lessonProductIds)
+        .eq('invoices.branch_id', branchId);
+
+      // Filter by term_id in metadata and get unique student count
+      const studentIds = new Set<string>();
+      (invoiceItems || []).forEach(item => {
+        const metadata = item.metadata as Record<string, any> | null;
+        if (metadata?.term_id === currentTerm.id) {
+          studentIds.add((item.invoices as any).student_id);
+        }
+      });
+
+      return studentIds.size;
+    },
+    enabled: !!branchId && !!currentTerm,
+  });
+
   const activeStudentsCount = activeStudentIds.length;
   const branchCurrency = branch?.currency || 'SGD';
 
@@ -194,6 +237,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <TabsList className="flex-wrap">
           <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
+          <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
           <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
           <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
         </TabsList>
@@ -394,6 +438,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="grading">
+          <BranchGradingList branchId={branchId} />
         </TabsContent>
 
         <TabsContent value="timetable">
