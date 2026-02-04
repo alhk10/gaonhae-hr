@@ -74,6 +74,45 @@ export function calculateTeachingWeeks(
   return Math.round(totalDays / 7);
 }
 
+// Calculate remaining teaching weeks from today until term end, excluding breaks
+export function calculateRemainingTeachingWeeks(
+  termEndDate: string,
+  breaks: TermBreak[] = []
+): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(termEndDate);
+  
+  // If term has ended, return 0
+  if (today > end) return 0;
+  
+  // Total days from today to term end
+  let totalDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  
+  // Subtract break days that are in the future
+  for (const brk of breaks) {
+    const breakStart = new Date(brk.start_date);
+    const breakEnd = new Date(brk.end_date);
+    
+    // Only count breaks that haven't passed yet
+    if (breakEnd >= today) {
+      const effectiveBreakStart = breakStart < today ? today : breakStart;
+      const breakDays = Math.ceil((breakEnd.getTime() - effectiveBreakStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      totalDays -= breakDays;
+    }
+  }
+  
+  // Convert to weeks (round to nearest, minimum 1 if there are remaining days)
+  const weeks = Math.round(totalDays / 7);
+  return weeks > 0 ? weeks : (totalDays > 0 ? 1 : 0);
+}
+
+// Check if we are currently inside a term
+export function isInsideTerm(term: Term): boolean {
+  const today = new Date().toISOString().split('T')[0];
+  return term.start_date <= today && term.end_date >= today;
+}
+
 // Get validity end date (term end + grace days)
 export function getValidityEndDate(term: Term): Date {
   const endDate = new Date(term.end_date);

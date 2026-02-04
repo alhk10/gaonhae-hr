@@ -23,7 +23,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInYears, differenceInMonths } from 'date-fns';
-import { Term, calculateTeachingWeeks } from '@/services/termCalendarService';
+import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
 import ClassScheduleSelector from './ClassScheduleSelector';
@@ -63,6 +63,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
+  const [isRemainingWeeks, setIsRemainingWeeks] = useState<boolean>(false);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
   
@@ -123,7 +124,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       .sort((a, b) => a.start_date.localeCompare(b.start_date)); // Earliest first
   }, [availableTerms, paidTermIds]);
 
+  // Check if current term is available for "remaining weeks" payment
+  const currentTermForRemaining = useMemo(() => {
+    return unpaidTerms.find(term => isInsideTerm(term));
+  }, [unpaidTerms]);
+
   const selectedTerm = unpaidTerms.find(t => t.id === selectedTermId);
+
+  // Calculate remaining weeks for current term
+  const remainingWeeksForCurrentTerm = useMemo(() => {
+    if (!currentTermForRemaining) return 0;
+    return calculateRemainingTeachingWeeks(currentTermForRemaining.end_date, currentTermForRemaining.breaks || []);
+  }, [currentTermForRemaining]);
 
   // Fetch branch for country-specific payment methods
   const { data: branch } = useQuery({
@@ -219,9 +231,15 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   }, [unpaidTerms, selectedTermId]);
 
   // Calculate price based on selected product and term weeks
-  const termWeeks = selectedTerm 
-    ? calculateTeachingWeeks(selectedTerm.start_date, selectedTerm.end_date, selectedTerm.breaks || [])
-    : 0;
+  // If "remaining weeks" is selected, use remaining weeks calculation
+  const termWeeks = useMemo(() => {
+    if (!selectedTerm) return 0;
+    if (isRemainingWeeks && currentTermForRemaining && selectedTerm.id === currentTermForRemaining.id) {
+      return remainingWeeksForCurrentTerm;
+    }
+    return calculateTeachingWeeks(selectedTerm.start_date, selectedTerm.end_date, selectedTerm.breaks || []);
+  }, [selectedTerm, isRemainingWeeks, currentTermForRemaining, remainingWeeksForCurrentTerm]);
+
   const calculatedPrice = selectedProduct 
     ? termWeeks * selectedProduct.effective_price
     : 0;
@@ -253,14 +271,15 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       }
 
       // Step 1: Create invoice
+      const weeksLabel = isRemainingWeeks ? 'remaining weeks' : 'weeks';
       const invoice = await createInvoice({
         student_id: studentId,
         branch_id: student.branch_id,
         payment_terms_days: 7,
-        internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedProduct.name}`,
+        internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedProduct.name}${isRemainingWeeks ? ' (Remaining weeks)' : ''}`,
         items: [{
           product_id: selectedProduct.id,
-          description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} weeks`,
+          description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} ${weeksLabel}`,
           quantity: termWeeks,
           unit_price: selectedProduct.effective_price,
           metadata: {
@@ -268,6 +287,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
             term_name: selectedTerm.name,
             product_name: selectedProduct.name,
             weeks: termWeeks,
+            is_remaining_weeks: isRemainingWeeks,
             selected_class_slots: selectedClassSlots,
           },
         }],
@@ -328,6 +348,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setSelectedTermId('');
     setSelectedProductId('');
     setSelectedClassSlots([]);
+    setIsRemainingWeeks(false);
     setProofFile(null);
     setReferenceNumber('');
     onOpenChange(false);
@@ -378,17 +399,39 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 {/* Term Selection - Show next unpaid term */}
                 <div className="space-y-2">
                   <Label>Select Term *</Label>
-                  <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+                  <Select 
+                    value={isRemainingWeeks ? `${selectedTermId}:remaining` : selectedTermId} 
+                    onValueChange={(value) => {
+                      if (value.endsWith(':remaining')) {
+                        setSelectedTermId(value.replace(':remaining', ''));
+                        setIsRemainingWeeks(true);
+                      } else {
+                        setSelectedTermId(value);
+                        setIsRemainingWeeks(false);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a term" />
                     </SelectTrigger>
                     <SelectContent>
-                      {unpaidTerms.map((term, index) => (
-                        <SelectItem key={term.id} value={term.id}>
-                          {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
-                          {index === 0 && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
+                      {/* Show "Remaining weeks" option for current term */}
+                      {currentTermForRemaining && remainingWeeksForCurrentTerm > 0 && (
+                        <SelectItem key={`${currentTermForRemaining.id}:remaining`} value={`${currentTermForRemaining.id}:remaining`}>
+                          {currentTermForRemaining.name} - Remaining {remainingWeeksForCurrentTerm} weeks
+                          <Badge variant="outline" className="ml-2 text-xs bg-primary/10 text-primary">Now</Badge>
                         </SelectItem>
-                      ))}
+                      )}
+                      {unpaidTerms.map((term, index) => {
+                        const isCurrentTerm = currentTermForRemaining?.id === term.id;
+                        return (
+                          <SelectItem key={term.id} value={term.id}>
+                            {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
+                            {index === 0 && !isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
+                            {isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Full Term</Badge>}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -437,11 +480,14 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                     <CardContent className="p-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Term</span>
-                        <span className="font-medium">{selectedTerm.name}</span>
+                        <span className="font-medium">
+                          {selectedTerm.name}
+                          {isRemainingWeeks && <span className="text-primary ml-1">(Remaining)</span>}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Duration</span>
-                        <span className="font-medium">{termWeeks} weeks</span>
+                        <span className="font-medium">{termWeeks} {isRemainingWeeks ? 'remaining weeks' : 'weeks'}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Rate</span>
