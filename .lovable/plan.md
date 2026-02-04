@@ -1,237 +1,112 @@
 
-# Plan: Add Grading List Tab with New Current Belt Column
+# Plan: Fix Week Numbering to Consider Operating Days Only
 
-## Overview
+## Problem Analysis
 
-Add a new "Grading List" tab to the Grading Management page showing students invoiced for the current term, with filters for branch/payment status and columns for tracking grading readiness and results including the calculated new belt level.
+The week of February 2-8 is being incorrectly marked as a "break week" because the current logic checks all 7 days (Mon-Sun) for break overlap. However:
 
----
+- **Morley operates Mon-Fri only** (weekday 1-5)
+- The Lunar New Year break starts on Feb 7 (Saturday)
+- For the week of Feb 2-8, the actual operating days (Mon Feb 2 - Fri Feb 6) are all **before** the break starts
 
-## Data Model Changes
+**Current incorrect behavior:**
+- Week starting Feb 2 is marked as a break week (because Feb 7-8 overlap with break)
+- This causes the week counter to skip, making Feb 23 show as "Week 3"
 
-### Database Migration
-
-Add new columns to the `grading_registrations` table:
-
-| Column | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ready_for_grading` | boolean | false | Checkbox to mark student ready |
-| `certificate_ii_issued` | boolean | false | Track second certificate for double promotions |
-
-```sql
-ALTER TABLE grading_registrations 
-ADD COLUMN IF NOT EXISTS ready_for_grading boolean DEFAULT false,
-ADD COLUMN IF NOT EXISTS certificate_ii_issued boolean DEFAULT false;
-```
+**Expected behavior:**
+- Only check break overlap against the branch's operating days
+- Feb 2-6 (Mon-Fri) don't overlap with break (Feb 7-22), so Week 3 counts
+- Feb 23 correctly shows as "Week 4"
 
 ---
 
-## Architecture
+## Term 1 2026 Week Analysis (Morley)
 
-```text
-GradingManagement.tsx
-├── Tab: "Grading Slots" (existing content)
-└── Tab: "Grading List" (new)
-    └── GradingListTab.tsx
-        ├── Filters: Branch, Term (auto-selected), Payment Status
-        ├── Table with grading data
-        └── Inline editing for ready/result fields
-```
+| Week Start | Operating Days (Mon-Fri) | Break Overlap? | Week Number |
+|------------|--------------------------|----------------|-------------|
+| Jan 19 | Jan 19-23 | No | Week 1 |
+| Jan 26 | Jan 26-30 | No | Week 2 |
+| Feb 2 | Feb 2-6 | No (break starts Feb 7) | Week 3 |
+| Feb 9 | Feb 9-13 | Yes (all in break) | Skip |
+| Feb 16 | Feb 16-20 | Yes (all in break) | Skip |
+| Feb 23 | Feb 23-27 | No (break ends Feb 22) | Week 4 |
 
 ---
 
-## New Current Belt Logic
+## Solution
 
-Using the existing belt hierarchy from `src/constants/beltLevels.ts`:
+Modify the `isWeekInBreak` function to only consider the branch's operating days when checking for break overlap.
 
-| Result | New Current Belt Calculation |
-|--------|------------------------------|
-| Empty / null | - (no value shown) |
-| **Fail** | Same as current belt |
-| **Confirmed** | Same as current belt |
-| **Pass** | Next belt in hierarchy (use `getNextBeltLevel()`) |
-| **Double** | Skip one belt (next belt's next belt) |
+### File: `src/components/dashboard/ClassScheduleSelector.tsx`
 
-**Implementation**: Add a new utility function to `beltLevels.ts`:
+**Change the break-checking logic:**
 
 ```typescript
-/**
- * Get the belt level after skipping one (for double promotions)
- * Returns null if not possible
- */
-export const getDoubleBeltLevel = (currentBelt: string): string | null => {
-  const nextBelt = getNextBeltLevel(currentBelt);
-  if (!nextBelt) return null;
-  return getNextBeltLevel(nextBelt);
+// Current approach (incorrect)
+const isWeekInBreak = (weekStart: Date, weekEnd: Date, breaks: any[]): boolean => {
+  // Checks all 7 days of the week including weekends
+};
+
+// New approach (correct)
+const isWeekInBreak = (
+  weekStart: Date, 
+  operatingWeekdays: number[], // e.g., [1,2,3,4,5] for Mon-Fri
+  breaks: any[]
+): boolean => {
+  // Only check the operating days within this week
+  // If ALL operating days fall within a break period, it's a break week
+  // If ANY operating day is outside the break, it's a teaching week
 };
 ```
 
----
+**Implementation details:**
 
-## Table Columns Specification
-
-| Column | Width | Description |
-|--------|-------|-------------|
-| Student Name | auto | Links to student profile |
-| Current Belt | 120px | Student's current belt with colored badge |
-| Class Invoice | 100px | Green "Paid" / Red "Unpaid" badge |
-| Ready | 80px | Centered checkbox (editable) |
-| Result | 140px | Dropdown: Empty, Double, Pass, Fail, Confirmed |
-| **New Current Belt** | 130px | Calculated based on result (see logic above) |
-| Certificate | 100px | Button enabled only for Pass/Double/Confirmed |
-| Certificate II | 100px | Button enabled only for Double |
-
----
-
-## Implementation Details
-
-### File 1: Update Constants - `src/constants/beltLevels.ts`
-
-Add new utility function for double promotions:
+1. Get the operating weekdays from the `operatingDays` array (already calculated from branch timetable)
+2. For each calendar week, get only the dates that fall on operating days
+3. Check if ALL those operating-day dates are within a break period
+4. Only skip the week if all operating days are covered by breaks
 
 ```typescript
-export const getDoubleBeltLevel = (currentBelt: string): string | null => {
-  const nextBelt = getNextBeltLevel(currentBelt);
-  if (!nextBelt) return null;
-  return getNextBeltLevel(nextBelt);
+const isWeekInBreak = (
+  weekStart: Date,
+  operatingWeekdays: number[], // [1,2,3,4,5] for Mon-Fri
+  breaks: any[]
+): boolean => {
+  if (operatingWeekdays.length === 0) return false;
+  
+  // Get operating day dates for this week
+  const operatingDates = operatingWeekdays.map(weekday => {
+    // weekday: 1=Mon, 2=Tue, ..., 5=Fri, 6=Sat, 0=Sun
+    const dayOffset = weekday === 0 ? 6 : weekday - 1; // Convert to offset from Monday
+    return addDays(weekStart, dayOffset);
+  });
+  
+  // Check if ALL operating dates are within breaks
+  return operatingDates.every(date =>
+    breaks.some(brk => {
+      const breakStart = parseISO(brk.start_date);
+      const breakEnd = parseISO(brk.end_date);
+      return isWithinInterval(date, { start: breakStart, end: breakEnd });
+    })
+  );
 };
 ```
 
-### File 2: New Component - `src/components/sales/GradingListTab.tsx`
-
-Create new component with:
-
-1. **State management** for filters (branch, term, payment status)
-2. **Data fetching** using React Query to get students with term invoices
-3. **Inline editing** for ready checkbox and result dropdown
-4. **Calculated column** for New Current Belt using:
-
-```typescript
-const getNewCurrentBelt = (currentBelt: string, result: string | null) => {
-  if (!result) return null;
-  switch (result) {
-    case 'fail':
-    case 'confirmed':
-      return currentBelt; // Same belt
-    case 'pass':
-      return getNextBeltLevel(currentBelt); // Next belt
-    case 'double':
-      return getDoubleBeltLevel(currentBelt); // Skip one belt
-    default:
-      return null;
-  }
-};
-```
-
-**Query Logic**:
-```sql
--- Conceptual query
-SELECT 
-  s.id, s.first_name, s.last_name, s.current_belt,
-  i.status as invoice_status,
-  gr.ready_for_grading, gr.result, gr.certificate_issued, gr.certificate_ii_issued
-FROM students s
-JOIN invoice_items ii ON ii.metadata->>'student_id' = s.id::text
-JOIN invoices i ON ii.invoice_id = i.id
-JOIN products p ON ii.product_id = p.id
-LEFT JOIN grading_registrations gr ON s.id = gr.student_id
-WHERE ii.metadata->>'term_id' = :current_term_id
-  AND p.is_lesson = true
-  AND s.branch_id = :branch_id
-```
-
-### File 3: Service Functions - `src/services/gradingService.ts`
-
-Add new functions:
-
-```typescript
-// Get students for grading list based on term invoices
-export const getStudentsForGradingList = async (
-  branchId: string,
-  termId: string,
-  paymentStatus?: 'paid' | 'unpaid' | 'all'
-): Promise<GradingListStudent[]> => { ... };
-
-// Update ready for grading status
-export const updateGradingReadiness = async (
-  studentId: string,
-  termId: string,
-  isReady: boolean
-): Promise<void> => { ... };
-
-// Update grading result with extended options
-export const updateStudentGradingResult = async (
-  studentId: string,
-  termId: string,
-  result: 'pass' | 'fail' | 'double' | 'confirmed' | null
-): Promise<void> => { ... };
-```
-
-### File 4: Update Page - `src/pages/sales/GradingManagement.tsx`
-
-Wrap existing content in Tabs:
-
-```tsx
-<Tabs defaultValue="slots">
-  <TabsList>
-    <TabsTrigger value="slots">Grading Slots</TabsTrigger>
-    <TabsTrigger value="list">Grading List</TabsTrigger>
-  </TabsList>
-  <TabsContent value="slots">
-    {/* Existing grading slots content */}
-  </TabsContent>
-  <TabsContent value="list">
-    <GradingListTab />
-  </TabsContent>
-</Tabs>
-```
+3. Pass `operatingDays.map(d => d.value)` to the function when checking break status
 
 ---
 
-## UI Behavior Details
+## File Changes
 
-### Filter Bar
-- **Branch dropdown**: Required, loads from branches table
-- **Term**: Auto-selects current term for branch (where `start_date <= today <= end_date`)
-- **Payment Status**: "All" | "Paid" | "Unpaid"
-
-### Result Dropdown Options
-- *(Empty)* - Default, no result yet
-- Double - Student skips a belt
-- Pass - Normal promotion
-- Fail - Must retake
-- Confirmed - Result finalized
-
-### Certificate Buttons
-- **View Certificate**: Enabled when result is Pass, Double, or Confirmed
-- **View Certificate II**: Enabled only when result is Double
-- Both show toast "Certificate generation coming soon" for now
-
----
-
-## File Changes Summary
-
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/migrations/XXXXXX_grading_list_fields.sql` | Create | Add `ready_for_grading` and `certificate_ii_issued` columns |
-| `src/constants/beltLevels.ts` | Edit | Add `getDoubleBeltLevel()` function |
-| `src/components/sales/GradingListTab.tsx` | Create | New tab component with filters, table, and new belt calculation |
-| `src/services/gradingService.ts` | Edit | Add service functions for grading list operations |
-| `src/pages/sales/GradingManagement.tsx` | Edit | Add Tabs structure and import new component |
+| File | Change |
+|------|--------|
+| `src/components/dashboard/ClassScheduleSelector.tsx` | Update `isWeekInBreak` to accept operating weekdays and only check those days for break overlap |
 
 ---
 
 ## Expected Result
 
-After implementation:
-- New "Grading List" tab appears alongside "Grading Slots"
-- Shows students invoiced for current term lessons
-- Filters by branch and payment status work correctly
-- Ready checkbox toggles inline
-- Result dropdown saves immediately on change
-- **New Current Belt** column shows:
-  - Same belt for Fail/Confirmed
-  - Next belt for Pass
-  - Skipped belt for Double
-  - Empty when no result selected
-- Certificate buttons placeholder ready for future implementation
+After this fix:
+- Week 3 (Feb 2-8) is **not** marked as a break week because operating days (Mon-Fri, Feb 2-6) are before the break
+- Feb 23 correctly displays as **Week 4**
+- The logic correctly handles any branch's operating schedule (not just Mon-Fri)
