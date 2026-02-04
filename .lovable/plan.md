@@ -1,156 +1,114 @@
 
-# Plan: Enhance Branch Dashboard with Renamed Title and Weekly Timetable Tab
+
+# Plan: Add Grading Slots to Weekly Timetable
 
 ## Overview
-Update the Branch Dashboard to:
-1. Rename the header from "Branch Dashboard - Morley" to "Morley Dashboard"
-2. Remove the description text ("Manage students, view sales, and approve changes")
-3. Add a new "Weekly Timetable" tab showing classes and enrolled students by week
+Enhance the Branch Weekly Timetable component to display grading slots alongside regular class schedules, showing when grading events occur and which students are registered.
+
+## Data Flow
+
+| Source | Table | Key Fields |
+|--------|-------|------------|
+| Regular Classes | `branch_timetables` | Recurring schedule template by weekday |
+| Grading Slots | `grading_slots` | Actual dated events with `grading_date`, `start_time`, `belt_levels` |
+| Grading Registrations | `grading_registrations` | Students registered for each slot |
 
 ## Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/BranchDashboard.tsx` | Rename header, remove description, add Weekly Timetable tab |
-| `src/components/dashboard/BranchWeeklyTimetable.tsx` | New component for weekly class view with student enrollment |
+| `src/components/dashboard/BranchWeeklyTimetable.tsx` | Add grading slots query, merge into weekly display |
+| `src/services/gradingService.ts` | Add function to get grading slots by date range |
 
-## UI Changes
+## Implementation Details
 
-### Before
-```text
-Branch Dashboard - Morley
-Manage students, view sales, and approve changes
+### 1. Add New Service Function in gradingService.ts
 
-[Stats Cards]
-[Students] [Revenue] [Pending Approvals]
-```
-
-### After
-```text
-Morley Dashboard
-
-[Stats Cards]
-[Students] [Revenue] [Pending Approvals] [Weekly Timetable]
-```
-
-## Detailed Implementation
-
-### 1. Update Header in BranchDashboard.tsx
-
-**Current:**
-```tsx
-<h2 className="text-2xl font-bold text-gray-900">
-  Branch Dashboard - {branch?.name || 'Loading...'}
-</h2>
-<p className="text-muted-foreground">
-  Manage students, view sales, and approve changes
-</p>
-```
-
-**New:**
-```tsx
-<h2 className="text-2xl font-bold text-gray-900">
-  {branch?.name || 'Loading...'} Dashboard
-</h2>
-{/* Description removed */}
-```
-
-### 2. Add Weekly Timetable Tab
-
-Add a new tab trigger after "Pending Approvals":
-```tsx
-<TabsTrigger value="timetable">
-  Weekly Timetable
-</TabsTrigger>
-```
-
-Add corresponding TabsContent:
-```tsx
-<TabsContent value="timetable">
-  <BranchWeeklyTimetable branchId={branchId} />
-</TabsContent>
-```
-
-### 3. New Component: BranchWeeklyTimetable
-
-Create a new component that displays:
-- Week navigation (previous/next week buttons, today button)
-- Week date range display (e.g., "Week of Feb 3 - Feb 9, 2026")
-- Daily columns showing:
-  - Weekday header with date
-  - Class time slots from the branch timetable
-  - Students enrolled in each class slot (grouped by class type/time)
-
-**Data Flow:**
-1. Fetch branch timetable (`branch_timetables` table) for class schedule template
-2. Fetch active enrollments for the branch (`student_class_enrollments`)
-3. Fetch scheduled classes for the week (`student_scheduled_classes`)
-4. For each weekday, display:
-   - All defined class slots from the timetable
-   - Students who have scheduled classes matching that slot
-
-**Component Structure:**
-```text
-+---------------------------------------------------------------+
-|  Week Navigation                                               |
-|  [<] [Today] [>]   Week of Feb 3 - Feb 9, 2026                |
-+---------------------------------------------------------------+
-| Mon 3     | Tue 4     | Wed 5     | Thu 6     | Fri 7     |...
-+-----------+-----------+-----------+-----------+-----------+
-| 4:00 PM   | 4:00 PM   | 4:00 PM   | 4:00 PM   | 4:00 PM   |
-| Junior    | Junior    | Junior    | Junior    | Junior    |
-| - Kyle B  | - Ethan B |           | - Kyle B  | - Mingyu S|
-|           |           |           |           |           |
-| 5:00 PM   | 5:00 PM   | 5:00 PM   | 5:00 PM   | 5:00 PM   |
-| Kids      | Kids      | Kids      | Kids      | Kids      |
-| - Ethan B |           | - Kyle B  |           | - Ethan B |
-+-----------+-----------+-----------+-----------+-----------+
-```
-
-**Props Interface:**
 ```typescript
-interface BranchWeeklyTimetableProps {
-  branchId: string;
+// Get grading slots for a specific date range and branch
+export const getGradingSlotsForWeek = async (
+  startDate: string,
+  endDate: string,
+  branchId: string
+): Promise<(GradingSlot & { registrations: GradingRegistration[] })[]> => {
+  // Query grading_slots filtered by branch_id, date range, and status = 'active'
+  // Join with grading_registrations to get registered students
+};
+```
+
+### 2. Update BranchWeeklyTimetable Component
+
+**New Query for Grading Slots:**
+```typescript
+const { data: gradingSlots = [] } = useQuery({
+  queryKey: ['grading-slots-week', branchId, weekStartStr, weekEndStr],
+  queryFn: () => getGradingSlotsForWeek(weekStartStr, weekEndStr, branchId),
+});
+```
+
+**Add Grading Interface:**
+```typescript
+interface GradingSlotDisplay {
+  id: string;
+  startTime: string;
+  endTime: string | null;
+  title: string;
+  beltLevels: string[];
+  students: { id: string; name: string; currentBelt: string }[];
 }
 ```
 
-**Data Queries:**
-1. `getClassSchedules(branchId)` - Get recurring class template
-2. `getScheduledClasses(weekStart, weekEnd, branchId)` - Get actual scheduled classes
-3. Join with student names for display
+**Merge Grading Slots into Daily View:**
+- For each day in the week, filter grading slots where `grading_date` matches
+- Display grading slots with distinct styling (different background color/border)
+- Show belt levels as badges
+- List registered students
 
-**Visual Design:**
-- Use a grid layout with columns for each weekday
-- Each class slot shows:
-  - Time (e.g., "4:00 PM - 5:00 PM")
-  - Class type (e.g., "Junior", "Kids")
-  - List of enrolled students for that specific slot
-- Color-code by class type for visual distinction
-- Show empty placeholder if no students enrolled
-- Highlight today's column
+### 3. Visual Design
+
+**Grading Slot Card Styling:**
+- Orange/amber border and subtle background to differentiate from regular classes
+- "GRADING" badge at the top
+- Belt level badges displayed
+- Student list with their current belt
+
+**UI Mockup:**
+```text
++------------------------+
+| 08:00 AM               |
+| [GRADING]              |
+| Foundation 1           |
+| ---------------------- |
+| - Kyle Bowers (F1)     |
+| - Ethan Bell (F1)      |
++------------------------+
+```
+
+### 4. Sorting Logic
+
+Merge grading slots with class slots and sort by start time:
+- Classes have `startTime` from timetable
+- Grading slots have `start_time` from grading_slots table
+- Combined and sorted for display in time order
 
 ## Technical Notes
 
-### Dependencies
-- Uses existing services:
-  - `branchTimetableService.ts` for class schedule template
-  - `classEnrollmentService.ts` for scheduled classes
-- Uses existing UI components: Card, Button, Badge, ScrollArea
-- Uses date-fns for week calculations
+### Data Differences
+| Aspect | Regular Classes | Grading Slots |
+|--------|-----------------|---------------|
+| Schedule | Recurring (weekday-based) | Specific date |
+| Students | From `student_scheduled_classes` | From `grading_registrations` |
+| Display | Class type (Junior, Kids, etc.) | Belt levels + GRADING badge |
 
-### State Management
-- `currentWeek`: Date state for week navigation
-- React Query for data fetching with proper cache keys
-- Derived state for grouping classes by day and time
+### Performance
+- Grading slots query runs in parallel with existing queries
+- Only fetches slots for the displayed week
+- Registrations included in a single query via join
 
-### Performance Considerations
-- Only fetch data for the displayed week
-- Use React Query caching with 1-minute stale time
-- Memoize grouped data calculations
-
-## Files to Create/Modify
+## Files to Modify
 
 | File | Action |
 |------|--------|
-| `src/components/dashboard/BranchDashboard.tsx` | Modify header, add tab |
-| `src/components/dashboard/BranchWeeklyTimetable.tsx` | Create new component |
+| `src/services/gradingService.ts` | Add `getGradingSlotsForWeek` function |
+| `src/components/dashboard/BranchWeeklyTimetable.tsx` | Add grading slots query and display logic |
+
