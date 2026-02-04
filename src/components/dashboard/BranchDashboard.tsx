@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input';
 import { 
   Users, 
   DollarSign, 
-  FileText, 
-  Clock, 
   Search, 
   TrendingUp,
   AlertCircle,
@@ -26,6 +24,7 @@ import {
   rejectRequest 
 } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
+import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -140,11 +139,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">
-          Branch Dashboard - {branch?.name || 'Loading...'}
+          {branch?.name || 'Loading...'} Dashboard
         </h2>
-        <p className="text-muted-foreground">
-          Manage students, view sales, and approve changes
-        </p>
       </div>
 
       {/* Stats Cards */}
@@ -209,7 +205,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="approvals">
@@ -218,6 +214,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               <Badge variant="destructive" className="ml-2">{pendingRequests.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="space-y-4">
@@ -361,6 +358,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="timetable">
+          <BranchWeeklyTimetable branchId={branchId} />
         </TabsContent>
       </Tabs>
     </div>
