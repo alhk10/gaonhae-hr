@@ -23,6 +23,7 @@ export interface InvoiceTemplate {
   country?: string;
   default_notes?: string;
   footer_text?: string;
+  bank_transfer_info?: string;
 }
 
 export interface InvoiceData {
@@ -349,12 +350,13 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   yPos += 20;
 
-  // Notes and PayNow QR Code section
+  // Notes, Bank Transfer Info and PayNow QR Code section
   const hasQrCode = invoice.template?.paynow_qr_url;
   const hasDefaultNotes = invoice.template?.default_notes?.trim();
   const hasInvoiceNotes = invoice.notes?.trim();
+  const hasBankTransferInfo = invoice.template?.bank_transfer_info?.trim();
   
-  if (hasQrCode || hasDefaultNotes || hasInvoiceNotes) {
+  if (hasQrCode || hasDefaultNotes || hasInvoiceNotes || hasBankTransferInfo) {
     // Check if we need a new page
     if (yPos > 220) {
       doc.addPage();
@@ -370,9 +372,12 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       qrData = await loadImage(invoice.template!.paynow_qr_url!);
     }
     
-    // Calculate max width for notes (leave space for QR if present)
-    const notesMaxWidth = qrData ? (qrX - margin - 10) : (pageWidth - margin * 2);
+    // Calculate max width for notes (leave space for bank info/QR if present)
+    const rightColumnWidth = 60; // Width for bank transfer info + QR
+    const hasRightColumn = hasBankTransferInfo || qrData;
+    const notesMaxWidth = hasRightColumn ? (pageWidth - margin * 2 - rightColumnWidth - 10) : (pageWidth - margin * 2);
     const notesStartY = yPos;
+    const rightColumnX = pageWidth - margin - rightColumnWidth;
     
     // Render notes on the left
     if (hasDefaultNotes || hasInvoiceNotes) {
@@ -398,14 +403,34 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       }
     }
     
-    // Add QR code on the right (aligned with notes start)
+    // Render bank transfer info on the right (above QR code)
+    let bankInfoEndY = notesStartY;
+    if (hasBankTransferInfo) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bank Transfer:', rightColumnX, notesStartY);
+      doc.setFont('helvetica', 'normal');
+      
+      const bankLines = invoice.template!.bank_transfer_info!.split('\n');
+      let bankY = notesStartY + 5;
+      bankLines.forEach((line) => {
+        doc.text(line.trim(), rightColumnX, bankY);
+        bankY += 4;
+      });
+      bankInfoEndY = bankY + 2;
+    }
+    
+    // Add QR code on the right (below bank transfer info)
     if (qrData) {
-      doc.addImage(qrData.data, 'PNG', qrX, notesStartY, qrSize, qrSize);
+      const qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
+      doc.addImage(qrData.data, 'PNG', qrX, qrStartY, qrSize, qrSize);
       // Ensure yPos accounts for QR height if notes are shorter
-      const qrEndY = notesStartY + qrSize;
+      const qrEndY = qrStartY + qrSize;
       if (yPos < qrEndY) {
         yPos = qrEndY;
       }
+    } else if (hasBankTransferInfo && yPos < bankInfoEndY) {
+      yPos = bankInfoEndY;
     }
     
     yPos += 10;

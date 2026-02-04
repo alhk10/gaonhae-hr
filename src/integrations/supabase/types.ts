@@ -1738,6 +1738,7 @@ export type Database = {
       }
       invoice_templates: {
         Row: {
+          bank_transfer_info: string | null
           branch_id: string | null
           country: string | null
           created_at: string
@@ -1758,6 +1759,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          bank_transfer_info?: string | null
           branch_id?: string | null
           country?: string | null
           created_at?: string
@@ -1778,6 +1780,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          bank_transfer_info?: string | null
           branch_id?: string | null
           country?: string | null
           created_at?: string
