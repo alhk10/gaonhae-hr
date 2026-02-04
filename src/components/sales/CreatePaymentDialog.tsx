@@ -294,83 +294,85 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Invoice Selection */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Select Invoice</h3>
-            
-            <div className="space-y-2">
-              <Label>Search Invoices</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by invoice number or student name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+          {/* Invoice Selection - Hidden when pre-selected (e.g., from Student Portal) */}
+          {!preSelectedInvoiceId && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Select Invoice</h3>
+              
+              <div className="space-y-2">
+                <Label>Search Invoices</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by invoice number or student name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="invoice_id">Invoice *</Label>
-              <Select value={formData.invoice_id} onValueChange={(value) => handleInputChange('invoice_id', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={searchingInvoices ? "Loading..." : "Select invoice"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {invoices.map((invoice) => (
-                    <SelectItem key={invoice.id} value={invoice.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <div>
-                          <span className="font-medium">{invoice.invoice_number}</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            {invoice.student_name}
+              <div className="space-y-2">
+                <Label htmlFor="invoice_id">Invoice *</Label>
+                <Select value={formData.invoice_id} onValueChange={(value) => handleInputChange('invoice_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={searchingInvoices ? "Loading..." : "Select invoice"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {invoices.map((invoice) => (
+                      <SelectItem key={invoice.id} value={invoice.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <div>
+                            <span className="font-medium">{invoice.invoice_number}</span>
+                            <span className="text-sm text-muted-foreground ml-2">
+                              {invoice.student_name}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium">
+                            Balance: {formatCurrencyValue(invoice.balance_due)}
                           </span>
                         </div>
-                        <span className="text-sm font-medium">
-                          Balance: {formatCurrencyValue(invoice.balance_due)}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          )}
 
-            {/* Selected Invoice Info */}
-            {selectedInvoice && (
-              <Card className="bg-muted/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Invoice Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Student:</span>
-                      <div className="font-medium">{selectedInvoice.student_name}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <div className="font-medium capitalize">{selectedInvoice.status}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total Amount:</span>
-                      <div className="font-medium">{formatCurrencyValue(selectedInvoice.total_amount)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Balance Due:</span>
-                      <div className="font-bold text-lg text-red-600">
-                        {formatCurrencyValue(selectedInvoice.balance_due)}
-                      </div>
+          {/* Selected Invoice Info */}
+          {selectedInvoice && (
+            <Card className="bg-muted/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Invoice Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Student:</span>
+                    <div className="font-medium">{selectedInvoice.student_name}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <div className="font-medium capitalize">{selectedInvoice.status}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Amount:</span>
+                    <div className="font-medium">{formatCurrencyValue(selectedInvoice.total_amount)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Balance Due:</span>
+                    <div className="font-bold text-lg text-red-600">
+                      {formatCurrencyValue(selectedInvoice.balance_due)}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Payment Details */}
           <div className="space-y-4">
