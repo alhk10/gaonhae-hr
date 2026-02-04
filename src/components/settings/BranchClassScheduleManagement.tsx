@@ -29,6 +29,7 @@ import {
   Loader2,
   GraduationCap,
   Award,
+  Copy,
 } from 'lucide-react';
 import {
   ClassSchedule,
@@ -59,6 +60,7 @@ export function BranchClassScheduleManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState<ClassSchedule | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -99,6 +101,34 @@ export function BranchClassScheduleManagement() {
   const handleDeleteClass = (classSchedule: ClassSchedule) => {
     setClassToDelete(classSchedule);
     setDeleteDialogOpen(true);
+  };
+
+  const handleDuplicateClass = async (classSchedule: ClassSchedule) => {
+    setDuplicating(classSchedule.id);
+    try {
+      await createClassSchedule({
+        branch_id: classSchedule.branch_id,
+        weekday: classSchedule.weekday,
+        start_time: classSchedule.start_time,
+        end_time: classSchedule.end_time,
+        class_type: classSchedule.class_type,
+        age_group: classSchedule.age_group,
+        age_from: classSchedule.age_from,
+        age_to: classSchedule.age_to,
+        belt_levels: classSchedule.belt_levels,
+        belt_range_min: classSchedule.belt_range_min,
+        belt_range_max: classSchedule.belt_range_max,
+        max_capacity: classSchedule.max_capacity,
+        instructor_name: classSchedule.instructor_name,
+        is_active: classSchedule.is_active,
+      });
+      toast.success('Class duplicated successfully');
+      loadData();
+    } catch (error) {
+      toast.error('Failed to duplicate class');
+    } finally {
+      setDuplicating(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -234,6 +264,8 @@ export function BranchClassScheduleManagement() {
                                   classSchedule={cls}
                                   onEdit={() => handleEditClass(cls)}
                                   onDelete={() => handleDeleteClass(cls)}
+                                  onDuplicate={() => handleDuplicateClass(cls)}
+                                  isDuplicating={duplicating === cls.id}
                                 />
                               ))}
                             </div>
@@ -304,10 +336,14 @@ function ClassCard({
   classSchedule,
   onEdit,
   onDelete,
+  onDuplicate,
+  isDuplicating,
 }: {
   classSchedule: ClassSchedule;
   onEdit: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
+  isDuplicating?: boolean;
 }) {
   const getAgeRange = () => {
     if (classSchedule.age_from && classSchedule.age_to) {
@@ -380,6 +416,19 @@ function ClassCard({
       <div className="flex items-center gap-1 ml-2">
         <Button variant="ghost" size="icon" onClick={onEdit}>
           <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onDuplicate}
+          disabled={isDuplicating}
+          title="Duplicate class"
+        >
+          {isDuplicating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
         </Button>
         <Button
           variant="ghost"
