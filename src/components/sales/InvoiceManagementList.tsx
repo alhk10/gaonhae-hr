@@ -214,9 +214,14 @@ const InvoiceManagementList: React.FC = () => {
       setDeleteDialogOpen(false);
       setInvoiceToDelete(null);
       setDeleteReason('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting deletion request:', error);
-      toast.error('Failed to submit deletion request');
+      const errorMessage = error?.message || 'Failed to submit deletion request';
+      if (errorMessage.includes('pending deletion request already exists')) {
+        toast.error('A pending deletion request already exists for this invoice');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsSubmittingDelete(false);
     }
