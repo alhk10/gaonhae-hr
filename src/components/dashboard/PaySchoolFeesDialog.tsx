@@ -103,26 +103,32 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       if (!products || products.length === 0) return [];
       
-      // Fetch branch-specific price rules - only get active ones for this branch
+      // Fetch branch-specific price rules for this branch
       const productIds = products.map(p => p.id);
       const { data: priceRules } = await supabase
         .from('price_rules')
         .select('*')
         .in('product_id', productIds)
-        .eq('branch_id', student.branch_id)
-        .eq('is_active', true);
+        .eq('branch_id', student.branch_id);
       
       const priceRuleMap = new Map(priceRules?.map(r => [r.product_id, r]) || []);
       
-      // Only return products that have an active price rule for this branch
+      // Filter products: show if NO rule exists (default visible) OR rule is active
+      // Hide only if a rule exists with is_active = false
       return products
-        .filter(product => priceRuleMap.has(product.id))
+        .filter(product => {
+          const rule = priceRuleMap.get(product.id);
+          // If no rule exists, product is visible (default)
+          if (!rule) return true;
+          // If rule exists, check is_active (true = visible, false = hidden)
+          return rule.is_active === true;
+        })
         .map(product => {
-          const branchRule = priceRuleMap.get(product.id)!;
+          const branchRule = priceRuleMap.get(product.id);
           return {
             ...product,
-            effective_price: branchRule.price_override ?? product.base_price,
-            has_branch_price: !!branchRule.price_override,
+            effective_price: branchRule?.price_override ?? product.base_price,
+            has_branch_price: !!branchRule?.price_override,
           };
         });
     },
