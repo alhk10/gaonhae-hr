@@ -62,29 +62,29 @@ export const StudentInvoices: React.FC<StudentInvoicesProps> = ({
       case 'overdue':
         return <AlertCircle className="w-4 h-4 text-red-600" />;
       case 'pending':
-      case 'sent':
         return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'draft':
-        return <Receipt className="w-4 h-4 text-muted-foreground" />;
+      case 'unpaid':
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
       default:
         return <Receipt className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; className: string }> = {
-      paid: { variant: "default", className: "bg-green-100 text-green-800 border-green-200" },
-      overdue: { variant: "destructive", className: "bg-red-100 text-red-800 border-red-200" },
-      pending: { variant: "secondary", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-      sent: { variant: "outline", className: "bg-blue-100 text-blue-800 border-blue-200" },
-      draft: { variant: "secondary", className: "bg-gray-100 text-gray-800 border-gray-200" }
+    const variants: Record<string, { variant: any; className: string; label: string }> = {
+      paid: { variant: "default", className: "bg-green-100 text-green-800 border-green-200", label: "paid" },
+      overdue: { variant: "destructive", className: "bg-red-100 text-red-800 border-red-200", label: "overdue" },
+      pending: { variant: "secondary", className: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "pending" },
+      draft: { variant: "destructive", className: "bg-red-100 text-red-800 border-red-200", label: "unpaid" },
+      unpaid: { variant: "destructive", className: "bg-red-100 text-red-800 border-red-200", label: "unpaid" }
     };
 
-    const config = variants[status.toLowerCase()] || variants.draft;
+    const config = variants[status.toLowerCase()] || variants.unpaid;
     
     return (
       <Badge variant={config.variant} className={`${config.className} capitalize`}>
-        {status}
+        {config.label}
       </Badge>
     );
   };
@@ -284,6 +284,12 @@ export const StudentInvoices: React.FC<StudentInvoicesProps> = ({
                   </div>
                   
                   <div className="flex gap-2">
+                    {Number(invoice.balance_due) > 0 && (
+                      <Button variant="default" size="sm">
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Pay
+                      </Button>
+                    )}
                     <Button variant="outline" size="sm">
                       <Eye className="w-4 h-4 mr-1" />
                       View
