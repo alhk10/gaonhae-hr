@@ -3297,6 +3297,57 @@ export type Database = {
           },
         ]
       }
+      student_branch_chats: {
+        Row: {
+          branch_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          sender_id: string
+          sender_name: string
+          sender_type: string
+          student_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          sender_id: string
+          sender_name: string
+          sender_type: string
+          student_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          sender_id?: string
+          sender_name?: string
+          sender_type?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_branch_chats_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_branch_chats_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_change_logs: {
         Row: {
           action: string
