@@ -1,162 +1,94 @@
 
-# Implementation Plan: Correct Belt Order System-Wide
+
+# Add Bank Transfer Information Field
 
 ## Overview
-
-Update the belt hierarchy across the entire system to match the correct progression order provided. This requires changes to both the frontend constants and database validation function.
-
----
-
-## New Belt Order (22 levels)
-
-| # | Belt Level |
-|---|------------|
-| 1 | Foundation 1 |
-| 2 | Foundation 2 |
-| 3 | Foundation 3 |
-| 4 | White |
-| 5 | Yellow Tip |
-| 6 | Yellow |
-| 7 | Green Tip |
-| 8 | Green |
-| 9 | Blue Tip |
-| 10 | Blue |
-| 11 | Red Tip |
-| 12 | Red |
-| 13 | Black Tip |
-| 14 | 1st Poom |
-| 15 | 1st Dan |
-| 16 | 2nd Poom |
-| 17 | 2nd Dan |
-| 18 | 3rd Poom |
-| 19 | 3rd Dan |
-| 20 | 4th Poom |
-| 21 | 4th Dan |
-| 22 | 5th Dan |
-
-### Key Changes from Current Order
-- Remove "White Tip" (students start at White after Foundation)
-- Remove "Brown Tip" and "Brown" (replaced by Black Tip progression)
-- Change naming from "Poom 1", "Dan 1" to "1st Poom", "1st Dan"
-- Interleave Poom and Dan levels (Poom for under-15, Dan for 15+)
-- 5th Dan has no Poom equivalent
+Add a new "Bank Transfer Information" field to invoice templates that will be displayed above the PayNow QR code in generated invoice PDFs. This provides customers with direct bank transfer details as an alternative payment method.
 
 ---
 
-## Files to Modify
+## Changes Required
 
-### 1. Central Constants File
-**File**: `src/constants/beltLevels.ts`
+### 1. Database Migration
+Add a new column `bank_transfer_info` to the `invoice_templates` table.
 
-Update the BELT_LEVELS array to the correct order. This is the source of truth imported by many components.
+**New Column:**
+- `bank_transfer_info` (text, nullable) - Multi-line text field for bank transfer details
 
-### 2. Database Validation Function
-**File**: New migration to update `is_valid_belt_level` function
+### 2. Update Invoice Template List UI
+Modify `src/components/sales/InvoiceTemplateList.tsx` to add a new form field for bank transfer information.
 
-Update the PostgreSQL function that validates belt levels against the new list. This ensures database constraints accept the new values.
+**Changes:**
+- Add `bank_transfer_info` to the form data state
+- Add a new Textarea field in the dialog form (placed after the PayNow QR Code section)
+- Include the field in create/update operations
 
-### 3. Branch Timetable Service
-**File**: `src/services/branchTimetableService.ts`
+### 3. Update Invoice Template Service
+Modify `src/services/invoiceTemplateService.ts` to handle the new field.
 
-This file has a duplicate BELT_LEVELS definition. Remove the duplicate and import from the central constants file.
+**Changes:**
+- Add `bank_transfer_info` to the `InvoiceTemplate` interface
+- Add `bank_transfer_info` to the `CreateTemplateData` interface
+- Add `bank_transfer_info` to the `UpdateTemplateData` interface
+- Include the field in create and update operations
 
-### 4. Add Grading Slot Dialog
-**File**: `src/components/sales/AddGradingSlotDialog.tsx`
+### 4. Update Invoice PDF Generator
+Modify `src/utils/invoicePDFGenerator.ts` to render bank transfer information above the PayNow QR code.
 
-Remove local BELT_LEVELS definition and import from central constants.
+**Changes:**
+- Add `bank_transfer_info` to the `InvoiceTemplate` interface
+- In the PDF generation logic, render bank transfer information in a dedicated section positioned above the QR code
+- Use clear formatting with a "Bank Transfer Details" header
 
-### 5. Edit Product Dialog
-**File**: `src/components/sales/EditProductDialog.tsx`
+---
 
-Remove local BELT_LEVELS definition and import from central constants.
+## Visual Layout in PDF
 
-### 6. Add Product Dialog
-**File**: `src/components/sales/AddProductDialog.tsx`
-
-Remove local BELT_LEVELS definition and import from central constants.
+```text
++--------------------------------------------------+
+|  Notes:                          Bank Transfer:  |
+|  Payment instructions...         Bank: XYZ Bank  |
+|                                  Account: 123456 |
+|                                  Swift: XYZABC   |
+|                                                  |
+|                                  [PayNow QR]     |
++--------------------------------------------------+
+```
 
 ---
 
 ## Technical Details
 
-### Updated Constants File
-```typescript
-export const BELT_LEVELS = [
-  'Foundation 1',
-  'Foundation 2', 
-  'Foundation 3',
-  'White',
-  'Yellow Tip',
-  'Yellow',
-  'Green Tip',
-  'Green',
-  'Blue Tip',
-  'Blue',
-  'Red Tip',
-  'Red',
-  'Black Tip',
-  '1st Poom',
-  '1st Dan',
-  '2nd Poom',
-  '2nd Dan',
-  '3rd Poom',
-  '3rd Dan',
-  '4th Poom',
-  '4th Dan',
-  '5th Dan'
-] as const;
-```
-
 ### Database Migration
-Update the `is_valid_belt_level` function with the new valid belts array matching the frontend constants.
-
-### Import Pattern for Components
-Components with local definitions will be updated to:
-```typescript
-import { BELT_LEVELS } from '@/constants/beltLevels';
+```sql
+ALTER TABLE invoice_templates 
+ADD COLUMN bank_transfer_info TEXT;
 ```
 
----
+### TypeScript Interface Update
+```typescript
+interface InvoiceTemplate {
+  // existing fields...
+  bank_transfer_info?: string;  // NEW
+}
+```
 
-## Data Migration Consideration
-
-Existing data in the database may contain old belt values like:
-- "White Tip" (no longer valid)
-- "Brown Tip", "Brown" (replaced by Black Tip)
-- "Poom 1", "Poom 2", etc. (now "1st Poom", "2nd Poom")
-- "Dan 1", "Dan 2", etc. (now "1st Dan", "2nd Dan")
-
-A data migration script will update existing records to match the new naming convention:
-- "White Tip" → "White" 
-- "Brown Tip" → "Black Tip"
-- "Brown" → "Black Tip"  
-- "Poom 1" → "1st Poom"
-- "Dan 1" → "1st Dan"
-- etc.
+### PDF Rendering Logic
+The bank transfer information will be rendered:
+1. Right-aligned in the notes/QR section
+2. Above the PayNow QR code
+3. Using 9pt font with a bold "Bank Transfer" header
+4. Multi-line text support for account details
 
 ---
 
-## Implementation Sequence
+## Files to Modify
 
-1. Create database migration to update existing data to new naming
-2. Update the `is_valid_belt_level` function with new valid values
-3. Update `src/constants/beltLevels.ts` with correct order
-4. Remove duplicate definitions from:
-   - `src/services/branchTimetableService.ts`
-   - `src/components/sales/AddGradingSlotDialog.tsx`
-   - `src/components/sales/EditProductDialog.tsx`
-   - `src/components/sales/AddProductDialog.tsx`
-5. Add imports from central constants to those files
-
----
-
-## Impact Summary
-
-| Area | Change |
+| File | Change |
 |------|--------|
-| Student registration | Belt dropdown shows correct 22 options |
-| Grading slots | Belt selection uses correct hierarchy |
-| Products | Belt restrictions use correct list |
-| Timetables | Class belt requirements use correct list |
-| Next belt calculation | Progression follows correct order |
-| Database validation | Only valid belt names accepted |
+| `supabase/migrations/` | New migration to add `bank_transfer_info` column |
+| `src/integrations/supabase/types.ts` | Will auto-update after migration |
+| `src/services/invoiceTemplateService.ts` | Add field to interfaces and operations |
+| `src/components/sales/InvoiceTemplateList.tsx` | Add form field for bank transfer info |
+| `src/utils/invoicePDFGenerator.ts` | Add `bank_transfer_info` to interface and render in PDF |
+
