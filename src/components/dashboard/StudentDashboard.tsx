@@ -554,6 +554,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                                 }
                                 preSelectedInvoiceId={invoice.id}
                                 onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                                isStudentPortal={true}
                               />
                             )}
                           </div>
@@ -707,6 +708,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                               }
                               preSelectedInvoiceId={invoice.id}
                               onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                              isStudentPortal={true}
                             />
                           )}
                           <Button
