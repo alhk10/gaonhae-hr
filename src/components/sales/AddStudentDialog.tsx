@@ -139,6 +139,13 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         }
       }
       
+      // Auto-update whatsapp when phone changes (only if whatsapp hasn't been manually edited)
+      if (field === 'phone') {
+        if (!prev.whatsapp || prev.whatsapp === prev.phone) {
+          updated.whatsapp = value;
+        }
+      }
+      
       return updated;
     });
   };
