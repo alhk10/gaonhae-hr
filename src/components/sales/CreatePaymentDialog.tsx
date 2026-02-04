@@ -141,7 +141,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       return;
     }
 
-    if (!proofFile) {
+    // Proof of payment is required unless payment method is cash
+    if (!proofFile && formData.payment_method !== 'cash') {
       toast.error('Please upload proof of payment');
       return;
     }
@@ -481,7 +482,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label>Proof of Payment *</Label>
+              <Label>Proof of Payment {formData.payment_method !== 'cash' && '*'}</Label>
               <div className="space-y-2">
                 <input
                   ref={fileInputRef}
