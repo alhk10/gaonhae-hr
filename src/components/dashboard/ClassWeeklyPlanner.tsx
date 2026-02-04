@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getScheduledClasses, type ScheduledClass } from '@/services/classEnrollmentService';
 import { ClassSwapDialog } from './ClassSwapDialog';
+import { getClassTypeColors } from '@/utils/classTypeColors';
 
 interface Branch {
   id: string;
@@ -231,7 +232,7 @@ export function ClassWeeklyPlanner() {
                           <div className="font-semibold truncate">
                             {sc.student_name}
                           </div>
-                          <div className="text-[10px] truncate opacity-75">
+                          <div className={`text-[10px] truncate font-medium ${getClassTypeColors(sc.class_type).text}`}>
                             {sc.class_type}
                           </div>
                           {sc.swapped_from_id && (

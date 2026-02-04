@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getClassSchedules, WEEKDAYS, formatTime, ClassSchedule } from '@/services/branchTimetableService';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
+import { getClassTypeColors, getClassTypeCardClasses } from '@/utils/classTypeColors';
 
 interface StudentClassScheduleProps {
   studentId: string;
@@ -198,7 +199,7 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
                         </p>
                       </div>
                       <div>
-                        <p className="font-medium">{cls.class_type}</p>
+                        <p className={`font-medium ${getClassTypeColors(cls.class_type).text}`}>{cls.class_type}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatTime(cls.start_time)} - {formatTime(cls.end_time)}
                         </p>
@@ -244,13 +245,13 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {day.classes.map((cls: ClassSchedule) => (
+                      {day.classes.map((cls: ClassSchedule) => (
                       <div 
                         key={cls.id}
-                        className="p-3 border rounded-lg bg-card hover:bg-muted/30 transition-colors"
+                        className={`p-3 border rounded-lg transition-colors hover:opacity-90 ${getClassTypeCardClasses(cls.class_type)}`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium text-sm">{cls.class_type}</p>
+                          <p className={`font-medium text-sm ${getClassTypeColors(cls.class_type).text}`}>{cls.class_type}</p>
                           {cls.max_capacity && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Users className="w-3 h-3" />

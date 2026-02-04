@@ -10,6 +10,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
 import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services/gradingService';
+import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
 
 interface BranchWeeklyTimetableProps {
   branchId: string;
@@ -253,7 +254,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                                 )}
                               </>
                             ) : (
-                              <Badge variant="secondary" className="text-xs w-full justify-center">
+                              <Badge variant="outline" className={`text-xs w-full justify-center ${getClassTypeBadgeClasses(slot.classType)}`}>
                                 {slot.classType}
                               </Badge>
                             )}
