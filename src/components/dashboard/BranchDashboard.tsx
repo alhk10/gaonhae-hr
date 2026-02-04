@@ -11,7 +11,10 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Filter,
+  Plus,
+  Eye
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +28,15 @@ import {
 } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
+import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -32,9 +44,10 @@ interface BranchDashboardProps {
 
 const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('students');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
@@ -106,8 +119,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
            student.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   const handleApproveRequest = async (requestId: string) => {
@@ -138,69 +153,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Students</p>
-                <p className="text-2xl font-bold">{activeStudents}</p>
-                <p className="text-xs text-muted-foreground">{totalStudents} total</p>
-              </div>
-              <div className="bg-blue-500 p-3 rounded-lg">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">This Month Revenue</p>
-                <p className="text-2xl font-bold">${monthlyRevenue.toFixed(2)}</p>
-              </div>
-              <div className="bg-green-500 p-3 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
-                <p className="text-2xl font-bold">${outstandingAmount.toFixed(2)}</p>
-              </div>
-              <div className="bg-orange-500 p-3 rounded-lg">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
-                <p className="text-2xl font-bold">{pendingRequests.length}</p>
-              </div>
-              <div className={`${pendingRequests.length > 0 ? 'bg-red-500' : 'bg-gray-400'} p-3 rounded-lg`}>
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tabs */}
@@ -218,7 +173,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         </TabsList>
 
         <TabsContent value="students" className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -228,6 +183,53 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 className="pl-10"
               />
             </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filter
+                  {statusFilter !== 'all' && (
+                    <Badge variant="secondary" className="ml-2">{statusFilter}</Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+                  All Students
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('Active')}>
+                  Active
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('Inactive')}>
+                  Inactive
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('Trial')}>
+                  Trial
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="flex-1" />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Student/Trial
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/parties?tab=students&action=add')}>
+                  Add New Student
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/parties?tab=trials&action=add')}>
+                  Add New Trial
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <Card>
@@ -261,6 +263,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                         <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
                           {student.status}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/parties/students/${student.id}`)}
+                          title="View student details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
