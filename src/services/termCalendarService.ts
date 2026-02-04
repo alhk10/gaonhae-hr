@@ -390,10 +390,29 @@ export async function getActiveTermsForSelection(): Promise<Term[]> {
       }, {} as Record<string, string>);
     }
 
+    // Fetch term breaks for all terms
+    const termIds = termData.map(t => t.id);
+    let breaks: TermBreak[] = [];
+    
+    if (termIds.length > 0) {
+      const { data: breaksData, error: breaksError } = await supabase
+        .from('term_breaks')
+        .select('*')
+        .in('term_id', termIds)
+        .order('start_date');
+      
+      if (breaksError) {
+        logger.warn('Failed to fetch term breaks for selection', breaksError);
+      } else {
+        breaks = breaksData || [];
+      }
+    }
+
     return termData.map(term => ({
       ...term,
       branch_name: branchMap[term.branch_id] || term.branch_id,
-      grace_days: term.grace_days ?? 7
+      grace_days: term.grace_days ?? 7,
+      breaks: breaks.filter(b => b.term_id === term.id)
     }));
   } catch (error) {
     logger.error('Failed to get active terms for selection', error);
