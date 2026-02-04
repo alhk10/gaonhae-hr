@@ -1,0 +1,233 @@
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
+import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
+import { getScheduledClasses, ScheduledClass } from '@/services/classEnrollmentService';
+
+interface BranchWeeklyTimetableProps {
+  branchId: string;
+}
+
+interface GroupedClass {
+  timetableId: string;
+  startTime: string;
+  endTime: string;
+  classType: string;
+  students: { id: string; name: string; status: string }[];
+}
+
+const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId }) => {
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
+    startOfWeek(new Date(), { weekStartsOn: 1 }) // Start on Monday
+  );
+
+  const weekEnd = useMemo(() => endOfWeek(currentWeekStart, { weekStartsOn: 1 }), [currentWeekStart]);
+  const weekDays = useMemo(() => eachDayOfInterval({ start: currentWeekStart, end: weekEnd }), [currentWeekStart, weekEnd]);
+
+  // Fetch branch timetable (class schedule template)
+  const { data: timetable = [], isLoading: timetableLoading } = useQuery({
+    queryKey: ['branch-timetable', branchId],
+    queryFn: () => getClassSchedules(branchId),
+    enabled: !!branchId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Fetch scheduled classes for the week
+  const { data: scheduledClasses = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['scheduled-classes', branchId, format(currentWeekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd')],
+    queryFn: () => getScheduledClasses(
+      format(currentWeekStart, 'yyyy-MM-dd'),
+      format(weekEnd, 'yyyy-MM-dd'),
+      branchId
+    ),
+    enabled: !!branchId,
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  const isLoading = timetableLoading || classesLoading;
+
+  // Group scheduled classes by date and time slot
+  const groupedByDay = useMemo(() => {
+    const result: Record<string, GroupedClass[]> = {};
+
+    weekDays.forEach(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const dayOfWeek = day.getDay();
+      
+      // Get timetable slots for this day
+      const dayTimetable = timetable
+        .filter(t => t.weekday === dayOfWeek && t.is_active)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+      // Get scheduled classes for this day
+      const dayClasses = scheduledClasses.filter(sc => sc.scheduled_date === dateKey);
+
+      // Group students by time slot
+      const timeSlotGroups: GroupedClass[] = dayTimetable.map(slot => {
+        const matchingClasses = dayClasses.filter(sc => 
+          sc.start_time === slot.start_time && 
+          sc.end_time === slot.end_time &&
+          sc.class_type === slot.class_type
+        );
+
+        return {
+          timetableId: slot.id,
+          startTime: slot.start_time,
+          endTime: slot.end_time,
+          classType: slot.class_type,
+          students: matchingClasses.map(sc => ({
+            id: sc.id,
+            name: sc.student_name || 'Unknown',
+            status: sc.status,
+          })),
+        };
+      });
+
+      result[dateKey] = timeSlotGroups;
+    });
+
+    return result;
+  }, [weekDays, timetable, scheduledClasses]);
+
+  const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const goToPreviousWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
+  const goToNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
+
+  const formatTimeDisplay = (time: string): string => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'attended': return 'bg-green-100 text-green-800';
+      case 'absent': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-blue-100 text-blue-800';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <div className="grid grid-cols-7 gap-2">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={i} className="h-48" />
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4 md:p-6">
+        {/* Week Navigation */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Today
+            </Button>
+            <Button variant="outline" size="icon" onClick={goToNextWeek}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <h3 className="text-lg font-semibold">
+            Week of {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+          </h3>
+        </div>
+
+        {/* Weekly Grid */}
+        <ScrollArea className="w-full">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-7 gap-2">
+              {weekDays.map(day => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const dayClasses = groupedByDay[dateKey] || [];
+                const dayIsToday = isToday(day);
+
+                return (
+                  <div
+                    key={dateKey}
+                    className={`border rounded-lg overflow-hidden ${
+                      dayIsToday ? 'border-primary border-2 bg-primary/5' : 'border-border'
+                    }`}
+                  >
+                    {/* Day Header */}
+                    <div className={`p-2 text-center font-medium ${
+                      dayIsToday ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    }`}>
+                      <div className="text-sm">{WEEKDAYS[day.getDay()]?.short || format(day, 'EEE')}</div>
+                      <div className="text-lg">{format(day, 'd')}</div>
+                    </div>
+
+                    {/* Class Slots */}
+                    <div className="p-2 space-y-2 min-h-[200px]">
+                      {dayClasses.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          No classes
+                        </p>
+                      ) : (
+                        dayClasses.map(slot => (
+                          <div
+                            key={slot.timetableId}
+                            className="bg-card border rounded p-2 space-y-1"
+                          >
+                            <div className="text-xs font-medium text-muted-foreground">
+                              {formatTimeDisplay(slot.startTime)} - {formatTimeDisplay(slot.endTime)}
+                            </div>
+                            <Badge variant="secondary" className="text-xs w-full justify-center">
+                              {slot.classType}
+                            </Badge>
+                            
+                            {slot.students.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic text-center">
+                                No students
+                              </p>
+                            ) : (
+                              <div className="space-y-1">
+                                {slot.students.map(student => (
+                                  <div
+                                    key={student.id}
+                                    className={`text-xs px-1.5 py-0.5 rounded truncate ${getStatusColor(student.status)}`}
+                                    title={student.name}
+                                  >
+                                    {student.name}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default BranchWeeklyTimetable;
