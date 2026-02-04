@@ -50,7 +50,7 @@ const PaymentInfoDisplay: React.FC<PaymentInfoDisplayProps> = ({
             <img 
               src={paynowQrUrl} 
               alt="PayNow QR Code" 
-              className="w-40 h-40 object-contain border rounded bg-white p-2"
+              className="w-[200px] h-[200px] object-contain border rounded bg-white p-2"
             />
           </div>
         </CardContent>
