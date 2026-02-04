@@ -18,6 +18,7 @@ interface QuickActionsSectionProps {
     last_name: string;
     branch_id?: string;
     current_belt?: string;
+    date_of_birth?: string;
   };
 }
 
