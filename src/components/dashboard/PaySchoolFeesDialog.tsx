@@ -436,7 +436,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 </div>
 
                 {/* Class Schedule Selection */}
-                {selectedTermId && selectedProductId && student.branch_id && student.date_of_birth && (
+                {selectedTerm && selectedProductId && student.branch_id && student.date_of_birth && (
                   <div className="space-y-2">
                     <Label>Select Your Classes</Label>
                     <ClassScheduleSelector
@@ -444,6 +444,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       studentAge={studentAge}
                       selectedSlots={selectedClassSlots}
                       onSlotsChange={setSelectedClassSlots}
+                      term={selectedTerm}
                     />
                   </div>
                 )}

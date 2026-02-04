@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, CalendarDays, Clock } from 'lucide-react';
+import { Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { WEEKDAYS, formatTime, ClassSchedule } from '@/services/branchTimetableService';
+import { WEEKDAYS, formatTime } from '@/services/branchTimetableService';
+import { format, addWeeks, startOfWeek, addDays, isSameDay, isWithinInterval, parseISO } from 'date-fns';
+import { Term } from '@/services/termCalendarService';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface ClassScheduleSelectorProps {
   branchId: string;
-  studentAge: number; // Age in years (can be decimal like 4.5)
-  selectedSlots: string[];
+  studentAge: number;
+  selectedSlots: string[]; // Format: "classId_YYYY-MM-DD"
   onSlotsChange: (slots: string[]) => void;
+  term: Term;
 }
 
 const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
@@ -19,6 +22,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   studentAge,
   selectedSlots,
   onSlotsChange,
+  term,
 }) => {
   // Fetch class schedules for this branch
   const { data: allClasses = [], isLoading } = useQuery({
@@ -39,27 +43,105 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   });
 
   // Filter classes based on student's age
-  const eligibleClasses = allClasses.filter((cls: any) => {
-    // If no age restrictions, include the class
-    if (!cls.age_from && !cls.age_to) return true;
-    
-    const minAge = cls.age_from || 0;
-    const maxAge = cls.age_to || 100;
-    
-    return studentAge >= minAge && studentAge <= maxAge;
-  });
+  const eligibleClasses = useMemo(() => {
+    return allClasses.filter((cls: any) => {
+      if (!cls.age_from && !cls.age_to) return true;
+      const minAge = cls.age_from || 0;
+      const maxAge = cls.age_to || 100;
+      return studentAge >= minAge && studentAge <= maxAge;
+    });
+  }, [allClasses, studentAge]);
 
-  // Group classes by weekday
-  const classesByDay = WEEKDAYS.map(day => ({
-    ...day,
-    classes: eligibleClasses.filter((cls: any) => cls.weekday === day.value),
-  })).filter(day => day.classes.length > 0);
+  // Generate weeks for the term
+  const termWeeks = useMemo(() => {
+    if (!term) return [];
+    
+    const termStart = parseISO(term.start_date);
+    const termEnd = parseISO(term.end_date);
+    const breaks = term.breaks || [];
+    
+    const weeks: { weekNumber: number; startDate: Date; days: Date[] }[] = [];
+    let currentWeekStart = startOfWeek(termStart, { weekStartsOn: 1 }); // Start on Monday
+    let weekNumber = 1;
+    
+    while (currentWeekStart <= termEnd && weekNumber <= 15) { // Max 15 weeks for safety
+      // Check if this week is during a break
+      const isBreakWeek = breaks.some(brk => {
+        const breakStart = parseISO(brk.start_date);
+        const breakEnd = parseISO(brk.end_date);
+        return isWithinInterval(currentWeekStart, { start: breakStart, end: breakEnd }) ||
+               isWithinInterval(addDays(currentWeekStart, 6), { start: breakStart, end: breakEnd });
+      });
+      
+      if (!isBreakWeek) {
+        const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))
+          .filter(day => isWithinInterval(day, { start: termStart, end: termEnd }));
+        
+        if (days.length > 0) {
+          weeks.push({
+            weekNumber,
+            startDate: currentWeekStart,
+            days,
+          });
+          weekNumber++;
+        }
+      }
+      
+      currentWeekStart = addWeeks(currentWeekStart, 1);
+    }
+    
+    return weeks;
+  }, [term]);
 
-  const handleToggleSlot = (slotId: string) => {
-    if (selectedSlots.includes(slotId)) {
-      onSlotsChange(selectedSlots.filter(id => id !== slotId));
+  // Get classes for a specific weekday
+  const getClassesForWeekday = (weekday: number) => {
+    return eligibleClasses.filter((cls: any) => cls.weekday === weekday);
+  };
+
+  // Toggle a specific class on a specific date
+  const handleToggleSlot = (classId: string, date: Date) => {
+    const slotKey = `${classId}_${format(date, 'yyyy-MM-dd')}`;
+    if (selectedSlots.includes(slotKey)) {
+      onSlotsChange(selectedSlots.filter(s => s !== slotKey));
     } else {
-      onSlotsChange([...selectedSlots, slotId]);
+      onSlotsChange([...selectedSlots, slotKey]);
+    }
+  };
+
+  // Check if a slot is selected
+  const isSlotSelected = (classId: string, date: Date) => {
+    const slotKey = `${classId}_${format(date, 'yyyy-MM-dd')}`;
+    return selectedSlots.includes(slotKey);
+  };
+
+  // Toggle all slots for a class across all weeks
+  const handleToggleAllForClass = (classId: string) => {
+    const allSlotsForClass: string[] = [];
+    
+    termWeeks.forEach(week => {
+      week.days.forEach(day => {
+        const weekday = day.getDay();
+        const classes = getClassesForWeekday(weekday);
+        if (classes.some((c: any) => c.id === classId)) {
+          allSlotsForClass.push(`${classId}_${format(day, 'yyyy-MM-dd')}`);
+        }
+      });
+    });
+    
+    const allSelected = allSlotsForClass.every(slot => selectedSlots.includes(slot));
+    
+    if (allSelected) {
+      // Deselect all
+      onSlotsChange(selectedSlots.filter(s => !allSlotsForClass.includes(s)));
+    } else {
+      // Select all
+      const newSlots = [...selectedSlots];
+      allSlotsForClass.forEach(slot => {
+        if (!newSlots.includes(slot)) {
+          newSlots.push(slot);
+        }
+      });
+      onSlotsChange(newSlots);
     }
   };
 
@@ -71,7 +153,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     );
   }
 
-  if (classesByDay.length === 0) {
+  if (eligibleClasses.length === 0) {
     return (
       <div className="text-center p-6 border border-dashed rounded-lg bg-muted/30">
         <CalendarDays className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
@@ -82,6 +164,30 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     );
   }
 
+  // Get unique classes (by day pattern)
+  const uniqueClasses = eligibleClasses.reduce((acc: any[], cls: any) => {
+    const existing = acc.find(c => 
+      c.class_type === cls.class_type && 
+      c.start_time === cls.start_time &&
+      c.end_time === cls.end_time
+    );
+    if (!existing) {
+      acc.push(cls);
+    }
+    return acc;
+  }, []);
+
+  // Get all weekdays that have this class type
+  const getWeekdaysForClass = (classType: string, startTime: string, endTime: string) => {
+    return eligibleClasses
+      .filter((c: any) => 
+        c.class_type === classType && 
+        c.start_time === startTime &&
+        c.end_time === endTime
+      )
+      .map((c: any) => c.weekday);
+  };
+
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground flex items-center gap-2">
@@ -89,57 +195,138 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
         <span>Select classes you want to attend (Age: {studentAge.toFixed(1)} years)</span>
       </div>
 
-      <div className="grid gap-3">
-        {classesByDay.map((day) => (
-          <div key={day.value} className="space-y-2">
-            <div className="font-medium text-sm text-muted-foreground">{day.label}</div>
-            <div className="grid gap-2">
-              {day.classes.map((cls: any) => {
-                const isSelected = selectedSlots.includes(cls.id);
-                return (
-                  <Card
-                    key={cls.id}
-                    className={`cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary' 
-                        : 'hover:border-primary/50'
-                    }`}
-                    onClick={() => handleToggleSlot(cls.id)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleToggleSlot(cls.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{cls.class_type}</span>
-                            {cls.age_from && cls.age_to && (
-                              <Badge variant="outline" className="text-xs">
-                                {cls.age_from}-{cls.age_to} yrs
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatTime(cls.start_time)} - {formatTime(cls.end_time)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+      <ScrollArea className="w-full whitespace-nowrap">
+        <div className="min-w-max">
+          {/* Header row with week numbers */}
+          <div className="flex border-b">
+            <div className="w-40 flex-shrink-0 p-2 font-medium text-sm bg-muted/50">
+              Class
             </div>
+            {termWeeks.map((week) => (
+              <div 
+                key={week.weekNumber} 
+                className="w-24 flex-shrink-0 p-2 text-center text-xs font-medium border-l bg-muted/50"
+              >
+                <div>Week {week.weekNumber}</div>
+                <div className="text-muted-foreground">
+                  {format(week.startDate, 'dd MMM')}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          {/* Class rows */}
+          {uniqueClasses.map((cls: any) => {
+            const weekdaysForClass = getWeekdaysForClass(cls.class_type, cls.start_time, cls.end_time);
+            
+            return (
+              <div key={`${cls.class_type}-${cls.start_time}`} className="flex border-b hover:bg-muted/20">
+                {/* Class info column */}
+                <div className="w-40 flex-shrink-0 p-2 flex items-center gap-2">
+                  <Checkbox
+                    checked={termWeeks.every(week => 
+                      week.days.every(day => {
+                        if (!weekdaysForClass.includes(day.getDay())) return true;
+                        const matchingClass = eligibleClasses.find((c: any) => 
+                          c.class_type === cls.class_type && 
+                          c.start_time === cls.start_time &&
+                          c.weekday === day.getDay()
+                        );
+                        return matchingClass ? isSlotSelected(matchingClass.id, day) : true;
+                      })
+                    )}
+                    onCheckedChange={() => {
+                      // Toggle all for this class type
+                      const classIds = eligibleClasses
+                        .filter((c: any) => 
+                          c.class_type === cls.class_type && 
+                          c.start_time === cls.start_time
+                        )
+                        .map((c: any) => c.id);
+                      
+                      classIds.forEach((id: string) => handleToggleAllForClass(id));
+                    }}
+                    className="flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{cls.class_type}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatTime(cls.start_time)} - {formatTime(cls.end_time)}
+                    </div>
+                    {cls.age_from && cls.age_to && (
+                      <Badge variant="outline" className="text-xs mt-1">
+                        {cls.age_from}-{cls.age_to} yrs
+                      </Badge>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {weekdaysForClass.map(wd => WEEKDAYS.find(w => w.value === wd)?.short).join(', ')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Week columns */}
+                {termWeeks.map((week) => {
+                  // Find if any day in this week has this class
+                  const daysWithClass = week.days.filter(day => 
+                    weekdaysForClass.includes(day.getDay())
+                  );
+
+                  if (daysWithClass.length === 0) {
+                    return (
+                      <div 
+                        key={week.weekNumber} 
+                        className="w-24 flex-shrink-0 p-2 border-l bg-muted/10 flex items-center justify-center"
+                      >
+                        <span className="text-xs text-muted-foreground">-</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div 
+                      key={week.weekNumber} 
+                      className="w-24 flex-shrink-0 p-1 border-l flex flex-col gap-1 items-center justify-center"
+                    >
+                      {daysWithClass.map(day => {
+                        const matchingClass = eligibleClasses.find((c: any) => 
+                          c.class_type === cls.class_type && 
+                          c.start_time === cls.start_time &&
+                          c.weekday === day.getDay()
+                        );
+                        
+                        if (!matchingClass) return null;
+                        
+                        const isSelected = isSlotSelected(matchingClass.id, day);
+                        
+                        return (
+                          <button
+                            key={day.toISOString()}
+                            onClick={() => handleToggleSlot(matchingClass.id, day)}
+                            className={`
+                              w-full px-2 py-1 rounded text-xs font-medium transition-all
+                              ${isSelected 
+                                ? 'bg-primary text-primary-foreground' 
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                              }
+                            `}
+                          >
+                            {format(day, 'EEE d')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
       {selectedSlots.length > 0 && (
-        <div className="text-sm text-muted-foreground text-right">
-          {selectedSlots.length} class{selectedSlots.length > 1 ? 'es' : ''} selected
+        <div className="text-sm text-muted-foreground text-right pt-2 border-t">
+          {selectedSlots.length} session{selectedSlots.length > 1 ? 's' : ''} selected
         </div>
       )}
     </div>
