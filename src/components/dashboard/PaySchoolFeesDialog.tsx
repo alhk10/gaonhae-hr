@@ -61,12 +61,10 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   previousEnrollment,
 }) => {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
+  const [step, setStep] = useState<'select' | 'success'>('select');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
-  const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
-  const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   
   // Payment form state
   const [paymentMethod, setPaymentMethod] = useState<string>('paynow');
@@ -243,13 +241,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     ];
   };
 
-  // Create invoice mutation
-  const createInvoiceMutation = useMutation({
+  // Combined create invoice and payment mutation
+  const createInvoiceAndPayMutation = useMutation({
     mutationFn: async () => {
       if (!selectedTerm || !selectedProduct || !student.branch_id) {
         throw new Error('Missing required data');
       }
 
+      if (!proofFile) {
+        throw new Error('Proof of payment is required');
+      }
+
+      // Step 1: Create invoice
       const invoice = await createInvoice({
         student_id: studentId,
         branch_id: student.branch_id,
@@ -270,16 +273,33 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         }],
       });
 
+      // Step 2: Upload proof of payment
+      setIsUploading(true);
+      const proofUrl = await uploadProofOfPayment(proofFile);
+
+      // Step 3: Create payment
+      await createPayment({
+        invoice_id: invoice.id,
+        amount: invoice.total_amount,
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: paymentMethod as any,
+        reference_number: referenceNumber || undefined,
+        proof_of_payment_url: proofUrl,
+      });
+
       return invoice;
     },
-    onSuccess: (invoice) => {
-      setCreatedInvoiceId(invoice.id);
-      setInvoiceAmount(invoice.total_amount);
-      setStep('payment');
-      toast.success('Invoice created! Please complete payment.');
+    onSuccess: () => {
+      setStep('success');
+      queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
+      toast.success('Invoice created and payment recorded successfully!');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create invoice');
+      toast.error(error.message || 'Failed to create invoice and payment');
+    },
+    onSettled: () => {
+      setIsUploading(false);
     },
   });
 
@@ -302,47 +322,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     return publicUrl;
   };
 
-  // Create payment mutation
-  const createPaymentMutation = useMutation({
-    mutationFn: async () => {
-      if (!createdInvoiceId || !proofFile) {
-        throw new Error('Missing invoice or proof of payment');
-      }
-
-      setIsUploading(true);
-      const proofUrl = await uploadProofOfPayment(proofFile);
-
-      const payment = await createPayment({
-        invoice_id: createdInvoiceId,
-        amount: invoiceAmount,
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_method: paymentMethod as any,
-        reference_number: referenceNumber || undefined,
-        proof_of_payment_url: proofUrl,
-      });
-
-      return payment;
-    },
-    onSuccess: () => {
-      setStep('success');
-      queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
-      toast.success('Payment recorded successfully!');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to record payment');
-    },
-    onSettled: () => {
-      setIsUploading(false);
-    },
-  });
 
   const handleClose = () => {
     setStep('select');
     setSelectedTermId('');
     setSelectedProductId('');
     setSelectedClassSlots([]);
-    setCreatedInvoiceId(null);
     setProofFile(null);
     setReferenceNumber('');
     onOpenChange(false);
@@ -354,12 +339,10 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Pay School Fees'}
-            {step === 'payment' && 'Complete Payment'}
             {step === 'success' && 'Payment Successful'}
           </DialogTitle>
           <DialogDescription>
             {step === 'select' && 'Select your term and class enrollment'}
-            {step === 'payment' && 'Upload proof of payment to complete'}
             {step === 'success' && 'Your enrollment has been confirmed'}
           </DialogDescription>
         </DialogHeader>
@@ -479,6 +462,74 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Payment Section */}
+                {selectedTerm && selectedProduct && (
+                  <Card>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <CreditCard className="w-4 h-4" />
+                        Payment Details
+                      </div>
+
+                      {/* Payment Method */}
+                      <div className="space-y-2">
+                        <Label>Payment Method *</Label>
+                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getPaymentMethods().map((method) => (
+                              <SelectItem key={method.value} value={method.value}>
+                                {method.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Reference Number */}
+                      <div className="space-y-2">
+                        <Label>Reference Number (Optional)</Label>
+                        <Input
+                          value={referenceNumber}
+                          onChange={(e) => setReferenceNumber(e.target.value)}
+                          placeholder="Transaction reference"
+                        />
+                      </div>
+
+                      {/* Proof of Payment */}
+                      <div className="space-y-2">
+                        <Label>Proof of Payment *</Label>
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                            className="hidden"
+                            id="proof-upload"
+                          />
+                          <label htmlFor="proof-upload" className="cursor-pointer">
+                            {proofFile ? (
+                              <div className="flex items-center justify-center gap-2 text-primary">
+                                <CheckCircle className="w-5 h-5" />
+                                <span className="text-sm">{proofFile.name}</span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                                <p className="text-xs text-muted-foreground">
+                                  Click to upload payment screenshot or PDF
+                                </p>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
 
@@ -487,99 +538,25 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 Cancel
               </Button>
               <Button
-                onClick={() => createInvoiceMutation.mutate()}
-                disabled={!selectedTermId || !selectedProductId || createInvoiceMutation.isPending || unpaidTerms.length === 0}
+                onClick={() => createInvoiceAndPayMutation.mutate()}
+                disabled={
+                  !selectedTermId || 
+                  !selectedProductId || 
+                  !proofFile ||
+                  createInvoiceAndPayMutation.isPending || 
+                  isUploading ||
+                  unpaidTerms.length === 0
+                }
               >
-                {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {(createInvoiceAndPayMutation.isPending || isUploading) && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 Create Invoice & Pay
               </Button>
             </div>
           </div>
         )}
 
-        {step === 'payment' && (
-          <div className="space-y-4">
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Amount Due</span>
-                  <span className="text-2xl font-bold">${invoiceAmount.toFixed(2)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Payment Method *</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getPaymentMethods().map((method) => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reference Number */}
-            <div className="space-y-2">
-              <Label>Reference Number (Optional)</Label>
-              <Input
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="Transaction reference"
-              />
-            </div>
-
-            {/* Proof of Payment */}
-            <div className="space-y-2">
-              <Label>Proof of Payment *</Label>
-              <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                  id="proof-upload"
-                />
-                <label htmlFor="proof-upload" className="cursor-pointer">
-                  {proofFile ? (
-                    <div className="flex items-center justify-center gap-2 text-primary">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>{proofFile.name}</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload payment screenshot or PDF
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={() => setStep('select')}>
-                Back
-              </Button>
-              <Button
-                onClick={() => createPaymentMutation.mutate()}
-                disabled={!proofFile || createPaymentMutation.isPending || isUploading}
-              >
-                {(createPaymentMutation.isPending || isUploading) && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                Submit Payment
-              </Button>
-            </div>
-          </div>
-        )}
 
         {step === 'success' && (
           <div className="text-center py-6 space-y-4">
