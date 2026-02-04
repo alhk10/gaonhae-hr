@@ -27,6 +27,8 @@ import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInside
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
 import ClassScheduleSelector from './ClassScheduleSelector';
+import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
+import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 
 interface PaySchoolFeesDialogProps {
   open: boolean;
@@ -150,6 +152,22 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       return data;
     },
     enabled: !!student.branch_id,
+  });
+
+  // Fetch invoice template for payment info display
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ['invoice-template-for-payment', branch?.country],
+    queryFn: async () => {
+      const countryCodeMap: Record<string, string> = {
+        'Singapore': 'SG',
+        'Australia': 'AU'
+      };
+      const countryCode = countryCodeMap[branch?.country || 'Singapore'] || 'SG';
+      
+      const templates = await getInvoiceTemplates(true);
+      return templates.find(t => t.country === countryCode) || null;
+    },
+    enabled: !!branch?.country,
   });
 
   // Fetch class products from the Classes category with branch-specific pricing
@@ -532,6 +550,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
+                      <PaymentInfoDisplay
+                        paymentMethod={paymentMethod}
+                        bankTransferInfo={invoiceTemplate?.bank_transfer_info}
+                        paynowQrUrl={invoiceTemplate?.paynow_qr_url}
+                      />
 
                       {/* Reference Number */}
                       <div className="space-y-2">

@@ -15,12 +15,15 @@ import { toast } from 'sonner';
 import { createPayment, type CreatePaymentData } from '@/services/paymentService';
 import { getInvoices } from '@/services/invoiceService';
 import { supabase } from '@/integrations/supabase/client';
+import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
+import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import { Loader2, Search, FileText, DollarSign, Upload, X } from 'lucide-react';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
   onPaymentCreated?: () => void;
   preSelectedInvoiceId?: string;
+  isStudentPortal?: boolean;
 }
 
 interface InvoiceOption {
@@ -37,7 +40,8 @@ interface InvoiceOption {
 const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({ 
   trigger, 
   onPaymentCreated,
-  preSelectedInvoiceId 
+  preSelectedInvoiceId,
+  isStudentPortal = false
 }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,6 +60,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     proof_of_payment_url: '',
     notes: ''
   });
+  const [invoiceTemplate, setInvoiceTemplate] = useState<InvoiceTemplate | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -250,7 +255,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const isSingapore = selectedCountry === 'Singapore';
   const isAustralia = selectedCountry === 'Australia';
   
-  // Payment methods with country-based filtering
+  // Payment methods with country-based filtering and student portal exclusion
   const paymentMethods = useMemo(() => {
     const methods = [
       { value: 'paynow', label: 'PayNow', hideFor: ['Australia'] },
@@ -258,7 +263,34 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       { value: 'bank_transfer', label: 'Bank Transfer', hideFor: [] },
     ];
     
-    return methods.filter(method => !method.hideFor.includes(selectedCountry));
+    return methods.filter(method => {
+      // Hide cash for student portal
+      if (isStudentPortal && method.value === 'cash') return false;
+      return !method.hideFor.includes(selectedCountry);
+    });
+  }, [selectedCountry, isStudentPortal]);
+
+  // Fetch invoice template based on selected invoice's branch country
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      if (!selectedCountry) return;
+      
+      const countryCodeMap: Record<string, string> = {
+        'Singapore': 'SG',
+        'Australia': 'AU'
+      };
+      const countryCode = countryCodeMap[selectedCountry] || 'SG';
+      
+      try {
+        const templates = await getInvoiceTemplates(true);
+        const matchingTemplate = templates.find(t => t.country === countryCode);
+        setInvoiceTemplate(matchingTemplate || null);
+      } catch (error) {
+        console.error('Error fetching invoice template:', error);
+      }
+    };
+    
+    fetchTemplate();
   }, [selectedCountry]);
   
   // Set default payment method when invoice changes
@@ -430,6 +462,13 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
+            <PaymentInfoDisplay
+              paymentMethod={formData.payment_method}
+              bankTransferInfo={invoiceTemplate?.bank_transfer_info}
+              paynowQrUrl={invoiceTemplate?.paynow_qr_url}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="reference_number">Reference Number</Label>
