@@ -73,6 +73,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     date_of_birth: '',
     gender: '',
     nric_passport: '',
+    passport_no: '',
     phone: '',
     whatsapp: '',
     email: '',
@@ -113,12 +114,13 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         referral_source: student.referral_source || '',
         first_name: student.first_name || '',
         last_name: student.last_name || '',
-        preferred_name: student.preferred_name || '',
+        preferred_name: student.preferred_name || fullName,
         certificate_name: student.certificate_name || fullName,
         display_name: student.display_name || fullName,
         date_of_birth: student.date_of_birth || '',
         gender: student.gender || '',
         nric_passport: student.nric_passport || '',
+        passport_no: (student as any).passport_no || '',
         phone: student.phone || '',
         whatsapp: student.whatsapp || '',
         email: student.email || '',
@@ -149,7 +151,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-update certificate_name and display_name when first/last name changes
+      // Auto-update certificate_name, display_name, and preferred_name when first/last name changes
       if (field === 'first_name' || field === 'last_name') {
         const firstName = field === 'first_name' ? value : prev.first_name;
         const lastName = field === 'last_name' ? value : prev.last_name;
@@ -162,6 +164,9 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         }
         if (!prev.display_name || prev.display_name === currentAutoName) {
           updated.display_name = fullName;
+        }
+        if (!prev.preferred_name || prev.preferred_name === currentAutoName) {
+          updated.preferred_name = fullName;
         }
       }
       
@@ -298,7 +303,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="preferred_name" className="text-xs">Preferred Name</Label>
                   <Input
@@ -310,12 +315,22 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="nric_passport" className="text-xs">NRIC/Passport</Label>
+                  <Label htmlFor="nric_passport" className="text-xs">NRIC/FIN</Label>
                   <Input
                     id="nric_passport"
                     value={formData.nric_passport}
                     onChange={(e) => handleInputChange('nric_passport', e.target.value)}
-                    placeholder="NRIC or Passport Number"
+                    placeholder="NRIC or FIN Number"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="passport_no" className="text-xs">Passport No.</Label>
+                  <Input
+                    id="passport_no"
+                    value={formData.passport_no}
+                    onChange={(e) => handleInputChange('passport_no', e.target.value)}
+                    placeholder="Passport Number"
                     className="h-9"
                   />
                 </div>
