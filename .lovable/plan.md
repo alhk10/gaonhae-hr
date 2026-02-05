@@ -1,192 +1,326 @@
 
+# Plan: Convert Book Slots, Submit Claims, and View Payslip to Dialog Format
 
-# Plan: Enhance Letter Template Form
-
-## Summary
-This plan enhances the letter template dialog by adding:
-1. Rich text editing (basic formatting) for body paragraphs
-2. A second body paragraph field
-3. Signature-related fields (Signature Image, Signatory Name, Position)
-4. Removing the "Closing Statement" field
+## Overview
+Convert three Quick Action buttons in the Employee Dashboard from page navigation to dialog-based interactions, providing a streamlined mobile-friendly experience similar to the existing Attendance History dialog.
 
 ---
 
-## Changes Overview
+## Current State
 
-| Area | Change |
-|------|--------|
-| Database | Add 4 new columns: `body_text_2`, `signatory_name`, `signatory_position`, `signature_image_url` |
-| Service | Update interfaces and CRUD operations for new fields |
-| Dialog | Redesign form with 2 body paragraphs, rich text buttons, and signature fields |
-| PDF Generator | Update to render Body Paragraph 2 and custom signature block |
+| Feature | Current Behavior |
+|---------|-----------------|
+| Book Slots | Navigates to `/slot-booking` (full page with ResponsiveLayout) |
+| Submit Claim | Navigates to `/submit-claim` (full page with ResponsiveLayout) |
+| View Payslip | Navigates to `/payslips` (full page with sidebar) |
+
+The Attendance History feature already uses the dialog pattern we want to replicate.
 
 ---
 
-## Technical Details
+## Solution Design
 
-### 1. Database Schema Changes
+Create three new dialog components that contain condensed, mobile-optimized versions of the respective page content. The dialogs will focus on the **employee-facing** functionality only (no admin/management tabs).
 
-Add new columns to `letter_templates` table:
-
-```sql
-ALTER TABLE letter_templates 
-  ADD COLUMN body_text_2 TEXT DEFAULT '',
-  ADD COLUMN signatory_name TEXT DEFAULT 'Gaonhae Taekwondo LLP',
-  ADD COLUMN signatory_position TEXT DEFAULT '',
-  ADD COLUMN signature_image_url TEXT DEFAULT '';
+### Dialog Structure
+```
+┌─────────────────────────────────────────┐
+│  [X] Dialog Title                       │
+├─────────────────────────────────────────┤
+│  Main Content Area                      │
+│  (scrollable, max-height: 80vh)         │
+│                                         │
+│  - Focused on primary task              │
+│  - Mobile-optimized layout              │
+│  - Quick actions accessible             │
+└─────────────────────────────────────────┘
 ```
 
-### 2. Update Letter Template Service
+---
 
-**File: `src/services/letterTemplateService.ts`**
+## Files to Create
 
-Update the `LetterTemplate` interface:
+### 1. SlotBookingDialog.tsx
+**Path:** `src/components/dashboard/SlotBookingDialog.tsx`
+
+Content includes:
+- Branch selector (compact)
+- Calendar for date selection
+- Selected dates display with pay calculation
+- Book button
+- Booking history list (scrollable)
+
+Key adaptations:
+- Single column layout (no tabs - just booking flow + history accordion)
+- Remove management functionality
+- Compact stat card showing approved bookings count
+- Full-height scrollable content
+
+### 2. SubmitClaimDialog.tsx
+**Path:** `src/components/dashboard/SubmitClaimDialog.tsx`
+
+Content includes:
+- Claim type selector
+- Amount input
+- Date picker
+- Description textarea
+- Receipt upload component
+- Submit button
+- Claim history accordion (collapsible)
+
+Key adaptations:
+- Simplified form layout (single column)
+- Remove management tabs
+- Partners get partner claim form instead
+- Collapsible history section to save space
+
+### 3. ViewPayslipDialog.tsx
+**Path:** `src/components/dashboard/ViewPayslipDialog.tsx`
+
+Content includes:
+- Summary stats cards (year totals)
+- Payslips list with download buttons
+- Month filter dropdown
+
+Key adaptations:
+- Remove management tab
+- Compact payslip cards
+- Direct PDF download action
+- Mobile-optimized summary cards
+
+---
+
+## Files to Modify
+
+### EmployeeDashboard.tsx
+**Path:** `src/components/dashboard/EmployeeDashboard.tsx`
+
+Changes:
+1. Add state for each dialog (`showSlotBooking`, `showSubmitClaim`, `showViewPayslip`)
+2. Update button onClick handlers to set dialog state instead of navigate
+3. Import and render the three new dialog components
+4. Pass required props (employeeId, employee data)
+
+---
+
+## Technical Implementation Details
+
+### SlotBookingDialog.tsx
+
 ```typescript
-export interface LetterTemplate {
-  id: string;
-  name: string;
-  type: 'student' | 'employee';
-  title: string;
-  body_text: string;
-  body_text_2: string;       // NEW
-  closing_text: string;       // Keep for backward compatibility, but not used in UI
-  signatory_name: string;     // NEW
-  signatory_position: string; // NEW
-  signature_image_url: string;// NEW
-  is_default: boolean;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+interface SlotBookingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+  employeeName: string;
+  employeeType: string;
+  qualifications: EmployeeQualifications | null;
+  joinDate: string | null;
 }
 ```
 
-Update `CreateLetterTemplateData` and `UpdateLetterTemplateData` interfaces accordingly.
+Core functionality:
+- Reuse existing services: `getBranches`, `addSlotBooking`, `getEmployeeSlotBookings`, `checkForExistingBooking`, `getAvailableSlotsForDate`, `getWeeklySlotConfig`
+- Reuse existing components: `EnhancedBranchSelector`, `EnhancedCalendar`, `SelectedDatesManager`
+- Simplify `BookingActions` inline
+- Add collapsible booking history section
 
-### 3. Create Rich Text Textarea Component
-
-**File: `src/components/ui/rich-textarea.tsx`**
-
-A simple rich text component with basic formatting buttons (Bold, Italic, Underline) that wraps around a contentEditable div while maintaining plaintext output with basic markdown-like markers.
-
-For simplicity in PDF generation, the component will:
-- Provide formatting toolbar buttons
-- Store content as plain text with basic markup markers like `**bold**`, `_italic_`, `__underline__`
-- Display preview of formatted text
-
-### 4. Redesign AddEditTemplateDialog
-
-**File: `src/components/miscellaneous/AddEditTemplateDialog.tsx`**
-
-Updated form layout:
+Layout structure:
 ```
-┌─────────────────────────────────────────────┐
-│ Template Name              │    Type        │
-├─────────────────────────────────────────────┤
-│ Available Placeholders: {fullName}, etc.    │
-├─────────────────────────────────────────────┤
-│ Letter Title *                              │
-├─────────────────────────────────────────────┤
-│ Body Paragraph 1 * (with formatting toolbar)│
-│ [B] [I] [U]                                 │
-│ ┌─────────────────────────────────────────┐ │
-│ │ Textarea content...                     │ │
-│ └─────────────────────────────────────────┘ │
-├─────────────────────────────────────────────┤
-│ Body Paragraph 2 (with formatting toolbar)  │
-│ [B] [I] [U]                                 │
-│ ┌─────────────────────────────────────────┐ │
-│ │ Textarea content...                     │ │
-│ └─────────────────────────────────────────┘ │
-├─────────────────────────────────────────────┤
-│ Signature Image (optional file upload)      │
-├────────────────────┬────────────────────────┤
-│ Signatory Name     │ Position               │
-└────────────────────┴────────────────────────┘
+┌──────────────────────────────────────────┐
+│ [X] Book Slots                           │
+├──────────────────────────────────────────┤
+│ [Branch Selector Dropdown]               │
+├──────────────────────────────────────────┤
+│ [Calendar Grid]                          │
+├──────────────────────────────────────────┤
+│ Selected: 3 dates | Est: S$252.00        │
+│ [Clear All]          [Book Selected]     │
+├──────────────────────────────────────────┤
+│ ▼ Booking History (12 this month)        │
+│   ├── Date - Branch - Status             │
+│   └── ...                                │
+└──────────────────────────────────────────┘
 ```
 
-Key changes:
-- Remove "Closing Statement" field from UI
-- Add "Body Paragraph 2" with same formatting toolbar
-- Add simple formatting buttons (B, I, U) above each body textarea
-- Add "Signature Image" file upload (optional)
-- Add "Signatory Name" input (defaults to "Gaonhae Taekwondo LLP")
-- Add "Signatory Position" input
+### SubmitClaimDialog.tsx
 
-### 5. Update PDF Generator
-
-**File: `src/utils/verificationLetterPDFGenerator.ts`**
-
-Update `LetterTemplateData` interface:
 ```typescript
-export interface LetterTemplateData {
-  id: string;
-  name: string;
-  type: 'student' | 'employee';
-  title: string;
-  body_text: string;
-  body_text_2?: string;
-  signatory_name?: string;
-  signatory_position?: string;
-  signature_image_url?: string;
+interface SubmitClaimDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+  employee: EmployeeProfile;
 }
 ```
 
-Update PDF generation logic:
-1. Render Body Paragraph 1
-2. Render Body Paragraph 2 (if present)
-3. Skip closing statement rendering
-4. Add signature image (if provided)
-5. Use custom signatory name and position instead of hardcoded "Gaonhae Taekwondo LLP"
+Core functionality:
+- Reuse existing services: `createClaim`, `getEmployeeClaims`, `getClaimTypes`
+- Reuse existing component: `ReceiptUpload`
+- Separate handling for partners vs regular employees
 
-Updated sign-off section:
+Layout structure:
 ```
-Yours faithfully,
+┌──────────────────────────────────────────┐
+│ [X] Submit Claim                         │
+├──────────────────────────────────────────┤
+│ Claim Type: [Dropdown]                   │
+│ Amount: [____] | Date: [____]            │
+│ Description: [_______________]           │
+│ Receipt: [Upload Area]                   │
+│                        [Submit Claim]    │
+├──────────────────────────────────────────┤
+│ ▼ Claim History                          │
+│   Pending: 2 | Approved: 5 | Rejected: 1 │
+│   ├── Date - Type - Amount - Status      │
+│   └── ...                                │
+└──────────────────────────────────────────┘
+```
 
-[Signature Image - if provided]
+### ViewPayslipDialog.tsx
 
-{Signatory Name}
-{Signatory Position}
+```typescript
+interface ViewPayslipDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+  employee: EmployeeProfile;
+}
+```
+
+Core functionality:
+- Reuse existing services: `getEmployeePayrollRecords`
+- Reuse existing PDF generators: `generatePayslipPDF`, `generateCasualPayslipPDF`
+- Month navigation similar to AttendanceHistoryDialog
+
+Layout structure:
+```
+┌──────────────────────────────────────────┐
+│ [X] My Payslips                          │
+├──────────────────────────────────────────┤
+│ [<] February 2026 [>]                    │
+├──────────────────────────────────────────┤
+│ ┌────────────────────────────────────┐   │
+│ │ Feb 2026                           │   │
+│ │ Net: S$2,500 | Gross: S$3,000      │   │
+│ │ CPF: S$500                         │   │
+│ │               [Download PDF]       │   │
+│ └────────────────────────────────────┘   │
+│ ┌────────────────────────────────────┐   │
+│ │ Jan 2026                           │   │
+│ │ ...                                │   │
+│ └────────────────────────────────────┘   │
+└──────────────────────────────────────────┘
 ```
 
 ---
 
-## Files to Create/Modify
+## EmployeeDashboard.tsx Updates
 
-| File | Action |
-|------|--------|
-| Database migration | CREATE (add new columns) |
-| `src/services/letterTemplateService.ts` | MODIFY (update interfaces) |
-| `src/components/ui/rich-textarea.tsx` | CREATE (new formatting component) |
-| `src/components/miscellaneous/AddEditTemplateDialog.tsx` | MODIFY (new form layout) |
-| `src/utils/verificationLetterPDFGenerator.ts` | MODIFY (update PDF rendering) |
+### State additions:
+```typescript
+const [showSlotBooking, setShowSlotBooking] = useState(false);
+const [showSubmitClaim, setShowSubmitClaim] = useState(false);
+const [showViewPayslip, setShowViewPayslip] = useState(false);
+```
+
+### Button handler updates:
+```typescript
+// Book Slots button (line ~552-560)
+onClick={() => setShowSlotBooking(true)}
+
+// Submit Claim button (line ~562-576)
+onClick={() => setShowSubmitClaim(true)}
+
+// View Payslip button (line ~578-587)
+onClick={() => setShowViewPayslip(true)}
+```
+
+### Dialog component additions (at end of component, before final `</>`):
+```tsx
+{employeeData?.type === 'Casual' && (
+  <SlotBookingDialog
+    open={showSlotBooking}
+    onOpenChange={setShowSlotBooking}
+    employeeId={effectiveEmployeeId}
+    employeeName={employeeData.name}
+    employeeType={employeeData.type}
+    qualifications={employeeData.qualifications}
+    joinDate={employeeData.joinDate}
+  />
+)}
+
+{employeeData && (
+  <SubmitClaimDialog
+    open={showSubmitClaim}
+    onOpenChange={setShowSubmitClaim}
+    employeeId={effectiveEmployeeId}
+    employee={employeeData}
+  />
+)}
+
+{employeeData && (
+  <ViewPayslipDialog
+    open={showViewPayslip}
+    onOpenChange={setShowViewPayslip}
+    employeeId={effectiveEmployeeId}
+    employee={employeeData}
+  />
+)}
+```
 
 ---
 
-## Rich Text Formatting Approach
+## Mobile-Friendly Design Considerations
 
-Since jsPDF has limited support for rich text, the formatting will use a simple approach:
+1. **Dialog sizing**: `max-w-lg` on mobile, `max-w-2xl` on desktop for slot booking
+2. **Scroll handling**: Content areas use `overflow-y-auto` with `max-h-[80vh]`
+3. **Touch targets**: Minimum 44px touch targets for buttons
+4. **Compact forms**: Single-column layouts on mobile
+5. **Collapsible sections**: History sections collapse by default to prioritize primary action
+6. **Responsive spacing**: Tighter padding on mobile (`p-3` vs `p-6`)
 
-1. **In the Editor**: Use toolbar buttons that wrap selected text with markers:
-   - Bold: `**text**`
-   - Italic: `_text_`
-   - Underline: `__text__`
+---
 
-2. **In the PDF**: Parse these markers and apply appropriate `doc.setFont()` styling:
-   - `**text**` → `doc.setFont('helvetica', 'bold')`
-   - `_text_` → `doc.setFont('helvetica', 'italic')`
-   - `__text__` → Draw underline via `doc.line()`
+## Navigation Fallback
 
-This keeps the data storage simple (plain text) while providing basic formatting support.
+The original page routes (`/slot-booking`, `/submit-claim`, `/payslips`) will remain functional for:
+- Direct URL access
+- Superadmin management features
+- Senior Partner management access
+
+The dialogs focus purely on the employee self-service experience.
 
 ---
 
 ## Implementation Order
 
-1. Run database migration to add new columns
-2. Update `letterTemplateService.ts` with new fields
-3. Create `rich-textarea.tsx` component
-4. Update `AddEditTemplateDialog.tsx` with new form design
-5. Update `verificationLetterPDFGenerator.ts` for new fields
-6. Test the complete flow
+1. Create `SlotBookingDialog.tsx`
+2. Create `SubmitClaimDialog.tsx`
+3. Create `ViewPayslipDialog.tsx`
+4. Update `EmployeeDashboard.tsx` to use dialogs
+5. Test on mobile viewport
 
+---
+
+## Existing Components to Reuse
+
+| Component | Used In |
+|-----------|---------|
+| `EnhancedBranchSelector` | SlotBookingDialog |
+| `EnhancedCalendar` | SlotBookingDialog |
+| `SelectedDatesManager` | SlotBookingDialog |
+| `ReceiptUpload` | SubmitClaimDialog |
+| `PartnerClaimContent` | SubmitClaimDialog (for partners) |
+| PDF generators | ViewPayslipDialog |
+
+---
+
+## Service Dependencies
+
+All dialogs will use existing Supabase services:
+- `slotBookingService.ts` - Slot booking operations
+- `claimsService.ts` - Claim CRUD operations
+- `claimTypesService.ts` - Claim type definitions
+- `payrollService.ts` - Payroll records
+- `employeeService.ts` - Employee data
