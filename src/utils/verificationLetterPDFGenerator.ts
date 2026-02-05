@@ -343,7 +343,108 @@ const cleanFormattingMarkers = (text: string): string => {
     .replace(/_([^_]+?)_/g, '$1'); // Italic
 };
 
-// Render a paragraph with formatting support
+// Word wrap text while preserving formatting segments
+const wrapFormattedText = (
+  doc: jsPDF,
+  segments: TextSegment[],
+  contentWidth: number
+): TextSegment[][] => {
+  const lines: TextSegment[][] = [];
+  let currentLine: TextSegment[] = [];
+  let currentLineWidth = 0;
+  const spaceWidth = doc.getTextWidth(' ');
+
+  for (const segment of segments) {
+    // Split segment text into words
+    const words = segment.text.split(/(\s+)/); // Keep spaces as separate elements
+    
+    for (const word of words) {
+      if (!word) continue;
+      
+      // Set font for accurate width calculation
+      doc.setFont('helvetica', segment.bold ? 'bold' : (segment.italic ? 'italic' : 'normal'));
+      const wordWidth = doc.getTextWidth(word);
+      
+      // Check if word fits on current line
+      if (currentLineWidth + wordWidth > contentWidth && currentLine.length > 0) {
+        // Push current line and start new one
+        lines.push(currentLine);
+        currentLine = [];
+        currentLineWidth = 0;
+      }
+      
+      // Add word to current segment in line
+      const lastSeg = currentLine[currentLine.length - 1];
+      if (lastSeg && lastSeg.bold === segment.bold && lastSeg.italic === segment.italic && lastSeg.underline === segment.underline) {
+        // Same formatting, append to existing segment
+        lastSeg.text += word;
+      } else {
+        // Different formatting, create new segment
+        currentLine.push({
+          text: word,
+          bold: segment.bold,
+          italic: segment.italic,
+          underline: segment.underline,
+        });
+      }
+      currentLineWidth += wordWidth;
+    }
+  }
+  
+  // Don't forget the last line
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+  
+  return lines;
+};
+
+// Render a single wrapped line of segments
+const renderWrappedLine = (
+  doc: jsPDF,
+  segments: TextSegment[],
+  x: number,
+  y: number,
+  alignment: TextAlignment,
+  contentWidth: number,
+  pageWidth: number,
+  marginLeft: number
+): void => {
+  // Calculate total line width for alignment
+  let totalWidth = 0;
+  segments.forEach(seg => {
+    doc.setFont('helvetica', seg.bold ? 'bold' : (seg.italic ? 'italic' : 'normal'));
+    totalWidth += doc.getTextWidth(seg.text);
+  });
+  
+  // Determine starting X based on alignment
+  let currentX = x;
+  if (alignment === 'center') {
+    currentX = (pageWidth - totalWidth) / 2;
+  } else if (alignment === 'right') {
+    currentX = pageWidth - marginLeft - totalWidth;
+  }
+  
+  // Render each segment
+  segments.forEach(seg => {
+    doc.setFont('helvetica', seg.bold ? 'bold' : (seg.italic ? 'italic' : 'normal'));
+    doc.text(seg.text, currentX, y);
+    
+    // Draw underline if needed
+    if (seg.underline) {
+      const textWidth = doc.getTextWidth(seg.text);
+      doc.setLineWidth(0.3);
+      doc.line(currentX, y + 0.5, currentX + textWidth, y + 0.5);
+    }
+    
+    currentX += doc.getTextWidth(seg.text);
+  });
+  
+  // Reset font
+  doc.setFont('helvetica', 'normal');
+};
+
+// Render a paragraph with formatting support - improved word wrapping
 const renderFormattedParagraph = (
   doc: jsPDF,
   text: string,
@@ -363,25 +464,15 @@ const renderFormattedParagraph = (
       continue;
     }
     
-    // Parse the line for alignment
+    // Parse the line for formatting and alignment
     const parsedLine = parseLineFormatting(paragraph);
-    const cleanText = cleanFormattingMarkers(paragraph);
     
-    // Split into lines that fit the width
-    const wrappedLines = doc.splitTextToSize(cleanText, contentWidth);
+    // Wrap text while preserving formatting
+    const wrappedLines = wrapFormattedText(doc, parsedLine.segments, contentWidth);
     
-    for (const wrappedLine of wrappedLines) {
+    for (const lineSegments of wrappedLines) {
       checkPageBreak(lineHeight);
-      
-      // Find corresponding formatted segments for this wrapped portion
-      // For simplicity, render with alignment but use segments from original
-      if (wrappedLine === cleanText || wrappedLines.length === 1) {
-        renderFormattedLine(doc, parsedLine, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
-      } else {
-        // For wrapped lines, just render with alignment
-        const simpleSegments: TextSegment[] = [{ text: wrappedLine, bold: false, italic: false, underline: false }];
-        renderFormattedLine(doc, { segments: simpleSegments, alignment: parsedLine.alignment }, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
-      }
+      renderWrappedLine(doc, lineSegments, marginLeft, yPos, parsedLine.alignment, contentWidth, pageWidth, marginLeft);
       yPos += lineHeight;
     }
   }
