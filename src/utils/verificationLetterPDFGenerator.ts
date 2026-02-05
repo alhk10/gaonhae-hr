@@ -38,6 +38,7 @@ export interface LetterTemplateData {
   address?: string;
   contact_number?: string;
   salutation?: string;
+  show_horizontal_line?: boolean;
 }
 
 interface LetterTemplates {
@@ -763,8 +764,31 @@ export const generateStudentVerificationLetterWithTemplate = async (
   }
   yPos += 5;
 
+  // Signature block - after body paragraph 1
+  checkPageBreak(50);
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url,
+    template.company_name
+  );
+
+  // Horizontal line before body paragraph 2 (if enabled)
+  if (template.show_horizontal_line && template.body_text_2) {
+    yPos += 5;
+    checkPageBreak(10);
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, yPos, pageWidth - marginLeft, yPos);
+    yPos += 10;
+  }
+
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
     const cleanBodyText2 = bodyText2
       .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -779,19 +803,6 @@ export const generateStudentVerificationLetterWithTemplate = async (
     }
     yPos += 5;
   }
-
-  yPos += 10;
-
-  // Signature block - check for space
-  checkPageBreak(50);
-  yPos = await addSignatureBlock(
-    doc,
-    yPos,
-    template.signatory_name,
-    template.signatory_position,
-    template.signature_image_url,
-    template.company_name
-  );
 
   // Footer - only show if provided (optional)
   if (template.footer_text && template.footer_text.trim()) {
@@ -888,8 +899,31 @@ export const printStudentVerificationLetterWithTemplate = async (
   }
   yPos += 5;
 
+  // Signature block - after body paragraph 1
+  checkPageBreak(50);
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url,
+    template.company_name
+  );
+
+  // Horizontal line before body paragraph 2 (if enabled)
+  if (template.show_horizontal_line && template.body_text_2) {
+    yPos += 5;
+    checkPageBreak(10);
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, yPos, pageWidth - marginLeft, yPos);
+    yPos += 10;
+  }
+
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
     const cleanBodyText2 = bodyText2
       .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -904,19 +938,6 @@ export const printStudentVerificationLetterWithTemplate = async (
     }
     yPos += 5;
   }
-
-  yPos += 10;
-
-  // Signature block - check for space
-  checkPageBreak(50);
-  yPos = await addSignatureBlock(
-    doc,
-    yPos,
-    template.signatory_name,
-    template.signatory_position,
-    template.signature_image_url,
-    template.company_name
-  );
 
   // Footer - only show if provided (optional)
   if (template.footer_text && template.footer_text.trim()) {
@@ -1016,8 +1037,31 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   }
   yPos += 5;
 
+  // Signature block - after body paragraph 1
+  checkPageBreak(50);
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url,
+    template.company_name
+  );
+
+  // Horizontal line before body paragraph 2 (if enabled)
+  if (template.show_horizontal_line && template.body_text_2) {
+    yPos += 5;
+    checkPageBreak(10);
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, yPos, pageWidth - marginLeft, yPos);
+    yPos += 10;
+  }
+
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
     const cleanBodyText2 = bodyText2
       .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -1032,19 +1076,6 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     }
     yPos += 5;
   }
-
-  yPos += 10;
-
-  // Signature block - check for space
-  checkPageBreak(50);
-  yPos = await addSignatureBlock(
-    doc,
-    yPos,
-    template.signatory_name,
-    template.signatory_position,
-    template.signature_image_url,
-    template.company_name
-  );
 
   // Footer - only show if provided (optional)
   if (template.footer_text && template.footer_text.trim()) {
@@ -1144,8 +1175,31 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   }
   yPos += 5;
 
+  // Signature block - after body paragraph 1
+  checkPageBreak(50);
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url,
+    template.company_name
+  );
+
+  // Horizontal line before body paragraph 2 (if enabled)
+  if (template.show_horizontal_line && template.body_text_2) {
+    yPos += 5;
+    checkPageBreak(10);
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, yPos, pageWidth - marginLeft, yPos);
+    yPos += 10;
+  }
+
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
     const cleanBodyText2 = bodyText2
       .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -1160,19 +1214,6 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     }
     yPos += 5;
   }
-
-  yPos += 10;
-
-  // Signature block - check for space
-  checkPageBreak(50);
-  yPos = await addSignatureBlock(
-    doc,
-    yPos,
-    template.signatory_name,
-    template.signatory_position,
-    template.signature_image_url,
-    template.company_name
-  );
 
   // Footer - only show if provided (optional)
   if (template.footer_text && template.footer_text.trim()) {

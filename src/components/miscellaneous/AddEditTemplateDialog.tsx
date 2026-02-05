@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RichTextarea } from '@/components/ui/rich-textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -50,8 +51,6 @@ const EMPLOYEE_PLACEHOLDERS = [
   { key: '{phone}', label: 'Contact number' },
 ];
 
-const DEFAULT_FOOTER_TEXT = 'This letter is computer generated and does not require signature';
-
 const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   isOpen,
   onClose,
@@ -63,15 +62,16 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   const [title, setTitle] = useState('');
   const [bodyText, setBodyText] = useState('');
   const [bodyText2, setBodyText2] = useState('');
-  const [signatoryName, setSignatoryName] = useState('Gaonhae Taekwondo LLP');
+  const [signatoryName, setSignatoryName] = useState('');
   const [signatoryPosition, setSignatoryPosition] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [footerText, setFooterText] = useState(DEFAULT_FOOTER_TEXT);
+  const [footerText, setFooterText] = useState('');
   const [signatureImageUrl, setSignatureImageUrl] = useState('');
   const [addresseeName, setAddresseeName] = useState('{fullName}');
   const [address, setAddress] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [salutation, setSalutation] = useState('To Whom It May Concern');
+  const [showHorizontalLine, setShowHorizontalLine] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -85,7 +85,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setTitle(template.title);
         setBodyText(template.body_text);
         setBodyText2(template.body_text_2 || '');
-        setSignatoryName(template.signatory_name || 'Gaonhae Taekwondo LLP');
+        setSignatoryName(template.signatory_name || '');
         setSignatoryPosition(template.signatory_position || '');
         setCompanyName(template.company_name || '');
         setFooterText(template.footer_text ?? '');
@@ -94,21 +94,23 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setAddress(template.address || '');
         setContactNumber(template.contact_number || '');
         setSalutation(template.salutation || 'To Whom It May Concern');
+        setShowHorizontalLine(template.show_horizontal_line || false);
       } else {
         setName('');
         setType('student');
         setTitle('');
         setBodyText('');
         setBodyText2('');
-        setSignatoryName('Gaonhae Taekwondo LLP');
+        setSignatoryName('');
         setSignatoryPosition('');
         setCompanyName('');
-        setFooterText(DEFAULT_FOOTER_TEXT);
+        setFooterText('');
         setSignatureImageUrl('');
         setAddresseeName('{fullName}');
         setAddress('');
         setContactNumber('');
         setSalutation('To Whom It May Concern');
+        setShowHorizontalLine(false);
       }
     }
   }, [isOpen, template]);
@@ -165,6 +167,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           address: address.trim(),
           contact_number: contactNumber.trim(),
           salutation: salutation.trim(),
+          show_horizontal_line: showHorizontalLine,
         });
         toast.success('Template updated successfully');
       } else {
@@ -183,6 +186,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           address: address.trim(),
           contact_number: contactNumber.trim(),
           salutation: salutation.trim(),
+          show_horizontal_line: showHorizontalLine,
         };
         await letterTemplateService.createTemplate(data);
         toast.success('Template created successfully');
@@ -314,17 +318,6 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bodyText2">Body Paragraph 2 (Optional)</Label>
-            <RichTextarea
-              id="bodyText2"
-              value={bodyText2}
-              onChange={(e) => setBodyText2(e.target.value)}
-              placeholder="Enter additional body text..."
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label>Signature Image (Optional)</Label>
             <div className="flex items-center gap-4">
               {signatureImageUrl ? (
@@ -367,7 +360,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="signatoryName">Signatory Name</Label>
+              <Label htmlFor="signatoryName">Signatory Name (Optional)</Label>
               <Input
                 id="signatoryName"
                 value={signatoryName}
@@ -377,7 +370,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="signatoryPosition">Position</Label>
+              <Label htmlFor="signatoryPosition">Position (Optional)</Label>
               <Input
                 id="signatoryPosition"
                 value={signatoryPosition}
@@ -388,7 +381,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyName">Company Name</Label>
+            <Label htmlFor="companyName">Company Name (Optional)</Label>
             <Input
               id="companyName"
               value={companyName}
@@ -397,8 +390,30 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
             />
           </div>
 
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="showHorizontalLine"
+              checked={showHorizontalLine}
+              onCheckedChange={(checked) => setShowHorizontalLine(checked === true)}
+            />
+            <Label htmlFor="showHorizontalLine" className="text-sm font-normal cursor-pointer">
+              Add horizontal line before closing paragraph
+            </Label>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="footerText">Footer Text</Label>
+            <Label htmlFor="bodyText2">Body Paragraph 2 / Closing Paragraph (Optional)</Label>
+            <RichTextarea
+              id="bodyText2"
+              value={bodyText2}
+              onChange={(e) => setBodyText2(e.target.value)}
+              placeholder="Enter additional body text or closing paragraph..."
+              rows={4}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="footerText">Footer Text (Optional)</Label>
             <Input
               id="footerText"
               value={footerText}

@@ -2106,6 +2106,7 @@ export type Database = {
           is_default: boolean
           name: string
           salutation: string | null
+          show_horizontal_line: boolean | null
           signatory_name: string | null
           signatory_position: string | null
           signature_image_url: string | null
@@ -2131,6 +2132,7 @@ export type Database = {
           is_default?: boolean
           name: string
           salutation?: string | null
+          show_horizontal_line?: boolean | null
           signatory_name?: string | null
           signatory_position?: string | null
           signature_image_url?: string | null
@@ -2156,6 +2158,7 @@ export type Database = {
           is_default?: boolean
           name?: string
           salutation?: string | null
+          show_horizontal_line?: boolean | null
           signatory_name?: string | null
           signatory_position?: string | null
           signature_image_url?: string | null
