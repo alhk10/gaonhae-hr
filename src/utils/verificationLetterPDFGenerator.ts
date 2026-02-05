@@ -25,7 +25,11 @@ export interface LetterTemplateData {
   type: 'student' | 'employee';
   title: string;
   body_text: string;
+  body_text_2?: string;
   closing_text: string;
+  signatory_name?: string;
+  signatory_position?: string;
+  signature_image_url?: string;
 }
 
 interface LetterTemplates {
@@ -112,6 +116,23 @@ const loadLogo = async (): Promise<HTMLImageElement | null> => {
   }
 };
 
+const loadSignatureImage = async (url: string): Promise<HTMLImageElement | null> => {
+  if (!url) return null;
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load signature'));
+      img.src = url;
+    });
+    return img;
+  } catch (error) {
+    console.warn('Could not load signature for PDF:', error);
+    return null;
+  }
+};
+
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const logoWidth = 38.5;
@@ -154,6 +175,132 @@ const formatCurrency = (amount: number): string => {
     currency: 'SGD',
     minimumFractionDigits: 2,
   }).format(amount);
+};
+
+// Parse and render formatted text with basic styling
+interface TextSegment {
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+const parseFormattedText = (text: string): TextSegment[] => {
+  const segments: TextSegment[] = [];
+  let remaining = text;
+  
+  // Simple regex-based parsing for **bold**, _italic_, and __underline__
+  const regex = /(\*\*(.+?)\*\*|__(.+?)__|_(.+?)_)/g;
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      segments.push({
+        text: text.substring(lastIndex, match.index),
+        bold: false,
+        italic: false,
+        underline: false,
+      });
+    }
+    
+    // Determine the type of formatting
+    if (match[0].startsWith('**')) {
+      segments.push({
+        text: match[2],
+        bold: true,
+        italic: false,
+        underline: false,
+      });
+    } else if (match[0].startsWith('__')) {
+      segments.push({
+        text: match[3],
+        bold: false,
+        italic: false,
+        underline: true,
+      });
+    } else if (match[0].startsWith('_')) {
+      segments.push({
+        text: match[4],
+        bold: false,
+        italic: true,
+        underline: false,
+      });
+    }
+    
+    lastIndex = regex.lastIndex;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    segments.push({
+      text: text.substring(lastIndex),
+      bold: false,
+      italic: false,
+      underline: false,
+    });
+  }
+  
+  return segments.length > 0 ? segments : [{ text, bold: false, italic: false, underline: false }];
+};
+
+const renderFormattedText = (
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number
+): number => {
+  // For simplicity, render as plain text with basic formatting stripped
+  // jsPDF doesn't support inline formatting well, so we render without markers
+  const cleanText = text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1');
+  
+  const lines = doc.splitTextToSize(cleanText, maxWidth);
+  doc.text(lines, x, y);
+  return lines.length * 6;
+};
+
+const addSignatureBlock = async (
+  doc: jsPDF,
+  yPos: number,
+  signatoryName?: string,
+  signatoryPosition?: string,
+  signatureImageUrl?: string
+): Promise<number> => {
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Yours faithfully,', 20, yPos);
+  yPos += 10;
+
+  // Add signature image if provided
+  if (signatureImageUrl) {
+    const signatureImg = await loadSignatureImage(signatureImageUrl);
+    if (signatureImg) {
+      const sigWidth = 40;
+      const sigHeight = (signatureImg.height / signatureImg.width) * sigWidth;
+      doc.addImage(signatureImg, 'PNG', 20, yPos, sigWidth, Math.min(sigHeight, 20));
+      yPos += Math.min(sigHeight, 20) + 5;
+    }
+  } else {
+    yPos += 10;
+  }
+
+  // Signatory name
+  doc.setFont('helvetica', 'bold');
+  doc.text(signatoryName || 'Gaonhae Taekwondo LLP', 20, yPos);
+  
+  // Signatory position
+  if (signatoryPosition) {
+    yPos += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.text(signatoryPosition, 20, yPos);
+  }
+
+  return yPos;
 };
 
 export const generateStudentVerificationLetter = async (data: StudentData): Promise<void> => {
@@ -502,22 +649,30 @@ export const generateStudentVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
+  // Body paragraph 1
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  const bodyLines = doc.splitTextToSize(bodyText, 170);
-  doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 5;
+  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  yPos += 5;
 
-  const closingText = replaceStudentPlaceholders(template.closing_text, studentPlaceholders);
-  const closingLines = doc.splitTextToSize(closingText, 170);
-  doc.text(closingLines, 20, yPos);
-  yPos += closingLines.length * 6 + 15;
+  // Body paragraph 2 (if provided)
+  if (template.body_text_2) {
+    const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
+    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    yPos += 5;
+  }
 
-  doc.text('Yours faithfully,', 20, yPos);
-  yPos += 15;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+  yPos += 10;
+
+  // Signature block
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url
+  );
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -567,22 +722,30 @@ export const printStudentVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
+  // Body paragraph 1
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  const bodyLines = doc.splitTextToSize(bodyText, 170);
-  doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 5;
+  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  yPos += 5;
 
-  const closingText = replaceStudentPlaceholders(template.closing_text, studentPlaceholders);
-  const closingLines = doc.splitTextToSize(closingText, 170);
-  doc.text(closingLines, 20, yPos);
-  yPos += closingLines.length * 6 + 15;
+  // Body paragraph 2 (if provided)
+  if (template.body_text_2) {
+    const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
+    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    yPos += 5;
+  }
 
-  doc.text('Yours faithfully,', 20, yPos);
-  yPos += 15;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+  yPos += 10;
+
+  // Signature block
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url
+  );
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -630,22 +793,30 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
+  // Body paragraph 1
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  const bodyLines = doc.splitTextToSize(bodyText, 170);
-  doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 5;
+  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  yPos += 5;
 
-  const closingText = replaceEmployeePlaceholders(template.closing_text, employeePlaceholders);
-  const closingLines = doc.splitTextToSize(closingText, 170);
-  doc.text(closingLines, 20, yPos);
-  yPos += closingLines.length * 6 + 15;
+  // Body paragraph 2 (if provided)
+  if (template.body_text_2) {
+    const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
+    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    yPos += 5;
+  }
 
-  doc.text('Yours faithfully,', 20, yPos);
-  yPos += 15;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+  yPos += 10;
+
+  // Signature block
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url
+  );
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -693,22 +864,30 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
+  // Body paragraph 1
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  const bodyLines = doc.splitTextToSize(bodyText, 170);
-  doc.text(bodyLines, 20, yPos);
-  yPos += bodyLines.length * 6 + 5;
+  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  yPos += 5;
 
-  const closingText = replaceEmployeePlaceholders(template.closing_text, employeePlaceholders);
-  const closingLines = doc.splitTextToSize(closingText, 170);
-  doc.text(closingLines, 20, yPos);
-  yPos += closingLines.length * 6 + 15;
+  // Body paragraph 2 (if provided)
+  if (template.body_text_2) {
+    const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
+    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    yPos += 5;
+  }
 
-  doc.text('Yours faithfully,', 20, yPos);
-  yPos += 15;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Gaonhae Taekwondo LLP', 20, yPos);
+  yPos += 10;
+
+  // Signature block
+  yPos = await addSignatureBlock(
+    doc,
+    yPos,
+    template.signatory_name,
+    template.signatory_position,
+    template.signature_image_url
+  );
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');

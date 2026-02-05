@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextarea } from '@/components/ui/rich-textarea';
 import {
   Select,
   SelectContent,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { letterTemplateService, LetterTemplate, CreateLetterTemplateData } from '@/services/letterTemplateService';
+import { Upload, X } from 'lucide-react';
 
 interface AddEditTemplateDialogProps {
   isOpen: boolean;
@@ -56,8 +57,12 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   const [type, setType] = useState<'student' | 'employee'>('student');
   const [title, setTitle] = useState('');
   const [bodyText, setBodyText] = useState('');
-  const [closingText, setClosingText] = useState('');
+  const [bodyText2, setBodyText2] = useState('');
+  const [signatoryName, setSignatoryName] = useState('Gaonhae Taekwondo LLP');
+  const [signatoryPosition, setSignatoryPosition] = useState('');
+  const [signatureImageUrl, setSignatureImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isEditing = !!template;
 
@@ -68,16 +73,49 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setType(template.type);
         setTitle(template.title);
         setBodyText(template.body_text);
-        setClosingText(template.closing_text);
+        setBodyText2(template.body_text_2 || '');
+        setSignatoryName(template.signatory_name || 'Gaonhae Taekwondo LLP');
+        setSignatoryPosition(template.signatory_position || '');
+        setSignatureImageUrl(template.signature_image_url || '');
       } else {
         setName('');
         setType('student');
         setTitle('');
         setBodyText('');
-        setClosingText('Should you have any further clarifications, please do not hesitate to contact us.');
+        setBodyText2('');
+        setSignatoryName('Gaonhae Taekwondo LLP');
+        setSignatoryPosition('');
+        setSignatureImageUrl('');
       }
     }
   }, [isOpen, template]);
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await letterTemplateService.uploadSignatureImage(file);
+      setSignatureImageUrl(url);
+      toast.success('Signature image uploaded');
+    } catch (error) {
+      console.error('Error uploading signature:', error);
+      toast.error('Failed to upload signature image');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +132,10 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           name: name.trim(),
           title: title.trim(),
           body_text: bodyText.trim(),
-          closing_text: closingText.trim(),
+          body_text_2: bodyText2.trim(),
+          signatory_name: signatoryName.trim(),
+          signatory_position: signatoryPosition.trim(),
+          signature_image_url: signatureImageUrl,
         });
         toast.success('Template updated successfully');
       } else {
@@ -103,7 +144,10 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           type,
           title: title.trim(),
           body_text: bodyText.trim(),
-          closing_text: closingText.trim(),
+          body_text_2: bodyText2.trim(),
+          signatory_name: signatoryName.trim(),
+          signatory_position: signatoryPosition.trim(),
+          signature_image_url: signatureImageUrl,
         };
         await letterTemplateService.createTemplate(data);
         toast.success('Template created successfully');
@@ -180,8 +224,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bodyText">Body Paragraph *</Label>
-            <Textarea
+            <Label htmlFor="bodyText">Body Paragraph 1 *</Label>
+            <RichTextarea
               id="bodyText"
               value={bodyText}
               onChange={(e) => setBodyText(e.target.value)}
@@ -191,21 +235,84 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="closingText">Closing Statement</Label>
-            <Textarea
-              id="closingText"
-              value={closingText}
-              onChange={(e) => setClosingText(e.target.value)}
-              placeholder="Enter the closing statement..."
-              rows={2}
+            <Label htmlFor="bodyText2">Body Paragraph 2 (Optional)</Label>
+            <RichTextarea
+              id="bodyText2"
+              value={bodyText2}
+              onChange={(e) => setBodyText2(e.target.value)}
+              placeholder="Enter additional body text..."
+              rows={4}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Signature Image (Optional)</Label>
+            <div className="flex items-center gap-4">
+              {signatureImageUrl ? (
+                <div className="relative">
+                  <img
+                    src={signatureImageUrl}
+                    alt="Signature"
+                    className="h-16 w-auto border rounded"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
+                    onClick={() => setSignatureImageUrl('')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="h-4 w-4" />
+                  <span className="text-sm">
+                    {isUploading ? 'Uploading...' : 'Upload Signature'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSignatureUpload}
+                    disabled={isUploading}
+                  />
+                </label>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Upload an image of the signature (max 2MB)
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="signatoryName">Signatory Name</Label>
+              <Input
+                id="signatoryName"
+                value={signatoryName}
+                onChange={(e) => setSignatoryName(e.target.value)}
+                placeholder="e.g., Gaonhae Taekwondo LLP"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="signatoryPosition">Position</Label>
+              <Input
+                id="signatoryPosition"
+                value={signatoryPosition}
+                onChange={(e) => setSignatoryPosition(e.target.value)}
+                placeholder="e.g., Director"
+              />
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || isUploading}>
               {isSubmitting ? 'Saving...' : isEditing ? 'Update Template' : 'Create Template'}
             </Button>
           </DialogFooter>

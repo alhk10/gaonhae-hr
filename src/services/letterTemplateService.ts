@@ -6,7 +6,11 @@ export interface LetterTemplate {
   type: 'student' | 'employee';
   title: string;
   body_text: string;
+  body_text_2: string;
   closing_text: string;
+  signatory_name: string;
+  signatory_position: string;
+  signature_image_url: string;
   is_default: boolean;
   is_active: boolean;
   sort_order: number;
@@ -19,7 +23,11 @@ export interface CreateLetterTemplateData {
   type: 'student' | 'employee';
   title: string;
   body_text: string;
-  closing_text: string;
+  body_text_2?: string;
+  closing_text?: string;
+  signatory_name?: string;
+  signatory_position?: string;
+  signature_image_url?: string;
   sort_order?: number;
 }
 
@@ -27,7 +35,11 @@ export interface UpdateLetterTemplateData {
   name?: string;
   title?: string;
   body_text?: string;
+  body_text_2?: string;
   closing_text?: string;
+  signatory_name?: string;
+  signatory_position?: string;
+  signature_image_url?: string;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -72,6 +84,11 @@ export const letterTemplateService = {
         ...templateData,
         is_default: false,
         is_active: true,
+        body_text_2: templateData.body_text_2 || '',
+        closing_text: templateData.closing_text || '',
+        signatory_name: templateData.signatory_name || 'Gaonhae Taekwondo LLP',
+        signatory_position: templateData.signatory_position || '',
+        signature_image_url: templateData.signature_image_url || '',
       })
       .select()
       .single();
@@ -114,8 +131,30 @@ export const letterTemplateService = {
       type: original.type,
       title: original.title,
       body_text: original.body_text,
+      body_text_2: original.body_text_2,
       closing_text: original.closing_text,
+      signatory_name: original.signatory_name,
+      signatory_position: original.signatory_position,
+      signature_image_url: original.signature_image_url,
       sort_order: original.sort_order + 1,
     });
+  },
+
+  async uploadSignatureImage(file: File): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `signature_${Date.now()}.${fileExt}`;
+    const filePath = `signatures/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('education-files')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from('education-files')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
   },
 };

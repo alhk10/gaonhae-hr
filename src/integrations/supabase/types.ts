@@ -2092,6 +2092,7 @@ export type Database = {
       letter_templates: {
         Row: {
           body_text: string
+          body_text_2: string | null
           closing_text: string
           created_at: string
           created_by: string | null
@@ -2099,6 +2100,9 @@ export type Database = {
           is_active: boolean
           is_default: boolean
           name: string
+          signatory_name: string | null
+          signatory_position: string | null
+          signature_image_url: string | null
           sort_order: number | null
           title: string
           type: string
@@ -2107,6 +2111,7 @@ export type Database = {
         }
         Insert: {
           body_text: string
+          body_text_2?: string | null
           closing_text: string
           created_at?: string
           created_by?: string | null
@@ -2114,6 +2119,9 @@ export type Database = {
           is_active?: boolean
           is_default?: boolean
           name: string
+          signatory_name?: string | null
+          signatory_position?: string | null
+          signature_image_url?: string | null
           sort_order?: number | null
           title: string
           type: string
@@ -2122,6 +2130,7 @@ export type Database = {
         }
         Update: {
           body_text?: string
+          body_text_2?: string | null
           closing_text?: string
           created_at?: string
           created_by?: string | null
@@ -2129,6 +2138,9 @@ export type Database = {
           is_active?: boolean
           is_default?: boolean
           name?: string
+          signatory_name?: string | null
+          signatory_position?: string | null
+          signature_image_url?: string | null
           sort_order?: number | null
           title?: string
           type?: string
