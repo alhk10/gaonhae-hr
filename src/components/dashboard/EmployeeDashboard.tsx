@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2 } from 'lucide-react';
 import { History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import SlotBookingDialog from './SlotBookingDialog';
 import SubmitClaimDialog from './SubmitClaimDialog';
 import ViewPayslipDialog from './ViewPayslipDialog';
 import ApplyLeaveDialog from './ApplyLeaveDialog';
+import BranchProfitLossDialog from './BranchProfitLossDialog';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -70,6 +71,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showSubmitClaim, setShowSubmitClaim] = useState(false);
   const [showViewPayslip, setShowViewPayslip] = useState(false);
   const [showApplyLeave, setShowApplyLeave] = useState(false);
+  const [showBranchProfitLoss, setShowBranchProfitLoss] = useState(false);
   useEffect(() => {
     fetchAttendanceData();
     fetchEmployeeData();
@@ -303,6 +305,29 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
 
   const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
                             employeeData?.position?.toLowerCase() === 'senior partner';
+
+  // Query partner branch shares for P&L access
+  const { data: partnerBranchShares = [] } = useQuery({
+    queryKey: ['partner-branch-shares', effectiveEmployeeId],
+    queryFn: async () => {
+      if (!effectiveEmployeeId) return [];
+      const { data, error } = await supabase
+        .from('partner_branch_shares')
+        .select('branch_id, share_percentage')
+        .eq('employee_id', effectiveEmployeeId)
+        .is('effective_to', null);
+      
+      if (error) {
+        console.error('Error fetching partner shares:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!effectiveEmployeeId && isPartnerPosition,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hasPartnerBranchShares = partnerBranchShares.length > 0;
 
   const isFullTime = employeeData?.type === 'Full-Time';
   
@@ -646,6 +671,19 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                   </div>
                 </Button>
               )}
+
+              {isPartnerPosition && hasPartnerBranchShares && (
+                <Button 
+                  className={`justify-start h-auto p-3 md:p-4`} 
+                  variant="outline"
+                  onClick={() => setShowBranchProfitLoss(true)}
+                >
+                  <Building2 className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left">
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Branch Profit & Loss</p>
+                  </div>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -723,6 +761,14 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           onOpenChange={setShowApplyLeave}
           employeeId={effectiveEmployeeId}
           employee={employeeData}
+        />
+      )}
+
+      {effectiveEmployeeId && isPartnerPosition && hasPartnerBranchShares && (
+        <BranchProfitLossDialog
+          open={showBranchProfitLoss}
+          onOpenChange={setShowBranchProfitLoss}
+          employeeId={effectiveEmployeeId}
         />
       )}
     </>
