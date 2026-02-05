@@ -12,7 +12,7 @@ import {
   Plus,
   Eye
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchChatPanel from '@/components/chat/BranchChatPanel';
+import StudentDetailsDialog from './StudentDetailsDialog';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ import {
 import { getCurrentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { getUnreadCountForBranch } from '@/services/chatService';
+import { Student } from '@/services/studentService';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -46,9 +48,12 @@ interface BranchDashboardProps {
 const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
@@ -347,7 +352,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/parties/students/${student.id}`)}
+                          onClick={() => {
+                            setSelectedStudent(student as Student);
+                            setStudentDetailsOpen(true);
+                          }}
                           title="View student details"
                         >
                           <Eye className="w-4 h-4" />
@@ -359,6 +367,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               )}
             </CardContent>
           </Card>
+
+          {/* Student Details Dialog */}
+          <StudentDetailsDialog
+            open={studentDetailsOpen}
+            onOpenChange={setStudentDetailsOpen}
+            student={selectedStudent}
+            onStudentUpdated={() => {
+              queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="invoices">
