@@ -1,102 +1,99 @@
 
-# Add Approval Sections to Superadmin Dashboard
+# Add "View Branch Profit & Loss" Dialog for Partners
 
 ## Overview
-Add three new approval sections to the Superadmin Dashboard for Claims, Leave, and Slot Booking approvals. These will follow the same pattern as the existing `PaymentDeletionApprovals` and `InventoryOrderApprovals` components.
+Add a new quick action button "View Branch Profit & Loss" to the Employee Dashboard that is only visible to partners with branch shares. The button opens a mobile-friendly dialog showing published P&L reports with download PDF functionality.
 
-## Current State
-- Superadmin Dashboard already has approval sections for Payment Deletions, Invoice Deletions, and Inventory Orders
-- The dashboard shows stats for pending claims but lacks actionable approval UI
-- Leave requests and slot bookings have approval functionality in their respective management pages but not on the dashboard
+## Current State Analysis
+- Partners already have a dedicated BranchProfitLoss page (`/branch-profit-loss`)
+- Partner branch shares are stored in `partner_branch_shares` table
+- Published reports are tracked in `published_pl_reports` table
+- PDF generation logic already exists in `BranchProfitLoss.tsx` using jsPDF
+- Employee Dashboard already shows different actions based on position (partner vs non-partner)
 
 ## Implementation Plan
 
-### 1. Create ClaimsApprovals Component
-**File:** `src/components/dashboard/ClaimsApprovals.tsx`
+### 1. Create BranchProfitLossDialog Component
+**File:** `src/components/dashboard/BranchProfitLossDialog.tsx`
 
-A new component that:
-- Fetches pending claims using the existing `getClaims` service
-- Displays a table with employee name, claim type, amount, date, and description
-- Shows receipt preview link if available
-- Provides Approve/Reject buttons with confirmation dialogs
-- Uses the existing `updateClaimStatus` function for status changes
-- Matches the visual style of existing approval components
+A new mobile-friendly dialog component that:
+- Fetches partner's branch shares (branches they have ownership in)
+- Fetches published P&L reports for those branches
+- Displays a list of published reports grouped by branch with month/year
+- Shows summary totals (Revenue, Expenses, Net Profit) for each report
+- Provides inline PDF download button for each published report
+- Uses the existing PDF generation logic from BranchProfitLoss.tsx
 
-### 2. Create LeaveApprovals Component
-**File:** `src/components/dashboard/LeaveApprovals.tsx`
+**Key Features:**
+- Branch selector dropdown (filtered to partner's branches with shares)
+- List view of published months with:
+  - Month/Year label
+  - Revenue amount (partner's share)
+  - Expenses amount (partner's share)  
+  - Net Profit/Loss
+  - Download PDF button
+- Loading states and empty states
+- Mobile-responsive layout
 
-A new component that:
-- Fetches pending leave requests using `getAllLeaveRequests` service
-- Displays employee name, leave type, date range, days requested, and reason
-- Shows medical certificate link for sick leave if available
-- Provides Approve/Reject buttons
-- Uses `updateLeaveStatus` for status changes
+### 2. Update Employee Dashboard
+**File:** `src/components/dashboard/EmployeeDashboard.tsx`
 
-### 3. Create SlotBookingApprovals Component
-**File:** `src/components/dashboard/SlotBookingApprovals.tsx`
+- Import the new BranchProfitLossDialog
+- Add state for dialog visibility (`showBranchProfitLoss`)
+- Add state to track partner branch shares
+- Add useQuery to fetch partner's branch shares when user is a partner
+- Add new Quick Action button "View Branch Profit & Loss" with Building2 icon
+- Button only rendered when:
+  - Employee position is 'Partner' or 'Senior Partner'
+  - Employee has at least one active branch share
+- Pass branch shares data to the dialog
 
-A new component that:
-- Fetches pending slot bookings using `getAllSlotBookings` service
-- Displays employee name, branch, date, and notes
-- Provides Approve/Reject/Approve All buttons
-- Uses existing `updateSlotBookingStatus` function
-
-### 4. Update Superadmin Dashboard
-**File:** `src/components/dashboard/SuperadminDashboard.tsx`
-
-- Import the three new approval components
-- Add queries to fetch pending counts for leave and bookings
-- Update the stats cards to include pending leave and pending bookings counts
-- Add the approval components to the Overview tab (after the recent claims card, before deletion approvals)
-- Only show each section when there are pending items (consistent with existing pattern)
-
-### 5. Update Dashboard Stats Service
-**File:** `src/services/dashboardOptimizationService.ts`
-
-- Add `pendingLeave` and `pendingBookings` to the `DashboardStats` interface
-- Update `getDashboardStats` to fetch these additional counts
-
----
+### 3. PDF Generation Logic
+The dialog will reuse the PDF generation approach from BranchProfitLoss.tsx:
+- Fetch P&L entries from `branch_profit_loss_entries` for selected branch/month/year
+- Generate PDF with:
+  - Branch name and period header
+  - Revenue section with partner's share calculations
+  - Expenses section with partner's share calculations
+  - Net Profit/Loss summary
+- Download using jsPDF `doc.save()`
 
 ## Technical Details
 
-### Component Structure (ClaimsApprovals example)
-```typescript
-const ClaimsApprovals: React.FC = () => {
-  const queryClient = useQueryClient();
-  
-  const { data: claims = [], isLoading } = useQuery({
-    queryKey: ['pending-claims-approvals'],
-    queryFn: async () => {
-      const allClaims = await getClaims();
-      return allClaims.filter(c => c.status === 'Pending');
-    },
-    staleTime: 30 * 1000,
-  });
-  
-  // Approve/Reject mutations
-  // Table with actions
-};
+### Data Flow
+```text
+1. Dialog opens
+2. Fetch partner_branch_shares for current employee (active only)
+3. Fetch published_pl_reports for partner's branches
+4. Display branch selector with available branches
+5. Show list of published reports for selected branch
+6. On download click:
+   - Fetch branch_profit_loss_entries for that month/year
+   - Generate PDF with partner's share calculations
+   - Trigger download
 ```
 
-### Stats Card Updates
-Add two new stat cards:
-- **Pending Leave**: Shows count of pending leave requests
-- **Pending Bookings**: Shows count of pending slot bookings
+### Database Queries
+- Partner shares: `partner_branch_shares` WHERE employee_id = X AND effective_to IS NULL
+- Published reports: `published_pl_reports` WHERE branch_id IN (partner's branches)
+- P&L entries: `branch_profit_loss_entries` WHERE branch_id = X AND month = Y AND year = Z
 
-### Query Keys
-- `pending-claims-approvals`
-- `pending-leave-approvals`
-- `pending-booking-approvals`
-- `dashboard-stats` (updated to include new counts)
-
----
+### Component Props
+```typescript
+interface BranchProfitLossDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+}
+```
 
 ## Files to Create
-1. `src/components/dashboard/ClaimsApprovals.tsx`
-2. `src/components/dashboard/LeaveApprovals.tsx`
-3. `src/components/dashboard/SlotBookingApprovals.tsx`
+1. `src/components/dashboard/BranchProfitLossDialog.tsx`
 
 ## Files to Modify
-1. `src/components/dashboard/SuperadminDashboard.tsx`
-2. `src/services/dashboardOptimizationService.ts`
+1. `src/components/dashboard/EmployeeDashboard.tsx`
+   - Add import for BranchProfitLossDialog
+   - Add state and handler for dialog
+   - Add query for partner branch shares
+   - Add conditional quick action button
+   - Render dialog component
