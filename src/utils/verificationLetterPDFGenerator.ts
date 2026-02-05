@@ -343,7 +343,7 @@ const cleanFormattingMarkers = (text: string): string => {
     .replace(/_([^_]+?)_/g, '$1'); // Italic
 };
 
-// Render a paragraph with formatting support
+// Render a paragraph with formatting support - handles proper word wrapping with formatting
 const renderFormattedParagraph = (
   doc: jsPDF,
   text: string,
@@ -363,25 +363,88 @@ const renderFormattedParagraph = (
       continue;
     }
     
-    // Parse the line for alignment
-    const parsedLine = parseLineFormatting(paragraph);
-    const cleanText = cleanFormattingMarkers(paragraph);
+    // Determine alignment from paragraph start
+    let alignment: TextAlignment = 'left';
+    let processedParagraph = paragraph;
+    
+    if (paragraph.startsWith('<<')) {
+      alignment = 'left';
+      processedParagraph = paragraph.substring(2);
+    } else if (paragraph.startsWith('><')) {
+      alignment = 'center';
+      processedParagraph = paragraph.substring(2);
+    } else if (paragraph.startsWith('>>')) {
+      alignment = 'right';
+      processedParagraph = paragraph.substring(2);
+    }
+    
+    // Clean text for word wrapping calculation
+    const cleanText = cleanFormattingMarkers(processedParagraph);
     
     // Split into lines that fit the width
-    const wrappedLines = doc.splitTextToSize(cleanText, contentWidth);
+    const wrappedLines = doc.splitTextToSize(cleanText, contentWidth) as string[];
     
-    for (const wrappedLine of wrappedLines) {
+    // For each wrapped line, we need to find the corresponding portion of the original formatted text
+    let remainingText = processedParagraph;
+    
+    for (let i = 0; i < wrappedLines.length; i++) {
       checkPageBreak(lineHeight);
       
-      // Find corresponding formatted segments for this wrapped portion
-      // For simplicity, render with alignment but use segments from original
-      if (wrappedLine === cleanText || wrappedLines.length === 1) {
-        renderFormattedLine(doc, parsedLine, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
-      } else {
-        // For wrapped lines, just render with alignment
-        const simpleSegments: TextSegment[] = [{ text: wrappedLine, bold: false, italic: false, underline: false }];
-        renderFormattedLine(doc, { segments: simpleSegments, alignment: parsedLine.alignment }, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
+      const wrappedLine = wrappedLines[i];
+      const wrappedLineLength = wrappedLine.length;
+      
+      // Extract the portion of formatted text that corresponds to this wrapped line
+      let formattedPortion = '';
+      let cleanCharCount = 0;
+      let j = 0;
+      
+      while (cleanCharCount < wrappedLineLength && j < remainingText.length) {
+        // Check for formatting markers
+        if (remainingText.substring(j, j + 2) === '**') {
+          // Find closing **
+          const closeIdx = remainingText.indexOf('**', j + 2);
+          if (closeIdx !== -1) {
+            const content = remainingText.substring(j, closeIdx + 2);
+            formattedPortion += content;
+            cleanCharCount += closeIdx - j - 2; // Content without markers
+            j = closeIdx + 2;
+            continue;
+          }
+        } else if (remainingText.substring(j, j + 2) === '~~') {
+          // Find closing ~~
+          const closeIdx = remainingText.indexOf('~~', j + 2);
+          if (closeIdx !== -1) {
+            const content = remainingText.substring(j, closeIdx + 2);
+            formattedPortion += content;
+            cleanCharCount += closeIdx - j - 2;
+            j = closeIdx + 2;
+            continue;
+          }
+        } else if (remainingText[j] === '_' && remainingText[j + 1] !== '_') {
+          // Find closing _
+          const closeIdx = remainingText.indexOf('_', j + 1);
+          if (closeIdx !== -1) {
+            const content = remainingText.substring(j, closeIdx + 1);
+            formattedPortion += content;
+            cleanCharCount += closeIdx - j - 1;
+            j = closeIdx + 1;
+            continue;
+          }
+        }
+        
+        formattedPortion += remainingText[j];
+        cleanCharCount++;
+        j++;
       }
+      
+      // Update remaining text for next iteration
+      remainingText = remainingText.substring(j).trimStart();
+      
+      // Parse and render the formatted portion
+      const parsedLine = parseLineFormatting(formattedPortion);
+      parsedLine.alignment = alignment;
+      
+      renderFormattedLine(doc, parsedLine, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
       yPos += lineHeight;
     }
   }
@@ -817,12 +880,17 @@ export const generateStudentVerificationLetterWithTemplate = async (
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginBottom = 25;
-  const marginLeft = 20;
-  const contentWidth = 170;
+  
+  // Margins: top 1" (25.4mm), bottom 0.75" (19.05mm), left/right 0.5" (12.7mm)
+  const marginTop = 25.4;
+  const marginBottom = 19.05;
+  const marginLeft = 12.7;
+  const marginRight = 12.7;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  
+  let yPos = marginTop + 30; // After letterhead
 
   // Helper to check and add new page if needed
   const checkPageBreak = (requiredHeight: number): void => {
@@ -932,12 +1000,17 @@ export const printStudentVerificationLetterWithTemplate = async (
     enrollmentDate: formatDate(data.enrollmentDate),
   };
 
-  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginBottom = 25;
-  const marginLeft = 20;
-  const contentWidth = 170;
+  
+  // Margins: top 1" (25.4mm), bottom 0.75" (19.05mm), left/right 0.5" (12.7mm)
+  const marginTop = 25.4;
+  const marginBottom = 19.05;
+  const marginLeft = 12.7;
+  const marginRight = 12.7;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  
+  let yPos = marginTop + 30; // After letterhead
 
   // Helper to check and add new page if needed
   const checkPageBreak = (requiredHeight: number): void => {
@@ -1047,12 +1120,17 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     phone: data.phone || '',
   };
 
-  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginBottom = 25; // Space for footer
-  const marginLeft = 20;
-  const contentWidth = 170;
+  
+  // Margins: top 1" (25.4mm), bottom 0.75" (19.05mm), left/right 0.5" (12.7mm)
+  const marginTop = 25.4;
+  const marginBottom = 19.05;
+  const marginLeft = 12.7;
+  const marginRight = 12.7;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  
+  let yPos = marginTop + 30; // After letterhead
 
   // Helper to check and add new page if needed
   const checkPageBreak = (requiredHeight: number): void => {
@@ -1165,12 +1243,17 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     phone: data.phone || '',
   };
 
-  let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginBottom = 25;
-  const marginLeft = 20;
-  const contentWidth = 170;
+  
+  // Margins: top 1" (25.4mm), bottom 0.75" (19.05mm), left/right 0.5" (12.7mm)
+  const marginTop = 25.4;
+  const marginBottom = 19.05;
+  const marginLeft = 12.7;
+  const marginRight = 12.7;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  
+  let yPos = marginTop + 30; // After letterhead
 
   // Helper to check and add new page if needed
   const checkPageBreak = (requiredHeight: number): void => {
