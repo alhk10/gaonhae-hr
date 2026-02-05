@@ -535,15 +535,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profile">My Profile</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="invoices">
+            Invoices{invoices.filter(inv => inv.status !== 'paid').length > 0 && ` (${invoices.filter(inv => inv.status !== 'paid').length})`}
+          </TabsTrigger>
           <TabsTrigger value="schedule">Class Schedule</TabsTrigger>
-          <TabsTrigger value="chat" className="flex items-center gap-2">
-            Chat
-            {unreadChatCount > 0 && (
-              <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center p-0 text-xs">
-                {unreadChatCount}
-              </Badge>
-            )}
+          <TabsTrigger value="chat">
+            Chat{unreadChatCount > 0 && ` (${unreadChatCount})`}
           </TabsTrigger>
         </TabsList>
 
