@@ -1,146 +1,102 @@
 
-# Plan: Split Full Name to First/Last Name and Uppercase All Party Details
+# Add Approval Sections to Superadmin Dashboard
 
 ## Overview
-This plan will:
-1. Add `first_name` and `last_name` columns to the employees table (matching the students table pattern)
-2. Update all employee forms and detail pages to use first/last name fields instead of "Full Name"
-3. Implement automatic uppercasing for all party details when keyed/stored in Supabase
+Add three new approval sections to the Superadmin Dashboard for Claims, Leave, and Slot Booking approvals. These will follow the same pattern as the existing `PaymentDeletionApprovals` and `InventoryOrderApprovals` components.
 
-## Database Changes Required
+## Current State
+- Superadmin Dashboard already has approval sections for Payment Deletions, Invoice Deletions, and Inventory Orders
+- The dashboard shows stats for pending claims but lacks actionable approval UI
+- Leave requests and slot bookings have approval functionality in their respective management pages but not on the dashboard
 
-### 1. Add New Columns to Employees Table
-A database migration is needed to add `first_name` and `last_name` columns:
-- `first_name` (text, not null)
-- `last_name` (text, nullable - to match students pattern)
+## Implementation Plan
 
-The existing `name` column will be kept for backward compatibility and computed from `first_name` + `last_name`.
+### 1. Create ClaimsApprovals Component
+**File:** `src/components/dashboard/ClaimsApprovals.tsx`
 
-## Technical Implementation
+A new component that:
+- Fetches pending claims using the existing `getClaims` service
+- Displays a table with employee name, claim type, amount, date, and description
+- Shows receipt preview link if available
+- Provides Approve/Reject buttons with confirmation dialogs
+- Uses the existing `updateClaimStatus` function for status changes
+- Matches the visual style of existing approval components
 
-### Files to Modify
+### 2. Create LeaveApprovals Component
+**File:** `src/components/dashboard/LeaveApprovals.tsx`
 
-#### 1. Type Definitions
-**File: `src/types/employee.ts`**
-- Add `first_name` and `last_name` to `EmployeeProfile` interface
-- Keep `name` for computed/display purposes
+A new component that:
+- Fetches pending leave requests using `getAllLeaveRequests` service
+- Displays employee name, leave type, date range, days requested, and reason
+- Shows medical certificate link for sick leave if available
+- Provides Approve/Reject buttons
+- Uses `updateLeaveStatus` for status changes
 
-#### 2. Employee Service Layer
-**File: `src/services/employeeService.ts`**
-- Update `createEmployee()` to accept and store first_name, last_name
-- Compute `name` as `${first_name} ${last_name}`.toUpperCase()
-- Update `updateEmployee()` to handle first_name/last_name fields
-- Add uppercase transformation for all text fields on save
-- Update `getEmployeeById()` and other fetch methods to return first_name/last_name
+### 3. Create SlotBookingApprovals Component
+**File:** `src/components/dashboard/SlotBookingApprovals.tsx`
 
-#### 3. Full-time Employee Details Page
-**File: `src/pages/parties/FulltimeEmployeeDetails.tsx`**
-- Replace single "Full Name" input with two inputs: "First Name" and "Last Name"
-- Add uppercase transformation on input change
-- Update form state to track first_name and last_name separately
+A new component that:
+- Fetches pending slot bookings using `getAllSlotBookings` service
+- Displays employee name, branch, date, and notes
+- Provides Approve/Reject/Approve All buttons
+- Uses existing `updateSlotBookingStatus` function
 
-#### 4. Casual Employee Details Page  
-**File: `src/pages/parties/CasualEmployeeDetails.tsx`**
-- Same changes as Full-time Employee Details page
-- Replace "Full Name" with "First Name" and "Last Name" inputs
-- Add uppercase transformation
+### 4. Update Superadmin Dashboard
+**File:** `src/components/dashboard/SuperadminDashboard.tsx`
 
-#### 5. Edit Employee Form (used in edit mode)
-**File: `src/components/employee/EditEmployeeForm.tsx`**
-- Split "Full Name" field into "First Name" and "Last Name"
-- Add uppercase transformation on input
-- Update form data structure and save logic
+- Import the three new approval components
+- Add queries to fetch pending counts for leave and bookings
+- Update the stats cards to include pending leave and pending bookings counts
+- Add the approval components to the Overview tab (after the recent claims card, before deletion approvals)
+- Only show each section when there are pending items (consistent with existing pattern)
 
-#### 6. Employee Profile Form (self-service)
-**File: `src/components/employee/EmployeeProfileForm.tsx`**
-- Update to show first_name and last_name (read-only for non-superadmins)
-- Transform inputs to uppercase when editable
+### 5. Update Dashboard Stats Service
+**File:** `src/services/dashboardOptimizationService.ts`
 
-#### 7. Party Management Page (add employee flow)
-**File: `src/pages/PartyManagement.tsx`**
-- Update employee creation to use first_name/last_name
-- Add uppercase transformation
+- Add `pendingLeave` and `pendingBookings` to the `DashboardStats` interface
+- Update `getDashboardStats` to fetch these additional counts
 
-#### 8. Supabase Types (auto-generated after migration)
-**File: `src/integrations/supabase/types.ts`**
-- Will be regenerated after database migration to include first_name/last_name
+---
 
-### Uppercase Transformation Strategy
+## Technical Details
 
-Create a utility function to standardize uppercasing:
-
-```text
-// src/utils/partyUtils.ts
-
-export const toUppercasePartyField = (value: string): string => {
-  return value?.toUpperCase() || '';
-};
-
-export const normalizePartyData = (data: Record<string, any>): Record<string, any> => {
-  const textFields = ['first_name', 'last_name', 'name', 'nric', 'address', 'bank_name', 'position'];
-  const normalized = { ...data };
+### Component Structure (ClaimsApprovals example)
+```typescript
+const ClaimsApprovals: React.FC = () => {
+  const queryClient = useQueryClient();
   
-  for (const field of textFields) {
-    if (normalized[field] && typeof normalized[field] === 'string') {
-      normalized[field] = normalized[field].toUpperCase();
-    }
-  }
+  const { data: claims = [], isLoading } = useQuery({
+    queryKey: ['pending-claims-approvals'],
+    queryFn: async () => {
+      const allClaims = await getClaims();
+      return allClaims.filter(c => c.status === 'Pending');
+    },
+    staleTime: 30 * 1000,
+  });
   
-  return normalized;
+  // Approve/Reject mutations
+  // Table with actions
 };
 ```
 
-### UI Changes Summary
+### Stats Card Updates
+Add two new stat cards:
+- **Pending Leave**: Shows count of pending leave requests
+- **Pending Bookings**: Shows count of pending slot bookings
 
-Current layout:
-```text
-+------------------+  +------------------+
-|   Full Name      |  |   Display Name   |
-+------------------+  +------------------+
-```
+### Query Keys
+- `pending-claims-approvals`
+- `pending-leave-approvals`
+- `pending-booking-approvals`
+- `dashboard-stats` (updated to include new counts)
 
-New layout:
-```text
-+------------------+  +------------------+
-|   First Name     |  |   Last Name      |
-+------------------+  +------------------+
-+------------------+  +------------------+
-|   Display Name   |  |   (other field)  |
-+------------------+  +------------------+
-```
+---
 
-### Input Behavior
-- All text inputs will automatically convert to uppercase as the user types
-- This is done via `onChange={(e) => handleInputChange('field', e.target.value.toUpperCase())}`
+## Files to Create
+1. `src/components/dashboard/ClaimsApprovals.tsx`
+2. `src/components/dashboard/LeaveApprovals.tsx`
+3. `src/components/dashboard/SlotBookingApprovals.tsx`
 
-## Migration Strategy
-
-### Phase 1: Database Migration
-1. Add `first_name` and `last_name` columns to employees table
-2. Populate from existing `name` column (split on first space)
-3. Keep `name` as a computed/derived field
-
-### Phase 2: Code Updates  
-1. Update all components to use first_name/last_name
-2. Add uppercase transformation to all inputs
-3. Update service layer to handle new fields
-
-### Phase 3: Data Cleanup
-1. Run one-time uppercase migration on existing data (optional separate step)
-
-## Affected Party Types
-
-| Party Type | Has First/Last Name | Changes Needed |
-|------------|---------------------|----------------|
-| Full-time Employee | No (has `name`) | Add first_name/last_name |
-| Casual Employee | No (has `name`) | Add first_name/last_name |
-| Student | Yes (already has) | Just add uppercase |
-| Trial | Yes (already has) | Just add uppercase |
-
-## Testing Checklist
-- Create new full-time employee with first/last name
-- Create new casual employee with first/last name
-- Edit existing employee - verify uppercase conversion
-- Verify display name still works correctly
-- Check payslips/PDFs still show correct name
-- Verify student/trial forms also uppercase correctly
+## Files to Modify
+1. `src/components/dashboard/SuperadminDashboard.tsx`
+2. `src/services/dashboardOptimizationService.ts`
