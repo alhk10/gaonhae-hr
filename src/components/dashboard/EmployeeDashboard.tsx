@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign } from 'lucide-react';
 import { History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -265,6 +265,31 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     return Math.round(monthlyHours * 10) / 10;
   })();
 
+  // Calculate total earnings this month from slot bookings
+  const { data: slotBookingsData = [] } = useQuery({
+    queryKey: ['employee-slot-bookings-month', effectiveEmployeeId],
+    queryFn: () => getEmployeeSlotBookings(effectiveEmployeeId || ''),
+    enabled: !!effectiveEmployeeId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const earningsThisMonth = (() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthlyEarnings = slotBookingsData
+      .filter((booking: SlotBooking) => {
+        const bookingDate = new Date(booking.date);
+        return bookingDate.getMonth() === currentMonth && 
+               bookingDate.getFullYear() === currentYear &&
+               booking.status === 'approved';
+      })
+      .reduce((total: number, booking: SlotBooking) => total + (booking.calculatedPay || 0), 0);
+    
+    return Math.round(monthlyEarnings * 100) / 100;
+  })();
+
   const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
                             employeeData?.position?.toLowerCase() === 'senior partner';
 
@@ -275,6 +300,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
     ...(!isPartnerPosition ? [
       { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
+      { title: 'Earnings This Month', value: `S$${earningsThisMonth.toLocaleString()}`, icon: DollarSign, color: 'bg-purple-500' },
     ] : []),
   ];
 
