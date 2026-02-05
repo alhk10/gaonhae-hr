@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus } from 'lucide-react';
+import { History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -17,6 +18,7 @@ import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookin
 import { supabase } from '@/integrations/supabase/client';
 import { isWithinBranchRange } from '@/services/geolocationService';
 import { useIsMobile } from '@/hooks/use-mobile';
+import AttendanceHistoryDialog from './AttendanceHistoryDialog';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -59,6 +61,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [locationCheckPassed, setLocationCheckPassed] = useState<boolean>(false);
   const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string>('');
+  const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
 
   useEffect(() => {
     fetchAttendanceData();
@@ -384,8 +387,9 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
+    <>
+      <div className="space-y-4 md:space-y-6">
+        <div>
         <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
           Welcome back, {isMobile ? displayName.split(' ')[0] : displayName}
         </h2>
@@ -581,6 +585,19 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                   <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Payslip</p>
                 </div>
               </Button>
+              
+              {!isPartnerPosition && (
+                <Button 
+                  className={`justify-start h-auto p-3 md:p-4`} 
+                  variant="outline"
+                  onClick={() => setShowAttendanceHistory(true)}
+                >
+                  <History className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left">
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>Attendance History</p>
+                  </div>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -613,6 +630,15 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         </Card>
       </div>
     </div>
+
+      {effectiveEmployeeId && (
+        <AttendanceHistoryDialog
+          open={showAttendanceHistory}
+          onOpenChange={setShowAttendanceHistory}
+          employeeId={effectiveEmployeeId}
+        />
+      )}
+    </>
   );
 };
 
