@@ -211,3 +211,178 @@ export const getBranchStudents = async (branchId: string): Promise<{ id: string;
     name: `${s.first_name} ${s.last_name}`
   }));
 };
+
+// ==================== Student-side Functions ====================
+
+// Get unread count for a student (messages from branch)
+export const getUnreadCountForStudent = async (studentId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('student_branch_chats')
+    .select('*', { count: 'exact', head: true })
+    .eq('student_id', studentId)
+    .eq('sender_type', 'branch')
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('Error fetching student unread count:', error);
+    return 0;
+  }
+
+  return count || 0;
+};
+
+// Mark all branch messages as read for a student
+export const markBranchMessagesAsRead = async (studentId: string, branchId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('student_branch_chats')
+    .update({ is_read: true })
+    .eq('student_id', studentId)
+    .eq('branch_id', branchId)
+    .eq('sender_type', 'branch')
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('Error marking branch messages as read:', error);
+    throw error;
+  }
+};
+
+// Subscribe to chat for a student
+export const subscribeToStudentChat = (
+  studentId: string,
+  branchId: string,
+  onNewMessage: (message: ChatMessage) => void
+) => {
+  const channel = supabase
+    .channel(`student-chat:${studentId}:${branchId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'student_branch_chats',
+        filter: `student_id=eq.${studentId}`
+      },
+      (payload) => {
+        onNewMessage(payload.new as ChatMessage);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// ==================== Superadmin Functions ====================
+
+export interface BranchConversation {
+  branch_id: string;
+  branch_name: string;
+  unread_count: number;
+  conversation_count: number;
+}
+
+// Get all branches with conversation counts for superadmin
+export const getAllBranchConversations = async (): Promise<BranchConversation[]> => {
+  // Get all branches first
+  const { data: branches, error: branchError } = await supabase
+    .from('branches')
+    .select('id, name')
+    .order('name');
+
+  if (branchError) {
+    console.error('Error fetching branches:', branchError);
+    throw branchError;
+  }
+
+  // Get all chats grouped by branch
+  const { data: chats, error: chatError } = await supabase
+    .from('student_branch_chats')
+    .select('branch_id, sender_type, is_read, student_id');
+
+  if (chatError) {
+    console.error('Error fetching chats:', chatError);
+    throw chatError;
+  }
+
+  // Calculate stats per branch
+  const branchStats = new Map<string, { unread: number; students: Set<string> }>();
+
+  chats?.forEach(chat => {
+    if (!branchStats.has(chat.branch_id)) {
+      branchStats.set(chat.branch_id, { unread: 0, students: new Set() });
+    }
+    const stats = branchStats.get(chat.branch_id)!;
+    stats.students.add(chat.student_id);
+    if (chat.sender_type === 'student' && !chat.is_read) {
+      stats.unread++;
+    }
+  });
+
+  return (branches || []).map(branch => {
+    const stats = branchStats.get(branch.id);
+    return {
+      branch_id: branch.id,
+      branch_name: branch.name,
+      unread_count: stats?.unread || 0,
+      conversation_count: stats?.students.size || 0,
+    };
+  }).filter(b => b.conversation_count > 0 || b.unread_count > 0);
+};
+
+// Get total unread count across all branches for superadmin
+export const getTotalUnreadCount = async (): Promise<number> => {
+  const { count, error } = await supabase
+    .from('student_branch_chats')
+    .select('*', { count: 'exact', head: true })
+    .eq('sender_type', 'student')
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('Error fetching total unread count:', error);
+    return 0;
+  }
+
+  return count || 0;
+};
+
+// Subscribe to all chats for superadmin
+export const subscribeToAllChats = (
+  onNewMessage: (message: ChatMessage) => void
+) => {
+  const channel = supabase
+    .channel('superadmin-all-chats')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'student_branch_chats'
+      },
+      (payload) => {
+        onNewMessage(payload.new as ChatMessage);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// Get branch name by ID
+export const getBranchName = async (branchId: string): Promise<string> => {
+  const { data, error } = await supabase
+    .from('branches')
+    .select('name')
+    .eq('id', branchId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching branch name:', error);
+    return 'Unknown Branch';
+  }
+
+  return data?.name || 'Unknown Branch';
+};

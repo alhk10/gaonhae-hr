@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, GraduationCap, Clock, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { CreditCard, GraduationCap, Clock, AlertCircle, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
-import PaySchoolFeesDialog from './PaySchoolFeesDialog';
-import PayGradingDialog from './PayGradingDialog';
+import { getUnreadCountForStudent } from '@/services/chatService';
 
 interface QuickActionsSectionProps {
   studentId: string;
@@ -20,6 +20,9 @@ interface QuickActionsSectionProps {
     current_belt?: string;
     date_of_birth?: string;
   };
+  onOpenSchoolFees: () => void;
+  onOpenGrading: () => void;
+  onOpenChat: () => void;
 }
 
 // Normalize belt for comparison
@@ -38,10 +41,10 @@ export const getNextBelt = (currentBelt: string | null | undefined): string | nu
 const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   studentId,
   student,
+  onOpenSchoolFees,
+  onOpenGrading,
+  onOpenChat,
 }) => {
-  const [showSchoolFeesDialog, setShowSchoolFeesDialog] = useState(false);
-  const [showGradingDialog, setShowGradingDialog] = useState(false);
-
   // Check if student has branch
   const hasBranch = !!student.branch_id;
 
@@ -100,13 +103,20 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     enabled: hasBranch && !!student.current_belt,
   });
 
+  // Get unread chat count
+  const { data: unreadChatCount = 0 } = useQuery({
+    queryKey: ['student-unread-count', studentId],
+    queryFn: () => getUnreadCountForStudent(studentId),
+    enabled: !!studentId,
+    refetchInterval: 30000,
+  });
+
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
   const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0;
   const nextBelt = getNextBelt(student.current_belt);
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pay School Fees */}
         <Card className={`cursor-pointer transition-all hover:shadow-md ${!canPaySchoolFees ? 'opacity-60' : ''}`}>
           <CardContent className="p-6">
@@ -126,7 +136,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 {canPaySchoolFees ? (
                   <Button 
                     size="sm" 
-                    onClick={() => setShowSchoolFeesDialog(true)}
+                    onClick={onOpenSchoolFees}
                   >
                     <Clock className="w-4 h-4 mr-2" />
                     Select Term
@@ -164,7 +174,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                   <Button 
                     size="sm" 
                     variant="secondary"
-                    onClick={() => setShowGradingDialog(true)}
+                    onClick={onOpenGrading}
                   >
                     <GraduationCap className="w-4 h-4 mr-2" />
                     Select Grading Session
@@ -179,30 +189,49 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Dialogs */}
-      {showSchoolFeesDialog && (
-        <PaySchoolFeesDialog
-          open={showSchoolFeesDialog}
-          onOpenChange={setShowSchoolFeesDialog}
-          studentId={studentId}
-          student={student}
-          availableTerms={availableTerms}
-          previousEnrollment={previousEnrollment}
-        />
-      )}
-
-      {showGradingDialog && (
-        <PayGradingDialog
-          open={showGradingDialog}
-          onOpenChange={setShowGradingDialog}
-          studentId={studentId}
-          student={student}
-          gradingSlots={gradingSlots}
-        />
-      )}
-    </>
+        {/* Chat with Branch */}
+        <Card className={`cursor-pointer transition-all hover:shadow-md ${!hasBranch ? 'opacity-60' : ''}`}>
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="bg-green-500/10 p-3 rounded-lg relative">
+                <MessageCircle className="w-6 h-6 text-green-600" />
+                {unreadChatCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {unreadChatCount}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">Chat with Branch</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {hasBranch 
+                    ? 'Send messages to your branch staff'
+                    : 'No branch assigned'}
+                </p>
+                {hasBranch ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={onOpenChat}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Open Chat
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <AlertCircle className="w-4 h-4" />
+                    Contact academy for assistance
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+    </div>
   );
 };
 
