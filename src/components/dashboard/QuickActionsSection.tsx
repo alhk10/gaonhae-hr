@@ -159,9 +159,9 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
               <div className="bg-purple-500/10 p-3 rounded-lg">
                 <GraduationCap className="w-6 h-6 text-purple-600" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-lg">Pay Grading</h3>
-                <p className="text-sm text-muted-foreground mb-3">
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                   {canPayGrading 
                     ? `Register for ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} exam`
                     : !hasBranch 
