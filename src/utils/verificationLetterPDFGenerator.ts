@@ -153,7 +153,8 @@ const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
   // Increased logo size by 10% (38.5 * 1.1 = 42.35)
   const logoWidth = 42.35;
   const totalWidth = logoWidth + 5 + 120; // logo + gap + text area
-  const startX = (pageWidth - totalWidth) / 2;
+  // Move 0.8cm (8mm) to the right
+  const startX = (pageWidth - totalWidth) / 2 + 8;
 
   // Add logo - centered with text, increased size by 10%
   if (logoImg) {
