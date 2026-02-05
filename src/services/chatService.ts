@@ -212,7 +212,7 @@ export const getBranchStudents = async (branchId: string): Promise<{ id: string;
     .from('students')
     .select('id, first_name, last_name')
     .eq('branch_id', branchId)
-    .eq('status', 'Active')
+    .ilike('status', 'active')
     .order('first_name');
 
   if (error) {
