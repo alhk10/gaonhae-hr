@@ -145,9 +145,11 @@ const PayslipManagementContent = () => {
         const slots: SlotEntry[] = payslip.payrollData.slotBreakdown!.map(slot => ({
           date: slot.date,
           branchName: slot.branchName,
+         dayRate: (slot as any).fullSlotRate,
           clockIn: slot.checkIn || null,
           clockOut: slot.checkOut || null,
           hoursWorked: slot.hoursWorked || 0,
+         expectedHours: (slot as any).expectedHours,
           pay: slot.pay || 0
         }));
 
