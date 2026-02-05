@@ -1,326 +1,270 @@
 
-# Plan: Convert Book Slots, Submit Claims, and View Payslip to Dialog Format
 
-## Overview
-Convert three Quick Action buttons in the Employee Dashboard from page navigation to dialog-based interactions, providing a streamlined mobile-friendly experience similar to the existing Attendance History dialog.
+# Revised Plan: Add Addressee, Address, Salutation, Contact Fields and Enhance PDF Generator
 
----
-
-## Current State
-
-| Feature | Current Behavior |
-|---------|-----------------|
-| Book Slots | Navigates to `/slot-booking` (full page with ResponsiveLayout) |
-| Submit Claim | Navigates to `/submit-claim` (full page with ResponsiveLayout) |
-| View Payslip | Navigates to `/payslips` (full page with sidebar) |
-
-The Attendance History feature already uses the dialog pattern we want to replicate.
+## Summary
+Add new letter template fields (Addressee Name, Address, Salutation, Contact Number), update default footer text, and implement dynamic content fitting in the PDF generator. Address and Contact Number will default to employee details when generating letters.
 
 ---
 
-## Solution Design
+## Changes Overview
 
-Create three new dialog components that contain condensed, mobile-optimized versions of the respective page content. The dialogs will focus on the **employee-facing** functionality only (no admin/management tabs).
+| Area | Change |
+|------|--------|
+| Database | Add 4 new columns: `addressee_name`, `address`, `salutation`, `contact_number` |
+| Service | Update interfaces and CRUD operations for new fields |
+| Dialog | Add fields in order: Addressee Name → Address → Contact Number → Salutation → Letter Title |
+| Dialog | Set default footer text to "This letter is computer generated and does not require signature" |
+| PDF Generator | Add new fields rendering, use template footer, implement dynamic content fitting |
+| PDF Generator | Populate Address and Contact Number from employee details when generating |
 
-### Dialog Structure
+---
+
+## Field Order in Form (Top to Bottom)
+
+1. Template Name / Type (existing - row)
+2. Available Placeholders (existing)
+3. **Addressee Name** (NEW - Optional, default: `{fullName}`)
+4. **Address** (NEW - Optional, multiline textarea, default: extract from employee)
+5. **Contact Number** (NEW - Optional, default: extract from employee)
+6. **Salutation** (NEW - Optional, default: "To Whom It May Concern")
+7. Letter Title (existing)
+8. Body Paragraph 1 (existing)
+9. Body Paragraph 2 (existing)
+10. Signature Image (existing)
+11. Signatory Name / Position (existing - row)
+12. Company Name (existing)
+13. Footer Text (existing - default changed to "This letter is computer generated and does not require signature")
+
+---
+
+## Technical Details
+
+### 1. Database Schema Changes
+
+Add new columns to `letter_templates` table:
+
+```sql
+ALTER TABLE public.letter_templates 
+  ADD COLUMN IF NOT EXISTS addressee_name text DEFAULT '{fullName}',
+  ADD COLUMN IF NOT EXISTS address text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS contact_number text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS salutation text DEFAULT 'To Whom It May Concern';
 ```
-┌─────────────────────────────────────────┐
-│  [X] Dialog Title                       │
-├─────────────────────────────────────────┤
-│  Main Content Area                      │
-│  (scrollable, max-height: 80vh)         │
-│                                         │
-│  - Focused on primary task              │
-│  - Mobile-optimized layout              │
-│  - Quick actions accessible             │
-└─────────────────────────────────────────┘
+
+### 2. Update Letter Template Service
+
+**File:** `src/services/letterTemplateService.ts`
+
+Add to interfaces:
+```typescript
+// LetterTemplate interface
+addressee_name: string;
+address: string;
+contact_number: string;
+salutation: string;
+
+// CreateLetterTemplateData interface
+addressee_name?: string;
+address?: string;
+contact_number?: string;
+salutation?: string;
+
+// UpdateLetterTemplateData interface
+addressee_name?: string;
+address?: string;
+contact_number?: string;
+salutation?: string;
 ```
 
----
+Update `createTemplate` default values:
+```typescript
+addressee_name: templateData.addressee_name || '{fullName}',
+address: templateData.address || '',
+contact_number: templateData.contact_number || '',
+salutation: templateData.salutation || 'To Whom It May Concern',
+```
 
-## Files to Create
+### 3. Update AddEditTemplateDialog
 
-### 1. SlotBookingDialog.tsx
-**Path:** `src/components/dashboard/SlotBookingDialog.tsx`
+**File:** `src/components/miscellaneous/AddEditTemplateDialog.tsx`
 
-Content includes:
-- Branch selector (compact)
-- Calendar for date selection
-- Selected dates display with pay calculation
-- Book button
-- Booking history list (scrollable)
+Changes:
+1. Add state variables: `addresseeName`, `address`, `contactNumber`, `salutation`
+2. Set default footer text in reset: `"This letter is computer generated and does not require signature"`
+3. Set default addressee name: `{fullName}`
+4. Add new placeholders to EMPLOYEE_PLACEHOLDERS: `{address}`, `{phone}` 
+5. Add Addressee Name input field
+6. Add Address textarea field (multiline)
+7. Add Contact Number input field
+8. Add Salutation input field
 
-Key adaptations:
-- Single column layout (no tabs - just booking flow + history accordion)
-- Remove management functionality
-- Compact stat card showing approved bookings count
-- Full-height scrollable content
+Field placement in form:
+```
+┌─────────────────────────────────────────────┐
+│ Template Name              │    Type        │
+├─────────────────────────────────────────────┤
+│ Available Placeholders                      │
+│ {fullName}, {address}, {phone}, etc.        │
+├─────────────────────────────────────────────┤
+│ Addressee Name (Optional)                   │
+│ Default: {fullName}                         │
+├─────────────────────────────────────────────┤
+│ Address (Optional - multiline)              │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Default: extracted from employee        │ │
+│ │ {address} placeholder available         │ │
+│ └─────────────────────────────────────────┘ │
+├─────────────────────────────────────────────┤
+│ Contact Number (Optional)                   │
+│ Default: extracted from employee {phone}    │
+├─────────────────────────────────────────────┤
+│ Salutation (default: To Whom It May Concern)│
+├─────────────────────────────────────────────┤
+│ Letter Title *                              │
+├─────────────────────────────────────────────┤
+│ Body Paragraph 1 *                          │
+│ Body Paragraph 2                            │
+│ Signature Image                             │
+│ Signatory Name    │ Position                │
+│ Company Name                                │
+│ Footer Text (default: "This letter is...")  │
+└─────────────────────────────────────────────┘
+```
 
-### 2. SubmitClaimDialog.tsx
-**Path:** `src/components/dashboard/SubmitClaimDialog.tsx`
+### 4. Update PDF Generator
 
-Content includes:
-- Claim type selector
-- Amount input
-- Date picker
-- Description textarea
-- Receipt upload component
-- Submit button
-- Claim history accordion (collapsible)
+**File:** `src/utils/verificationLetterPDFGenerator.ts`
 
-Key adaptations:
-- Simplified form layout (single column)
-- Remove management tabs
-- Partners get partner claim form instead
-- Collapsible history section to save space
+#### 4.1 Update interfaces:
 
-### 3. ViewPayslipDialog.tsx
-**Path:** `src/components/dashboard/ViewPayslipDialog.tsx`
+```typescript
+export interface EmployeeData {
+  name: string;
+  dateOfBirth: string;
+  nric: string;
+  position: string;
+  baseSalary: number;
+  joinDate: string;
+  address?: string;    // NEW
+  phone?: string;      // NEW
+}
 
-Content includes:
-- Summary stats cards (year totals)
-- Payslips list with download buttons
-- Month filter dropdown
+export interface LetterTemplateData {
+  // ... existing fields
+  addressee_name?: string;   // NEW
+  address?: string;          // NEW
+  contact_number?: string;   // NEW
+  salutation?: string;       // NEW
+  company_name?: string;
+  footer_text?: string;
+}
+```
 
-Key adaptations:
-- Remove management tab
-- Compact payslip cards
-- Direct PDF download action
-- Mobile-optimized summary cards
+#### 4.2 Update placeholder replacement:
+
+```typescript
+// EmployeePlaceholders interface
+interface EmployeePlaceholders {
+  fullName: string;
+  dateOfBirth: string;
+  nric: string;
+  position: string;
+  salary: string;
+  joinDate: string;
+  address: string;    // NEW
+  phone: string;      // NEW
+}
+
+// Update replaceEmployeePlaceholders
+const replaceEmployeePlaceholders = (template: string, data: EmployeePlaceholders): string => {
+  return template
+    .replace(/{fullName}/g, data.fullName)
+    .replace(/{dateOfBirth}/g, data.dateOfBirth)
+    .replace(/{nric}/g, data.nric)
+    .replace(/{position}/g, data.position)
+    .replace(/{salary}/g, data.salary)
+    .replace(/{joinDate}/g, data.joinDate)
+    .replace(/{address}/g, data.address)    // NEW
+    .replace(/{phone}/g, data.phone);       // NEW
+};
+```
+
+#### 4.3 Add dynamic content fitting logic:
+
+```typescript
+const calculateContentHeight = (
+  doc: jsPDF,
+  sections: { type: string; content: string }[]
+): number => {
+  let height = 0;
+  sections.forEach(section => {
+    if (section.content) {
+      const lines = doc.splitTextToSize(section.content, 170);
+      height += lines.length * 6 + 8; // line height + spacing
+    }
+  });
+  return height;
+};
+```
+
+#### 4.4 Update PDF rendering order:
+
+New rendering sequence for employee letters:
+1. Date (left-aligned)
+2. **Addressee Name** (if provided, e.g., "John Doe")
+3. **Address** (if provided, multiline support - defaults to employee address)
+4. **Contact Number** (if provided, defaults to employee phone)
+5. Blank line
+6. **Salutation** (use template value or "To Whom It May Concern")
+7. Title (centered, bold)
+8. Body Paragraph 1
+9. Body Paragraph 2 (if provided)
+10. Signature block (image, name, position, company)
+11. **Footer** (use template `footer_text` or default message)
+
+#### 4.5 Dynamic spacing implementation:
+
+```typescript
+// Calculate total content height
+const contentHeight = calculateContentHeight(doc, contentSections);
+const pageHeight = doc.internal.pageSize.getHeight();
+const availableSpace = pageHeight - 55 - 30; // header - footer margin
+
+// Adjust line spacing if content fits comfortably
+const lineSpacing = contentHeight < availableSpace * 0.7 ? 7 : 6;
+```
 
 ---
 
 ## Files to Modify
 
-### EmployeeDashboard.tsx
-**Path:** `src/components/dashboard/EmployeeDashboard.tsx`
-
-Changes:
-1. Add state for each dialog (`showSlotBooking`, `showSubmitClaim`, `showViewPayslip`)
-2. Update button onClick handlers to set dialog state instead of navigate
-3. Import and render the three new dialog components
-4. Pass required props (employeeId, employee data)
-
----
-
-## Technical Implementation Details
-
-### SlotBookingDialog.tsx
-
-```typescript
-interface SlotBookingDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  employeeId: string;
-  employeeName: string;
-  employeeType: string;
-  qualifications: EmployeeQualifications | null;
-  joinDate: string | null;
-}
-```
-
-Core functionality:
-- Reuse existing services: `getBranches`, `addSlotBooking`, `getEmployeeSlotBookings`, `checkForExistingBooking`, `getAvailableSlotsForDate`, `getWeeklySlotConfig`
-- Reuse existing components: `EnhancedBranchSelector`, `EnhancedCalendar`, `SelectedDatesManager`
-- Simplify `BookingActions` inline
-- Add collapsible booking history section
-
-Layout structure:
-```
-┌──────────────────────────────────────────┐
-│ [X] Book Slots                           │
-├──────────────────────────────────────────┤
-│ [Branch Selector Dropdown]               │
-├──────────────────────────────────────────┤
-│ [Calendar Grid]                          │
-├──────────────────────────────────────────┤
-│ Selected: 3 dates | Est: S$252.00        │
-│ [Clear All]          [Book Selected]     │
-├──────────────────────────────────────────┤
-│ ▼ Booking History (12 this month)        │
-│   ├── Date - Branch - Status             │
-│   └── ...                                │
-└──────────────────────────────────────────┘
-```
-
-### SubmitClaimDialog.tsx
-
-```typescript
-interface SubmitClaimDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  employeeId: string;
-  employee: EmployeeProfile;
-}
-```
-
-Core functionality:
-- Reuse existing services: `createClaim`, `getEmployeeClaims`, `getClaimTypes`
-- Reuse existing component: `ReceiptUpload`
-- Separate handling for partners vs regular employees
-
-Layout structure:
-```
-┌──────────────────────────────────────────┐
-│ [X] Submit Claim                         │
-├──────────────────────────────────────────┤
-│ Claim Type: [Dropdown]                   │
-│ Amount: [____] | Date: [____]            │
-│ Description: [_______________]           │
-│ Receipt: [Upload Area]                   │
-│                        [Submit Claim]    │
-├──────────────────────────────────────────┤
-│ ▼ Claim History                          │
-│   Pending: 2 | Approved: 5 | Rejected: 1 │
-│   ├── Date - Type - Amount - Status      │
-│   └── ...                                │
-└──────────────────────────────────────────┘
-```
-
-### ViewPayslipDialog.tsx
-
-```typescript
-interface ViewPayslipDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  employeeId: string;
-  employee: EmployeeProfile;
-}
-```
-
-Core functionality:
-- Reuse existing services: `getEmployeePayrollRecords`
-- Reuse existing PDF generators: `generatePayslipPDF`, `generateCasualPayslipPDF`
-- Month navigation similar to AttendanceHistoryDialog
-
-Layout structure:
-```
-┌──────────────────────────────────────────┐
-│ [X] My Payslips                          │
-├──────────────────────────────────────────┤
-│ [<] February 2026 [>]                    │
-├──────────────────────────────────────────┤
-│ ┌────────────────────────────────────┐   │
-│ │ Feb 2026                           │   │
-│ │ Net: S$2,500 | Gross: S$3,000      │   │
-│ │ CPF: S$500                         │   │
-│ │               [Download PDF]       │   │
-│ └────────────────────────────────────┘   │
-│ ┌────────────────────────────────────┐   │
-│ │ Jan 2026                           │   │
-│ │ ...                                │   │
-│ └────────────────────────────────────┘   │
-└──────────────────────────────────────────┘
-```
-
----
-
-## EmployeeDashboard.tsx Updates
-
-### State additions:
-```typescript
-const [showSlotBooking, setShowSlotBooking] = useState(false);
-const [showSubmitClaim, setShowSubmitClaim] = useState(false);
-const [showViewPayslip, setShowViewPayslip] = useState(false);
-```
-
-### Button handler updates:
-```typescript
-// Book Slots button (line ~552-560)
-onClick={() => setShowSlotBooking(true)}
-
-// Submit Claim button (line ~562-576)
-onClick={() => setShowSubmitClaim(true)}
-
-// View Payslip button (line ~578-587)
-onClick={() => setShowViewPayslip(true)}
-```
-
-### Dialog component additions (at end of component, before final `</>`):
-```tsx
-{employeeData?.type === 'Casual' && (
-  <SlotBookingDialog
-    open={showSlotBooking}
-    onOpenChange={setShowSlotBooking}
-    employeeId={effectiveEmployeeId}
-    employeeName={employeeData.name}
-    employeeType={employeeData.type}
-    qualifications={employeeData.qualifications}
-    joinDate={employeeData.joinDate}
-  />
-)}
-
-{employeeData && (
-  <SubmitClaimDialog
-    open={showSubmitClaim}
-    onOpenChange={setShowSubmitClaim}
-    employeeId={effectiveEmployeeId}
-    employee={employeeData}
-  />
-)}
-
-{employeeData && (
-  <ViewPayslipDialog
-    open={showViewPayslip}
-    onOpenChange={setShowViewPayslip}
-    employeeId={effectiveEmployeeId}
-    employee={employeeData}
-  />
-)}
-```
-
----
-
-## Mobile-Friendly Design Considerations
-
-1. **Dialog sizing**: `max-w-lg` on mobile, `max-w-2xl` on desktop for slot booking
-2. **Scroll handling**: Content areas use `overflow-y-auto` with `max-h-[80vh]`
-3. **Touch targets**: Minimum 44px touch targets for buttons
-4. **Compact forms**: Single-column layouts on mobile
-5. **Collapsible sections**: History sections collapse by default to prioritize primary action
-6. **Responsive spacing**: Tighter padding on mobile (`p-3` vs `p-6`)
-
----
-
-## Navigation Fallback
-
-The original page routes (`/slot-booking`, `/submit-claim`, `/payslips`) will remain functional for:
-- Direct URL access
-- Superadmin management features
-- Senior Partner management access
-
-The dialogs focus purely on the employee self-service experience.
+| File | Action |
+|------|--------|
+| Database migration | CREATE (add new columns) |
+| `src/services/letterTemplateService.ts` | MODIFY (update interfaces and defaults) |
+| `src/components/miscellaneous/AddEditTemplateDialog.tsx` | MODIFY (add fields, update defaults) |
+| `src/utils/verificationLetterPDFGenerator.ts` | MODIFY (add fields, placeholders, dynamic fitting) |
 
 ---
 
 ## Implementation Order
 
-1. Create `SlotBookingDialog.tsx`
-2. Create `SubmitClaimDialog.tsx`
-3. Create `ViewPayslipDialog.tsx`
-4. Update `EmployeeDashboard.tsx` to use dialogs
-5. Test on mobile viewport
+1. Run database migration to add columns
+2. Update `letterTemplateService.ts` with new fields
+3. Update `AddEditTemplateDialog.tsx` with new fields and defaults
+4. Update `verificationLetterPDFGenerator.ts` for new fields and dynamic fitting
+5. Test PDF generation with various content lengths
 
 ---
 
-## Existing Components to Reuse
+## Default Values Summary
 
-| Component | Used In |
-|-----------|---------|
-| `EnhancedBranchSelector` | SlotBookingDialog |
-| `EnhancedCalendar` | SlotBookingDialog |
-| `SelectedDatesManager` | SlotBookingDialog |
-| `ReceiptUpload` | SubmitClaimDialog |
-| `PartnerClaimContent` | SubmitClaimDialog (for partners) |
-| PDF generators | ViewPayslipDialog |
+| Field | Default Value |
+|-------|---------------|
+| Addressee Name | `{fullName}` |
+| Address | `{address}` (extracted from employee details) |
+| Contact Number | `{phone}` (extracted from employee details) |
+| Salutation | `To Whom It May Concern` |
+| Footer Text | `This letter is computer generated and does not require signature` |
 
----
-
-## Service Dependencies
-
-All dialogs will use existing Supabase services:
-- `slotBookingService.ts` - Slot booking operations
-- `claimsService.ts` - Claim CRUD operations
-- `claimTypesService.ts` - Claim type definitions
-- `payrollService.ts` - Payroll records
-- `employeeService.ts` - Employee data
