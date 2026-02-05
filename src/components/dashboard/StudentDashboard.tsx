@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,8 @@ import {
   LogOut,
   FileText,
   Loader2,
-  CreditCard
+  CreditCard,
+  MessageCircle
 } from 'lucide-react';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,9 +27,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
+import { getUnreadCountForStudent } from '@/services/chatService';
+import { getActiveTermsForSelection } from '@/services/termCalendarService';
+import { getGradingSlots } from '@/services/gradingService';
 import { useAuth } from '@/contexts/AuthContext';
 import StudentClassSchedule from './StudentClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
+import StudentChatPanel from '@/components/chat/StudentChatPanel';
+import PaySchoolFeesDialog from './PaySchoolFeesDialog';
+import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
 
 interface StudentDashboardProps {
@@ -43,6 +50,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Record<string, any>>({});
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+  const [showSchoolFeesDialog, setShowSchoolFeesDialog] = useState(false);
+  const [showGradingDialog, setShowGradingDialog] = useState(false);
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
@@ -107,6 +116,58 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     queryKey: ['student-update-requests', studentId],
     queryFn: () => getStudentRequests(studentId!),
     enabled: !!studentId,
+  });
+
+  // Get unread chat count for tab badge
+  const { data: unreadChatCount = 0 } = useQuery({
+    queryKey: ['student-unread-count', studentId],
+    queryFn: () => getUnreadCountForStudent(studentId!),
+    enabled: !!studentId,
+    refetchInterval: 30000,
+  });
+
+  // Fetch available terms for PaySchoolFeesDialog
+  const { data: availableTerms = [] } = useQuery({
+    queryKey: ['available-terms-for-student', student?.branch_id],
+    queryFn: async () => {
+      if (!student?.branch_id) return [];
+      const terms = await getActiveTermsForSelection();
+      return terms.filter(t => t.branch_id === student.branch_id);
+    },
+    enabled: !!student?.branch_id,
+  });
+
+  // Fetch previous enrollment
+  const { data: previousEnrollment } = useQuery({
+    queryKey: ['student-previous-enrollment', studentId, student?.branch_id],
+    queryFn: async () => {
+      if (!student?.branch_id) return null;
+      const { data } = await supabase
+        .from('student_class_enrollments')
+        .select('*')
+        .eq('student_id', studentId!)
+        .eq('branch_id', student.branch_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!student?.branch_id && !!studentId,
+  });
+
+  // Fetch grading slots
+  const { data: gradingSlots = [] } = useQuery({
+    queryKey: ['grading-slots-for-belt', student?.branch_id, student?.current_belt],
+    queryFn: async () => {
+      if (!student?.branch_id || !student?.current_belt) return [];
+      const today = new Date().toISOString().split('T')[0];
+      return getGradingSlots({
+        branch_id: student.branch_id,
+        status: 'active',
+        from_date: today,
+      });
+    },
+    enabled: !!student?.branch_id && !!student?.current_belt,
   });
 
   // Calculate stats
@@ -476,6 +537,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           <TabsTrigger value="profile">My Profile</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="schedule">Class Schedule</TabsTrigger>
+          <TabsTrigger value="chat" className="flex items-center gap-2">
+            Chat
+            {unreadChatCount > 0 && (
+              <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center p-0 text-xs">
+                {unreadChatCount}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -490,6 +559,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               current_belt: student.current_belt,
               date_of_birth: student.date_of_birth,
             }}
+            onOpenSchoolFees={() => setShowSchoolFeesDialog(true)}
+            onOpenGrading={() => setShowGradingDialog(true)}
+            onOpenChat={() => setActiveTab('chat')}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -739,7 +811,49 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             branchId={student?.branch_id} 
           />
         </TabsContent>
+
+        <TabsContent value="chat">
+          <StudentChatPanel
+            studentId={studentId!}
+            branchId={student?.branch_id || ''}
+            studentName={`${student.first_name} ${student.last_name}`}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      {showSchoolFeesDialog && (
+        <PaySchoolFeesDialog
+          open={showSchoolFeesDialog}
+          onOpenChange={setShowSchoolFeesDialog}
+          studentId={studentId!}
+          student={{
+            id: student.id,
+            first_name: student.first_name,
+            last_name: student.last_name,
+            branch_id: student.branch_id,
+            date_of_birth: student.date_of_birth,
+          }}
+          availableTerms={availableTerms}
+          previousEnrollment={previousEnrollment}
+        />
+      )}
+
+      {showGradingDialog && (
+        <PayGradingDialog
+          open={showGradingDialog}
+          onOpenChange={setShowGradingDialog}
+          studentId={studentId!}
+          student={{
+            id: student.id,
+            first_name: student.first_name,
+            last_name: student.last_name,
+            branch_id: student.branch_id,
+            current_belt: student.current_belt,
+          }}
+          gradingSlots={gradingSlots}
+        />
+      )}
     </div>
   );
 };
