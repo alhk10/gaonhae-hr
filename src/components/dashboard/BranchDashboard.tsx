@@ -245,12 +245,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
+          <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
+          <TabsTrigger value="chat">Chat ({unreadChatsCount})</TabsTrigger>
           <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
-          <TabsTrigger value="chat">Chat ({unreadChatsCount})</TabsTrigger>
           <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
-          <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="space-y-4">
