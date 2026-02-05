@@ -444,22 +444,35 @@ const renderWrappedLine = (
   doc.setFont('helvetica', 'normal');
 };
 
-// Render a paragraph with formatting support - improved word wrapping
+// Render a paragraph with formatting support - improved word wrapping with proper page break handling
 const renderFormattedParagraph = (
   doc: jsPDF,
   text: string,
   marginLeft: number,
-  yPos: number,
+  startYPos: number,
   contentWidth: number,
   pageWidth: number,
   lineHeight: number,
-  checkPageBreak: (height: number) => void
+  pageHeight: number,
+  marginBottom: number,
+  marginTop: number = 20
 ): number => {
+  let yPos = startYPos;
+  
+  // Internal page break check that properly updates yPos
+  const checkAndHandlePageBreak = (requiredHeight: number): void => {
+    if (yPos + requiredHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      yPos = marginTop;
+    }
+  };
+  
   // Split by explicit newlines first
   const paragraphs = text.split('\n');
   
   for (const paragraph of paragraphs) {
     if (!paragraph.trim()) {
+      checkAndHandlePageBreak(lineHeight);
       yPos += lineHeight;
       continue;
     }
@@ -471,7 +484,8 @@ const renderFormattedParagraph = (
     const wrappedLines = wrapFormattedText(doc, parsedLine.segments, contentWidth);
     
     for (const lineSegments of wrappedLines) {
-      checkPageBreak(lineHeight);
+      // Check if we need a new page BEFORE rendering this line
+      checkAndHandlePageBreak(lineHeight);
       renderWrappedLine(doc, lineSegments, marginLeft, yPos, parsedLine.alignment, contentWidth, pageWidth, marginLeft);
       yPos += lineHeight;
     }
@@ -952,7 +966,7 @@ export const generateStudentVerificationLetterWithTemplate = async (
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -981,7 +995,7 @@ export const generateStudentVerificationLetterWithTemplate = async (
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
     yPos += 5;
   }
 
@@ -1067,7 +1081,7 @@ export const printStudentVerificationLetterWithTemplate = async (
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -1096,7 +1110,7 @@ export const printStudentVerificationLetterWithTemplate = async (
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
     yPos += 5;
   }
 
@@ -1185,7 +1199,7 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -1214,7 +1228,7 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
     yPos += 5;
   }
 
@@ -1303,7 +1317,7 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -1332,7 +1346,7 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, pageHeight, marginBottom);
     yPos += 5;
   }
 
