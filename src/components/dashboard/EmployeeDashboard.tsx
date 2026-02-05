@@ -22,6 +22,7 @@ import AttendanceHistoryDialog from './AttendanceHistoryDialog';
 import SlotBookingDialog from './SlotBookingDialog';
 import SubmitClaimDialog from './SubmitClaimDialog';
 import ViewPayslipDialog from './ViewPayslipDialog';
+import ApplyLeaveDialog from './ApplyLeaveDialog';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -68,6 +69,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showSlotBooking, setShowSlotBooking] = useState(false);
   const [showSubmitClaim, setShowSubmitClaim] = useState(false);
   const [showViewPayslip, setShowViewPayslip] = useState(false);
+  const [showApplyLeave, setShowApplyLeave] = useState(false);
   useEffect(() => {
     fetchAttendanceData();
     fetchEmployeeData();
@@ -372,8 +374,8 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   };
 
   const handleApplyLeave = () => {
-    console.log('Navigating to apply leave page');
-    navigate('/apply-leave');
+    console.log('Opening apply leave dialog');
+    setShowApplyLeave(true);
   };
 
   const handleSubmitClaim = () => {
@@ -691,6 +693,15 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         <ViewPayslipDialog
           open={showViewPayslip}
           onOpenChange={setShowViewPayslip}
+          employeeId={effectiveEmployeeId}
+          employee={employeeData}
+        />
+      )}
+
+      {effectiveEmployeeId && employeeData && employeeData.type !== 'Casual' && (
+        <ApplyLeaveDialog
+          open={showApplyLeave}
+          onOpenChange={setShowApplyLeave}
           employeeId={effectiveEmployeeId}
           employee={employeeData}
         />
