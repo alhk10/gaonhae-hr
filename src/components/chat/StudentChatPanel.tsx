@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Building2, Loader2 } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+ import { Building2, Loader2, Bell, BellOff } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getMessages,
@@ -11,6 +12,7 @@ import {
   getBranchName,
   ChatMessage
 } from '@/services/chatService';
+ import { useStudentNotificationSubscription } from '@/hooks/useStudentNotificationSubscription';
 import ChatBubble from './ChatBubble';
 import ChatInput from './ChatInput';
 
@@ -28,6 +30,15 @@ const StudentChatPanel: React.FC<StudentChatPanelProps> = ({
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+ 
+   // Notification subscription hook
+   const {
+     isSupported: notificationsSupported,
+     isSubscribed: notificationsEnabled,
+     isLoading: notificationsLoading,
+     subscribe: enableNotifications,
+     unsubscribe: disableNotifications
+   } = useStudentNotificationSubscription(studentId);
 
   // Fetch branch name
   const { data: branchName = 'Branch' } = useQuery({
@@ -118,9 +129,34 @@ const StudentChatPanel: React.FC<StudentChatPanelProps> = ({
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader className="border-b py-3 px-4 shrink-0">
-        <div className="flex items-center gap-2">
+         <div className="flex items-center justify-between">
+           <div className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-muted-foreground" />
           <span className="font-medium">Chat with {branchName}</span>
+           </div>
+           {notificationsSupported && (
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={notificationsEnabled ? disableNotifications : enableNotifications}
+               disabled={notificationsLoading}
+               className="gap-2"
+             >
+               {notificationsLoading ? (
+                 <Loader2 className="h-4 w-4 animate-spin" />
+               ) : notificationsEnabled ? (
+                 <>
+                   <Bell className="h-4 w-4 text-primary" />
+                   <span className="hidden sm:inline">Notifications On</span>
+                 </>
+               ) : (
+                 <>
+                   <BellOff className="h-4 w-4 text-muted-foreground" />
+                   <span className="hidden sm:inline">Enable Notifications</span>
+                 </>
+               )}
+             </Button>
+           )}
         </div>
       </CardHeader>
 

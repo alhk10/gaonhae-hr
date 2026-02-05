@@ -130,6 +130,20 @@ export const sendMessage = async (
     throw error;
   }
 
+   // Send push notification to recipient (fire and forget - don't block message sending)
+   try {
+     if (senderType === 'student') {
+       // Notify branch staff
+       notifyBranchStaffOfNewMessage(branchId, senderName, message).catch(console.error);
+     } else {
+       // Notify student
+       notifyStudentOfNewMessage(studentId, senderName, message).catch(console.error);
+     }
+   } catch (notifyError) {
+     // Don't block message sending if notification fails
+     console.error('Error sending notification:', notifyError);
+   }
+ 
   return data as ChatMessage;
 };
 
@@ -386,3 +400,75 @@ export const getBranchName = async (branchId: string): Promise<string> => {
 
   return data?.name || 'Unknown Branch';
 };
+ 
+ // ==================== Notification Functions ====================
+ 
+ // Notify student of new message from branch
+ const notifyStudentOfNewMessage = async (
+   studentId: string,
+   senderName: string,
+   message: string
+ ): Promise<void> => {
+   const messagePreview = message.length > 50 
+     ? message.substring(0, 47) + '...' 
+     : message;
+ 
+   try {
+     await supabase.functions.invoke('push-notification', {
+       body: {
+         student_id: studentId,
+         template_key: 'new_chat_message',
+         variables: {
+           sender_name: senderName,
+           message_preview: messagePreview
+         },
+         url: '/?tab=chat'
+       }
+     });
+   } catch (error) {
+     console.error('Error notifying student:', error);
+   }
+ };
+ 
+ // Notify branch staff of new message from student
+ const notifyBranchStaffOfNewMessage = async (
+   branchId: string,
+   studentName: string,
+   message: string
+ ): Promise<void> => {
+   const messagePreview = message.length > 50 
+     ? message.substring(0, 47) + '...' 
+     : message;
+ 
+   try {
+     // Get employees with access to this branch
+     const { data: branchAccess, error } = await supabase
+       .from('employee_branch_access')
+       .select('employee_id')
+       .eq('branch_id', branchId);
+ 
+     if (error) {
+       console.error('Error fetching branch access:', error);
+       return;
+     }
+ 
+     // Send notification to each employee with branch access
+     const notificationPromises = (branchAccess || []).map(access => 
+       supabase.functions.invoke('push-notification', {
+         body: {
+           employee_id: access.employee_id,
+           template_key: 'new_chat_message',
+           variables: {
+             sender_name: studentName,
+             message_preview: messagePreview
+           },
+           url: '/branch-dashboard?tab=chat'
+         }
+       }).catch(err => console.error('Error notifying employee:', err))
+     );
+ 
+     await Promise.allSettled(notificationPromises);
+   } catch (error) {
+     console.error('Error notifying branch staff:', error);
+   }
+ };
