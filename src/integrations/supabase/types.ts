@@ -2094,8 +2094,10 @@ export type Database = {
           body_text: string
           body_text_2: string | null
           closing_text: string
+          company_name: string | null
           created_at: string
           created_by: string | null
+          footer_text: string | null
           id: string
           is_active: boolean
           is_default: boolean
@@ -2113,8 +2115,10 @@ export type Database = {
           body_text: string
           body_text_2?: string | null
           closing_text: string
+          company_name?: string | null
           created_at?: string
           created_by?: string | null
+          footer_text?: string | null
           id?: string
           is_active?: boolean
           is_default?: boolean
@@ -2132,8 +2136,10 @@ export type Database = {
           body_text?: string
           body_text_2?: string | null
           closing_text?: string
+          company_name?: string | null
           created_at?: string
           created_by?: string | null
+          footer_text?: string | null
           id?: string
           is_active?: boolean
           is_default?: boolean
