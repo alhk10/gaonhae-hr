@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { RichTextarea } from '@/components/ui/rich-textarea';
 import {
   Select,
@@ -45,7 +46,11 @@ const EMPLOYEE_PLACEHOLDERS = [
   { key: '{position}', label: 'Job position' },
   { key: '{salary}', label: 'Monthly salary' },
   { key: '{joinDate}', label: 'Start date' },
+  { key: '{address}', label: 'Address' },
+  { key: '{phone}', label: 'Contact number' },
 ];
+
+const DEFAULT_FOOTER_TEXT = 'This letter is computer generated and does not require signature';
 
 const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   isOpen,
@@ -61,8 +66,12 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   const [signatoryName, setSignatoryName] = useState('Gaonhae Taekwondo LLP');
   const [signatoryPosition, setSignatoryPosition] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [footerText, setFooterText] = useState('');
+  const [footerText, setFooterText] = useState(DEFAULT_FOOTER_TEXT);
   const [signatureImageUrl, setSignatureImageUrl] = useState('');
+  const [addresseeName, setAddresseeName] = useState('{fullName}');
+  const [address, setAddress] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [salutation, setSalutation] = useState('To Whom It May Concern');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -79,8 +88,12 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setSignatoryName(template.signatory_name || 'Gaonhae Taekwondo LLP');
         setSignatoryPosition(template.signatory_position || '');
         setCompanyName(template.company_name || '');
-        setFooterText(template.footer_text || '');
+        setFooterText(template.footer_text || DEFAULT_FOOTER_TEXT);
         setSignatureImageUrl(template.signature_image_url || '');
+        setAddresseeName(template.addressee_name || '{fullName}');
+        setAddress(template.address || '');
+        setContactNumber(template.contact_number || '');
+        setSalutation(template.salutation || 'To Whom It May Concern');
       } else {
         setName('');
         setType('student');
@@ -90,8 +103,12 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setSignatoryName('Gaonhae Taekwondo LLP');
         setSignatoryPosition('');
         setCompanyName('');
-        setFooterText('');
+        setFooterText(DEFAULT_FOOTER_TEXT);
         setSignatureImageUrl('');
+        setAddresseeName('{fullName}');
+        setAddress('');
+        setContactNumber('');
+        setSalutation('To Whom It May Concern');
       }
     }
   }, [isOpen, template]);
@@ -144,6 +161,10 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           company_name: companyName.trim(),
           footer_text: footerText.trim(),
           signature_image_url: signatureImageUrl,
+          addressee_name: addresseeName.trim(),
+          address: address.trim(),
+          contact_number: contactNumber.trim(),
+          salutation: salutation.trim(),
         });
         toast.success('Template updated successfully');
       } else {
@@ -158,6 +179,10 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           company_name: companyName.trim(),
           footer_text: footerText.trim(),
           signature_image_url: signatureImageUrl,
+          addressee_name: addresseeName.trim(),
+          address: address.trim(),
+          contact_number: contactNumber.trim(),
+          salutation: salutation.trim(),
         };
         await letterTemplateService.createTemplate(data);
         toast.success('Template created successfully');
@@ -221,6 +246,50 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
                 </p>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="addresseeName">Addressee Name (Optional)</Label>
+            <Input
+              id="addresseeName"
+              value={addresseeName}
+              onChange={(e) => setAddresseeName(e.target.value)}
+              placeholder="e.g., {fullName}"
+            />
+            <p className="text-xs text-muted-foreground">Default: {'{fullName}'} - will be replaced with recipient's name</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Address (Optional)</Label>
+            <Textarea
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g., {address} or enter a custom address"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">Use {'{address}'} to extract from employee details</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contactNumber">Contact Number (Optional)</Label>
+            <Input
+              id="contactNumber"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              placeholder="e.g., {phone} or enter a custom number"
+            />
+            <p className="text-xs text-muted-foreground">Use {'{phone}'} to extract from employee details</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="salutation">Salutation</Label>
+            <Input
+              id="salutation"
+              value={salutation}
+              onChange={(e) => setSalutation(e.target.value)}
+              placeholder="e.g., To Whom It May Concern"
+            />
           </div>
 
           <div className="space-y-2">
@@ -334,7 +403,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
               id="footerText"
               value={footerText}
               onChange={(e) => setFooterText(e.target.value)}
-              placeholder="e.g., Additional information at the bottom of the letter"
+              placeholder="e.g., This letter is computer generated..."
             />
           </div>
 

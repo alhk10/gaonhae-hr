@@ -13,6 +13,10 @@ export interface LetterTemplate {
   company_name: string;
   footer_text: string;
   signature_image_url: string;
+  addressee_name: string;
+  address: string;
+  contact_number: string;
+  salutation: string;
   is_default: boolean;
   is_active: boolean;
   sort_order: number;
@@ -32,6 +36,10 @@ export interface CreateLetterTemplateData {
   company_name?: string;
   footer_text?: string;
   signature_image_url?: string;
+  addressee_name?: string;
+  address?: string;
+  contact_number?: string;
+  salutation?: string;
   sort_order?: number;
 }
 
@@ -46,6 +54,10 @@ export interface UpdateLetterTemplateData {
   company_name?: string;
   footer_text?: string;
   signature_image_url?: string;
+  addressee_name?: string;
+  address?: string;
+  contact_number?: string;
+  salutation?: string;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -95,8 +107,12 @@ export const letterTemplateService = {
         signatory_name: templateData.signatory_name || 'Gaonhae Taekwondo LLP',
         signatory_position: templateData.signatory_position || '',
         company_name: templateData.company_name || '',
-        footer_text: templateData.footer_text || '',
+        footer_text: templateData.footer_text || 'This letter is computer generated and does not require signature',
         signature_image_url: templateData.signature_image_url || '',
+        addressee_name: templateData.addressee_name || '{fullName}',
+        address: templateData.address || '',
+        contact_number: templateData.contact_number || '',
+        salutation: templateData.salutation || 'To Whom It May Concern',
       })
       .select()
       .single();
@@ -146,6 +162,10 @@ export const letterTemplateService = {
       company_name: original.company_name,
       footer_text: original.footer_text,
       signature_image_url: original.signature_image_url,
+      addressee_name: original.addressee_name,
+      address: original.address,
+      contact_number: original.contact_number,
+      salutation: original.salutation,
       sort_order: original.sort_order + 1,
     });
   },

@@ -17,6 +17,8 @@ export interface EmployeeData {
   position: string;
   baseSalary: number;
   joinDate: string;
+  address?: string;
+  phone?: string;
 }
 
 export interface LetterTemplateData {
@@ -30,6 +32,12 @@ export interface LetterTemplateData {
   signatory_name?: string;
   signatory_position?: string;
   signature_image_url?: string;
+  company_name?: string;
+  footer_text?: string;
+  addressee_name?: string;
+  address?: string;
+  contact_number?: string;
+  salutation?: string;
 }
 
 interface LetterTemplates {
@@ -45,6 +53,8 @@ const DEFAULT_TEMPLATES: LetterTemplates = {
   employeeBody: 'This is to certify that {fullName} is employed at Gaonhae Taekwondo LLP.',
   employeeClosing: 'This letter is issued upon request for {fullName}\'s reference.',
 };
+
+const DEFAULT_FOOTER_TEXT = 'This letter is computer generated and does not require signature.';
 
 const STORAGE_KEY = 'verification-letter-templates';
 
@@ -77,6 +87,8 @@ interface EmployeePlaceholders {
   position: string;
   salary: string;
   joinDate: string;
+  address: string;
+  phone: string;
 }
 
 const replaceStudentPlaceholders = (template: string, data: StudentPlaceholders): string => {
@@ -97,7 +109,9 @@ const replaceEmployeePlaceholders = (template: string, data: EmployeePlaceholder
     .replace(/{nric}/g, data.nric)
     .replace(/{position}/g, data.position)
     .replace(/{salary}/g, data.salary)
-    .replace(/{joinDate}/g, data.joinDate);
+    .replace(/{joinDate}/g, data.joinDate)
+    .replace(/{address}/g, data.address)
+    .replace(/{phone}/g, data.phone);
 };
 
 const loadLogo = async (): Promise<HTMLImageElement | null> => {
@@ -264,12 +278,28 @@ const renderFormattedText = (
   return lines.length * 6;
 };
 
+// Calculate content height for dynamic spacing
+const calculateContentHeight = (
+  doc: jsPDF,
+  sections: { content: string; lineHeight?: number }[]
+): number => {
+  let height = 0;
+  sections.forEach(section => {
+    if (section.content) {
+      const lines = doc.splitTextToSize(section.content, 170);
+      height += lines.length * (section.lineHeight || 6) + 8;
+    }
+  });
+  return height;
+};
+
 const addSignatureBlock = async (
   doc: jsPDF,
   yPos: number,
   signatoryName?: string,
   signatoryPosition?: string,
-  signatureImageUrl?: string
+  signatureImageUrl?: string,
+  companyName?: string
 ): Promise<number> => {
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
@@ -298,6 +328,46 @@ const addSignatureBlock = async (
     yPos += 5;
     doc.setFont('helvetica', 'normal');
     doc.text(signatoryPosition, 20, yPos);
+  }
+
+  // Company name
+  if (companyName) {
+    yPos += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.text(companyName, 20, yPos);
+  }
+
+  return yPos;
+};
+
+// Add addressee block (name, address, contact)
+const addAddresseeBlock = (
+  doc: jsPDF,
+  yPos: number,
+  addresseeName?: string,
+  address?: string,
+  contactNumber?: string
+): number => {
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+
+  // Addressee name
+  if (addresseeName && addresseeName.trim()) {
+    doc.text(addresseeName, 20, yPos);
+    yPos += 6;
+  }
+
+  // Address (multiline support)
+  if (address && address.trim()) {
+    const addressLines = doc.splitTextToSize(address, 170);
+    doc.text(addressLines, 20, yPos);
+    yPos += addressLines.length * 5 + 2;
+  }
+
+  // Contact number
+  if (contactNumber && contactNumber.trim()) {
+    doc.text(`Tel: ${contactNumber}`, 20, yPos);
+    yPos += 6;
   }
 
   return yPos;
@@ -387,7 +457,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
   // Footer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(DEFAULT_FOOTER_TEXT, 105, 280, { align: 'center' });
 
   // Save PDF
   const fileName = `Student_Verification_${fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
@@ -411,6 +481,8 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
     position: data.position || 'N/A',
     salary: formatCurrency(data.baseSalary || 0),
     joinDate: formatDate(data.joinDate),
+    address: data.address || '',
+    phone: data.phone || '',
   };
 
   let yPos = 55;
@@ -456,7 +528,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   // Footer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(DEFAULT_FOOTER_TEXT, 105, 280, { align: 'center' });
 
   // Save PDF
   const fileName = `Employment_Verification_${data.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
@@ -539,7 +611,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(DEFAULT_FOOTER_TEXT, 105, 280, { align: 'center' });
 
   // Open print dialog
   doc.autoPrint();
@@ -563,6 +635,8 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
     position: data.position || 'N/A',
     salary: formatCurrency(data.baseSalary || 0),
     joinDate: formatDate(data.joinDate),
+    address: data.address || '',
+    phone: data.phone || '',
   };
 
   let yPos = 55;
@@ -601,7 +675,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(DEFAULT_FOOTER_TEXT, 105, 280, { align: 'center' });
 
   // Open print dialog
   doc.autoPrint();
@@ -634,16 +708,25 @@ export const generateStudentVerificationLetterWithTemplate = async (
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
+  // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 20;
+  yPos += 10;
 
+  // Addressee block
+  const addresseeName = template.addressee_name ? replaceStudentPlaceholders(template.addressee_name, studentPlaceholders) : '';
+  yPos = addAddresseeBlock(doc, yPos, addresseeName);
+  yPos += 5;
+
+  // Salutation
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('To Whom It May Concern', 20, yPos);
+  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
   yPos += 15;
 
+  // Title - centered
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
@@ -671,12 +754,15 @@ export const generateStudentVerificationLetterWithTemplate = async (
     yPos,
     template.signatory_name,
     template.signatory_position,
-    template.signature_image_url
+    template.signature_image_url,
+    template.company_name
   );
 
+  // Footer - use template footer or default
+  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(footerText, 105, 280, { align: 'center' });
 
   const fileName = `${template.name.replace(/\s+/g, '_')}_${fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
   doc.save(fileName);
@@ -708,15 +794,23 @@ export const printStudentVerificationLetterWithTemplate = async (
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 20;
+  yPos += 10;
 
+  // Addressee block
+  const addresseeName = template.addressee_name ? replaceStudentPlaceholders(template.addressee_name, studentPlaceholders) : '';
+  yPos = addAddresseeBlock(doc, yPos, addresseeName);
+  yPos += 5;
+
+  // Salutation
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('To Whom It May Concern', 20, yPos);
+  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
   yPos += 15;
 
+  // Title - centered
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
@@ -744,12 +838,15 @@ export const printStudentVerificationLetterWithTemplate = async (
     yPos,
     template.signatory_name,
     template.signatory_position,
-    template.signature_image_url
+    template.signature_image_url,
+    template.company_name
   );
 
+  // Footer
+  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(footerText, 105, 280, { align: 'center' });
 
   doc.autoPrint();
   window.open(doc.output('bloburl'), '_blank');
@@ -774,20 +871,33 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     position: data.position || 'N/A',
     salary: formatCurrency(data.baseSalary || 0),
     joinDate: formatDate(data.joinDate),
+    address: data.address || '',
+    phone: data.phone || '',
   };
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 20;
+  yPos += 10;
 
+  // Addressee block - replace placeholders in template fields
+  const addresseeName = template.addressee_name ? replaceEmployeePlaceholders(template.addressee_name, employeePlaceholders) : '';
+  const addressText = template.address ? replaceEmployeePlaceholders(template.address, employeePlaceholders) : '';
+  const contactText = template.contact_number ? replaceEmployeePlaceholders(template.contact_number, employeePlaceholders) : '';
+  
+  yPos = addAddresseeBlock(doc, yPos, addresseeName, addressText, contactText);
+  yPos += 5;
+
+  // Salutation
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('To Whom It May Concern', 20, yPos);
+  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
   yPos += 15;
 
+  // Title - centered
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
@@ -815,12 +925,15 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     yPos,
     template.signatory_name,
     template.signatory_position,
-    template.signature_image_url
+    template.signature_image_url,
+    template.company_name
   );
 
+  // Footer - use template footer or default
+  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(footerText, 105, 280, { align: 'center' });
 
   const fileName = `${template.name.replace(/\s+/g, '_')}_${data.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
   doc.save(fileName);
@@ -845,20 +958,33 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     position: data.position || 'N/A',
     salary: formatCurrency(data.baseSalary || 0),
     joinDate: formatDate(data.joinDate),
+    address: data.address || '',
+    phone: data.phone || '',
   };
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  // Date
   doc.setFontSize(11);
   doc.text(currentDate, 20, yPos);
-  yPos += 20;
+  yPos += 10;
 
+  // Addressee block - replace placeholders in template fields
+  const addresseeName = template.addressee_name ? replaceEmployeePlaceholders(template.addressee_name, employeePlaceholders) : '';
+  const addressText = template.address ? replaceEmployeePlaceholders(template.address, employeePlaceholders) : '';
+  const contactText = template.contact_number ? replaceEmployeePlaceholders(template.contact_number, employeePlaceholders) : '';
+  
+  yPos = addAddresseeBlock(doc, yPos, addresseeName, addressText, contactText);
+  yPos += 5;
+
+  // Salutation
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('To Whom It May Concern', 20, yPos);
+  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
   yPos += 15;
 
+  // Title - centered
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
@@ -886,12 +1012,15 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     yPos,
     template.signatory_name,
     template.signatory_position,
-    template.signature_image_url
+    template.signature_image_url,
+    template.company_name
   );
 
+  // Footer
+  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('This letter is computer generated and does not require signature.', 105, 280, { align: 'center' });
+  doc.text(footerText, 105, 280, { align: 'center' });
 
   doc.autoPrint();
   window.open(doc.output('bloburl'), '_blank');
