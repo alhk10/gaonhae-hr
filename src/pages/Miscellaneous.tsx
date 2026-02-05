@@ -62,6 +62,8 @@ interface Employee {
   position: string | null;
   base_salary: number | null;
   join_date: string | null;
+  address: string | null;
+  phone: string | null;
 }
 
 const formatDate = (dateStr: string | null): string => {
@@ -114,7 +116,7 @@ const Miscellaneous = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, name, display_name, date_of_birth, nric, position, base_salary, join_date')
+        .select('id, name, display_name, date_of_birth, nric, position, base_salary, join_date, address, phone')
         .is('resign_date', null)
         .order('name');
       
@@ -208,6 +210,8 @@ const Miscellaneous = () => {
           position: selectedEmployee.position || '',
           baseSalary: selectedEmployee.base_salary || 0,
           joinDate: selectedEmployee.join_date || '',
+          address: selectedEmployee.address || '',
+          phone: selectedEmployee.phone || '',
         },
         template
       );
@@ -233,6 +237,8 @@ const Miscellaneous = () => {
           position: selectedEmployee.position || '',
           baseSalary: selectedEmployee.base_salary || 0,
           joinDate: selectedEmployee.join_date || '',
+          address: selectedEmployee.address || '',
+          phone: selectedEmployee.phone || '',
         },
         template
       );
