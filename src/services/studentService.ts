@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logSalesModuleAccess } from './salesModuleService';
 import { logger } from '@/utils/logger';
 import { createStudentAuth } from './studentAuthService';
+import { normalizePartyData } from '@/utils/partyUtils';
 
 export interface Student {
   id: string;
@@ -364,7 +365,7 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
     const studentNumber = await generateStudentNumber();
     
     // Sanitize empty strings to null for database fields that don't accept empty strings
-    const sanitizedData = {
+    const rawData = {
       ...studentData,
       last_name: studentData.last_name || null,
       date_of_birth: studentData.date_of_birth || null,
@@ -385,9 +386,12 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       enrollment_date: new Date().toISOString().split('T')[0]
     };
     
+    // Normalize all text fields to uppercase
+    const sanitizedData = normalizePartyData(rawData);
+    
     const { data, error } = await supabase
       .from('students')
-      .insert(sanitizedData)
+      .insert(sanitizedData as any)
       .select()
       .single();
 
@@ -443,17 +447,20 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       .single();
 
     // Sanitize date fields - convert empty strings to null
-    const sanitizedData = { ...studentData };
+    const rawData = { ...studentData };
     const dateFields = ['date_of_birth', 'trial_date', 'enrollment_date', 'registered_date'];
     for (const field of dateFields) {
-      if (field in sanitizedData && sanitizedData[field as keyof typeof sanitizedData] === '') {
-        (sanitizedData as any)[field] = null;
+      if (field in rawData && rawData[field as keyof typeof rawData] === '') {
+        (rawData as any)[field] = null;
       }
     }
+    
+    // Normalize all text fields to uppercase
+    const sanitizedData = normalizePartyData(rawData);
 
     const { data, error } = await supabase
       .from('students')
-      .update(sanitizedData)
+      .update(sanitizedData as any)
       .eq('id', studentId)
       .select()
       .single();

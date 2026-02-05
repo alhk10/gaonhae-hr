@@ -7,11 +7,30 @@ export const toUppercasePartyField = (value: string | null | undefined): string 
   return value?.toUpperCase() || '';
 };
 
+// Fields that should be uppercased for all party types
+const UPPERCASE_FIELDS = [
+  'first_name', 
+  'last_name', 
+  'name', 
+  'nric', 
+  'nric_passport',
+  'passport_no',
+  'address', 
+  'bank_name', 
+  'bank_account', 
+  'position', 
+  'department',
+  'certificate_name',
+  'display_name',
+  'preferred_name',
+  'emergency_contact_name',
+  'emergency_contact_2_name'
+];
+
 export const normalizePartyData = (data: Record<string, any>): Record<string, any> => {
-  const textFields = ['first_name', 'last_name', 'name', 'nric', 'address', 'bank_name', 'bank_account', 'position', 'department'];
   const normalized = { ...data };
   
-  for (const field of textFields) {
+  for (const field of UPPERCASE_FIELDS) {
     if (normalized[field] && typeof normalized[field] === 'string') {
       normalized[field] = normalized[field].toUpperCase();
     }
