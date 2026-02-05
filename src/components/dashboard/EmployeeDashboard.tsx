@@ -19,6 +19,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { isWithinBranchRange } from '@/services/geolocationService';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AttendanceHistoryDialog from './AttendanceHistoryDialog';
+import SlotBookingDialog from './SlotBookingDialog';
+import SubmitClaimDialog from './SubmitClaimDialog';
+import ViewPayslipDialog from './ViewPayslipDialog';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -62,7 +65,9 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string>('');
   const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
-
+  const [showSlotBooking, setShowSlotBooking] = useState(false);
+  const [showSubmitClaim, setShowSubmitClaim] = useState(false);
+  const [showViewPayslip, setShowViewPayslip] = useState(false);
   useEffect(() => {
     fetchAttendanceData();
     fetchEmployeeData();
@@ -350,13 +355,13 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   };
 
   const handleSubmitClaim = () => {
-    console.log('Navigating to claim page');
-    navigate('/submit-claim');
+    console.log('Opening submit claim dialog');
+    setShowSubmitClaim(true);
   };
 
   const handleViewPayslip = () => {
-    console.log('Navigating to payslips page');
-    navigate('/payslips');
+    console.log('Opening view payslip dialog');
+    setShowViewPayslip(true);
   };
 
   const displayName = employeeData?.name || user?.name || 'Employee';
@@ -550,7 +555,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                 <Button 
                   className={`justify-start h-auto p-3 md:p-4`} 
                   variant="outline"
-                  onClick={() => navigate('/slot-booking')}
+                  onClick={() => setShowSlotBooking(true)}
                 >
                   <CalendarPlus className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <div className="text-left">
@@ -636,6 +641,36 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           open={showAttendanceHistory}
           onOpenChange={setShowAttendanceHistory}
           employeeId={effectiveEmployeeId}
+        />
+      )}
+
+      {effectiveEmployeeId && employeeData?.type === 'Casual' && (
+        <SlotBookingDialog
+          open={showSlotBooking}
+          onOpenChange={setShowSlotBooking}
+          employeeId={effectiveEmployeeId}
+          employeeName={employeeData.name}
+          employeeType={employeeData.type}
+          qualifications={employeeData.qualifications}
+          joinDate={employeeData.joinDate}
+        />
+      )}
+
+      {effectiveEmployeeId && employeeData && (
+        <SubmitClaimDialog
+          open={showSubmitClaim}
+          onOpenChange={setShowSubmitClaim}
+          employeeId={effectiveEmployeeId}
+          employee={employeeData}
+        />
+      )}
+
+      {effectiveEmployeeId && employeeData && (
+        <ViewPayslipDialog
+          open={showViewPayslip}
+          onOpenChange={setShowViewPayslip}
+          employeeId={effectiveEmployeeId}
+          employee={employeeData}
         />
       )}
     </>
