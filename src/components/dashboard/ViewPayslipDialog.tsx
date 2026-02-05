@@ -187,8 +187,29 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
   const currentMonthStr = format(currentMonth, 'yyyy-MM');
   const filteredPayslips = payslips.filter(p => p.month === currentMonthStr);
 
-  const totalEarningsYear = payslips.reduce((sum, p) => sum + (p.grossSalary || 0) + (p.approvedClaims || 0), 0);
-  const totalCPFYear = payslips.reduce((sum, p) => sum + (p.totalCPF || 0), 0);
+  // Calculate year-to-date totals based on the current viewing year
+  const currentYear = currentMonth.getFullYear();
+  const yearPayslips = payslips.filter(p => {
+    // Handle both "yyyy-MM" and "Month Year" formats
+    const monthStr = p.month;
+    let payslipYear: number | null = null;
+    
+    // Try "yyyy-MM" format first
+    if (/^\d{4}-\d{2}$/.test(monthStr)) {
+      payslipYear = parseInt(monthStr.split('-')[0], 10);
+    } else {
+      // Try "Month Year" format (e.g., "January 2026")
+      const parts = monthStr.split(' ');
+      if (parts.length === 2) {
+        payslipYear = parseInt(parts[1], 10);
+      }
+    }
+    
+    return payslipYear === currentYear;
+  });
+
+  const totalEarningsYear = yearPayslips.reduce((sum, p) => sum + (p.grossSalary || 0) + (p.approvedClaims || 0), 0);
+  const totalCPFYear = yearPayslips.reduce((sum, p) => sum + (p.totalCPF || 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
