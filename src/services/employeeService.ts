@@ -3,6 +3,7 @@ import { EmployeeProfile, AdminAccessPermissions, EmployeePageAccessPermissions 
 import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 import { logger } from '@/utils/logger';
 import { withSessionRefresh, forceRefreshSession } from './sessionRefreshService';
+import { normalizePartyData } from '@/utils/partyUtils';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees list');
@@ -378,6 +379,8 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
   return {
     id: employee.id,
     name: employee.name,
+    first_name: employee.first_name || employee.name?.split(' ')[0] || '',
+    last_name: employee.last_name || employee.name?.split(' ').slice(1).join(' ') || '',
     display_name: employee.display_name || '',
     nric: employee.nric || '',
     dateOfBirth: employee.date_of_birth,
@@ -469,9 +472,17 @@ export const createEmployee = async (employeeData: any) => {
     const employeeId = `EMP${Date.now()}`;
     logger.debug('Generated employee ID', { employeeId });
     
-    const insertData = {
+    // Split name into first_name and last_name if not provided separately
+    const nameParts = (employeeData.name || '').trim().split(' ');
+    const firstName = employeeData.first_name || nameParts[0] || '';
+    const lastName = employeeData.last_name || nameParts.slice(1).join(' ') || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    
+    const rawInsertData = {
       id: employeeId,
-      name: employeeData.name,
+      first_name: firstName,
+      last_name: lastName || null,
+      name: fullName,
       nric: employeeData.nric,
       date_of_birth: employeeData.dateOfBirth,
       residency_status: employeeData.residencyStatus,
@@ -488,6 +499,9 @@ export const createEmployee = async (employeeData: any) => {
       email: employeeData.email,
       join_date: employeeData.joinDate || null
     };
+    
+    // Normalize all text fields to uppercase
+    const insertData = normalizePartyData(rawInsertData);
 
     logger.debug('Prepared data for insertion');
     logger.debug('Starting database insertion');
@@ -495,7 +509,7 @@ export const createEmployee = async (employeeData: any) => {
     // Add timeout to the database operation
     const insertPromise = supabase
       .from('employees')
-      .insert([insertData])
+      .insert([insertData as any])
       .select()
       .single();
 
@@ -575,8 +589,16 @@ export const addEmployee = async (employeeData: any) => {
 export const updateEmployee = async (id: string, employeeData: any) => {
   logger.debug('Updating employee', { id });
   
-  const updateData = {
-    name: employeeData.name,
+  // Split name into first_name and last_name if not provided separately
+  const nameParts = (employeeData.name || '').trim().split(' ');
+  const firstName = employeeData.first_name || nameParts[0] || '';
+  const lastName = employeeData.last_name || nameParts.slice(1).join(' ') || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  
+  const rawUpdateData = {
+    first_name: firstName,
+    last_name: lastName || null,
+    name: fullName,
     display_name: employeeData.display_name || employeeData.displayName || null,
     nric: employeeData.nric,
     date_of_birth: employeeData.dateOfBirth,
@@ -596,6 +618,9 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     resign_date: employeeData.resignDate || null,
     qualifications: employeeData.qualifications || {}
   };
+  
+  // Normalize all text fields to uppercase
+  const updateData = normalizePartyData(rawUpdateData);
 
   logger.debug('Processed update data for Supabase');
 

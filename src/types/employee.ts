@@ -128,6 +128,8 @@ export interface EmployeeQualifications {
 export interface EmployeeProfile {
   id: string;
   name: string;
+  first_name?: string;
+  last_name?: string;
   display_name?: string;
   nric: string;
   dateOfBirth: string;
