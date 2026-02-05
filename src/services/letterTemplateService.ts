@@ -17,6 +17,7 @@ export interface LetterTemplate {
   address: string;
   contact_number: string;
   salutation: string;
+  show_horizontal_line: boolean;
   is_default: boolean;
   is_active: boolean;
   sort_order: number;
@@ -40,6 +41,7 @@ export interface CreateLetterTemplateData {
   address?: string;
   contact_number?: string;
   salutation?: string;
+  show_horizontal_line?: boolean;
   sort_order?: number;
 }
 
@@ -58,6 +60,7 @@ export interface UpdateLetterTemplateData {
   address?: string;
   contact_number?: string;
   salutation?: string;
+  show_horizontal_line?: boolean;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -104,15 +107,16 @@ export const letterTemplateService = {
         is_active: true,
         body_text_2: templateData.body_text_2 || '',
         closing_text: templateData.closing_text || '',
-        signatory_name: templateData.signatory_name || 'Gaonhae Taekwondo LLP',
+        signatory_name: templateData.signatory_name || '',
         signatory_position: templateData.signatory_position || '',
         company_name: templateData.company_name || '',
-        footer_text: templateData.footer_text || 'This letter is computer generated and does not require signature',
+        footer_text: templateData.footer_text || '',
         signature_image_url: templateData.signature_image_url || '',
         addressee_name: templateData.addressee_name || '{fullName}',
         address: templateData.address || '',
         contact_number: templateData.contact_number || '',
         salutation: templateData.salutation || 'To Whom It May Concern',
+        show_horizontal_line: templateData.show_horizontal_line || false,
       })
       .select()
       .single();
@@ -166,6 +170,7 @@ export const letterTemplateService = {
       address: original.address,
       contact_number: original.contact_number,
       salutation: original.salutation,
+      show_horizontal_line: original.show_horizontal_line,
       sort_order: original.sort_order + 1,
     });
   },
