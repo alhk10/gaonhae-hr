@@ -709,10 +709,21 @@ export const generateStudentVerificationLetterWithTemplate = async (
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const marginBottom = 25;
+  const marginLeft = 20;
+  const contentWidth = 170;
+
+  // Helper to check and add new page if needed
+  const checkPageBreak = (requiredHeight: number): void => {
+    if (yPos + requiredHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
 
   // Date
   doc.setFontSize(11);
-  doc.text(currentDate, 20, yPos);
+  doc.text(currentDate, marginLeft, yPos);
   yPos += 10;
 
   // Addressee block
@@ -720,35 +731,59 @@ export const generateStudentVerificationLetterWithTemplate = async (
   yPos = addAddresseeBlock(doc, yPos, addresseeName);
   yPos += 5;
 
-  // Salutation
+  // Salutation - replace placeholders and use default if empty
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
+  let salutationText = template.salutation || 'To Whom It May Concern';
+  salutationText = replaceStudentPlaceholders(salutationText, studentPlaceholders);
+  doc.text(salutationText, marginLeft, yPos);
   yPos += 15;
 
   // Title - centered
+  checkPageBreak(15);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1
+  // Body paragraph 1 - with page break support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  const cleanBodyText = bodyText
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1');
+  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
+  
+  for (const line of bodyLines) {
+    checkPageBreak(6);
+    doc.text(line, marginLeft, yPos);
+    yPos += 6;
+  }
   yPos += 5;
 
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    const cleanBodyText2 = bodyText2
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/_(.+?)_/g, '$1');
+    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
+    
+    for (const line of bodyLines2) {
+      checkPageBreak(6);
+      doc.text(line, marginLeft, yPos);
+      yPos += 6;
+    }
     yPos += 5;
   }
 
   yPos += 10;
 
-  // Signature block
+  // Signature block - check for space
+  checkPageBreak(50);
   yPos = await addSignatureBlock(
     doc,
     yPos,
@@ -758,11 +793,16 @@ export const generateStudentVerificationLetterWithTemplate = async (
     template.company_name
   );
 
-  // Footer - use template footer or default
-  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(footerText, 105, 280, { align: 'center' });
+  // Footer - only show if provided (optional)
+  if (template.footer_text && template.footer_text.trim()) {
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(template.footer_text, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+  }
 
   const fileName = `${template.name.replace(/\s+/g, '_')}_${fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
   doc.save(fileName);
@@ -793,10 +833,22 @@ export const printStudentVerificationLetterWithTemplate = async (
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginBottom = 25;
+  const marginLeft = 20;
+  const contentWidth = 170;
+
+  // Helper to check and add new page if needed
+  const checkPageBreak = (requiredHeight: number): void => {
+    if (yPos + requiredHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
 
   // Date
   doc.setFontSize(11);
-  doc.text(currentDate, 20, yPos);
+  doc.text(currentDate, marginLeft, yPos);
   yPos += 10;
 
   // Addressee block
@@ -804,35 +856,59 @@ export const printStudentVerificationLetterWithTemplate = async (
   yPos = addAddresseeBlock(doc, yPos, addresseeName);
   yPos += 5;
 
-  // Salutation
+  // Salutation - replace placeholders and use default if empty
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
+  let salutationText = template.salutation || 'To Whom It May Concern';
+  salutationText = replaceStudentPlaceholders(salutationText, studentPlaceholders);
+  doc.text(salutationText, marginLeft, yPos);
   yPos += 15;
 
   // Title - centered
+  checkPageBreak(15);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1
+  // Body paragraph 1 - with page break support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  const cleanBodyText = bodyText
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1');
+  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
+  
+  for (const line of bodyLines) {
+    checkPageBreak(6);
+    doc.text(line, marginLeft, yPos);
+    yPos += 6;
+  }
   yPos += 5;
 
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    const cleanBodyText2 = bodyText2
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/_(.+?)_/g, '$1');
+    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
+    
+    for (const line of bodyLines2) {
+      checkPageBreak(6);
+      doc.text(line, marginLeft, yPos);
+      yPos += 6;
+    }
     yPos += 5;
   }
 
   yPos += 10;
 
-  // Signature block
+  // Signature block - check for space
+  checkPageBreak(50);
   yPos = await addSignatureBlock(
     doc,
     yPos,
@@ -842,11 +918,16 @@ export const printStudentVerificationLetterWithTemplate = async (
     template.company_name
   );
 
-  // Footer
-  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(footerText, 105, 280, { align: 'center' });
+  // Footer - only show if provided (optional)
+  if (template.footer_text && template.footer_text.trim()) {
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(template.footer_text, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+  }
 
   doc.autoPrint();
   window.open(doc.output('bloburl'), '_blank');
@@ -877,10 +958,22 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginBottom = 25; // Space for footer
+  const marginLeft = 20;
+  const contentWidth = 170;
+
+  // Helper to check and add new page if needed
+  const checkPageBreak = (requiredHeight: number): void => {
+    if (yPos + requiredHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
 
   // Date
   doc.setFontSize(11);
-  doc.text(currentDate, 20, yPos);
+  doc.text(currentDate, marginLeft, yPos);
   yPos += 10;
 
   // Addressee block - replace placeholders in template fields
@@ -891,35 +984,59 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   yPos = addAddresseeBlock(doc, yPos, addresseeName, addressText, contactText);
   yPos += 5;
 
-  // Salutation
+  // Salutation - replace placeholders and use default if empty
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
+  let salutationText = template.salutation || 'To Whom It May Concern';
+  salutationText = replaceEmployeePlaceholders(salutationText, employeePlaceholders);
+  doc.text(salutationText, marginLeft, yPos);
   yPos += 15;
 
   // Title - centered
+  checkPageBreak(15);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1
+  // Body paragraph 1 - with page break support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  const cleanBodyText = bodyText
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1');
+  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
+  
+  for (const line of bodyLines) {
+    checkPageBreak(6);
+    doc.text(line, marginLeft, yPos);
+    yPos += 6;
+  }
   yPos += 5;
 
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    const cleanBodyText2 = bodyText2
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/_(.+?)_/g, '$1');
+    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
+    
+    for (const line of bodyLines2) {
+      checkPageBreak(6);
+      doc.text(line, marginLeft, yPos);
+      yPos += 6;
+    }
     yPos += 5;
   }
 
   yPos += 10;
 
-  // Signature block
+  // Signature block - check for space
+  checkPageBreak(50);
   yPos = await addSignatureBlock(
     doc,
     yPos,
@@ -929,11 +1046,16 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     template.company_name
   );
 
-  // Footer - use template footer or default
-  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(footerText, 105, 280, { align: 'center' });
+  // Footer - only show if provided (optional)
+  if (template.footer_text && template.footer_text.trim()) {
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(template.footer_text, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+  }
 
   const fileName = `${template.name.replace(/\s+/g, '_')}_${data.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
   doc.save(fileName);
@@ -964,10 +1086,22 @@ export const printEmployeeVerificationLetterWithTemplate = async (
 
   let yPos = 55;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginBottom = 25;
+  const marginLeft = 20;
+  const contentWidth = 170;
+
+  // Helper to check and add new page if needed
+  const checkPageBreak = (requiredHeight: number): void => {
+    if (yPos + requiredHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
 
   // Date
   doc.setFontSize(11);
-  doc.text(currentDate, 20, yPos);
+  doc.text(currentDate, marginLeft, yPos);
   yPos += 10;
 
   // Addressee block - replace placeholders in template fields
@@ -978,35 +1112,59 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   yPos = addAddresseeBlock(doc, yPos, addresseeName, addressText, contactText);
   yPos += 5;
 
-  // Salutation
+  // Salutation - replace placeholders and use default if empty
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(template.salutation || 'To Whom It May Concern', 20, yPos);
+  let salutationText = template.salutation || 'To Whom It May Concern';
+  salutationText = replaceEmployeePlaceholders(salutationText, employeePlaceholders);
+  doc.text(salutationText, marginLeft, yPos);
   yPos += 15;
 
   // Title - centered
+  checkPageBreak(15);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1
+  // Body paragraph 1 - with page break support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  yPos += renderFormattedText(doc, bodyText, 20, yPos, 170);
+  const cleanBodyText = bodyText
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1');
+  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
+  
+  for (const line of bodyLines) {
+    checkPageBreak(6);
+    doc.text(line, marginLeft, yPos);
+    yPos += 6;
+  }
   yPos += 5;
 
   // Body paragraph 2 (if provided)
   if (template.body_text_2) {
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    yPos += renderFormattedText(doc, bodyText2, 20, yPos, 170);
+    const cleanBodyText2 = bodyText2
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/_(.+?)_/g, '$1');
+    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
+    
+    for (const line of bodyLines2) {
+      checkPageBreak(6);
+      doc.text(line, marginLeft, yPos);
+      yPos += 6;
+    }
     yPos += 5;
   }
 
   yPos += 10;
 
-  // Signature block
+  // Signature block - check for space
+  checkPageBreak(50);
   yPos = await addSignatureBlock(
     doc,
     yPos,
@@ -1016,11 +1174,16 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     template.company_name
   );
 
-  // Footer
-  const footerText = template.footer_text || DEFAULT_FOOTER_TEXT;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(footerText, 105, 280, { align: 'center' });
+  // Footer - only show if provided (optional)
+  if (template.footer_text && template.footer_text.trim()) {
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(template.footer_text, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+  }
 
   doc.autoPrint();
   window.open(doc.output('bloburl'), '_blank');
