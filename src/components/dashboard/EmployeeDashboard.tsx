@@ -265,30 +265,26 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     return Math.round(monthlyHours * 10) / 10;
   })();
 
-  // Calculate total earnings this month from slot bookings
-  const { data: slotBookingsData = [] } = useQuery({
-    queryKey: ['employee-slot-bookings-month', effectiveEmployeeId],
-    queryFn: () => getEmployeeSlotBookings(effectiveEmployeeId || ''),
-    enabled: !!effectiveEmployeeId,
+  // Calculate total earnings this month from slot bookings with dynamic pricing
+  const currentPeriod = (() => {
+    const now = new Date();
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+  })();
+
+  const { data: earningsData } = useQuery({
+    queryKey: ['employee-earnings-month', effectiveEmployeeId, currentPeriod],
+    queryFn: async () => {
+      if (!effectiveEmployeeId || !employeeData) return { totalPay: 0 };
+      const { getSlotBookingPayForPeriod } = await import('@/services/slotBookingPayrollService');
+      return getSlotBookingPayForPeriod(effectiveEmployeeId, currentPeriod, employeeData);
+    },
+    enabled: !!effectiveEmployeeId && !!employeeData,
     staleTime: 5 * 60 * 1000,
   });
 
-  const earningsThisMonth = (() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    const monthlyEarnings = slotBookingsData
-      .filter((booking: SlotBooking) => {
-        const bookingDate = new Date(booking.date);
-        return bookingDate.getMonth() === currentMonth && 
-               bookingDate.getFullYear() === currentYear &&
-               booking.status === 'approved';
-      })
-      .reduce((total: number, booking: SlotBooking) => total + (booking.calculatedPay || 0), 0);
-    
-    return Math.round(monthlyEarnings * 100) / 100;
-  })();
+  const earningsThisMonth = Math.round((earningsData?.totalPay || 0) * 100) / 100;
 
   const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
                             employeeData?.position?.toLowerCase() === 'senior partner';
