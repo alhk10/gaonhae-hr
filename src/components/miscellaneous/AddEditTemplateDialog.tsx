@@ -88,7 +88,7 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setSignatoryName(template.signatory_name || 'Gaonhae Taekwondo LLP');
         setSignatoryPosition(template.signatory_position || '');
         setCompanyName(template.company_name || '');
-        setFooterText(template.footer_text || DEFAULT_FOOTER_TEXT);
+        setFooterText(template.footer_text ?? '');
         setSignatureImageUrl(template.signature_image_url || '');
         setAddresseeName(template.addressee_name || '{fullName}');
         setAddress(template.address || '');
