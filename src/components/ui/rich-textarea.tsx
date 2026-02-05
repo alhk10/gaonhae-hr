@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bold, Italic, Underline, List, IndentIncrease, IndentDecrease } from "lucide-react";
+import { Bold, Italic, Underline, List, IndentIncrease, IndentDecrease, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 
 export interface RichTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -88,13 +88,10 @@ const RichTextarea = React.forwardRef<HTMLTextAreaElement, RichTextareaProps>(
 
       const lines = selectedText.split('\n');
       const numberedLines = lines.map((line, index) => {
-        // Check if line already has a number prefix
         const numberMatch = line.match(/^\d+\.\s*/);
         if (numberMatch) {
-          // Remove the number prefix
           return line.substring(numberMatch[0].length);
         } else {
-          // Add number prefix
           return `${index + 1}. ${line}`;
         }
       });
@@ -152,7 +149,6 @@ const RichTextarea = React.forwardRef<HTMLTextAreaElement, RichTextareaProps>(
 
       const lines = selectedText.split('\n');
       const outdentedLines = lines.map(line => {
-        // Remove up to 4 leading spaces or a tab
         if (line.startsWith('    ')) {
           return line.substring(4);
         } else if (line.startsWith('\t')) {
@@ -176,9 +172,52 @@ const RichTextarea = React.forwardRef<HTMLTextAreaElement, RichTextareaProps>(
       }, 0);
     };
 
+    const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentValue = (value as string) || '';
+      const selectedText = currentValue.substring(start, end);
+
+      if (!selectedText) return;
+
+      const lines = selectedText.split('\n');
+      const alignedLines = lines.map(line => {
+        // Remove existing alignment markers
+        let cleanLine = line.replace(/^<<|>>|><$/g, '').replace(/^<<|^>>|^></g, '');
+        cleanLine = line.replace(/^(<<|>>|><)/, '');
+        
+        // Add new alignment marker
+        switch (alignment) {
+          case 'left':
+            return `<<${cleanLine}`;
+          case 'center':
+            return `><${cleanLine}`;
+          case 'right':
+            return `>>${cleanLine}`;
+          default:
+            return cleanLine;
+        }
+      });
+
+      const newText = alignedLines.join('\n');
+      const beforeSelection = currentValue.substring(0, start);
+      const afterSelection = currentValue.substring(end);
+      const newValue = beforeSelection + newText + afterSelection;
+
+      triggerChange(newValue);
+
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start, start + newText.length);
+      }, 0);
+    };
+
     const handleBold = () => wrapSelection('**');
     const handleItalic = () => wrapSelection('_');
-    const handleUnderline = () => wrapSelection('__');
+    const handleUnderline = () => wrapSelection('~~');
 
     return (
       <div className="space-y-2">
@@ -212,6 +251,37 @@ const RichTextarea = React.forwardRef<HTMLTextAreaElement, RichTextareaProps>(
             title="Underline (select text first)"
           >
             <Underline className="h-4 w-4" />
+          </Button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAlignment('left')}
+            className="h-8 w-8 p-0"
+            title="Align Left (select lines first)"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAlignment('center')}
+            className="h-8 w-8 p-0"
+            title="Align Center (select lines first)"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAlignment('right')}
+            className="h-8 w-8 p-0"
+            title="Align Right (select lines first)"
+          >
+            <AlignRight className="h-4 w-4" />
           </Button>
           <div className="w-px h-6 bg-border mx-1" />
           <Button

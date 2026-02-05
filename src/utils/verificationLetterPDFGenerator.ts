@@ -150,26 +150,29 @@ const loadSignatureImage = async (url: string): Promise<HTMLImageElement | null>
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const logoWidth = 38.5;
+  // Increased logo size by 10% (38.5 * 1.1 = 42.35)
+  const logoWidth = 42.35;
   const totalWidth = logoWidth + 5 + 120; // logo + gap + text area
   const startX = (pageWidth - totalWidth) / 2;
 
-  // Add logo - centered with text
+  // Add logo - centered with text, increased size by 10%
   if (logoImg) {
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 27.5));
+    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 30.25));
   }
 
   // Company details - inline with logo, right of it
+  // Decreased line spacing by 30% (original gap ~6, now ~4.2)
   const textX = startX + logoWidth + 5;
+  const lineSpacing = 4.2; // Reduced from 6
   doc.setTextColor(54, 54, 54);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Gaonhae Taekwondo LLP | T18LL1687K', textX, 22);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 28);
-  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 34);
+  doc.text('271 Bukit Timah Road #02-08 Singapore 259708', textX, 22 + lineSpacing);
+  doc.text('gaonhaetaekwondo.com | gaonhaetaekwondo@gmail.com', textX, 22 + lineSpacing * 2);
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -200,20 +203,41 @@ interface TextSegment {
   underline: boolean;
 }
 
-const parseFormattedText = (text: string): TextSegment[] => {
-  const segments: TextSegment[] = [];
-  let remaining = text;
+type TextAlignment = 'left' | 'center' | 'right';
+
+interface ParsedLine {
+  segments: TextSegment[];
+  alignment: TextAlignment;
+}
+
+// Parse a single line for formatting markers
+const parseLineFormatting = (line: string): ParsedLine => {
+  let alignment: TextAlignment = 'left';
+  let processedLine = line;
   
-  // Simple regex-based parsing for **bold**, _italic_, and __underline__
-  const regex = /(\*\*(.+?)\*\*|__(.+?)__|_(.+?)_)/g;
+  // Check for alignment markers at start of line
+  if (line.startsWith('<<')) {
+    alignment = 'left';
+    processedLine = line.substring(2);
+  } else if (line.startsWith('><')) {
+    alignment = 'center';
+    processedLine = line.substring(2);
+  } else if (line.startsWith('>>')) {
+    alignment = 'right';
+    processedLine = line.substring(2);
+  }
+  
+  const segments: TextSegment[] = [];
+  // Updated regex: **bold**, ~~underline~~, _italic_
+  const regex = /(\*\*(.+?)\*\*|~~(.+?)~~|_([^_]+?)_)/g;
   let lastIndex = 0;
   let match;
   
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(processedLine)) !== null) {
     // Add text before the match
     if (match.index > lastIndex) {
       segments.push({
-        text: text.substring(lastIndex, match.index),
+        text: processedLine.substring(lastIndex, match.index),
         bold: false,
         italic: false,
         underline: false,
@@ -228,7 +252,7 @@ const parseFormattedText = (text: string): TextSegment[] => {
         italic: false,
         underline: false,
       });
-    } else if (match[0].startsWith('__')) {
+    } else if (match[0].startsWith('~~')) {
       segments.push({
         text: match[3],
         bold: false,
@@ -248,35 +272,121 @@ const parseFormattedText = (text: string): TextSegment[] => {
   }
   
   // Add remaining text
-  if (lastIndex < text.length) {
+  if (lastIndex < processedLine.length) {
     segments.push({
-      text: text.substring(lastIndex),
+      text: processedLine.substring(lastIndex),
       bold: false,
       italic: false,
       underline: false,
     });
   }
   
-  return segments.length > 0 ? segments : [{ text, bold: false, italic: false, underline: false }];
+  if (segments.length === 0) {
+    segments.push({ text: processedLine, bold: false, italic: false, underline: false });
+  }
+  
+  return { segments, alignment };
 };
 
-const renderFormattedText = (
+// Render formatted line with proper styling
+const renderFormattedLine = (
   doc: jsPDF,
-  text: string,
+  parsedLine: ParsedLine,
   x: number,
   y: number,
-  maxWidth: number
-): number => {
-  // For simplicity, render as plain text with basic formatting stripped
-  // jsPDF doesn't support inline formatting well, so we render without markers
-  const cleanText = text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1');
+  contentWidth: number,
+  pageWidth: number,
+  marginLeft: number
+): void => {
+  const { segments, alignment } = parsedLine;
   
-  const lines = doc.splitTextToSize(cleanText, maxWidth);
-  doc.text(lines, x, y);
-  return lines.length * 6;
+  // Calculate total line width for alignment
+  let totalWidth = 0;
+  segments.forEach(seg => {
+    doc.setFont('helvetica', seg.bold ? 'bold' : (seg.italic ? 'italic' : 'normal'));
+    totalWidth += doc.getTextWidth(seg.text);
+  });
+  
+  // Determine starting X based on alignment
+  let currentX = x;
+  if (alignment === 'center') {
+    currentX = (pageWidth - totalWidth) / 2;
+  } else if (alignment === 'right') {
+    currentX = pageWidth - marginLeft - totalWidth;
+  }
+  
+  // Render each segment
+  segments.forEach(seg => {
+    doc.setFont('helvetica', seg.bold ? 'bold' : (seg.italic ? 'italic' : 'normal'));
+    doc.text(seg.text, currentX, y);
+    
+    // Draw underline if needed
+    if (seg.underline) {
+      const textWidth = doc.getTextWidth(seg.text);
+      doc.setLineWidth(0.3);
+      doc.line(currentX, y + 0.5, currentX + textWidth, y + 0.5);
+    }
+    
+    currentX += doc.getTextWidth(seg.text);
+  });
+  
+  // Reset font
+  doc.setFont('helvetica', 'normal');
+};
+
+// Clean text of all formatting markers for width calculation
+const cleanFormattingMarkers = (text: string): string => {
+  return text
+    .replace(/^(<<|>>|><)/gm, '') // Alignment markers
+    .replace(/\*\*(.+?)\*\*/g, '$1') // Bold
+    .replace(/~~(.+?)~~/g, '$1') // Underline
+    .replace(/_([^_]+?)_/g, '$1'); // Italic
+};
+
+// Render a paragraph with formatting support
+const renderFormattedParagraph = (
+  doc: jsPDF,
+  text: string,
+  marginLeft: number,
+  yPos: number,
+  contentWidth: number,
+  pageWidth: number,
+  lineHeight: number,
+  checkPageBreak: (height: number) => void
+): number => {
+  // Split by explicit newlines first
+  const paragraphs = text.split('\n');
+  
+  for (const paragraph of paragraphs) {
+    if (!paragraph.trim()) {
+      yPos += lineHeight;
+      continue;
+    }
+    
+    // Parse the line for alignment
+    const parsedLine = parseLineFormatting(paragraph);
+    const cleanText = cleanFormattingMarkers(paragraph);
+    
+    // Split into lines that fit the width
+    const wrappedLines = doc.splitTextToSize(cleanText, contentWidth);
+    
+    for (const wrappedLine of wrappedLines) {
+      checkPageBreak(lineHeight);
+      
+      // Find corresponding formatted segments for this wrapped portion
+      // For simplicity, render with alignment but use segments from original
+      if (wrappedLine === cleanText || wrappedLines.length === 1) {
+        renderFormattedLine(doc, parsedLine, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
+      } else {
+        // For wrapped lines, just render with alignment
+        const simpleSegments: TextSegment[] = [{ text: wrappedLine, bold: false, italic: false, underline: false }];
+        renderFormattedLine(doc, { segments: simpleSegments, alignment: parsedLine.alignment }, marginLeft, yPos, contentWidth, pageWidth, marginLeft);
+      }
+      yPos += lineHeight;
+    }
+  }
+  
+  return yPos;
 };
 
 // Calculate content height for dynamic spacing
@@ -747,21 +857,11 @@ export const generateStudentVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1 - with page break support
+  // Body paragraph 1 - with formatting and alignment support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  const cleanBodyText = bodyText
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1');
-  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
-  
-  for (const line of bodyLines) {
-    checkPageBreak(6);
-    doc.text(line, marginLeft, yPos);
-    yPos += 6;
-  }
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -785,22 +885,12 @@ export const generateStudentVerificationLetterWithTemplate = async (
     yPos += 10;
   }
 
-  // Body paragraph 2 (if provided)
+  // Body paragraph 2 (if provided) - with formatting and alignment support
   if (template.body_text_2) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    const cleanBodyText2 = bodyText2
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/_(.+?)_/g, '$1');
-    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
-    
-    for (const line of bodyLines2) {
-      checkPageBreak(6);
-      doc.text(line, marginLeft, yPos);
-      yPos += 6;
-    }
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
     yPos += 5;
   }
 
@@ -882,21 +972,11 @@ export const printStudentVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1 - with page break support
+  // Body paragraph 1 - with formatting and alignment support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceStudentPlaceholders(template.body_text, studentPlaceholders);
-  const cleanBodyText = bodyText
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1');
-  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
-  
-  for (const line of bodyLines) {
-    checkPageBreak(6);
-    doc.text(line, marginLeft, yPos);
-    yPos += 6;
-  }
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -920,22 +1000,12 @@ export const printStudentVerificationLetterWithTemplate = async (
     yPos += 10;
   }
 
-  // Body paragraph 2 (if provided)
+  // Body paragraph 2 (if provided) - with formatting and alignment support
   if (template.body_text_2) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceStudentPlaceholders(template.body_text_2, studentPlaceholders);
-    const cleanBodyText2 = bodyText2
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/_(.+?)_/g, '$1');
-    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
-    
-    for (const line of bodyLines2) {
-      checkPageBreak(6);
-      doc.text(line, marginLeft, yPos);
-      yPos += 6;
-    }
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
     yPos += 5;
   }
 
@@ -1020,21 +1090,11 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1 - with page break support
+  // Body paragraph 1 - with formatting and alignment support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  const cleanBodyText = bodyText
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1');
-  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
-  
-  for (const line of bodyLines) {
-    checkPageBreak(6);
-    doc.text(line, marginLeft, yPos);
-    yPos += 6;
-  }
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -1058,22 +1118,12 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
     yPos += 10;
   }
 
-  // Body paragraph 2 (if provided)
+  // Body paragraph 2 (if provided) - with formatting and alignment support
   if (template.body_text_2) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    const cleanBodyText2 = bodyText2
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/_(.+?)_/g, '$1');
-    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
-    
-    for (const line of bodyLines2) {
-      checkPageBreak(6);
-      doc.text(line, marginLeft, yPos);
-      yPos += 6;
-    }
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
     yPos += 5;
   }
 
@@ -1158,21 +1208,11 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   doc.text(template.title, pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // Body paragraph 1 - with page break support
+  // Body paragraph 1 - with formatting and alignment support
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const bodyText = replaceEmployeePlaceholders(template.body_text, employeePlaceholders);
-  const cleanBodyText = bodyText
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1');
-  const bodyLines = doc.splitTextToSize(cleanBodyText, contentWidth);
-  
-  for (const line of bodyLines) {
-    checkPageBreak(6);
-    doc.text(line, marginLeft, yPos);
-    yPos += 6;
-  }
+  yPos = renderFormattedParagraph(doc, bodyText, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
   yPos += 5;
 
   // Signature block - after body paragraph 1
@@ -1196,22 +1236,12 @@ export const printEmployeeVerificationLetterWithTemplate = async (
     yPos += 10;
   }
 
-  // Body paragraph 2 (if provided)
+  // Body paragraph 2 (if provided) - with formatting and alignment support
   if (template.body_text_2) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const bodyText2 = replaceEmployeePlaceholders(template.body_text_2, employeePlaceholders);
-    const cleanBodyText2 = bodyText2
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/_(.+?)_/g, '$1');
-    const bodyLines2 = doc.splitTextToSize(cleanBodyText2, contentWidth);
-    
-    for (const line of bodyLines2) {
-      checkPageBreak(6);
-      doc.text(line, marginLeft, yPos);
-      yPos += 6;
-    }
+    yPos = renderFormattedParagraph(doc, bodyText2, marginLeft, yPos, contentWidth, pageWidth, 6, checkPageBreak);
     yPos += 5;
   }
 
