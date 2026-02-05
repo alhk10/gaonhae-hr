@@ -185,7 +185,7 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
 
   // Filter payslips for current month view
   const currentMonthStr = format(currentMonth, 'yyyy-MM');
-  const filteredPayslips = payslips.filter(p => p.month.startsWith(currentMonthStr) || true); // Show all for now
+  const filteredPayslips = payslips.filter(p => p.month === currentMonthStr);
 
   const totalEarningsYear = payslips.reduce((sum, p) => sum + (p.grossSalary || 0) + (p.approvedClaims || 0), 0);
   const totalCPFYear = payslips.reduce((sum, p) => sum + (p.totalCPF || 0), 0);
@@ -265,7 +265,11 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
 
               {/* Payslips List */}
               <div className="space-y-3">
-                {payslips.map((payslip, index) => {
+                {filteredPayslips.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">
+                    No payslip for this month
+                  </p>
+                ) : filteredPayslips.map((payslip, index) => {
                   const isCasual = payslip.employeeType === 'Casual' || employee.type === 'Casual';
                   const hasTimesheet = payslip.slotBreakdown && payslip.slotBreakdown.length > 0;
                   const isDownloading = downloadingMonth === payslip.month;
