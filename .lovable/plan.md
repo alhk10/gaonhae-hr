@@ -1,312 +1,164 @@
 
-# Plan: Send Push Notifications for New Chat Messages
 
-## Overview
-Add push notifications when new chat messages are received to alert:
-1. **Branch staff** when a student sends a message
-2. **Students** when branch staff sends a message
+# Plan: Fix Day Rate Display in Casual Employee Payslips
 
-## Current State Analysis
+## The Problem
+The "Day Rate" column in the payslip timesheet shows **prorated amounts** (e.g., $83.07, $63.93) instead of the **full slot rate** (e.g., $84.00, $98.00). The Day Rate should show the maximum amount the employee can earn for a slot including all bonuses, before any proration for partial hours.
 
-### Existing Notification System
-- Push notifications are **employee-only** (stores `employee_id` in `notification_subscriptions`)
-- Edge function `push-notification` sends notifications using VAPID keys
-- Templates are stored in `notification_templates` table
-- Current templates: `clock_out_reminder`, `tomorrow_slot_reminder`, `booking_reminder`
+## Root Cause
+The system correctly calculates and stores the full slot rate (`fullSlotRate`) in the payroll breakdown data, but this value is **not being passed** to the PDF generator. When the PDF is generated, it tries to reverse-calculate the day rate from the prorated pay, which produces incorrect values.
 
-### Key Challenge
-Students don't have entries in `notification_subscriptions` table - the system needs to support student notifications.
+## Solution Summary
+Pass the `fullSlotRate` from the stored payroll data as the `dayRate` when preparing the slot entries for PDF generation.
 
 ---
-
-## Implementation Approach
-
-### Option: Create a Separate Student Notification Table
-
-This approach keeps employee and student notification systems separate for clarity.
-
----
-
-## Database Changes
-
-### 1. New Table: `student_notification_subscriptions`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid | Primary key |
-| `student_id` | uuid | Reference to students table |
-| `endpoint` | text | Push subscription endpoint |
-| `p256dh` | text | Encryption key |
-| `auth` | text | Auth secret |
-| `user_agent` | text | Device info |
-| `created_at` | timestamp | When created |
-
-### 2. New Notification Template
-
-Add `new_chat_message` template for chat notifications:
-- **Title**: "New Message"
-- **Body**: "{sender_name}: {message_preview}"
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/services/studentPushNotificationService.ts` | Push notification functions for students |
-| `src/hooks/useStudentNotificationSubscription.ts` | Hook for student notification subscription |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/services/chatService.ts` | Add notification trigger after sending messages |
-| `supabase/functions/push-notification/index.ts` | Support student subscriptions |
-| `src/components/chat/StudentChatPanel.tsx` | Add notification opt-in UI |
-| `src/components/dashboard/StudentDashboard.tsx` | Add notification settings access |
+| `src/components/payroll/PayslipManagementContent.tsx` | Add `dayRate: slot.fullSlotRate` to slot mapping |
+| `src/pages/PayslipManagement.tsx` | Add `dayRate: slot.fullSlotRate` to slot mapping |
+| `src/pages/Payslips.tsx` | Add `dayRate: slot.fullSlotRate` to slot mapping |
 
 ---
 
 ## Implementation Details
 
-### 1. Database Migration
+### 1. PayslipManagementContent.tsx (Line ~145-152)
 
-```sql
--- Create student notification subscriptions table
-CREATE TABLE student_notification_subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  endpoint TEXT NOT NULL,
-  p256dh TEXT NOT NULL,
-  auth TEXT NOT NULL,
-  user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(student_id, endpoint)
-);
-
--- Enable RLS
-ALTER TABLE student_notification_subscriptions ENABLE ROW LEVEL SECURITY;
-
--- RLS Policy
-CREATE POLICY "Students can manage own subscriptions" 
-  ON student_notification_subscriptions FOR ALL USING (true);
-
--- Add new chat message notification template
-INSERT INTO notification_templates (template_key, title, body, enabled)
-VALUES ('new_chat_message', 'New Message', '{sender_name}: {message_preview}', true);
-```
-
-### 2. Student Push Notification Service
-
+**Current Code:**
 ```typescript
-// studentPushNotificationService.ts
-export const subscribeStudentToPushNotifications = async (
-  studentId: string
-): Promise<PushSubscriptionData | null> => {
-  // Similar to employee subscription but saves to student_notification_subscriptions
-};
-
-export const unsubscribeStudentFromPushNotifications = async (
-  studentId: string
-): Promise<boolean> => {
-  // Remove subscription from student_notification_subscriptions
-};
-
-export const checkStudentExistingSubscription = async (
-  studentId: string
-): Promise<boolean> => {
-  // Check if student has active subscription
-};
+const slots: SlotEntry[] = payslip.payrollData.slotBreakdown!.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  pay: slot.pay || 0
+}));
 ```
 
-### 3. Update Edge Function
-
-Update `push-notification` to support both employee and student notifications:
-
+**Updated Code:**
 ```typescript
-interface PushPayload {
-  employee_id?: string;
-  student_id?: string;  // New field
-  template_key: string;
-  variables?: Record<string, string>;
-  url?: string;
-}
-
-// In the handler, check which ID is provided:
-if (payload.student_id) {
-  // Fetch from student_notification_subscriptions
-} else if (payload.employee_id) {
-  // Fetch from notification_subscriptions (existing)
-}
+const slots: SlotEntry[] = payslip.payrollData.slotBreakdown!.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  dayRate: (slot as any).fullSlotRate,  // Full rate before proration
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  expectedHours: (slot as any).expectedHours,
+  pay: slot.pay || 0
+}));
 ```
 
-### 4. Chat Service Integration
+### 2. PayslipManagement.tsx (Line ~178-186)
 
-Add notification sending to `sendMessage` function:
-
+**Current Code:**
 ```typescript
-export const sendMessage = async (...) => {
-  // Insert message (existing)
-  const { data, error } = await supabase
-    .from('student_branch_chats')
-    .insert({...})
-    .select()
-    .single();
-
-  // NEW: Send notification to recipient
-  if (senderType === 'student') {
-    // Notify branch staff - send to employees with branch access
-    await notifyBranchStaffOfNewMessage(branchId, senderName, message);
-  } else {
-    // Notify student
-    await notifyStudentOfNewMessage(studentId, senderName, message);
-  }
-
-  return data;
-};
-
-const notifyStudentOfNewMessage = async (
-  studentId: string,
-  senderName: string,
-  message: string
-) => {
-  const messagePreview = message.length > 50 
-    ? message.substring(0, 47) + '...' 
-    : message;
-
-  await supabase.functions.invoke('push-notification', {
-    body: {
-      student_id: studentId,
-      template_key: 'new_chat_message',
-      variables: {
-        sender_name: senderName,
-        message_preview: messagePreview
-      },
-      url: '/?tab=chat'  // Deep link to chat
-    }
-  });
-};
-
-const notifyBranchStaffOfNewMessage = async (
-  branchId: string,
-  studentName: string,
-  message: string
-) => {
-  // Get employees with access to this branch
-  const { data: branchAccess } = await supabase
-    .from('employee_branch_access')
-    .select('employee_id')
-    .eq('branch_id', branchId);
-
-  // Send notification to each employee
-  for (const access of branchAccess || []) {
-    await supabase.functions.invoke('push-notification', {
-      body: {
-        employee_id: access.employee_id,
-        template_key: 'new_chat_message',
-        variables: {
-          sender_name: studentName,
-          message_preview: message.substring(0, 50)
-        },
-        url: '/branch-dashboard?tab=chat'
-      }
-    });
-  }
-};
+const slots: SlotEntry[] = payslip.payrollData.slotBreakdown!.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  pay: slot.pay || 0
+}));
 ```
 
-### 5. Student Notification Opt-In UI
+**Updated Code:**
+```typescript
+const slots: SlotEntry[] = payslip.payrollData.slotBreakdown!.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  dayRate: (slot as any).fullSlotRate,  // Full rate before proration
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  expectedHours: (slot as any).expectedHours,
+  pay: slot.pay || 0
+}));
+```
 
-Add notification toggle in Student Portal:
+### 3. Payslips.tsx (Line ~129-137)
 
-```tsx
-// In StudentChatPanel or StudentDashboard
-import { useStudentNotificationSubscription } from '@/hooks/useStudentNotificationSubscription';
+**Current Code:**
+```typescript
+const slots: SlotEntry[] = payslipData.slotBreakdown.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  expectedHours: (slot as any).expectedHours,
+  pay: slot.pay
+}));
+```
 
-const { isSubscribed, subscribe, unsubscribe, isSupported } = 
-  useStudentNotificationSubscription(studentId);
-
-// Show toggle or button
-{isSupported && (
-  <Button onClick={isSubscribed ? unsubscribe : subscribe}>
-    {isSubscribed ? 'Disable Notifications' : 'Enable Notifications'}
-  </Button>
-)}
+**Updated Code:**
+```typescript
+const slots: SlotEntry[] = payslipData.slotBreakdown.map(slot => ({
+  date: slot.date,
+  branchName: slot.branchName,
+  dayRate: (slot as any).fullSlotRate,  // Full rate before proration
+  clockIn: slot.checkIn || null,
+  clockOut: slot.checkOut || null,
+  hoursWorked: slot.hoursWorked || 0,
+  expectedHours: (slot as any).expectedHours,
+  pay: slot.pay
+}));
 ```
 
 ---
 
-## Notification Flow
+## How It Works
+
+The data flow is:
 
 ```text
-Student sends message
-       |
-       v
-[Insert into student_branch_chats]
-       |
-       v
-[Call notifyBranchStaffOfNewMessage()]
-       |
-       v
-[Invoke push-notification edge function]
-       |
-       v
-[Send to all branch employees with subscriptions]
-
-Branch replies
-       |
-       v
-[Insert into student_branch_chats]
-       |
-       v
-[Call notifyStudentOfNewMessage()]
-       |
-       v
-[Invoke push-notification edge function]
-       |
-       v
-[Send to student if they have subscription]
+1. Slot Booking Pay Calculation (slotBookingPayrollService.ts)
+   ↓
+   Calculates fullSlotRate = $84.00 (base + bonuses for full day)
+   Calculates pay = $83.07 (prorated based on actual hours)
+   ↓
+2. Saved to Database (payroll_records table)
+   ↓
+   breakdown: [{ date, branchName, pay, fullSlotRate, hoursWorked, ... }]
+   ↓
+3. PDF Generation (this fix)
+   ↓
+   Maps fullSlotRate → dayRate
+   ↓
+4. PDF Display (casualPayslipPDFGenerator.ts)
+   ↓
+   Shows dayRate = $84.00 (full rate)
+   Shows pay = $83.07 (actual earned)
 ```
 
 ---
 
-## Notification Content
+## Expected Result
 
-**When student receives message from branch:**
-- Title: "New Message"
-- Body: "Branch Staff: Your class schedule has been updated..."
-- Click action: Opens student chat
+**Before Fix:**
+| Date | Day Rate | Hours | Pay |
+|------|----------|-------|-----|
+| 07 Jan | $83.07 | 5.9 | $83.07 |
+| 08 Jan | $84.00 | 6.0 | $84.00 |
+| 20 Jan | $63.93 | 4.6 | $63.93 |
 
-**When branch receives message from student:**
-- Title: "New Message"
-- Body: "John Smith: Hi, I have a question about..."
-- Click action: Opens branch chat
+**After Fix:**
+| Date | Day Rate | Hours | Pay |
+|------|----------|-------|-----|
+| 07 Jan | $84.00 | 5.9 | $83.07 |
+| 08 Jan | $84.00 | 6.0 | $84.00 |
+| 20 Jan | $84.00 | 4.6 | $63.93 |
 
----
-
-## Summary of Changes
-
-| Component | Changes |
-|-----------|---------|
-| Database | New `student_notification_subscriptions` table + template |
-| Services | New `studentPushNotificationService.ts`, update `chatService.ts` |
-| Edge Function | Support student notifications in `push-notification` |
-| Hooks | New `useStudentNotificationSubscription.ts` |
-| UI | Add notification opt-in in Student Portal |
+The Day Rate now correctly shows the full amount the employee could have earned if they worked the complete slot, while the Pay column shows what they actually earned based on hours worked.
 
 ---
 
-## Technical Notes
+## Note on Type Casting
 
-### Rate Limiting
-- Consider adding throttling to prevent spam notifications
-- Only send notification if recipient isn't currently viewing chat
+The `(slot as any).fullSlotRate` casting is used because the TypeScript type definition for `slotBreakdown` doesn't include `fullSlotRate`. This is a pragmatic approach since the data exists at runtime but the type wasn't updated when the field was added. A future enhancement could add proper type definitions.
 
-### Error Handling
-- Silently fail notifications - don't block message sending
-- Clean up expired subscriptions automatically
-
-### User Experience
-- Show notification opt-in prompt on first chat access
-- Allow disabling notifications from settings
