@@ -11,6 +11,7 @@ import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
 import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services/gradingService';
 import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
+import SlotAttendanceDialog from './SlotAttendanceDialog';
 
 interface BranchWeeklyTimetableProps {
   branchId: string;
@@ -24,13 +25,25 @@ interface GroupedClass {
   classType: string;
   students: { id: string; name: string; status?: string; currentBelt?: string }[];
   beltLevels?: string[];
+  ageFrom?: number;
+  ageTo?: number;
 }
 
 const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId }) => {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Start on Monday
   );
-
+  const [selectedSlot, setSelectedSlot] = useState<{
+    timetableId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    classType: string;
+    beltLevels?: string[];
+    ageFrom?: number;
+    ageTo?: number;
+  } | null>(null);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const weekEnd = useMemo(() => endOfWeek(currentWeekStart, { weekStartsOn: 1 }), [currentWeekStart]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: currentWeekStart, end: weekEnd }), [currentWeekStart, weekEnd]);
 
@@ -99,6 +112,9 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
           startTime: slot.start_time,
           endTime: slot.end_time,
           classType: slot.class_type,
+          beltLevels: slot.belt_levels || [],
+          ageFrom: slot.age_from,
+          ageTo: slot.age_to,
           students: matchingClasses.map(sc => ({
             id: sc.id,
             name: sc.student_name || 'Unknown',
@@ -225,66 +241,87 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                           No classes
                         </p>
                       ) : (
-                        dayClasses.map(slot => (
-                          <div
-                            key={slot.id}
-                            className={`border rounded p-2 space-y-1 ${
-                              slot.type === 'grading' 
-                                ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' 
-                                : 'bg-card'
-                            }`}
-                          >
-                            <div className="text-xs font-medium text-muted-foreground">
-                              {formatTimeDisplay(slot.startTime)}
-                            </div>
-                            
-                            {slot.type === 'grading' ? (
-                              <>
-                                <Badge className="text-xs w-full justify-center bg-amber-500 hover:bg-amber-600 text-white">
-                                  GRADING
-                                </Badge>
-                                {slot.beltLevels && slot.beltLevels.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {slot.beltLevels.map((belt, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {belt}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <Badge variant="outline" className={`text-xs w-full justify-center ${getClassTypeBadgeClasses(slot.classType)}`}>
-                                {slot.classType}
-                              </Badge>
-                            )}
-                            
-                            {slot.students.length === 0 ? (
-                              <p className="text-xs text-muted-foreground italic text-center">
-                                No students
-                              </p>
-                            ) : (
-                              <div className="space-y-1">
-                                {slot.students.map(student => (
-                                  <div
-                                    key={student.id}
-                                    className={`text-xs px-1.5 py-0.5 rounded truncate ${
-                                      slot.type === 'grading' 
-                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
-                                        : getStatusColor(student.status || 'scheduled')
-                                    }`}
-                                    title={student.currentBelt ? `${student.name} (${student.currentBelt})` : student.name}
-                                  >
-                                    {student.name}
-                                    {student.currentBelt && (
-                                      <span className="ml-1 opacity-75">({student.currentBelt})</span>
-                                    )}
-                                  </div>
-                                ))}
+                        dayClasses.map(slot => {
+                          const isClickable = slot.type === 'class';
+                          
+                          const handleSlotClick = () => {
+                            if (isClickable) {
+                              setSelectedSlot({
+                                timetableId: slot.id,
+                                date: dateKey,
+                                startTime: slot.startTime,
+                                endTime: slot.endTime,
+                                classType: slot.classType,
+                                beltLevels: slot.beltLevels,
+                                ageFrom: slot.ageFrom,
+                                ageTo: slot.ageTo,
+                              });
+                              setAttendanceDialogOpen(true);
+                            }
+                          };
+                          
+                          return (
+                            <div
+                              key={slot.id}
+                              onClick={handleSlotClick}
+                              className={`border rounded p-2 space-y-1 ${
+                                slot.type === 'grading' 
+                                  ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' 
+                                  : 'bg-card hover:bg-muted/50 cursor-pointer transition-colors'
+                              }`}
+                            >
+                              <div className="text-xs font-medium text-muted-foreground">
+                                {formatTimeDisplay(slot.startTime)}
                               </div>
-                            )}
-                          </div>
-                        ))
+                              
+                              {slot.type === 'grading' ? (
+                                <>
+                                  <Badge className="text-xs w-full justify-center bg-amber-500 hover:bg-amber-600 text-white">
+                                    GRADING
+                                  </Badge>
+                                  {slot.beltLevels && slot.beltLevels.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {slot.beltLevels.map((belt, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs">
+                                          {belt}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <Badge variant="outline" className={`text-xs w-full justify-center ${getClassTypeBadgeClasses(slot.classType)}`}>
+                                  {slot.classType}
+                                </Badge>
+                              )}
+                              
+                              {slot.students.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic text-center">
+                                  No students
+                                </p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {slot.students.map(student => (
+                                    <div
+                                      key={student.id}
+                                      className={`text-xs px-1.5 py-0.5 rounded truncate ${
+                                        slot.type === 'grading' 
+                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                                          : getStatusColor(student.status || 'scheduled')
+                                      }`}
+                                      title={student.currentBelt ? `${student.name} (${student.currentBelt})` : student.name}
+                                    >
+                                      {student.name}
+                                      {student.currentBelt && (
+                                        <span className="ml-1 opacity-75">({student.currentBelt})</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -293,6 +330,14 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
             </div>
           </div>
         </ScrollArea>
+
+        {/* Attendance Dialog */}
+        <SlotAttendanceDialog
+          open={attendanceDialogOpen}
+          onOpenChange={setAttendanceDialogOpen}
+          branchId={branchId}
+          slot={selectedSlot}
+        />
       </CardContent>
     </Card>
   );
