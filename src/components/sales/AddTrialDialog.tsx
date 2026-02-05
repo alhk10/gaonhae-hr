@@ -94,14 +94,20 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     status: 'trial'
   });
 
+  // Fields that should auto-uppercase
+  const uppercaseFields = ['first_name', 'last_name', 'certificate_name', 'display_name', 'preferred_name', 'emergency_contact_name'];
+
   const handleInputChange = (field: string, value: string) => {
+    // Auto-uppercase specific fields
+    const processedValue = uppercaseFields.includes(field) ? value.toUpperCase() : value;
+    
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
+      const updated = { ...prev, [field]: processedValue };
       
       // Auto-update preferred_name, certificate_name and display_name when first/last name changes
       if (field === 'first_name' || field === 'last_name') {
-        const firstName = field === 'first_name' ? value : prev.first_name;
-        const lastName = field === 'last_name' ? value : prev.last_name;
+        const firstName = field === 'first_name' ? processedValue : prev.first_name;
+        const lastName = field === 'last_name' ? processedValue : prev.last_name;
         const fullName = `${firstName} ${lastName}`.trim();
         
         const currentAutoName = `${prev.first_name} ${prev.last_name}`.trim();
