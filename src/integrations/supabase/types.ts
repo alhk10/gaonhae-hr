@@ -2091,10 +2091,13 @@ export type Database = {
       }
       letter_templates: {
         Row: {
+          address: string | null
+          addressee_name: string | null
           body_text: string
           body_text_2: string | null
           closing_text: string
           company_name: string | null
+          contact_number: string | null
           created_at: string
           created_by: string | null
           footer_text: string | null
@@ -2102,6 +2105,7 @@ export type Database = {
           is_active: boolean
           is_default: boolean
           name: string
+          salutation: string | null
           signatory_name: string | null
           signatory_position: string | null
           signature_image_url: string | null
@@ -2112,10 +2116,13 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          address?: string | null
+          addressee_name?: string | null
           body_text: string
           body_text_2?: string | null
           closing_text: string
           company_name?: string | null
+          contact_number?: string | null
           created_at?: string
           created_by?: string | null
           footer_text?: string | null
@@ -2123,6 +2130,7 @@ export type Database = {
           is_active?: boolean
           is_default?: boolean
           name: string
+          salutation?: string | null
           signatory_name?: string | null
           signatory_position?: string | null
           signature_image_url?: string | null
@@ -2133,10 +2141,13 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          address?: string | null
+          addressee_name?: string | null
           body_text?: string
           body_text_2?: string | null
           closing_text?: string
           company_name?: string | null
+          contact_number?: string | null
           created_at?: string
           created_by?: string | null
           footer_text?: string | null
@@ -2144,6 +2155,7 @@ export type Database = {
           is_active?: boolean
           is_default?: boolean
           name?: string
+          salutation?: string | null
           signatory_name?: string | null
           signatory_position?: string | null
           signature_image_url?: string | null
