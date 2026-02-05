@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,15 +10,19 @@ import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeleti
 import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
 import { getPendingOrdersCount } from '@/services/inventoryOrderService';
 import { getTotalUnreadCount } from '@/services/chatService';
+import { getAllLeaveRequests } from '@/services/leaveService';
+import { getAllSlotBookings } from '@/services/slotBookingService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClassWeeklyPlanner } from './ClassWeeklyPlanner';
 import PaymentDeletionApprovals from './PaymentDeletionApprovals';
 import InvoiceDeletionApprovals from './InvoiceDeletionApprovals';
 import InventoryOrderApprovals from './InventoryOrderApprovals';
+import ClaimsApprovals from './ClaimsApprovals';
+import LeaveApprovals from './LeaveApprovals';
+import SlotBookingApprovals from './SlotBookingApprovals';
 import SuperadminChatPanel from '@/components/chat/SuperadminChatPanel';
 
 const SuperadminDashboard = () => {
-  const [payrollDue, setPayrollDue] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   // Use optimized dashboard stats service
@@ -78,22 +82,31 @@ const SuperadminDashboard = () => {
     refetchInterval: 30 * 1000,
   });
 
+  // Load pending leave count
+  const { data: pendingLeaveCount = 0 } = useQuery({
+    queryKey: ['pending-leave-count'],
+    queryFn: async () => {
+      const allLeave = await getAllLeaveRequests();
+      return allLeave.filter(l => l.status === 'Pending').length;
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  // Load pending bookings count
+  const { data: pendingBookingsCount = 0 } = useQuery({
+    queryKey: ['pending-bookings-count'],
+    queryFn: async () => {
+      const allBookings = await getAllSlotBookings();
+      return allBookings.filter(b => b.status === 'pending').length;
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
   // Total pending deletions (payments + invoices)
   const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount;
   const pendingStudentUpdatesCount = Array.isArray(pendingStudentUpdates) ? pendingStudentUpdates.length : 0;
-
-  useEffect(() => {
-    const calculatePayrollDue = () => {
-      const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 2);
-      const timeDiff = nextMonth.getTime() - now.getTime();
-      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-      
-      return daysDiff > 0 ? `${daysDiff} days` : 'Due today';
-    };
-
-    setPayrollDue(calculatePayrollDue());
-  }, []);
 
   const statsConfig = [
     { 
@@ -106,7 +119,19 @@ const SuperadminDashboard = () => {
       title: 'Pending Claims', 
       value: statsLoading ? '...' : (dashboardStats?.pendingClaims?.toString() || '0'), 
       icon: FileText, 
-      color: 'bg-orange-500' 
+      color: (dashboardStats?.pendingClaims || 0) > 0 ? 'bg-orange-500' : 'bg-gray-500' 
+    },
+    { 
+      title: 'Pending Leave', 
+      value: pendingLeaveCount.toString(), 
+      icon: Calendar, 
+      color: pendingLeaveCount > 0 ? 'bg-blue-500' : 'bg-gray-500' 
+    },
+    { 
+      title: 'Pending Bookings', 
+      value: pendingBookingsCount.toString(), 
+      icon: Clock, 
+      color: pendingBookingsCount > 0 ? 'bg-purple-500' : 'bg-gray-500' 
     },
     { 
       title: 'Pending Deletions', 
@@ -125,12 +150,6 @@ const SuperadminDashboard = () => {
       value: pendingOrdersCount.toString(), 
       icon: ShoppingCart, 
       color: pendingOrdersCount > 0 ? 'bg-orange-500' : 'bg-gray-500' 
-    },
-    { 
-      title: 'Payroll Due', 
-      value: payrollDue, 
-      icon: Calendar, 
-      color: 'bg-purple-500' 
     },
   ];
 
@@ -276,6 +295,15 @@ const SuperadminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Claims Approvals */}
+        <ClaimsApprovals />
+
+        {/* Leave Approvals */}
+        <LeaveApprovals />
+
+        {/* Slot Booking Approvals */}
+        <SlotBookingApprovals />
 
         {/* Payment Deletion Approvals */}
         {pendingPaymentDeletionsCount > 0 && (
