@@ -244,7 +244,7 @@ const PartyManagement = () => {
     
     const formData = new FormData(e.target as HTMLFormElement);
     
-    const requiredFields = ['name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount', 'joinDate'];
+    const requiredFields = ['first_name', 'email', 'nric', 'dateOfBirth', 'type', 'residencyStatus', 'bankName', 'bankAccount', 'joinDate'];
     const missingFields = requiredFields.filter(field => !formData.get(field));
     
     if (missingFields.length > 0) {
@@ -255,19 +255,25 @@ const PartyManagement = () => {
     }
 
     try {
+      const firstName = (formData.get('first_name') as string || '').toUpperCase();
+      const lastName = (formData.get('last_name') as string || '').toUpperCase();
+      const fullName = `${firstName} ${lastName}`.trim();
+      
       const newEmployee = {
-        name: formData.get('name') as string,
+        first_name: firstName,
+        last_name: lastName || null,
+        name: fullName,
         email: formData.get('email') as string,
         phone: formData.get('phone') as string || '',
-        nric: formData.get('nric') as string,
+        nric: (formData.get('nric') as string || '').toUpperCase(),
         dateOfBirth: formData.get('dateOfBirth') as string,
-        address: formData.get('address') as string || '',
-        position: formData.get('position') as string || '',
+        address: (formData.get('address') as string || '').toUpperCase(),
+        position: (formData.get('position') as string || '').toUpperCase(),
         branch: formData.get('branch') as string || '',
         type: formData.get('type') as string,
         residencyStatus: formData.get('residencyStatus') as string,
-        bankName: formData.get('bankName') as string,
-        bankAccount: formData.get('bankAccount') as string,
+        bankName: (formData.get('bankName') as string || '').toUpperCase(),
+        bankAccount: (formData.get('bankAccount') as string || '').toUpperCase(),
         paymentType: formData.get('paymentType') as string || 'Monthly',
         baseSalary: formData.get('baseSalary') ? parseFloat(formData.get('baseSalary') as string) : null,
         hourlyRate: formData.get('hourlyRate') ? parseFloat(formData.get('hourlyRate') as string) : null,
@@ -591,8 +597,19 @@ const PartyManagement = () => {
                 <form onSubmit={handleAddEmployee} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Full Name *</label>
-                      <Input name="name" required />
+                      <label className="block text-sm font-medium text-foreground mb-2">First Name *</label>
+                      <Input 
+                        name="first_name" 
+                        required 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">Last Name</label>
+                      <Input 
+                        name="last_name" 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Email *</label>
@@ -604,7 +621,11 @@ const PartyManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">NRIC *</label>
-                      <Input name="nric" required />
+                      <Input 
+                        name="nric" 
+                        required 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Date of Birth *</label>
@@ -616,7 +637,10 @@ const PartyManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Position</label>
-                      <Input name="position" />
+                      <Input 
+                        name="position" 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Branch</label>
@@ -642,11 +666,26 @@ const PartyManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Bank Name *</label>
-                      <Input name="bankName" required />
+                      <Input 
+                        name="bankName" 
+                        required 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Bank Account *</label>
-                      <Input name="bankAccount" required />
+                      <Input 
+                        name="bankAccount" 
+                        required 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">Address</label>
+                      <Input 
+                        name="address" 
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Payment Type</label>

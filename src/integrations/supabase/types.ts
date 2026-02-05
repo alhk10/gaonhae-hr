@@ -1032,9 +1032,11 @@ export type Database = {
           department: string | null
           display_name: string | null
           email: string | null
+          first_name: string
           hourly_rate: number | null
           id: string
           join_date: string | null
+          last_name: string | null
           name: string
           nric: string
           payment_type: string | null
@@ -1057,9 +1059,11 @@ export type Database = {
           department?: string | null
           display_name?: string | null
           email?: string | null
+          first_name: string
           hourly_rate?: number | null
           id: string
           join_date?: string | null
+          last_name?: string | null
           name: string
           nric: string
           payment_type?: string | null
@@ -1082,9 +1086,11 @@ export type Database = {
           department?: string | null
           display_name?: string | null
           email?: string | null
+          first_name?: string
           hourly_rate?: number | null
           id?: string
           join_date?: string | null
+          last_name?: string | null
           name?: string
           nric?: string
           payment_type?: string | null

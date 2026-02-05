@@ -414,12 +414,36 @@ const CasualEmployeeDetails = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="first_name">First Name</Label>
                       <Input
-                        id="name"
-                        name="name"
-                        value={employeeData.name || ''}
-                        onChange={handleInputChange}
+                        id="first_name"
+                        name="first_name"
+                        value={employeeData.first_name || employeeData.name?.split(' ')[0] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setEmployeeData(prev => ({
+                            ...prev!,
+                            first_name: value,
+                            name: `${value} ${prev?.last_name || prev?.name?.split(' ').slice(1).join(' ') || ''}`.trim()
+                          }));
+                        }}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Last Name</Label>
+                      <Input
+                        id="last_name"
+                        name="last_name"
+                        value={employeeData.last_name || employeeData.name?.split(' ').slice(1).join(' ') || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setEmployeeData(prev => ({
+                            ...prev!,
+                            last_name: value,
+                            name: `${prev?.first_name || prev?.name?.split(' ')[0] || ''} ${value}`.trim()
+                          }));
+                        }}
                         disabled={!isEditing}
                       />
                     </div>

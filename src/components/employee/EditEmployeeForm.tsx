@@ -71,7 +71,13 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   // Auto-convert casual employees to Daily payment type (legacy Monthly/Hourly no longer supported)
   const initialPaymentType = employee.type === 'Casual' ? 'Daily' : (employee.paymentType || 'Monthly');
   
+  // Split name into first_name and last_name
+  const initialFirstName = (employee as any).first_name || employee.name.split(' ')[0] || '';
+  const initialLastName = (employee as any).last_name || employee.name.split(' ').slice(1).join(' ') || '';
+  
   const [formData, setFormData] = useState({
+    first_name: initialFirstName,
+    last_name: initialLastName,
     name: employee.name,
     nric: employee.nric,
     dateOfBirth: employee.dateOfBirth,
@@ -127,8 +133,19 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
       if (field === 'type' && value === 'Casual') {
         newData.paymentType = 'Daily';
       }
+      // Update computed name when first_name or last_name changes
+      if (field === 'first_name' || field === 'last_name') {
+        const firstName = field === 'first_name' ? value : prev.first_name;
+        const lastName = field === 'last_name' ? value : prev.last_name;
+        newData.name = `${firstName} ${lastName}`.trim();
+      }
       return newData;
     });
+  };
+  
+  // Handle uppercase input for party fields
+  const handleUppercaseInput = (field: string, value: string) => {
+    handleInputChange(field, value.toUpperCase());
   };
 
   const handleAddAllowance = (newAllowance: AllowanceDeduction) => {
@@ -224,13 +241,23 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
           <CardContent className="p-6 space-y-4">
             <h3 className="text-lg font-semibold">Personal Information</h3>
             
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="first_name">First Name</Label>
+                <Input
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => handleUppercaseInput('first_name', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="last_name">Last Name</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => handleUppercaseInput('last_name', e.target.value)}
+                />
+              </div>
             </div>
 
             <div>
@@ -238,7 +265,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               <Input
                 id="nric"
                 value={formData.nric}
-                onChange={(e) => handleInputChange('nric', e.target.value)}
+                onChange={(e) => handleUppercaseInput('nric', e.target.value)}
               />
             </div>
 
@@ -293,7 +320,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
+                onChange={(e) => handleUppercaseInput('address', e.target.value)}
               />
             </div>
           </CardContent>
@@ -426,7 +453,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               <Input
                 id="bankName"
                 value={formData.bankName}
-                onChange={(e) => handleInputChange('bankName', e.target.value)}
+                onChange={(e) => handleUppercaseInput('bankName', e.target.value)}
               />
             </div>
 
@@ -435,7 +462,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               <Input
                 id="bankAccount"
                 value={formData.bankAccount}
-                onChange={(e) => handleInputChange('bankAccount', e.target.value)}
+                onChange={(e) => handleUppercaseInput('bankAccount', e.target.value)}
               />
             </div>
           </CardContent>
