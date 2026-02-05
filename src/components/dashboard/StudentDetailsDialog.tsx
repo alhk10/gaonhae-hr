@@ -64,7 +64,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
   const age = calculateAge(student.date_of_birth);
 
   const InfoRow = ({ label, value }: { label: string; value?: string | null }) => (
-    <div className="flex justify-between py-1.5">
+    <div className="flex justify-between py-0.5">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-medium text-right max-w-[60%] break-words">
         {value || '-'}
@@ -97,14 +97,14 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
         </DialogHeader>
 
         <ScrollArea className="flex-1 px-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-          <div className="space-y-6 pb-6">
+          <div className="space-y-4 pb-6">
             {/* Personal Information */}
             <section>
-              <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                 <User className="w-4 h-4" />
                 Personal Information
               </h3>
-              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="bg-muted/50 rounded-lg p-2 space-y-0">
                 <InfoRow label="Display Name" value={student.display_name} />
                 <InfoRow label="Preferred Name" value={student.preferred_name} />
                 <InfoRow label="Certificate Name" value={student.certificate_name} />
@@ -119,11 +119,11 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
 
             {/* Contact Information */}
             <section>
-              <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                 <Phone className="w-4 h-4" />
                 Contact Information
               </h3>
-              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="bg-muted/50 rounded-lg p-2 space-y-0">
                 <InfoRow label="Phone" value={student.phone} />
                 <InfoRow label="WhatsApp" value={student.whatsapp} />
                 <InfoRow label="Email" value={student.email} />
@@ -135,11 +135,11 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
             {/* Emergency Contact */}
             {(student.emergency_contact_name || student.emergency_contact_phone) && (
               <section>
-                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                   <Shield className="w-4 h-4" />
                   Emergency Contact
                 </h3>
-                <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                <div className="bg-muted/50 rounded-lg p-2 space-y-0">
                   <InfoRow label="Name" value={student.emergency_contact_name} />
                   <InfoRow label="Phone" value={student.emergency_contact_phone} />
                   <InfoRow label="Relationship" value={student.emergency_contact_relationship} />
@@ -149,11 +149,11 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
 
             {/* Training Information */}
             <section>
-              <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                 <GraduationCap className="w-4 h-4" />
                 Training Information
               </h3>
-              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="bg-muted/50 rounded-lg p-2 space-y-0">
                 <InfoRow label="Current Belt" value={student.current_belt} />
                 <InfoRow label="Class Type" value={student.class_type} />
                 <InfoRow label="Enrollment Date" value={formatDate(student.enrollment_date)} />
@@ -165,11 +165,11 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
             {/* Health Information */}
             {(student.medical_conditions || student.dietary_restrictions) && (
               <section>
-                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                   <Heart className="w-4 h-4" />
                   Health Information
                 </h3>
-                <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                <div className="bg-muted/50 rounded-lg p-2 space-y-0">
                   <InfoRow label="Medical Conditions" value={student.medical_conditions} />
                   <InfoRow label="Dietary Restrictions" value={student.dietary_restrictions} />
                 </div>
@@ -179,11 +179,11 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
             {/* Notes */}
             {student.notes && (
               <section>
-                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                   <FileText className="w-4 h-4" />
                   Notes
                 </h3>
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="bg-muted/50 rounded-lg p-2">
                   <p className="text-sm whitespace-pre-wrap">{student.notes}</p>
                 </div>
               </section>
