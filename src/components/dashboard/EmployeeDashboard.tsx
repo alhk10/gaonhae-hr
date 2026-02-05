@@ -231,8 +231,20 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     queryFn: getAllLeaveRequests,
   });
 
+  // Fetch proper leave entitlement from database
+  const { data: leaveEntitlement } = useQuery({
+    queryKey: ['leave-entitlement', effectiveEmployeeId, new Date().getFullYear()],
+    queryFn: async () => {
+      if (!effectiveEmployeeId) return null;
+      const { calculateEmployeeLeaveEntitlement } = await import('@/services/enhancedLeaveService');
+      return calculateEmployeeLeaveEntitlement(effectiveEmployeeId, new Date().getFullYear());
+    },
+    enabled: !!effectiveEmployeeId && employeeData?.type === 'Full-Time',
+    staleTime: 5 * 60 * 1000,
+  });
+
   const calculateLeaveBalance = () => {
-    if (!effectiveEmployeeId || employeeData?.type === 'Casual') return { remaining: 0 };
+    if (!effectiveEmployeeId || employeeData?.type === 'Casual') return { remaining: 0, entitlement: 0 };
     
     const currentYear = new Date().getFullYear();
     const employeeLeaves = allLeaveRequests.filter(leave => 
@@ -245,7 +257,8 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
       .filter(leave => leave.type === 'Annual Leave')
       .reduce((total, leave) => total + leave.days, 0);
     
-    return { remaining: 21 - annualLeaveUsed };
+    const entitlement = leaveEntitlement?.finalAnnualLeave || 0;
+    return { remaining: entitlement - annualLeaveUsed, entitlement };
   };
 
   const leaveBalance = calculateLeaveBalance();
@@ -291,12 +304,18 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const isPartnerPosition = employeeData?.position?.toLowerCase() === 'partner' || 
                             employeeData?.position?.toLowerCase() === 'senior partner';
 
+  const isFullTime = employeeData?.type === 'Full-Time';
+  
   const personalStats = [
+    // Leave Balance only for non-casual, non-partner employees
     ...(employeeData?.type !== 'Casual' && !isPartnerPosition ? [
       { title: 'Leave Balance', value: `${leaveBalance.remaining} days`, icon: Calendar, color: 'bg-blue-500' }
     ] : []),
-    { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
-    ...(!isPartnerPosition ? [
+    // Hide Pending Claims, Hours This Month, and Earnings This Month for full-time employees
+    ...(!isFullTime ? [
+      { title: 'Pending Claims', value: pendingClaims.toString(), icon: FileText, color: 'bg-orange-500' },
+    ] : []),
+    ...(!isPartnerPosition && !isFullTime ? [
       { title: 'Hours This Month', value: `${hoursThisMonth}h`, icon: Clock, color: 'bg-green-500' },
       { title: 'Earnings This Month', value: `S$${earningsThisMonth.toLocaleString()}`, icon: DollarSign, color: 'bg-purple-500' },
     ] : []),
@@ -442,7 +461,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         </Card>
       )}
 
-      {(!locationCheckPassed || locationError) && !isPartnerPosition && (
+      {(!locationCheckPassed || locationError) && !isPartnerPosition && !isFullTime && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
             <div className="flex items-center justify-between">
@@ -513,7 +532,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           </CardHeader>
           <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
             <div className={`grid grid-cols-1 gap-2 md:gap-3`}>
-              {!isPartnerPosition && (
+              {!isPartnerPosition && !isFullTime && (
                 <Button 
                   className={`justify-start h-auto p-3 md:p-4 ${
                     isClockedIn ? 'bg-red-600 hover:bg-red-700' : 
