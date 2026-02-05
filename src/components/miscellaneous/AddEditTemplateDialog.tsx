@@ -60,6 +60,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
   const [bodyText2, setBodyText2] = useState('');
   const [signatoryName, setSignatoryName] = useState('Gaonhae Taekwondo LLP');
   const [signatoryPosition, setSignatoryPosition] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [footerText, setFooterText] = useState('');
   const [signatureImageUrl, setSignatureImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -76,6 +78,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setBodyText2(template.body_text_2 || '');
         setSignatoryName(template.signatory_name || 'Gaonhae Taekwondo LLP');
         setSignatoryPosition(template.signatory_position || '');
+        setCompanyName(template.company_name || '');
+        setFooterText(template.footer_text || '');
         setSignatureImageUrl(template.signature_image_url || '');
       } else {
         setName('');
@@ -85,6 +89,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
         setBodyText2('');
         setSignatoryName('Gaonhae Taekwondo LLP');
         setSignatoryPosition('');
+        setCompanyName('');
+        setFooterText('');
         setSignatureImageUrl('');
       }
     }
@@ -135,6 +141,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           body_text_2: bodyText2.trim(),
           signatory_name: signatoryName.trim(),
           signatory_position: signatoryPosition.trim(),
+          company_name: companyName.trim(),
+          footer_text: footerText.trim(),
           signature_image_url: signatureImageUrl,
         });
         toast.success('Template updated successfully');
@@ -147,6 +155,8 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
           body_text_2: bodyText2.trim(),
           signatory_name: signatoryName.trim(),
           signatory_position: signatoryPosition.trim(),
+          company_name: companyName.trim(),
+          footer_text: footerText.trim(),
           signature_image_url: signatureImageUrl,
         };
         await letterTemplateService.createTemplate(data);
@@ -306,6 +316,26 @@ const AddEditTemplateDialog: React.FC<AddEditTemplateDialogProps> = ({
                 placeholder="e.g., Director"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="companyName">Company Name</Label>
+            <Input
+              id="companyName"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g., Gaonhae Taekwondo LLP"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="footerText">Footer Text</Label>
+            <Input
+              id="footerText"
+              value={footerText}
+              onChange={(e) => setFooterText(e.target.value)}
+              placeholder="e.g., Additional information at the bottom of the letter"
+            />
           </div>
 
           <DialogFooter>

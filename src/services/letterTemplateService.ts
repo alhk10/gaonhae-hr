@@ -10,6 +10,8 @@ export interface LetterTemplate {
   closing_text: string;
   signatory_name: string;
   signatory_position: string;
+  company_name: string;
+  footer_text: string;
   signature_image_url: string;
   is_default: boolean;
   is_active: boolean;
@@ -27,6 +29,8 @@ export interface CreateLetterTemplateData {
   closing_text?: string;
   signatory_name?: string;
   signatory_position?: string;
+  company_name?: string;
+  footer_text?: string;
   signature_image_url?: string;
   sort_order?: number;
 }
@@ -39,6 +43,8 @@ export interface UpdateLetterTemplateData {
   closing_text?: string;
   signatory_name?: string;
   signatory_position?: string;
+  company_name?: string;
+  footer_text?: string;
   signature_image_url?: string;
   is_active?: boolean;
   sort_order?: number;
@@ -88,6 +94,8 @@ export const letterTemplateService = {
         closing_text: templateData.closing_text || '',
         signatory_name: templateData.signatory_name || 'Gaonhae Taekwondo LLP',
         signatory_position: templateData.signatory_position || '',
+        company_name: templateData.company_name || '',
+        footer_text: templateData.footer_text || '',
         signature_image_url: templateData.signature_image_url || '',
       })
       .select()
@@ -135,6 +143,8 @@ export const letterTemplateService = {
       closing_text: original.closing_text,
       signatory_name: original.signatory_name,
       signatory_position: original.signatory_position,
+      company_name: original.company_name,
+      footer_text: original.footer_text,
       signature_image_url: original.signature_image_url,
       sort_order: original.sort_order + 1,
     });
