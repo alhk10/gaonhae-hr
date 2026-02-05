@@ -1,312 +1,243 @@
 
-# Plan: Add Chat to Student Portal and Superadmin Dashboard
+# Plan: Send Push Notifications for New Chat Messages
 
 ## Overview
-This plan adds:
-1. **Chat Action Card** on Student Portal (QuickActionsSection) - quick access to chat
-2. **Chat Tab** on Student Portal - full chat interface with their branch
-3. **Chat Tab** on Superadmin Dashboard - aggregated view of all chats across all branches
+Add push notifications when new chat messages are received to alert:
+1. **Branch staff** when a student sends a message
+2. **Students** when branch staff sends a message
+
+## Current State Analysis
+
+### Existing Notification System
+- Push notifications are **employee-only** (stores `employee_id` in `notification_subscriptions`)
+- Edge function `push-notification` sends notifications using VAPID keys
+- Templates are stored in `notification_templates` table
+- Current templates: `clock_out_reminder`, `tomorrow_slot_reminder`, `booking_reminder`
+
+### Key Challenge
+Students don't have entries in `notification_subscriptions` table - the system needs to support student notifications.
+
+---
+
+## Implementation Approach
+
+### Option: Create a Separate Student Notification Table
+
+This approach keeps employee and student notification systems separate for clarity.
+
+---
 
 ## Database Changes
-No database changes required - uses existing `student_branch_chats` table.
+
+### 1. New Table: `student_notification_subscriptions`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `student_id` | uuid | Reference to students table |
+| `endpoint` | text | Push subscription endpoint |
+| `p256dh` | text | Encryption key |
+| `auth` | text | Auth secret |
+| `user_agent` | text | Device info |
+| `created_at` | timestamp | When created |
+
+### 2. New Notification Template
+
+Add `new_chat_message` template for chat notifications:
+- **Title**: "New Message"
+- **Body**: "{sender_name}: {message_preview}"
+
+---
 
 ## Files to Create
 
 | File | Purpose |
 |------|---------|
-| `src/components/chat/StudentChatPanel.tsx` | Chat interface for students |
-| `src/components/chat/SuperadminChatPanel.tsx` | All-branches chat view for superadmin |
+| `src/services/studentPushNotificationService.ts` | Push notification functions for students |
+| `src/hooks/useStudentNotificationSubscription.ts` | Hook for student notification subscription |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/services/chatService.ts` | Add student-side and superadmin functions |
-| `src/components/dashboard/QuickActionsSection.tsx` | Add Chat action card |
-| `src/components/dashboard/StudentDashboard.tsx` | Add Chat tab |
-| `src/components/dashboard/SuperadminDashboard.tsx` | Add Chat tab |
+| `src/services/chatService.ts` | Add notification trigger after sending messages |
+| `supabase/functions/push-notification/index.ts` | Support student subscriptions |
+| `src/components/chat/StudentChatPanel.tsx` | Add notification opt-in UI |
+| `src/components/dashboard/StudentDashboard.tsx` | Add notification settings access |
 
 ---
 
 ## Implementation Details
 
-### 1. Chat Service Extensions
+### 1. Database Migration
 
-Add new functions to `chatService.ts`:
+```sql
+-- Create student notification subscriptions table
+CREATE TABLE student_notification_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, endpoint)
+);
+
+-- Enable RLS
+ALTER TABLE student_notification_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+CREATE POLICY "Students can manage own subscriptions" 
+  ON student_notification_subscriptions FOR ALL USING (true);
+
+-- Add new chat message notification template
+INSERT INTO notification_templates (template_key, title, body, enabled)
+VALUES ('new_chat_message', 'New Message', '{sender_name}: {message_preview}', true);
+```
+
+### 2. Student Push Notification Service
 
 ```typescript
-// Get unread count for a student (messages from branch)
-export const getUnreadCountForStudent = async (studentId: string): Promise<number>
+// studentPushNotificationService.ts
+export const subscribeStudentToPushNotifications = async (
+  studentId: string
+): Promise<PushSubscriptionData | null> => {
+  // Similar to employee subscription but saves to student_notification_subscriptions
+};
 
-// Mark branch messages as read (when student opens chat)
-export const markBranchMessagesAsRead = async (studentId: string, branchId: string): Promise<void>
+export const unsubscribeStudentFromPushNotifications = async (
+  studentId: string
+): Promise<boolean> => {
+  // Remove subscription from student_notification_subscriptions
+};
 
-// Subscribe to chat for a student
-export const subscribeToStudentChat = (
-  studentId: string,
-  branchId: string,
-  onNewMessage: (message: ChatMessage) => void
-) => { ... }
-
-// Superadmin: Get all conversations across all branches
-export const getAllConversations = async (): Promise<BranchConversation[]>
-
-// Superadmin: Get total unread count across all branches
-export const getTotalUnreadCount = async (): Promise<number>
+export const checkStudentExistingSubscription = async (
+  studentId: string
+): Promise<boolean> => {
+  // Check if student has active subscription
+};
 ```
 
-### 2. Student Chat Action Card (QuickActionsSection)
+### 3. Update Edge Function
 
-Add a third action card for Chat:
+Update `push-notification` to support both employee and student notifications:
 
-```tsx
-{/* Chat with Branch */}
-<Card className="cursor-pointer transition-all hover:shadow-md">
-  <CardContent className="p-6">
-    <div className="flex items-start gap-4">
-      <div className="bg-green-500/10 p-3 rounded-lg relative">
-        <MessageCircle className="w-6 h-6 text-green-600" />
-        {unreadCount > 0 && (
-          <Badge className="absolute -top-1 -right-1">{unreadCount}</Badge>
-        )}
-      </div>
-      <div className="flex-1">
-        <h3 className="font-semibold text-lg">Chat with Branch</h3>
-        <p className="text-sm text-muted-foreground mb-3">
-          Send messages to your branch staff
-        </p>
-        <Button size="sm" variant="outline" onClick={() => setActiveTab('chat')}>
-          <MessageCircle className="w-4 h-4 mr-2" />
-          Open Chat
-        </Button>
-      </div>
-    </div>
-  </CardContent>
-</Card>
-```
-
-### 3. Student Chat Tab (StudentDashboard)
-
-Add Chat tab after Class Schedule:
-
-```tsx
-// Tab trigger
-<TabsTrigger value="chat">
-  Chat {unreadCount > 0 && <Badge variant="destructive">{unreadCount}</Badge>}
-</TabsTrigger>
-
-// Tab content
-<TabsContent value="chat">
-  <StudentChatPanel 
-    studentId={studentId}
-    branchId={student.branch_id}
-    studentName={`${student.first_name} ${student.last_name}`}
-  />
-</TabsContent>
-```
-
-### 4. StudentChatPanel Component
-
-Full chat interface for students:
-
-```tsx
-interface StudentChatPanelProps {
-  studentId: string;
-  branchId: string;
-  studentName: string;
+```typescript
+interface PushPayload {
+  employee_id?: string;
+  student_id?: string;  // New field
+  template_key: string;
+  variables?: Record<string, string>;
+  url?: string;
 }
 
-const StudentChatPanel: React.FC<StudentChatPanelProps> = ({
-  studentId,
-  branchId,
-  studentName
-}) => {
-  // Fetch messages
-  // Real-time subscription
-  // Mark messages as read on open
-  // Send message function
-  
-  return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader className="border-b py-3">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-5 w-5" />
-          <span>Chat with {branchName}</span>
-        </div>
-      </CardHeader>
-      <ScrollArea className="flex-1 p-4">
-        {/* Chat bubbles */}
-        {messages.map(msg => (
-          <ChatBubble
-            key={msg.id}
-            message={msg.message}
-            senderName={msg.sender_name}
-            timestamp={msg.created_at}
-            isOwnMessage={msg.sender_type === 'student'}
-            isRead={msg.is_read}
-          />
-        ))}
-      </ScrollArea>
-      <ChatInput onSend={handleSend} />
-    </Card>
-  );
+// In the handler, check which ID is provided:
+if (payload.student_id) {
+  // Fetch from student_notification_subscriptions
+} else if (payload.employee_id) {
+  // Fetch from notification_subscriptions (existing)
+}
+```
+
+### 4. Chat Service Integration
+
+Add notification sending to `sendMessage` function:
+
+```typescript
+export const sendMessage = async (...) => {
+  // Insert message (existing)
+  const { data, error } = await supabase
+    .from('student_branch_chats')
+    .insert({...})
+    .select()
+    .single();
+
+  // NEW: Send notification to recipient
+  if (senderType === 'student') {
+    // Notify branch staff - send to employees with branch access
+    await notifyBranchStaffOfNewMessage(branchId, senderName, message);
+  } else {
+    // Notify student
+    await notifyStudentOfNewMessage(studentId, senderName, message);
+  }
+
+  return data;
+};
+
+const notifyStudentOfNewMessage = async (
+  studentId: string,
+  senderName: string,
+  message: string
+) => {
+  const messagePreview = message.length > 50 
+    ? message.substring(0, 47) + '...' 
+    : message;
+
+  await supabase.functions.invoke('push-notification', {
+    body: {
+      student_id: studentId,
+      template_key: 'new_chat_message',
+      variables: {
+        sender_name: senderName,
+        message_preview: messagePreview
+      },
+      url: '/?tab=chat'  // Deep link to chat
+    }
+  });
+};
+
+const notifyBranchStaffOfNewMessage = async (
+  branchId: string,
+  studentName: string,
+  message: string
+) => {
+  // Get employees with access to this branch
+  const { data: branchAccess } = await supabase
+    .from('employee_branch_access')
+    .select('employee_id')
+    .eq('branch_id', branchId);
+
+  // Send notification to each employee
+  for (const access of branchAccess || []) {
+    await supabase.functions.invoke('push-notification', {
+      body: {
+        employee_id: access.employee_id,
+        template_key: 'new_chat_message',
+        variables: {
+          sender_name: studentName,
+          message_preview: message.substring(0, 50)
+        },
+        url: '/branch-dashboard?tab=chat'
+      }
+    });
+  }
 };
 ```
 
-### 5. Superadmin Chat Tab
+### 5. Student Notification Opt-In UI
 
-Add Chat tab to SuperadminDashboard:
-
-```tsx
-// Convert to tabbed layout
-<Tabs value={activeTab} onValueChange={setActiveTab}>
-  <TabsList>
-    <TabsTrigger value="overview">Overview</TabsTrigger>
-    <TabsTrigger value="chat">Chat ({totalUnreadCount})</TabsTrigger>
-  </TabsList>
-  
-  <TabsContent value="overview">
-    {/* Existing dashboard content */}
-  </TabsContent>
-  
-  <TabsContent value="chat">
-    <SuperadminChatPanel />
-  </TabsContent>
-</Tabs>
-```
-
-### 6. SuperadminChatPanel Component
-
-Aggregated view of all branch conversations:
+Add notification toggle in Student Portal:
 
 ```tsx
-const SuperadminChatPanel: React.FC = () => {
-  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  
-  // Fetch all branches with conversation counts
-  // Fetch conversations for selected branch
-  // Fetch messages for selected student
-  
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[600px]">
-      {/* Branch List (Column 1) */}
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <span>Branches</span>
-        </CardHeader>
-        <ScrollArea>
-          {branches.map(branch => (
-            <button onClick={() => setSelectedBranchId(branch.id)}>
-              {branch.name}
-              <Badge>{branch.unread_count}</Badge>
-            </button>
-          ))}
-        </ScrollArea>
-      </Card>
-      
-      {/* Student List (Column 2) */}
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <span>Students</span>
-        </CardHeader>
-        <ScrollArea>
-          {selectedBranchId && conversations.map(conv => (
-            <button onClick={() => setSelectedStudentId(conv.student_id)}>
-              {conv.student_name}
-              <Badge>{conv.unread_count}</Badge>
-            </button>
-          ))}
-        </ScrollArea>
-      </Card>
-      
-      {/* Chat Window (Columns 3-4) */}
-      <Card className="md:col-span-2 flex flex-col">
-        {selectedStudentId ? (
-          <>
-            <CardHeader>Chat with {studentName}</CardHeader>
-            <ScrollArea className="flex-1">
-              {messages.map(msg => <ChatBubble ... />)}
-            </ScrollArea>
-            <ChatInput onSend={handleSend} />
-          </>
-        ) : (
-          <EmptyState>Select a conversation</EmptyState>
-        )}
-      </Card>
-    </div>
-  );
-};
+// In StudentChatPanel or StudentDashboard
+import { useStudentNotificationSubscription } from '@/hooks/useStudentNotificationSubscription';
+
+const { isSubscribed, subscribe, unsubscribe, isSupported } = 
+  useStudentNotificationSubscription(studentId);
+
+// Show toggle or button
+{isSupported && (
+  <Button onClick={isSubscribed ? unsubscribe : subscribe}>
+    {isSubscribed ? 'Disable Notifications' : 'Enable Notifications'}
+  </Button>
+)}
 ```
 
 ---
 
-## Tab Order Updates
-
-**Student Dashboard Tabs:**
-1. Overview
-2. My Profile
-3. Invoices
-4. Class Schedule
-5. **Chat** (new)
-
-**Superadmin Dashboard:**
-- Convert to tabbed layout with Overview and Chat tabs
-
----
-
-## Visual Preview
-
-**Student Portal - Chat Action Card:**
-```text
-+------------------------------------------+
-| Quick Actions                            |
-+------------------------------------------+
-| [Pay School Fees] [Pay Grading] [Chat]   |
-|                                   (2)    |
-+------------------------------------------+
-```
-
-**Student Portal - Chat Tab:**
-```text
-+------------------------------------------+
-| Chat with Tampines Branch                |
-+------------------------------------------+
-|                                          |
-|  [Branch Staff]                          |
-|  Your class is at 3pm today              |
-|  10:30 AM                                |
-|                                          |
-|                          [You]           |
-|              Thank you!                  |
-|                           10:32 AM  ✓✓   |
-|                                          |
-+------------------------------------------+
-| [Type a message...              ] [Send] |
-+------------------------------------------+
-```
-
-**Superadmin - Chat Tab:**
-```text
-+----------+----------+----------------------+
-| Branches | Students |  Chat with Student   |
-+----------+----------+----------------------+
-| Tampines | J.Smith  |                      |
-|   (5)    |   (2)    |  [John]              |
-| Jurong   | S.Lee    |  Question about...   |
-|   (3)    |   (1)    |  10:30 AM            |
-| Bedok    +----------+                      |
-|   (0)    |          |       [Branch]       |
-+----------+          |  Let me check...     |
-                      |       10:32 AM  ✓✓   |
-                      +----------------------+
-                      | [Type message...][>] |
-                      +----------------------+
-```
-
----
-
-## Real-time Flow
+## Notification Flow
 
 ```text
 Student sends message
@@ -315,13 +246,13 @@ Student sends message
 [Insert into student_branch_chats]
        |
        v
-[Supabase Realtime broadcasts INSERT]
+[Call notifyBranchStaffOfNewMessage()]
        |
-       +---> Student Chat (sees own message)
+       v
+[Invoke push-notification edge function]
        |
-       +---> Branch Dashboard (notification)
-       |
-       +---> Superadmin Dashboard (notification)
+       v
+[Send to all branch employees with subscriptions]
 
 Branch replies
        |
@@ -329,23 +260,53 @@ Branch replies
 [Insert into student_branch_chats]
        |
        v
-[Supabase Realtime broadcasts INSERT]
+[Call notifyStudentOfNewMessage()]
        |
-       +---> Branch Chat (sees own message)
+       v
+[Invoke push-notification edge function]
        |
-       +---> Student Chat (sees new message)
-       |
-       +---> Superadmin Dashboard (update)
+       v
+[Send to student if they have subscription]
 ```
 
 ---
 
-## Technical Summary
+## Notification Content
+
+**When student receives message from branch:**
+- Title: "New Message"
+- Body: "Branch Staff: Your class schedule has been updated..."
+- Click action: Opens student chat
+
+**When branch receives message from student:**
+- Title: "New Message"
+- Body: "John Smith: Hi, I have a question about..."
+- Click action: Opens branch chat
+
+---
+
+## Summary of Changes
 
 | Component | Changes |
 |-----------|---------|
-| Chat Service | Add student/superadmin functions |
-| QuickActionsSection | Add Chat action card with unread badge |
-| StudentDashboard | Add Chat tab with StudentChatPanel |
-| SuperadminDashboard | Convert to tabs, add Chat tab with SuperadminChatPanel |
-| New Components | StudentChatPanel, SuperadminChatPanel |
+| Database | New `student_notification_subscriptions` table + template |
+| Services | New `studentPushNotificationService.ts`, update `chatService.ts` |
+| Edge Function | Support student notifications in `push-notification` |
+| Hooks | New `useStudentNotificationSubscription.ts` |
+| UI | Add notification opt-in in Student Portal |
+
+---
+
+## Technical Notes
+
+### Rate Limiting
+- Consider adding throttling to prevent spam notifications
+- Only send notification if recipient isn't currently viewing chat
+
+### Error Handling
+- Silently fail notifications - don't block message sending
+- Clean up expired subscriptions automatically
+
+### User Experience
+- Show notification opt-in prompt on first chat access
+- Allow disabling notifications from settings
