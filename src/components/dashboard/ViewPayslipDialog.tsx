@@ -183,9 +183,12 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  // Filter payslips for current month view
+  // Filter payslips for current month view - handle both "yyyy-MM" and "Month Year" formats
   const currentMonthStr = format(currentMonth, 'yyyy-MM');
-  const filteredPayslips = payslips.filter(p => p.month === currentMonthStr);
+  const currentMonthDisplay = format(currentMonth, 'MMMM yyyy'); // e.g., "January 2026"
+  const filteredPayslips = payslips.filter(p => 
+    p.month === currentMonthStr || p.month === currentMonthDisplay
+  );
 
   // Calculate year-to-date totals based on the current viewing year
   const currentYear = currentMonth.getFullYear();
