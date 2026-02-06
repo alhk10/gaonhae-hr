@@ -519,8 +519,15 @@ const CasualEmployeeDetails = () => {
                         id="position"
                         name="position"
                         value={employeeData.position || ''}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setEmployeeData(prev => ({
+                            ...prev!,
+                            position: value
+                          }));
+                        }}
                         disabled={!isEditing}
+                        placeholder="e.g., CASUAL INSTRUCTOR"
                       />
                     </div>
                     <div>
