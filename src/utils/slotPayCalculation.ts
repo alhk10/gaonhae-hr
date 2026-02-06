@@ -351,6 +351,7 @@ export const calculateActualHoursWorked = (
   checkOut: string | null
 ): number => {
   const expectedDuration = getExpectedSlotDuration(dateString);
+  const slotTiming = getSlotTimingForDateSync(dateString);
   
   // If no check-in, assume full day (attendance not recorded)
   if (!checkIn) {
@@ -363,19 +364,25 @@ export const calculateActualHoursWorked = (
   }
 
   try {
+    const slotStartHours = parseTimeToHours(slotTiming.start);
+    const slotEndHours = parseTimeToHours(slotTiming.end);
     const checkInHours = parseTimeToHours(checkIn);
     const checkOutHours = parseTimeToHours(checkOut);
     
-    // Calculate duration
-    let duration = checkOutHours - checkInHours;
+    // Clamp check-in to not be earlier than slot start
+    const effectiveCheckIn = Math.max(checkInHours, slotStartHours);
+    // Clamp check-out to not be later than slot end
+    const effectiveCheckOut = Math.min(checkOutHours, slotEndHours);
     
-    // Handle overnight shifts (shouldn't happen but just in case)
-    if (duration < 0) {
-      duration += 24;
+    // If effective check-in is after effective check-out (invalid), return 0
+    if (effectiveCheckIn >= effectiveCheckOut) {
+      return 0;
     }
-
-    // Cap at expected duration (no overtime pay beyond slot duration)
-    return Math.min(duration, expectedDuration);
+    
+    // Calculate duration within slot boundaries
+    const duration = effectiveCheckOut - effectiveCheckIn;
+    
+    return duration;
   } catch (error) {
     console.error('[SlotPayCalc] Error parsing attendance times:', error);
     return expectedDuration;
@@ -391,6 +398,7 @@ export const calculateActualHoursWorkedAsync = async (
   checkOut: string | null
 ): Promise<number> => {
   const expectedDuration = await getExpectedSlotDurationAsync(dateString);
+  const slotTiming = await getSlotTimingForDate(dateString);
   
   // If no check-in, assume full day (attendance not recorded)
   if (!checkIn) {
@@ -403,19 +411,25 @@ export const calculateActualHoursWorkedAsync = async (
   }
 
   try {
+    const slotStartHours = parseTimeToHours(slotTiming.start);
+    const slotEndHours = parseTimeToHours(slotTiming.end);
     const checkInHours = parseTimeToHours(checkIn);
     const checkOutHours = parseTimeToHours(checkOut);
     
-    // Calculate duration
-    let duration = checkOutHours - checkInHours;
+    // Clamp check-in to not be earlier than slot start
+    const effectiveCheckIn = Math.max(checkInHours, slotStartHours);
+    // Clamp check-out to not be later than slot end
+    const effectiveCheckOut = Math.min(checkOutHours, slotEndHours);
     
-    // Handle overnight shifts
-    if (duration < 0) {
-      duration += 24;
+    // If effective check-in is after effective check-out (invalid), return 0
+    if (effectiveCheckIn >= effectiveCheckOut) {
+      return 0;
     }
-
-    // Cap at expected duration (no overtime pay beyond slot duration)
-    return Math.min(duration, expectedDuration);
+    
+    // Calculate duration within slot boundaries
+    const duration = effectiveCheckOut - effectiveCheckIn;
+    
+    return duration;
   } catch (error) {
     console.error('[SlotPayCalc] Error parsing attendance times:', error);
     return expectedDuration;
