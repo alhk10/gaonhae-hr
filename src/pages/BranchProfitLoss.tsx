@@ -1242,9 +1242,16 @@ const BranchProfitLoss = () => {
               step="0.01"
             />
           </TableCell>
-          <TableCell className="text-right font-medium text-red-600 text-xs py-1">
-            S${((parseFloat(editData.amount) || 0) * (parseFloat(editData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </TableCell>
+{/* Check if this is a claim item for display styling */}
+          {(() => {
+            const isClaim = editData.description?.toLowerCase().includes('claim') || editData.subcategory?.toLowerCase().includes('claim');
+            const partnerShare = (parseFloat(editData.amount) || 0) * (parseFloat(editData.share_percentage) || 100) / 100;
+            return (
+              <TableCell className={`text-right font-medium text-xs py-1 ${isClaim ? 'text-emerald-700' : 'text-red-600'}`}>
+                {isClaim ? '-' : ''}S${partnerShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </TableCell>
+            );
+          })()}
           {isSuperadmin && (
             <TableCell className="py-1">
               <div className="flex gap-1">
@@ -1261,6 +1268,10 @@ const BranchProfitLoss = () => {
       );
     }
 
+    // Claims are reimbursed to partners, so partner's share should be negative (shown as green)
+    const isClaim = item.description?.toLowerCase().includes('claim') || item.subcategory?.toLowerCase().includes('claim');
+    const partnerShare = item.amount * item.share_percentage / 100;
+    
     return (
       <TableRow key={item.id || `temp-${item.subcategory}`} className="h-7">
         <TableCell className="text-right py-1">
@@ -1271,8 +1282,8 @@ const BranchProfitLoss = () => {
         <TableCell className="text-right font-medium py-1">
           S${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
-        <TableCell className="text-right font-medium text-red-600 py-1">
-          S${(item.amount * item.share_percentage / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <TableCell className={`text-right font-medium py-1 ${isClaim ? 'text-emerald-700' : 'text-red-600'}`}>
+          {isClaim ? '-' : ''}S${partnerShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </TableCell>
         {isSuperadmin && (
           <TableCell className="py-1">
@@ -1435,9 +1446,16 @@ const BranchProfitLoss = () => {
             placeholder="0.00"
           />
         </TableCell>
-        <TableCell className="text-right font-medium text-red-600 text-xs py-1">
-          S${((parseFloat(newEntryData.amount) || 0) * (parseFloat(newEntryData.share_percentage) || 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </TableCell>
+        {/* Check if this is a claim item for display styling */}
+        {(() => {
+          const isClaim = newEntryData.description?.toLowerCase().includes('claim') || newEntryData.subcategory?.toLowerCase().includes('claim');
+          const partnerShare = (parseFloat(newEntryData.amount) || 0) * (parseFloat(newEntryData.share_percentage) || 100) / 100;
+          return (
+            <TableCell className={`text-right font-medium text-xs py-1 ${isClaim ? 'text-emerald-700' : 'text-red-600'}`}>
+              {isClaim ? '-' : ''}S${partnerShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </TableCell>
+          );
+        })()}
         <TableCell className="py-1">
           <div className="flex gap-1">
             <Button size="icon" variant="ghost" onClick={() => handleAddEntry('expense')} disabled={isSaving} className="h-6 w-6 text-green-600 hover:text-green-700">
