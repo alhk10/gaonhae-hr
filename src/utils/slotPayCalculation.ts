@@ -639,3 +639,197 @@ export const getPayBreakdown = async (
 
   return breakdown;
 };
+
+/**
+ * Day rate breakdown item for display
+ */
+export interface DayRateBreakdownItem {
+  item: string;
+  weekdayAmount: number;
+  weekendAmount: number;
+}
+
+/**
+ * Day rate calculation result
+ */
+export interface DayRateCalculation {
+  weekdayRate: number;
+  weekendRate: number;
+  breakdown: DayRateBreakdownItem[];
+}
+
+/**
+ * Calculate employee's full day rates for both weekday and weekend with breakdown
+ * Used for displaying rate calculation details on payslips
+ */
+export const getEmployeeDayRates = async (
+  qualifications?: EmployeeQualifications,
+  joinDate?: string,
+  referenceDate?: string
+): Promise<DayRateCalculation> => {
+  // Get pricing configuration
+  const config = await getPricingConfig();
+
+  const breakdown: DayRateBreakdownItem[] = [];
+  
+  // Start with base rates
+  let weekdayRate = config.weekdayBaseRate;
+  let weekendRate = config.weekendBaseRate;
+  
+  breakdown.push({
+    item: 'Base Rate',
+    weekdayAmount: config.weekdayBaseRate,
+    weekendAmount: config.weekendBaseRate
+  });
+
+  // Calculate years of service bonus
+  const bookingDate = referenceDate || new Date().toISOString().split('T')[0];
+  const yearsOfService = joinDate ? calculateYearsOfServiceForRates(joinDate, bookingDate) : 0;
+  
+  if (yearsOfService > 0 && config.yearsOfServiceBonusPerYear > 0) {
+    const serviceBonus = yearsOfService * config.yearsOfServiceBonusPerYear;
+    weekdayRate += serviceBonus;
+    weekendRate += serviceBonus;
+    breakdown.push({
+      item: `Service (${yearsOfService} ${yearsOfService === 1 ? 'yr' : 'yrs'})`,
+      weekdayAmount: serviceBonus,
+      weekendAmount: serviceBonus
+    });
+  }
+
+  if (qualifications) {
+    // Dan level bonus (only highest applies)
+    if (qualifications.danFourthAbove) {
+      weekdayRate += config.danBonuses.thirdAndAbove;
+      weekendRate += config.danBonuses.thirdAndAbove;
+      breakdown.push({
+        item: '4th Dan & Above',
+        weekdayAmount: config.danBonuses.thirdAndAbove,
+        weekendAmount: config.danBonuses.thirdAndAbove
+      });
+    } else if (qualifications.danThird) {
+      weekdayRate += config.danBonuses.thirdAndAbove;
+      weekendRate += config.danBonuses.thirdAndAbove;
+      breakdown.push({
+        item: '3rd Dan',
+        weekdayAmount: config.danBonuses.thirdAndAbove,
+        weekendAmount: config.danBonuses.thirdAndAbove
+      });
+    } else if (qualifications.danSecond) {
+      weekdayRate += config.danBonuses.second;
+      weekendRate += config.danBonuses.second;
+      breakdown.push({
+        item: '2nd Dan',
+        weekdayAmount: config.danBonuses.second,
+        weekendAmount: config.danBonuses.second
+      });
+    } else if (qualifications.danFirst) {
+      weekdayRate += config.danBonuses.first;
+      weekendRate += config.danBonuses.first;
+      breakdown.push({
+        item: '1st Dan',
+        weekdayAmount: config.danBonuses.first,
+        weekendAmount: config.danBonuses.first
+      });
+    }
+
+    // Qualification bonuses (all applicable stack)
+    if (qualifications.stfCoachInduction) {
+      weekdayRate += config.qualificationBonuses.stfCoachInduction;
+      weekendRate += config.qualificationBonuses.stfCoachInduction;
+      breakdown.push({
+        item: 'Coach Induction',
+        weekdayAmount: config.qualificationBonuses.stfCoachInduction,
+        weekendAmount: config.qualificationBonuses.stfCoachInduction
+      });
+    }
+    if (qualifications.stfPoomsaeCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      breakdown.push({
+        item: 'Poomsae Coach L1',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1
+      });
+    }
+    if (qualifications.stfPoomsaeCoachLevel2) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+      breakdown.push({
+        item: 'Poomsae Coach L2',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2
+      });
+    }
+    if (qualifications.stfPoomsaeCoachLevel3) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
+      breakdown.push({
+        item: 'Poomsae Coach L3',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3
+      });
+    }
+    if (qualifications.sgCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.sgCoachLevel1;
+      weekendRate += config.qualificationBonuses.sgCoachLevel1;
+      breakdown.push({
+        item: 'SG Coach L1',
+        weekdayAmount: config.qualificationBonuses.sgCoachLevel1,
+        weekendAmount: config.qualificationBonuses.sgCoachLevel1
+      });
+    }
+    if (qualifications.sgCoachLevel2) {
+      weekdayRate += config.qualificationBonuses.sgCoachLevel2;
+      weekendRate += config.qualificationBonuses.sgCoachLevel2;
+      breakdown.push({
+        item: 'SG Coach L2',
+        weekdayAmount: config.qualificationBonuses.sgCoachLevel2,
+        weekendAmount: config.qualificationBonuses.sgCoachLevel2
+      });
+    }
+    if (qualifications.stfPoomsaeReferee) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeReferee;
+      weekendRate += config.qualificationBonuses.stfPoomsaeReferee;
+      breakdown.push({
+        item: 'STF Poomsae Referee',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeReferee,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeReferee
+      });
+    }
+    if (qualifications.stfKyorugiReferee) {
+      weekdayRate += config.qualificationBonuses.stfKyorugiReferee;
+      weekendRate += config.qualificationBonuses.stfKyorugiReferee;
+      breakdown.push({
+        item: 'STF Kyorugi Referee',
+        weekdayAmount: config.qualificationBonuses.stfKyorugiReferee,
+        weekendAmount: config.qualificationBonuses.stfKyorugiReferee
+      });
+    }
+  }
+
+  return {
+    weekdayRate,
+    weekendRate,
+    breakdown
+  };
+};
+
+/**
+ * Helper to calculate years of service for rate calculation
+ * (Non-async version for use within getEmployeeDayRates)
+ */
+const calculateYearsOfServiceForRates = (joinDate: string, referenceDate: string): number => {
+  const join = new Date(joinDate);
+  const reference = new Date(referenceDate);
+  
+  const yearsDiff = reference.getFullYear() - join.getFullYear();
+  const monthDiff = reference.getMonth() - join.getMonth();
+  const dayDiff = reference.getDate() - join.getDate();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    return Math.max(0, yearsDiff - 1);
+  }
+  
+  return Math.max(0, yearsDiff);
+};

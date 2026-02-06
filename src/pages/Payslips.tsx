@@ -15,6 +15,7 @@ import { getEmployeePayrollRecords, type PayrollData } from '@/services/payrollS
 import { EmployeeProfile } from '@/types/employee';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 import { generateCasualPayslipPDF, type SlotEntry } from '@/utils/casualPayslipPDFGenerator';
+import { getEmployeeDayRates } from '@/utils/slotPayCalculation';
 import PayslipManagementContent from '@/components/payroll/PayslipManagementContent';
 
 interface PayslipDisplayData extends PayrollData {
@@ -129,13 +130,21 @@ const PayslipsContent = () => {
         const slots: SlotEntry[] = payslipData.slotBreakdown.map(slot => ({
           date: slot.date,
           branchName: slot.branchName,
-         dayRate: (slot as any).fullSlotRate,
+          dayRate: (slot as any).fullSlotRate,
           clockIn: slot.checkIn || null,
           clockOut: slot.checkOut || null,
           hoursWorked: slot.hoursWorked || 0,
           expectedHours: (slot as any).expectedHours,
           pay: slot.pay
         }));
+
+        // Get day rate calculation for the employee
+        const qualifications = currentEmployee.qualifications as import('@/types/employee').EmployeeQualifications | undefined;
+        const dayRateCalculation = await getEmployeeDayRates(
+          qualifications,
+          currentEmployee.joinDate,
+          payslipData.slotBreakdown[0]?.date
+        );
 
         const casualPdfData = {
           employee: {
@@ -159,7 +168,8 @@ const PayslipsContent = () => {
           totalCPF: payslipData.totalCPF,
           netSalary: payslipData.netSalary,
           allowances: payslipData.allowances,
-          deductions: payslipData.deductions
+          deductions: payslipData.deductions,
+          dayRateCalculation
         };
 
         await generateCasualPayslipPDF(casualPdfData);

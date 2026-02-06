@@ -23,6 +23,7 @@ import { EmployeeProfile } from '@/types/employee';
 import { getEmployeePayrollRecords, type PayrollData } from '@/services/payrollService';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 import { generateCasualPayslipPDF, type SlotEntry } from '@/utils/casualPayslipPDFGenerator';
+import { getEmployeeDayRates } from '@/utils/slotPayCalculation';
 
 interface ViewPayslipDialogProps {
   open: boolean;
@@ -117,6 +118,14 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
           pay: slot.pay
         }));
 
+        // Get day rate calculation for the employee
+        const qualifications = employee.qualifications as import('@/types/employee').EmployeeQualifications | undefined;
+        const dayRateCalculation = await getEmployeeDayRates(
+          qualifications,
+          employee.joinDate,
+          payslipData.slotBreakdown[0]?.date
+        );
+
         const casualPdfData = {
           employee: {
             id: employee.id,
@@ -139,7 +148,8 @@ const ViewPayslipDialog: React.FC<ViewPayslipDialogProps> = ({
           totalCPF: payslipData.totalCPF,
           netSalary: payslipData.netSalary,
           allowances: payslipData.allowances,
-          deductions: payslipData.deductions
+          deductions: payslipData.deductions,
+          dayRateCalculation
         };
 
         await generateCasualPayslipPDF(casualPdfData);
