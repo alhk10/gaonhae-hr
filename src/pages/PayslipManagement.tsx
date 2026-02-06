@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 import { generateCasualPayslipPDF, type SlotEntry } from '@/utils/casualPayslipPDFGenerator';
+import { getEmployeeDayRates } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
 import { PayrollData } from '@/services/payrollService';
 
@@ -198,6 +199,14 @@ const PayslipManagement = () => {
         const totalCPF = payslip.payrollData.totalCPF || (employeeCPF + employerCPF);
         const netSalary = payslip.payrollData.netSalary || (grossSalary - employeeCPF - totalDeductions);
 
+        // Get day rate calculation for the employee
+        const qualifications = employee.qualifications as import('@/types/employee').EmployeeQualifications | undefined;
+        const dayRateCalculation = await getEmployeeDayRates(
+          qualifications,
+          employee.joinDate,
+          payslip.payrollData.slotBreakdown![0]?.date
+        );
+
         await generateCasualPayslipPDF({
           employee: {
             id: employee.id,
@@ -220,7 +229,8 @@ const PayslipManagement = () => {
           totalCPF,
           netSalary,
           allowances: payslip.payrollData.allowances || [],
-          deductions: payslip.payrollData.deductions || []
+          deductions: payslip.payrollData.deductions || [],
+          dayRateCalculation
         });
       } else {
         // Check if payroll data is empty or incomplete

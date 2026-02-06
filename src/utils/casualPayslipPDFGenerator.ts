@@ -11,6 +11,18 @@ interface SlotEntry {
   pay: number;
 }
 
+interface DayRateBreakdownItem {
+  item: string;
+  weekdayAmount: number;
+  weekendAmount: number;
+}
+
+interface DayRateCalculation {
+  weekdayRate: number;
+  weekendRate: number;
+  breakdown: DayRateBreakdownItem[];
+}
+
 interface CasualPayslipData {
   employee: {
     id: string;
@@ -34,6 +46,7 @@ interface CasualPayslipData {
   netSalary: number;
   allowances: Array<{ name: string; amount: number }>;
   deductions: Array<{ name: string; amount: number }>;
+  dayRateCalculation?: DayRateCalculation;
 }
 
 // Helper to format time from ISO string
@@ -204,6 +217,53 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.text('TOTAL SLOT PAY', 17, yPos);
   doc.text(`$${data.totalSlotPay.toFixed(2)}`, 175, yPos);
   yPos += 8;
+
+  // Day Rate Calculation Section (if provided)
+  if (data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0) {
+    // Check if we need a new page
+    const sectionHeight = 10 + (data.dayRateCalculation.breakdown.length * 4) + 10;
+    if (yPos + sectionHeight > 260) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DAY RATE CALCULATION:', 15, yPos);
+    yPos += 5;
+
+    // Table header
+    doc.setFillColor(245, 245, 245);
+    doc.rect(15, yPos - 3, 90, 6, 'F');
+    doc.setFontSize(7);
+    doc.text('Component', 17, yPos);
+    doc.text('Weekday', 65, yPos, { align: 'right' });
+    doc.text('Weekend', 100, yPos, { align: 'right' });
+    yPos += 5;
+    doc.line(15, yPos - 2, 105, yPos - 2);
+
+    // Breakdown rows
+    doc.setFont('helvetica', 'normal');
+    data.dayRateCalculation.breakdown.forEach((item, index) => {
+      const isBaseRate = index === 0;
+      const weekdayStr = isBaseRate ? `$${item.weekdayAmount.toFixed(2)}` : `+$${item.weekdayAmount.toFixed(2)}`;
+      const weekendStr = isBaseRate ? `$${item.weekendAmount.toFixed(2)}` : `+$${item.weekendAmount.toFixed(2)}`;
+      
+      doc.text(item.item, 17, yPos);
+      doc.text(weekdayStr, 65, yPos, { align: 'right' });
+      doc.text(weekendStr, 100, yPos, { align: 'right' });
+      yPos += 4;
+    });
+
+    // Total day rate row
+    doc.line(15, yPos - 2, 105, yPos - 2);
+    yPos += 2;
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL DAY RATE', 17, yPos);
+    doc.text(`$${data.dayRateCalculation.weekdayRate.toFixed(2)}`, 65, yPos, { align: 'right' });
+    doc.text(`$${data.dayRateCalculation.weekendRate.toFixed(2)}`, 100, yPos, { align: 'right' });
+    yPos += 8;
+  }
   
   // Earnings section
   doc.setFontSize(9);
@@ -317,4 +377,4 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   console.log('Casual PDF generated:', fileName);
 };
 
-export type { CasualPayslipData, SlotEntry };
+export type { CasualPayslipData, SlotEntry, DayRateCalculation, DayRateBreakdownItem };
