@@ -195,8 +195,13 @@ const BranchProfitLoss = () => {
     loadData();
   }, [user, userrole]);
 
-  // Load P&L data when branch/month/year changes
+  // Load P&L data when branch/month/year changes - only when not editing
   useEffect(() => {
+    // Prevent auto-refresh while user is editing or adding entries
+    if (editingId || isAdding) {
+      return;
+    }
+
     const loadPLData = async () => {
       if (!selectedBranch) {
         setProfitLossData([]);
@@ -275,7 +280,7 @@ const BranchProfitLoss = () => {
     };
 
     loadPLData();
-  }, [selectedBranch, selectedMonth, selectedYear, userrole]);
+  }, [selectedBranch, selectedMonth, selectedYear, userrole, editingId, isAdding]);
 
   // Check if report is published
   useEffect(() => {
