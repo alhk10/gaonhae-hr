@@ -4,6 +4,7 @@ import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCategorySelect } from '@/components/ui/searchable-category-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, ChevronUp, ChevronDown, Send, CheckCircle } from 'lucide-react';
@@ -1071,31 +1072,14 @@ const BranchProfitLoss = () => {
             />
           </TableCell>
           <TableCell className="py-1">
-            <Select
+            <SearchableCategorySelect
               value={editData.subcategory}
-              onValueChange={(value) => {
-                if (value === '__add_new__') {
-                  setShowAddCategoryDialog('revenue');
-                } else {
-                  setEditData({ ...editData, subcategory: value });
-                }
-              }}
-            >
-              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50 text-xs">
-                {revenueCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                ))}
-                <SelectItem value="__add_new__" className="text-primary">
-                  <span className="flex items-center gap-1">
-                    <PlusCircle className="w-3 h-3" />
-                    Add New Category
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              onValueChange={(value) => setEditData({ ...editData, subcategory: value })}
+              categories={revenueCategories}
+              placeholder="Select category"
+              searchPlaceholder="Search category..."
+              onAddNew={() => setShowAddCategoryDialog('revenue')}
+            />
           </TableCell>
           <TableCell className="py-1">
             <Input
@@ -1227,31 +1211,14 @@ const BranchProfitLoss = () => {
             />
           </TableCell>
           <TableCell className="pl-6 py-1">
-            <Select
+            <SearchableCategorySelect
               value={editData.subcategory}
-              onValueChange={(value) => {
-                if (value === '__add_new__') {
-                  setShowAddCategoryDialog('expense');
-                } else {
-                  setEditData({ ...editData, subcategory: value });
-                }
-              }}
-            >
-              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50 text-xs">
-                {expenseCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                ))}
-                <SelectItem value="__add_new__" className="text-primary">
-                  <span className="flex items-center gap-1">
-                    <PlusCircle className="w-3 h-3" />
-                    Add New Category
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              onValueChange={(value) => setEditData({ ...editData, subcategory: value })}
+              categories={expenseCategories}
+              placeholder="Select category"
+              searchPlaceholder="Search category..."
+              onAddNew={() => setShowAddCategoryDialog('expense')}
+            />
           </TableCell>
           <TableCell className="py-1">
             <Input
@@ -1337,35 +1304,18 @@ const BranchProfitLoss = () => {
           />
         </TableCell>
         <TableCell className="py-1">
-          <div className="flex gap-1 items-center">
-            <Select
-              value={newEntryData.subcategory}
-              onValueChange={(value) => {
-                if (value === '__add_new__') {
-                  setShowAddCategoryDialog('revenue');
-                } else {
-                  // Auto-populate cost price from category default
-                  const defaultCostPrice = getDefaultCostPrice(value, 'revenue');
-                  setNewEntryData({ ...newEntryData, subcategory: value, cost_price: defaultCostPrice });
-                }
-              }}
-            >
-              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50 text-xs">
-                {revenueCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                ))}
-                <SelectItem value="__add_new__" className="text-primary">
-                  <span className="flex items-center gap-1">
-                    <PlusCircle className="w-3 h-3" />
-                    Add New Category
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SearchableCategorySelect
+            value={newEntryData.subcategory}
+            onValueChange={(value, category) => {
+              // Auto-populate cost price from category default
+              const defaultCostPrice = category?.default_cost_price?.toString() || '';
+              setNewEntryData({ ...newEntryData, subcategory: value, cost_price: defaultCostPrice });
+            }}
+            categories={revenueCategories}
+            placeholder="Select category"
+            searchPlaceholder="Search category..."
+            onAddNew={() => setShowAddCategoryDialog('revenue')}
+          />
         </TableCell>
         <TableCell className="py-1">
           <Input
@@ -1453,33 +1403,14 @@ const BranchProfitLoss = () => {
           />
         </TableCell>
         <TableCell className="pl-6 py-1">
-          <div className="flex gap-1 items-center">
-            <Select
-              value={newEntryData.subcategory}
-              onValueChange={(value) => {
-                if (value === '__add_new__') {
-                  setShowAddCategoryDialog('expense');
-                } else {
-                  setNewEntryData({ ...newEntryData, subcategory: value });
-                }
-              }}
-            >
-              <SelectTrigger className="h-7 text-xs min-w-[120px] bg-background">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50 text-xs">
-                {expenseCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                ))}
-                <SelectItem value="__add_new__" className="text-primary">
-                  <span className="flex items-center gap-1">
-                    <PlusCircle className="w-3 h-3" />
-                    Add New Category
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SearchableCategorySelect
+            value={newEntryData.subcategory}
+            onValueChange={(value) => setNewEntryData({ ...newEntryData, subcategory: value })}
+            categories={expenseCategories}
+            placeholder="Select category"
+            searchPlaceholder="Search category..."
+            onAddNew={() => setShowAddCategoryDialog('expense')}
+          />
         </TableCell>
         <TableCell className="py-1">
           <Input
