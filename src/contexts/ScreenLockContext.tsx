@@ -34,9 +34,11 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
     refreshPinStatus();
   };
 
+  // TEMPORARILY DISABLED: Screen lock feature
   return (
-    <ScreenLockContext.Provider value={{ isLocked, hasPin, refreshPinStatus, lock }}>
+    <ScreenLockContext.Provider value={{ isLocked: false, hasPin, refreshPinStatus, lock }}>
       {children}
+      {/* Screen lock temporarily disabled
       <ScreenLockOverlay
         isLocked={isLocked}
         userEmail={user?.email}
@@ -45,13 +47,13 @@ export const ScreenLockProvider = ({ children }: ScreenLockProviderProps) => {
         onPasswordUnlock={handlePasswordUnlock}
         onPinReset={handlePinReset}
       />
-      {/* Prompt to set PIN on login if not already set */}
       {user && !hasPin && (
         <SetupPinPrompt
           employeeId={employeeId}
           onPinSet={refreshPinStatus}
         />
       )}
+      */}
     </ScreenLockContext.Provider>
   );
 };
