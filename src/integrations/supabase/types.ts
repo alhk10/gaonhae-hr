@@ -3889,6 +3889,7 @@ export type Database = {
           notes: string | null
           nric_passport: string | null
           passport_no: string | null
+          passport_photo_url: string | null
           phone: string | null
           postal_code: string | null
           preferred_name: string | null
@@ -3932,6 +3933,7 @@ export type Database = {
           notes?: string | null
           nric_passport?: string | null
           passport_no?: string | null
+          passport_photo_url?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
@@ -3975,6 +3977,7 @@ export type Database = {
           notes?: string | null
           nric_passport?: string | null
           passport_no?: string | null
+          passport_photo_url?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
