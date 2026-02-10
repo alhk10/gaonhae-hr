@@ -1,98 +1,75 @@
 
-# Fix Duration Calculation to Respect Slot Start/End Times
+# Mobile UI Adjustments for Student and Employee Portals
 
-## Overview
-Update the hours worked calculation to ensure that only time worked **within** the configured slot start and end times is counted. Currently, the calculation uses the raw check-in to check-out duration and only caps it at the expected duration. This should be refined to clamp the times to the slot boundaries.
+## Issues Identified
 
-## Current Behavior
-```
-Slot Config: 14:10 - 20:30 (6.33 hours expected)
-Check-in: 12:00, Check-out: 22:00
-Current calculation: 22 - 12 = 10 hours → capped to 6.33 hours
-```
+### Student Portal (StudentDashboard.tsx)
+1. **Header not mobile-responsive**: Fixed `text-2xl`, `p-6` padding, and long title "Student Portal - FirstName LastName" will overflow on small screens
+2. **Header buttons not stacked on mobile**: Logout button and "Viewing as Admin" badge crowd the title
+3. **Stats cards use fixed `p-6` padding**: No mobile reduction
+4. **TabsList with 5 tabs truncates on mobile**: "Overview", "My Profile", "Invoices (N)", "Class Schedule", "Chat (N)" -- too many tabs for 390px width, text will be cut off
+5. **Profile edit buttons overflow on mobile**: "Cancel" and "Submit for Approval" buttons side-by-side will truncate on small screens
+6. **CardHeader with `flex-row` profile section**: Title + buttons in a row causes cramping on mobile
+7. **Invoice list items use fixed `p-4` and `gap-3`**: Pay button, PDF button, and amount/badge crowd together
+8. **QuickActionsSection cards use fixed `p-6` padding**: Cards with long text descriptions can overflow
 
-This works for the maximum cap, but doesn't handle edge cases properly:
-- If check-in is **before** slot start (e.g., 12:00 when slot starts at 14:10), only time from 14:10 should count
-- If check-out is **after** slot end (e.g., 22:00 when slot ends at 20:30), only time until 20:30 should count
+### Employee Portal (EmployeeDashboard.tsx)
+- Already has good mobile handling with `isMobile` checks throughout
+- No major issues found -- it already adapts text sizes, padding, and grid layouts
 
-## Expected Behavior
-```
-Slot Config: 14:10 - 20:30
-Check-in: 12:00, Check-out: 22:00
-Expected: max(12:00, 14:10) to min(22:00, 20:30)
-       → 14:10 to 20:30 = 6.33 hours (full slot)
+### Dialog Components
+- Most dialogs already use `max-h-[85vh]` with overflow handling -- these are fine
+- `PaySchoolFeesDialog` uses `max-w-3xl` which is fine since dialogs auto-constrain on mobile
+- `PayGradingDialog` lacks `max-h` and `overflow-y-auto` -- could overflow on long content
 
-Check-in: 15:00, Check-out: 22:00
-Expected: max(15:00, 14:10) to min(22:00, 20:30)
-       → 15:00 to 20:30 = 5.5 hours (partial)
+### Global Dialog Component
+- The base `DialogContent` lacks mobile-specific padding -- uses `p-6` always, which wastes space on mobile
 
-Check-in: 12:00, Check-out: 18:00  
-Expected: max(12:00, 14:10) to min(18:00, 20:30)
-       → 14:10 to 18:00 = 3.83 hours (partial)
-```
+## Plan
 
-## Implementation
+### 1. Student Portal Header -- Make Mobile-Responsive
+- Use `useIsMobile` to conditionally reduce padding from `p-6` to `p-3` on the outer container
+- Shorten title on mobile: show just "Student Portal" instead of "Student Portal - Full Name"
+- Reduce subtitle text size on mobile
+- Stack header layout vertically on mobile (title above, buttons below)
 
-### File: `src/utils/slotPayCalculation.ts`
+### 2. Student Portal Tabs -- Scrollable on Mobile
+- Wrap `TabsList` with `overflow-x-auto` and allow horizontal scrolling so all 5 tabs are accessible without truncation
+- Add `flex-nowrap` and `w-full` to prevent wrapping/squishing
+- Reduce tab text size slightly on mobile
 
-#### Update `calculateActualHoursWorked` function (lines 348-383)
+### 3. Student Portal Stats Cards -- Reduce Mobile Padding
+- Change from fixed `p-6` to responsive `p-3 md:p-6`
+- Reduce text sizes for stats on mobile
 
-**Current logic:**
-```typescript
-const checkInHours = parseTimeToHours(checkIn);
-const checkOutHours = parseTimeToHours(checkOut);
-let duration = checkOutHours - checkInHours;
-return Math.min(duration, expectedDuration);
-```
+### 4. Student Portal Profile Tab -- Stack Buttons on Mobile
+- Make the CardHeader stack vertically on mobile instead of `flex-row`
+- Stack "Cancel" and "Submit for Approval" buttons vertically on mobile
+- Reduce button text: show just "Submit" instead of "Submit for Approval" on mobile
 
-**Updated logic:**
-```typescript
-const slotTiming = getSlotTimingForDateSync(dateString);
-const slotStartHours = parseTimeToHours(slotTiming.start);
-const slotEndHours = parseTimeToHours(slotTiming.end);
+### 5. Student Portal Invoice Items -- Compact on Mobile
+- Reduce padding from `p-4` to `p-2 md:p-4`
+- Reduce gap between action buttons
 
-const checkInHours = parseTimeToHours(checkIn);
-const checkOutHours = parseTimeToHours(checkOut);
+### 6. QuickActionsSection -- Mobile Padding and Layout
+- Reduce card padding from `p-6` to `p-4 md:p-6` on mobile
+- Reduce heading size on mobile
+- Ensure description text doesn't truncate
 
-// Clamp check-in to not be earlier than slot start
-const effectiveCheckIn = Math.max(checkInHours, slotStartHours);
-// Clamp check-out to not be later than slot end
-const effectiveCheckOut = Math.min(checkOutHours, slotEndHours);
+### 7. PayGradingDialog -- Add Scroll Overflow
+- Add `max-h-[85vh] overflow-y-auto` to prevent content overflow on mobile
 
-// If check-in is after check-out (invalid), return 0
-if (effectiveCheckIn >= effectiveCheckOut) {
-  return 0;
-}
-
-let duration = effectiveCheckOut - effectiveCheckIn;
-return duration;
-```
-
-#### Update `calculateActualHoursWorkedAsync` function (lines 388-423)
-
-Same logic changes but using the async `getSlotTimingForDate` function instead.
+### 8. Base Dialog Component -- Mobile Padding
+- Add responsive padding: `p-4 sm:p-6` instead of fixed `p-6`
 
 ## Technical Details
 
-| Scenario | Slot Times | Check-in | Check-out | Current Result | Fixed Result |
-|----------|------------|----------|-----------|----------------|--------------|
-| Early check-in, late check-out | 14:10-20:30 | 12:00 | 22:00 | 6.33h | 6.33h |
-| Late check-in, late check-out | 14:10-20:30 | 15:00 | 22:00 | 6.33h | 5.5h |
-| Early check-in, early check-out | 14:10-20:30 | 12:00 | 18:00 | 6h | 3.83h |
-| Normal check-in/out | 14:10-20:30 | 14:10 | 20:30 | 6.33h | 6.33h |
-| Partial shift | 14:10-20:30 | 16:00 | 19:00 | 3h | 3h |
+### Files to Modify
+- `src/components/dashboard/StudentDashboard.tsx` -- Add `useIsMobile` hook, apply responsive classes to header, tabs, stats, profile, and invoices
+- `src/components/dashboard/QuickActionsSection.tsx` -- Add `useIsMobile`, reduce padding and text sizes
+- `src/components/dashboard/PayGradingDialog.tsx` -- Add overflow handling
+- `src/components/ui/dialog.tsx` -- Change `p-6` to `p-4 sm:p-6` in DialogContent
+- `src/components/ui/tabs.tsx` -- Add `overflow-x-auto` support to TabsList for mobile scrollability
 
-## Files Modified
-
-| File | Changes |
-|------|---------|
-| `src/utils/slotPayCalculation.ts` | Update both `calculateActualHoursWorked` and `calculateActualHoursWorkedAsync` functions to clamp check-in/check-out times to slot boundaries |
-
-## Edge Cases Handled
-
-1. **Check-in before slot starts**: Clamp to slot start time
-2. **Check-out after slot ends**: Clamp to slot end time
-3. **Both outside boundaries**: Returns full slot duration
-4. **Check-in after slot ends**: Returns 0 (no valid work time)
-5. **Check-out before slot starts**: Returns 0 (no valid work time)
-6. **Overnight slots**: Existing handling retained for cases where slot end < slot start
+### No Functionality Changes
+All modifications are purely visual/layout adjustments. No data flow, state management, API calls, or business logic will be altered.
