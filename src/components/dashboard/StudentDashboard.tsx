@@ -18,7 +18,7 @@ import {
   FileText,
   Loader2,
   CreditCard,
-  MessageCircle
+  
 } from 'lucide-react';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -27,13 +27,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
-import { getUnreadCountForStudent } from '@/services/chatService';
+
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { useAuth } from '@/contexts/AuthContext';
 import StudentMyClassSchedule from './StudentMyClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
-import StudentChatPanel from '@/components/chat/StudentChatPanel';
+
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
@@ -120,13 +120,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     enabled: !!studentId,
   });
 
-  // Get unread chat count for tab badge
-  const { data: unreadChatCount = 0 } = useQuery({
-    queryKey: ['student-unread-count', studentId],
-    queryFn: () => getUnreadCountForStudent(studentId!),
-    enabled: !!studentId,
-    refetchInterval: 30000,
-  });
 
   // Fetch available terms for PaySchoolFeesDialog
   const { data: availableTerms = [] } = useQuery({
@@ -544,9 +537,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             Invoices{invoices.filter(inv => inv.status !== 'paid').length > 0 && ` (${invoices.filter(inv => inv.status !== 'paid').length})`}
           </TabsTrigger>
           <TabsTrigger value="schedule">{isMobile ? 'My Classes' : 'My Classes'}</TabsTrigger>
-          <TabsTrigger value="chat">
-            Chat{unreadChatCount > 0 && ` (${unreadChatCount})`}
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -563,7 +553,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             }}
             onOpenSchoolFees={() => setShowSchoolFeesDialog(true)}
             onOpenGrading={() => setShowGradingDialog(true)}
-            onOpenChat={() => setActiveTab('chat')}
+            
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -814,13 +804,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           />
         </TabsContent>
 
-        <TabsContent value="chat">
-          <StudentChatPanel
-            studentId={studentId!}
-            branchId={student?.branch_id || ''}
-            studentName={`${student.first_name} ${student.last_name}`}
-          />
-        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}

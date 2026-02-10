@@ -2,13 +2,13 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, GraduationCap, Clock, AlertCircle, MessageCircle } from 'lucide-react';
+import { CreditCard, GraduationCap, Clock, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
-import { getUnreadCountForStudent } from '@/services/chatService';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface QuickActionsSectionProps {
@@ -23,7 +23,7 @@ interface QuickActionsSectionProps {
   };
   onOpenSchoolFees: () => void;
   onOpenGrading: () => void;
-  onOpenChat: () => void;
+  
 }
 
 // Normalize belt for comparison
@@ -44,7 +44,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   student,
   onOpenSchoolFees,
   onOpenGrading,
-  onOpenChat,
+  
 }) => {
   const isMobile = useIsMobile();
   // Check if student has branch
@@ -105,20 +105,13 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     enabled: hasBranch && !!student.current_belt,
   });
 
-  // Get unread chat count
-  const { data: unreadChatCount = 0 } = useQuery({
-    queryKey: ['student-unread-count', studentId],
-    queryFn: () => getUnreadCountForStudent(studentId),
-    enabled: !!studentId,
-    refetchInterval: 30000,
-  });
 
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
   const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0;
   const nextBelt = getNextBelt(student.current_belt);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Pay School Fees */}
         <Card className={`cursor-pointer transition-all hover:shadow-md ${!canPaySchoolFees ? 'opacity-60' : ''}`}>
           <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
@@ -192,47 +185,6 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Chat with Branch */}
-        <Card className={`cursor-pointer transition-all hover:shadow-md ${!hasBranch ? 'opacity-60' : ''}`}>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
-            <div className="flex items-start gap-3 md:gap-4">
-              <div className="bg-green-500/10 p-2.5 md:p-3 rounded-lg relative flex-shrink-0">
-                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
-                {unreadChatCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
-                  >
-                    {unreadChatCount}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Chat with Branch</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {hasBranch 
-                    ? 'Send messages to your branch staff'
-                    : 'No branch assigned'}
-                </p>
-                {hasBranch ? (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={onOpenChat}
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Open Chat
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <AlertCircle className="w-4 h-4" />
-                    Contact academy for assistance
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
     </div>
   );
 };
