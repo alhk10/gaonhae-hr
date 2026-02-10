@@ -12,7 +12,9 @@ import {
   Plus,
   Eye,
   FileText,
-  DollarSign
+  DollarSign,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +31,20 @@ import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import CreateInvoiceDialog from '@/components/sales/CreateInvoiceDialog';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
+import ViewEditInvoiceDialog from '@/components/sales/ViewEditInvoiceDialog';
+import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
+import { deleteInvoice } from '@/services/invoiceService';
+import { deletePayment } from '@/services/paymentService';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import StudentDetailsDialog from './StudentDetailsDialog';
 import { useNavigate } from 'react-router-dom';
@@ -58,6 +74,13 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [invoiceDialogMode, setInvoiceDialogMode] = useState<'view' | 'edit'>('view');
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
@@ -88,15 +111,31 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  // Fetch invoices for this branch
+  // Fetch invoices for this branch with student names
   const { data: invoices = [] } = useQuery({
     queryKey: ['branch-invoices', branchId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('invoices')
-        .select('*')
+        .select('*, students(first_name, last_name)')
         .eq('branch_id', branchId)
         .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!branchId,
+  });
+
+  // Fetch payments for this branch's invoices
+  const { data: payments = [] } = useQuery({
+    queryKey: ['branch-payments', branchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*, invoices!inner(invoice_number, branch_id, students(first_name, last_name))')
+        .eq('invoices.branch_id', branchId)
+        .order('payment_date', { ascending: false })
         .limit(50);
       if (error) throw error;
       return data || [];
@@ -233,6 +272,32 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     } else {
       toast.error('Failed to reject request');
     }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === 'invoice') {
+        await deleteInvoice(deleteTarget.id);
+        toast.success('Invoice deleted');
+      } else {
+        await deletePayment(deleteTarget.id);
+        toast.success('Payment deleted');
+      }
+      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+    } catch (error) {
+      toast.error(`Failed to delete ${deleteTarget.type}`);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
+  const refreshData = () => {
+    queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
   };
 
   return (
@@ -411,31 +476,122 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              {invoices.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No invoices found</p>
-              ) : (
-                <div className="space-y-3">
-                  {invoices.slice(0, 20).map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{invoice.invoice_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                        </p>
+            <CardContent className="space-y-6">
+              {/* Invoices Section */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Invoices</h4>
+                {invoices.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No invoices found</p>
+                ) : (
+                  <div className="space-y-2">
+                    {invoices.slice(0, 20).map((invoice: any) => (
+                      <div key={invoice.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{invoice.invoice_number}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown'} · {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right mr-2">
+                            <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
+                            <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
+                              {invoice.status}
+                            </Badge>
+                          </div>
+                          <Button variant="ghost" size="icon" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                        <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
-                          {invoice.status}
-                        </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Payments Section */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Payments</h4>
+                {payments.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No payments found</p>
+                ) : (
+                  <div className="space-y-2">
+                    {payments.slice(0, 20).map((payment: any) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{payment.invoices?.invoice_number || 'N/A'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {payment.invoices?.students ? `${payment.invoices.students.first_name} ${payment.invoices.students.last_name}` : 'Unknown'} · {format(new Date(payment.payment_date), 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right mr-2">
+                            <p className="font-medium">${payment.amount?.toFixed(2)}</p>
+                            <Badge variant="outline" className="capitalize">{payment.payment_method?.replace('_', ' ')}</Badge>
+                          </div>
+                          <Button variant="ghost" size="icon" title="View" onClick={() => { setSelectedPaymentId(payment.id); setPaymentDialogMode('view'); setPaymentDialogOpen(true); }}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Edit" onClick={() => { setSelectedPaymentId(payment.id); setPaymentDialogMode('edit'); setPaymentDialogOpen(true); }}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: 'payment', id: payment.id, label: payment.invoices?.invoice_number || payment.id })}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
+
+          {/* Invoice View/Edit Dialog */}
+          {selectedInvoiceId && (
+            <ViewEditInvoiceDialog
+              invoiceId={selectedInvoiceId}
+              open={invoiceDialogOpen}
+              onOpenChange={(open) => { setInvoiceDialogOpen(open); if (!open) setSelectedInvoiceId(null); }}
+              onInvoiceUpdated={refreshData}
+              initialMode={invoiceDialogMode}
+            />
+          )}
+
+          {/* Payment View/Edit Dialog */}
+          {selectedPaymentId && (
+            <ViewEditPaymentDialog
+              paymentId={selectedPaymentId}
+              open={paymentDialogOpen}
+              onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) setSelectedPaymentId(null); }}
+              onPaymentUpdated={refreshData}
+              initialMode={paymentDialogMode}
+            />
+          )}
+
+          {/* Delete Confirmation */}
+          <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {deleteTarget?.type}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete {deleteTarget?.type} "{deleteTarget?.label}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         <TabsContent value="approvals">
