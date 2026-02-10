@@ -26,6 +26,7 @@ import { format, parseISO, differenceInYears, differenceInMonths } from 'date-fn
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
+import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import ClassScheduleSelector from './ClassScheduleSelector';
 import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
@@ -325,12 +326,52 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         proof_of_payment_url: proofUrl,
       });
 
+      // Step 4: Create enrollment record
+      const enrollmentId = await createEnrollment({
+        student_id: studentId,
+        term_id: selectedTerm.id,
+        branch_id: student.branch_id!,
+        class_type: selectedProduct.name || 'Class',
+        tier_name: selectedProduct.name || 'Standard',
+        total_price: invoice.total_amount,
+        invoice_item_id: undefined, // Will be linked via invoice metadata
+      });
+
+      // Step 5: Create scheduled classes from selected slots
+      if (selectedClassSlots.length > 0) {
+        // Fetch timetable data for start/end times
+        const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
+        const { data: timetables } = await supabase
+          .from('branch_timetables')
+          .select('id, start_time, end_time')
+          .in('id', timetableIds);
+
+        const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+
+        for (const slot of selectedClassSlots) {
+          const [timetableId, date] = slot.split('_');
+          const timetable = timetableMap.get(timetableId);
+          if (timetable && date) {
+            await createScheduledClass({
+              enrollment_id: enrollmentId,
+              timetable_id: timetableId,
+              scheduled_date: date,
+              start_time: timetable.start_time,
+              end_time: timetable.end_time,
+            });
+          }
+        }
+      }
+
       return invoice;
     },
     onSuccess: () => {
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
+      queryClient.invalidateQueries({ queryKey: ['student-my-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['student-all-scheduled-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['student-entitlements'] });
       toast.success('Invoice created and payment recorded successfully!');
     },
     onError: (error: Error) => {
