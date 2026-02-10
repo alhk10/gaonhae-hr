@@ -10,7 +10,9 @@ import {
   XCircle,
   Filter,
   Plus,
-  Eye
+  Eye,
+  FileText,
+  DollarSign
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +27,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
+import CreateInvoiceDialog from '@/components/sales/CreateInvoiceDialog';
+import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 
 import StudentDetailsDialog from './StudentDetailsDialog';
 import { useNavigate } from 'react-router-dom';
@@ -374,8 +378,38 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <TabsContent value="invoices">
           <Card>
             <CardHeader>
-              <CardTitle>Invoices & Payments</CardTitle>
-              <CardDescription>Last 20 invoices for this branch</CardDescription>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle>Invoices & Payments</CardTitle>
+                  <CardDescription>Last 20 invoices for this branch</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <CreateInvoiceDialog
+                    trigger={
+                      <Button size="sm">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Create Invoice
+                      </Button>
+                    }
+                    onInvoiceCreated={() => {
+                      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+                      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+                    }}
+                  />
+                  <CreatePaymentDialog
+                    trigger={
+                      <Button size="sm" variant="outline">
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Record Payment
+                      </Button>
+                    }
+                    onPaymentCreated={() => {
+                      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+                      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+                    }}
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {invoices.length === 0 ? (
