@@ -18,7 +18,9 @@ import {
   FileText,
   Loader2,
   CreditCard,
-  
+  Camera,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,6 +58,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showSchoolFeesDialog, setShowSchoolFeesDialog] = useState(false);
   const [showGradingDialog, setShowGradingDialog] = useState(false);
   const [showUnpaidReminder, setShowUnpaidReminder] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
@@ -216,6 +220,70 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     setEditedProfile({});
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !studentId) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Photo must be less than 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${studentId}/passport-photo.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ passport_photo_url: urlData.publicUrl + '?t=' + Date.now() })
+        .eq('id', studentId);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+      toast.success('Passport photo uploaded');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!studentId) return;
+    setUploadingPhoto(true);
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ passport_photo_url: null })
+        .eq('id', studentId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+      toast.success('Photo removed');
+    } catch (error) {
+      toast.error('Failed to remove photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
   const handleSaveEdit = () => {
     // Only include changed fields
     const changes: Record<string, any> = {};
@@ -673,6 +741,62 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               )}
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Passport Photo */}
+              <div className="flex items-start gap-4 pb-4 border-b">
+                <div className="relative shrink-0">
+                  {(student as any).passport_photo_url ? (
+                    <img
+                      src={(student as any).passport_photo_url}
+                      alt="Passport photo"
+                      className="w-24 h-32 object-cover rounded-lg border"
+                    />
+                  ) : (
+                    <div className="w-24 h-32 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center bg-muted/50">
+                      <Camera className="w-6 h-6 text-muted-foreground/50" />
+                      <span className="text-xs text-muted-foreground/50 mt-1">No photo</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Passport Size Photo</Label>
+                  <p className="text-xs text-muted-foreground">Upload a passport-sized photo (max 5MB)</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-1" />
+                      )}
+                      {(student as any).passport_photo_url ? 'Change' : 'Upload'}
+                    </Button>
+                    {(student as any).passport_photo_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRemovePhoto}
+                        disabled={uploadingPhoto}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>First Name</Label>
