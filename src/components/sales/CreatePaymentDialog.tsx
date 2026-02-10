@@ -47,6 +47,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
+  const [invoiceItems, setInvoiceItems] = useState<Array<{ id: string; description: string; quantity: number; unit_price: number; total_amount: number }>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -250,6 +251,29 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   };
 
   const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
+
+  // Fetch invoice items when invoice is selected
+  useEffect(() => {
+    const fetchItems = async () => {
+      if (!formData.invoice_id) {
+        setInvoiceItems([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('invoice_items')
+          .select('id, description, quantity, unit_price, total_amount')
+          .eq('invoice_id', formData.invoice_id)
+          .order('created_at');
+        if (!error && data) {
+          setInvoiceItems(data);
+        }
+      } catch (err) {
+        console.error('Error fetching invoice items:', err);
+      }
+    };
+    fetchItems();
+  }, [formData.invoice_id]);
   
   // Determine country from selected invoice
   const selectedCountry = selectedInvoice?.branch_country || 'Singapore';
@@ -382,7 +406,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                   Invoice Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Student:</span>
@@ -398,11 +422,33 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Balance Due:</span>
-                    <div className="font-bold text-lg text-red-600">
+                    <div className="font-bold text-lg text-destructive">
                       {formatCurrencyValue(selectedInvoice.balance_due)}
                     </div>
                   </div>
                 </div>
+
+                {/* Invoice Items */}
+                {invoiceItems.length > 0 && (
+                  <div className="border-t pt-3 mt-2">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Items</p>
+                    <div className="space-y-1.5">
+                      {invoiceItems.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm">
+                          <div className="flex-1 min-w-0">
+                            <span className="truncate block">{item.description}</span>
+                          </div>
+                          <div className="flex items-center gap-3 ml-2 text-muted-foreground shrink-0">
+                            <span>{item.quantity} × {formatCurrencyValue(item.unit_price)}</span>
+                            <span className="font-medium text-foreground w-20 text-right">
+                              {formatCurrencyValue(item.total_amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
