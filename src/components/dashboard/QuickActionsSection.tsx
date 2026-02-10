@@ -9,6 +9,7 @@ import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
 import { getUnreadCountForStudent } from '@/services/chatService';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface QuickActionsSectionProps {
   studentId: string;
@@ -45,6 +46,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   onOpenGrading,
   onOpenChat,
 }) => {
+  const isMobile = useIsMobile();
   // Check if student has branch
   const hasBranch = !!student.branch_id;
 
@@ -119,13 +121,13 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pay School Fees */}
         <Card className={`cursor-pointer transition-all hover:shadow-md ${!canPaySchoolFees ? 'opacity-60' : ''}`}>
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 p-3 rounded-lg">
-                <CreditCard className="w-6 h-6 text-primary" />
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="bg-primary/10 p-2.5 md:p-3 rounded-lg flex-shrink-0">
+                <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">Pay School Fees</h3>
+              <div className="flex-1 min-w-0">
+                <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Pay School Fees</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   {canPaySchoolFees 
                     ? 'Renew your class enrollment for the next term'
@@ -154,13 +156,13 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 
         {/* Pay Grading */}
         <Card className={`cursor-pointer transition-all hover:shadow-md ${!canPayGrading ? 'opacity-60' : ''}`}>
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-purple-500/10 p-3 rounded-lg">
-                <GraduationCap className="w-6 h-6 text-purple-600" />
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="bg-purple-500/10 p-2.5 md:p-3 rounded-lg flex-shrink-0">
+                <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-lg">Pay Grading</h3>
+                <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Pay Grading</h3>
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                   {canPayGrading 
                     ? `Register for ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} exam`
@@ -192,10 +194,10 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 
         {/* Chat with Branch */}
         <Card className={`cursor-pointer transition-all hover:shadow-md ${!hasBranch ? 'opacity-60' : ''}`}>
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-green-500/10 p-3 rounded-lg relative">
-                <MessageCircle className="w-6 h-6 text-green-600" />
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="bg-green-500/10 p-2.5 md:p-3 rounded-lg relative flex-shrink-0">
+                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                 {unreadChatCount > 0 && (
                   <Badge 
                     variant="destructive" 
@@ -206,7 +208,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">Chat with Branch</h3>
+                <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Chat with Branch</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   {hasBranch 
                     ? 'Send messages to your branch staff'

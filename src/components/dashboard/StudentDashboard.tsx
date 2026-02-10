@@ -37,6 +37,7 @@ import StudentChatPanel from '@/components/chat/StudentChatPanel';
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -45,6 +46,7 @@ interface StudentDashboardProps {
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStudentId, isSimulated = false }) => {
   const { user, userDetails, logout, linkedStudents } = useAuth();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
@@ -444,24 +446,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   };
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
+    <div className={`space-y-4 md:space-y-6 ${isMobile ? 'p-3' : 'p-6'} max-w-6xl mx-auto`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Student Portal - {student.first_name} {student.last_name}
+      <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
+        <div className="min-w-0">
+          <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-foreground`}>
+            {isMobile ? 'Student Portal' : `Student Portal - ${student.first_name} ${student.last_name}`}
           </h2>
-          <p className="text-muted-foreground">
+          {isMobile && (
+            <p className="text-sm font-medium text-foreground">{student.first_name} {student.last_name}</p>
+          )}
+          <p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
             Manage your profile, view invoices, and track your progress
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {isSimulated && (
             <Badge variant="outline">Viewing as Admin</Badge>
           )}
           {!isSimulated && (
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
+            <Button variant="outline" size={isMobile ? 'sm' : 'default'} onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-1" />
               Logout
             </Button>
           )}
@@ -488,11 +493,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Sessions Remaining</p>
-                <p className="text-2xl font-bold">{totalSessions}</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>{totalSessions}</p>
               </div>
               <div className="bg-blue-500 p-3 rounded-lg">
                 <Calendar className="w-6 h-6 text-white" />
@@ -502,11 +507,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Outstanding Balance</p>
-                <p className="text-2xl font-bold">${outstandingBalance.toFixed(2)}</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>${outstandingBalance.toFixed(2)}</p>
               </div>
               <div className={`${outstandingBalance > 0 ? 'bg-orange-500' : 'bg-green-500'} p-3 rounded-lg`}>
                 <DollarSign className="w-6 h-6 text-white" />
@@ -516,13 +521,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Current Belt</p>
-                <p className="text-2xl font-bold">{student.current_belt || 'Not set'}</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold truncate`}>{student.current_belt || 'Not set'}</p>
               </div>
-              <div className="bg-purple-500 p-3 rounded-lg">
+              <div className="bg-purple-500 p-3 rounded-lg flex-shrink-0">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -532,13 +537,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className={`w-full flex-nowrap ${isMobile ? 'text-xs' : ''}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="profile">My Profile</TabsTrigger>
+          <TabsTrigger value="profile">{isMobile ? 'Profile' : 'My Profile'}</TabsTrigger>
           <TabsTrigger value="invoices">
             Invoices{invoices.filter(inv => inv.status !== 'paid').length > 0 && ` (${invoices.filter(inv => inv.status !== 'paid').length})`}
           </TabsTrigger>
-          <TabsTrigger value="schedule">Class Schedule</TabsTrigger>
+          <TabsTrigger value="schedule">{isMobile ? 'Schedule' : 'Class Schedule'}</TabsTrigger>
           <TabsTrigger value="chat">
             Chat{unreadChatCount > 0 && ` (${unreadChatCount})`}
           </TabsTrigger>
@@ -639,7 +644,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
         <TabsContent value="profile">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-row items-center justify-between'}`}>
               <div>
                 <CardTitle>My Profile</CardTitle>
                 <CardDescription>
@@ -649,19 +654,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 </CardDescription>
               </div>
               {!isEditing ? (
-                <Button onClick={handleStartEdit} disabled={hasPendingRequest}>
+                <Button onClick={handleStartEdit} disabled={hasPendingRequest} size={isMobile ? 'sm' : 'default'}>
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Profile
                 </Button>
               ) : (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleCancelEdit}>
+                <div className={`flex gap-2 ${isMobile ? 'flex-col' : ''}`}>
+                  <Button variant="outline" onClick={handleCancelEdit} size={isMobile ? 'sm' : 'default'}>
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveEdit} disabled={submitUpdateMutation.isPending}>
+                  <Button onClick={handleSaveEdit} disabled={submitUpdateMutation.isPending} size={isMobile ? 'sm' : 'default'}>
                     <Save className="w-4 h-4 mr-2" />
-                    Submit for Approval
+                    {isMobile ? 'Submit' : 'Submit for Approval'}
                   </Button>
                 </div>
               )}
@@ -750,14 +755,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                     const displayStatus = invoice.status === 'draft' ? 'unpaid' : invoice.status;
                     const isPaid = invoice.status === 'paid';
                     return (
-                      <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{invoice.invoice_number}</p>
+                      <div key={invoice.id} className={`flex items-center justify-between ${isMobile ? 'p-2 gap-2' : 'p-4'} border rounded-lg`}>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{invoice.invoice_number}</p>
                           <p className="text-sm text-muted-foreground">
                             {format(new Date(invoice.created_at), 'dd MMM yyyy')}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3">
+                          <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-3'} flex-shrink-0`}>
                           <div className="text-right">
                             <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
                             <Badge 
