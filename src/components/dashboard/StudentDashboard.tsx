@@ -37,6 +37,7 @@ import QuickActionsSection from './QuickActionsSection';
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
+import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface StudentDashboardProps {
@@ -54,6 +55,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
   const [showSchoolFeesDialog, setShowSchoolFeesDialog] = useState(false);
   const [showGradingDialog, setShowGradingDialog] = useState(false);
+  const [showUnpaidReminder, setShowUnpaidReminder] = useState(false);
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
@@ -170,6 +172,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const outstandingBalance = invoices
     .filter(inv => inv.status !== 'paid')
     .reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+
+  const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.balance_due > 0);
+
+  // Show unpaid invoice reminder when portal loads with unpaid invoices
+  useEffect(() => {
+    if (unpaidInvoices.length > 0 && !studentLoading) {
+      setShowUnpaidReminder(true);
+    }
+  }, [studentLoading, invoices.length]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
@@ -839,6 +850,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           gradingSlots={gradingSlots}
         />
       )}
+
+      <UnpaidInvoiceReminderDialog
+        open={showUnpaidReminder}
+        onOpenChange={setShowUnpaidReminder}
+        unpaidInvoices={unpaidInvoices}
+        studentId={studentId!}
+        onGoToInvoices={() => setActiveTab('invoices')}
+      />
     </div>
   );
 };
