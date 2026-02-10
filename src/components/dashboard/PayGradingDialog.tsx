@@ -298,7 +298,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Register for Grading'}
