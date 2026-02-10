@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, FileText, Clock, Calendar, Trash2, Building2, GraduationCap, AlertCircle, ShoppingCart, MessageCircle } from 'lucide-react';
+import { Users, FileText, Clock, Calendar, Trash2, Building2, GraduationCap, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
 import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
 import { getPendingOrdersCount } from '@/services/inventoryOrderService';
-import { getTotalUnreadCount } from '@/services/chatService';
+
 import { getAllLeaveRequests } from '@/services/leaveService';
 import { getAllSlotBookings } from '@/services/slotBookingService';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,7 +20,7 @@ import InventoryOrderApprovals from './InventoryOrderApprovals';
 import ClaimsApprovals from './ClaimsApprovals';
 import LeaveApprovals from './LeaveApprovals';
 import SlotBookingApprovals from './SlotBookingApprovals';
-import SuperadminChatPanel from '@/components/chat/SuperadminChatPanel';
+
 
 const SuperadminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -74,13 +74,6 @@ const SuperadminDashboard = () => {
     refetchInterval: 60 * 1000,
   });
 
-  // Load total unread chat count
-  const { data: totalUnreadChats = 0 } = useQuery({
-    queryKey: ['superadmin-total-unread'],
-    queryFn: getTotalUnreadCount,
-    staleTime: 30 * 1000,
-    refetchInterval: 30 * 1000,
-  });
 
   // Load pending leave count
   const { data: pendingLeaveCount = 0 } = useQuery({
@@ -182,15 +175,6 @@ const SuperadminDashboard = () => {
         </div>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="chat" className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" />
-            Chat
-            {totalUnreadChats > 0 && (
-              <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center p-0 text-xs">
-                {totalUnreadChats}
-              </Badge>
-            )}
-          </TabsTrigger>
         </TabsList>
       </div>
 
@@ -322,9 +306,6 @@ const SuperadminDashboard = () => {
         <ClassWeeklyPlanner />
       </TabsContent>
 
-      <TabsContent value="chat" className="mt-0">
-        <SuperadminChatPanel />
-      </TabsContent>
     </Tabs>
   );
 };

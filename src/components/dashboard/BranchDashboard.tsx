@@ -25,7 +25,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
-import BranchChatPanel from '@/components/chat/BranchChatPanel';
+
 import StudentDetailsDialog from './StudentDetailsDialog';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { getUnreadCountForBranch } from '@/services/chatService';
+
 import { Student } from '@/services/studentService';
 
 interface BranchDashboardProps {
@@ -198,13 +198,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const activeStudentsCount = activeStudentIds.length;
   const branchCurrency = branch?.currency || 'SGD';
 
-  // Fetch unread chat count for this branch
-  const { data: unreadChatsCount = 0 } = useQuery({
-    queryKey: ['unread-chats-count', branchId],
-    queryFn: () => getUnreadCountForBranch(branchId),
-    enabled: !!branchId,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
 
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
@@ -251,7 +244,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
-          <TabsTrigger value="chat">Chat ({unreadChatsCount})</TabsTrigger>
           <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
@@ -473,13 +465,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <BranchGradingList branchId={branchId} />
         </TabsContent>
 
-        <TabsContent value="chat">
-          <BranchChatPanel 
-            branchId={branchId} 
-            currentUserName={user?.name || 'Branch Staff'}
-            currentUserId={user?.employeeId || ''}
-          />
-        </TabsContent>
 
         <TabsContent value="timetable">
           <BranchWeeklyTimetable branchId={branchId} />
