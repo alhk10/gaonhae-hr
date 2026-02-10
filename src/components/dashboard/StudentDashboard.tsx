@@ -31,7 +31,7 @@ import { getUnreadCountForStudent } from '@/services/chatService';
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { useAuth } from '@/contexts/AuthContext';
-import StudentClassSchedule from './StudentClassSchedule';
+import StudentMyClassSchedule from './StudentMyClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
 import StudentChatPanel from '@/components/chat/StudentChatPanel';
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
@@ -543,7 +543,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           <TabsTrigger value="invoices">
             Invoices{invoices.filter(inv => inv.status !== 'paid').length > 0 && ` (${invoices.filter(inv => inv.status !== 'paid').length})`}
           </TabsTrigger>
-          <TabsTrigger value="schedule">{isMobile ? 'Schedule' : 'Class Schedule'}</TabsTrigger>
+          <TabsTrigger value="schedule">{isMobile ? 'My Classes' : 'My Classes'}</TabsTrigger>
           <TabsTrigger value="chat">
             Chat{unreadChatCount > 0 && ` (${unreadChatCount})`}
           </TabsTrigger>
@@ -808,7 +808,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </TabsContent>
 
         <TabsContent value="schedule">
-          <StudentClassSchedule 
+          <StudentMyClassSchedule 
             studentId={studentId!} 
             branchId={student?.branch_id} 
           />
