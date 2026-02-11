@@ -40,6 +40,7 @@ import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
 import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
+import StudentProfileCompletionDialog from './StudentProfileCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface StudentDashboardProps {
@@ -58,6 +59,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showSchoolFeesDialog, setShowSchoolFeesDialog] = useState(false);
   const [showGradingDialog, setShowGradingDialog] = useState(false);
   const [showUnpaidReminder, setShowUnpaidReminder] = useState(false);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -179,10 +181,30 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
   const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.balance_due > 0);
 
+  // Check if profile completion dialog should show
+  const shouldShowProfileCompletion = (studentData: any, sid: string) => {
+    if (!studentData) return false;
+    const currentYear = new Date().getFullYear();
+    const storageKey = `profile_completion_shown_${sid}_${currentYear}`;
+    const alreadyShownThisYear = localStorage.getItem(storageKey) === 'true';
+
+    const requiredKeys = ['phone', 'email', 'date_of_birth', 'address', 'postal_code',
+      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship', 'medical_conditions'];
+    const hasMissingInfo = requiredKeys.some(k => !studentData[k]) || !studentData.passport_photo_url;
+
+    return !alreadyShownThisYear || hasMissingInfo;
+  };
+
   // Show unpaid invoice reminder when portal loads with unpaid invoices
   useEffect(() => {
-    if (unpaidInvoices.length > 0 && !studentLoading) {
+    if (studentLoading) return;
+    if (unpaidInvoices.length > 0) {
       setShowUnpaidReminder(true);
+    } else if (student && studentId) {
+      // No unpaid invoices — check profile completion directly
+      if (shouldShowProfileCompletion(student, studentId)) {
+        setShowProfileCompletion(true);
+      }
     }
   }, [studentLoading, invoices.length]);
 
@@ -977,11 +999,25 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       <UnpaidInvoiceReminderDialog
         open={showUnpaidReminder}
-        onOpenChange={setShowUnpaidReminder}
+        onOpenChange={(v) => {
+          setShowUnpaidReminder(v);
+          if (!v && student && studentId && shouldShowProfileCompletion(student, studentId)) {
+            setShowProfileCompletion(true);
+          }
+        }}
         unpaidInvoices={unpaidInvoices}
         studentId={studentId!}
         onGoToInvoices={() => setActiveTab('invoices')}
       />
+
+      {student && studentId && (
+        <StudentProfileCompletionDialog
+          open={showProfileCompletion}
+          onOpenChange={setShowProfileCompletion}
+          student={student}
+          studentId={studentId}
+        />
+      )}
     </div>
   );
 };
