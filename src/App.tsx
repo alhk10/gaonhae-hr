@@ -174,9 +174,7 @@ function App() {
                       path="/parties" 
                       element={
                         <AuthGuard>
-                          <PageAccessGuard requiredPermission="employees">
-                            <PartyManagement />
-                          </PageAccessGuard>
+                          <PartyManagement />
                         </AuthGuard>
                       } 
                     />
