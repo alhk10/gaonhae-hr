@@ -1,36 +1,56 @@
 
 
-# Make Pay School Fees Dialog Mobile Friendly
+# Equalize Day Column Widths + Vertical Week Text + Fit to Screen
 
-## Changes to `src/components/dashboard/PaySchoolFeesDialog.tsx`
+## Changes to `src/components/dashboard/ClassScheduleSelector.tsx`
 
-### 1. Responsive Dialog Width
-- Change `max-w-3xl` to `w-full max-w-3xl` and add mobile padding: `sm:max-w-3xl p-4 sm:p-6`
-- Add `max-h-[85vh] overflow-y-auto` (already has `max-h-[90vh]`, adjust to `85vh` for mobile consistency)
+### 1. Table Layout: `table-fixed`
+Add `table-fixed` to the `<table>` element so all columns get equal width distribution instead of sizing based on content.
 
-### 2. Responsive Padding and Spacing
-- Reduce `space-y-4` to `space-y-3` on mobile for tighter layout
-- Card content padding: change `p-4` to `p-3 sm:p-4` on summary and payment cards
-- Upload area padding: `p-3 sm:p-4`
+### 2. Vertical Week Label (First Column)
+- Narrow first column from `w-24` to `w-10`
+- Use CSS `[writing-mode:vertical-lr] rotate-180` to render "Wk {n}" and "(dd MMM)" vertically
+- This saves significant horizontal space, leaving more room for the day columns
 
-### 3. Summary Card Layout
-- Keep the `flex justify-between` rows but ensure text doesn't overflow on narrow screens by adding `truncate` or `text-right` to value spans
-- Total row: reduce `text-lg` to `text-base sm:text-lg` for the price
+### 3. Equal Day Columns
+- Remove `min-w-[100px]` from day headers
+- With `table-fixed` and a narrow first column, all remaining day columns will automatically share equal width
 
-### 4. Action Buttons
-- Change footer from `flex gap-2 justify-end` to stack vertically on mobile: `flex flex-col-reverse sm:flex-row gap-2 sm:justify-end`
-- Shorten button text on mobile: "Create Invoice & Pay" becomes "Pay" on small screens (or keep full text with smaller font)
-- Make buttons full-width on mobile: `w-full sm:w-auto`
+### 4. Compact Padding and Text
+- Reduce cell padding from `p-2` to `px-1 py-1.5` throughout
+- Reduce slot button padding from `px-2 py-2` to `px-1 py-1`
+- Reduce gap between multiple class buttons from `space-y-2` to `space-y-1`
+- Day headers: `text-xs`
 
-### 5. Upload Area
-- The dashed upload area is already reasonably mobile-friendly; ensure the file name truncates with `truncate max-w-[200px]`
+### 5. Remove Horizontal ScrollArea
+Since the table now fits within the viewport, remove the `ScrollArea` wrapper (or keep it as a safety net but it should no longer scroll).
 
-### 6. Dialog Header
-- Reduce title size on mobile with `text-base sm:text-lg`
+## Technical Detail
 
-### 7. Success Step
-- Reduce vertical padding: `py-4 sm:py-6`
+Key table structure:
+```tsx
+<table className="w-full table-fixed">
+  <thead>
+    <tr>
+      <th className="w-10 ...">Term</th>
+      {/* Each day column gets equal remaining width automatically */}
+      <th className="px-1 py-1.5 text-center text-xs ...">Mon</th>
+      ...
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td className="w-10 px-1 py-1.5">
+        <div className="flex items-center justify-center [writing-mode:vertical-lr] rotate-180">
+          <span className="text-xs font-semibold">Wk {n}</span>
+          <span className="text-[10px] text-muted-foreground">({dd MMM})</span>
+        </div>
+      </td>
+      <td className="px-1 py-1.5 ...">...</td>
+      ...
+    </tr>
+  </tbody>
+</table>
+```
 
-## Technical Summary
-All changes are CSS/className adjustments within `PaySchoolFeesDialog.tsx`. No logic or data flow changes needed.
-
+All changes are CSS/className adjustments within `ClassScheduleSelector.tsx`. No logic changes.
