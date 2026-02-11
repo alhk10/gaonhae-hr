@@ -1,31 +1,62 @@
 
 
-# Add Invoice & Payment Buttons to Branch Dashboard
+# Add Student Profile Completion Dialog on Portal Login
 
 ## Overview
-Add "Create Invoice" and "Record Payment" action buttons to the Invoice & Payment tab header in the Branch Dashboard, reusing the existing `CreateInvoiceDialog` and `CreatePaymentDialog` components.
+Add a dialog that automatically appears after the student dismisses/closes the Unpaid Invoice Reminder (or immediately on login if no unpaid invoices) prompting the student to fill in any missing profile information.
+
+## Flow
+
+The login sequence will be:
+1. Student logs in to portal
+2. Unpaid Invoice Reminder dialog appears (if unpaid invoices exist)
+3. After closing the unpaid reminder (or immediately if none), the **Profile Completion Dialog** appears if key fields are missing
+4. Student can fill in missing fields and submit, or dismiss
+
+## Key Profile Fields Checked
+The dialog will check these fields and only show inputs for the ones that are empty/null:
+- Phone
+- Email
+- Date of Birth
+- Address
+- Postal Code
+- Emergency Contact Name
+- Emergency Contact Phone
+- Emergency Contact Relationship
+- Medical Conditions
+
+If all fields are filled, the dialog will not appear.
 
 ## What Changes
 
-### Visual Layout
-The Invoice & Payment tab will gain two action buttons in the header area (next to the title), matching the pattern used in the Students tab (which has "Add Student/Trial"):
-- **Create Invoice** button (primary) -- opens the existing `CreateInvoiceDialog`
-- **Record Payment** button (outline) -- opens the existing `CreatePaymentDialog`
+### New Component: `src/components/dashboard/StudentProfileCompletionDialog.tsx`
+- A dialog component that receives the student data and checks for missing fields
+- Renders input fields only for missing information
+- On submit, updates the student record directly in Supabase (or submits via the existing update request flow if admin approval is required)
+- Shows a friendly message like "Please complete your profile" with a progress indicator of how many fields are filled
 
-After creating an invoice or payment, the branch invoices query will be refetched automatically.
+### Modified: `src/components/dashboard/StudentDashboard.tsx`
+- Add `showProfileCompletion` state
+- Update the existing `useEffect` logic so:
+  - If unpaid invoices exist: show unpaid reminder first; when it closes (`onOpenChange(false)`), check for missing profile fields and show the profile completion dialog
+  - If no unpaid invoices: check for missing profile fields on load and show the dialog directly
+- Import and render the new `StudentProfileCompletionDialog`
 
 ## Technical Details
 
-### File to Modify: `src/components/dashboard/BranchDashboard.tsx`
+### Missing Field Detection Logic
+```
+const requiredFields = ['phone', 'email', 'date_of_birth', 'address', 'postal_code',
+  'emergency_contact_name', 'emergency_contact_phone'];
+const missingFields = requiredFields.filter(f => !student[f]);
+```
 
-1. **Import** `CreateInvoiceDialog` from `@/components/sales/CreateInvoiceDialog` and `CreatePaymentDialog` from `@/components/sales/CreatePaymentDialog`
-2. **Add** `FileText` and `DollarSign` icons to the lucide imports
-3. **Update the Invoice & Payment `TabsContent`** (lines 374-405):
-   - Move the action buttons into the `CardHeader` area alongside the title
-   - Add `CreateInvoiceDialog` with a trigger button labeled "Create Invoice"
-   - Add `CreatePaymentDialog` with a trigger button labeled "Record Payment"
-   - Both dialogs receive an `onInvoiceCreated` / `onPaymentCreated` callback that invalidates the `branch-invoices` and `outstanding-invoices` queries via `queryClient`
+### Dialog Behavior
+- Uses the existing `createUpdateRequest` service to submit changes (keeping the approval workflow)
+- After successful submission, invalidates the `student` query to refresh data
+- Dialog includes a "Skip for now" option so students are not blocked
+- Only triggers once per session (tracked via state, not localStorage)
 
-### No New Files or Database Changes Required
-Both dialog components already exist and handle their own form logic, validation, and data submission. The branch dashboard simply wraps them with trigger buttons and refreshes data on completion.
+### No Database Changes Required
+The student table already has all necessary columns.
 
