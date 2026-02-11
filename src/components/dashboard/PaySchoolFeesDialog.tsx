@@ -536,31 +536,31 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 {/* Summary */}
                 {selectedTerm && selectedProduct && (
                   <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="p-3 sm:p-4 space-y-2">
-                      <div className="flex justify-between text-sm">
+                    <CardContent className="p-2.5 sm:p-4 space-y-1">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-muted-foreground">Term</span>
                         <span className="font-medium text-right truncate ml-2">
                           {selectedTerm.name}
                           {isRemainingWeeks && <span className="text-primary ml-1">(Remaining)</span>}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-muted-foreground">Duration</span>
                         <span className="font-medium text-right">{termWeeks} {isRemainingWeeks ? 'remaining weeks' : 'weeks'}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-muted-foreground">Rate</span>
                         <span className="font-medium text-right">${selectedProduct.effective_price}/week</span>
                       </div>
                       {selectedClassSlots.length > 0 && (
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-muted-foreground">Classes Selected</span>
                           <span className="font-medium">{selectedClassSlots.length}</span>
                         </div>
                       )}
-                      <div className="border-t pt-2 flex justify-between">
-                        <span className="font-semibold">Total</span>
-                        <span className="font-bold text-base sm:text-lg">${calculatedPrice.toFixed(2)}</span>
+                      <div className="border-t pt-1.5 flex justify-between">
+                        <span className="font-semibold text-sm">Total</span>
+                        <span className="font-bold text-sm sm:text-lg">${calculatedPrice.toFixed(2)}</span>
                       </div>
                     </CardContent>
                   </Card>
