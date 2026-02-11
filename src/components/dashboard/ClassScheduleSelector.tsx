@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+
 import { toast } from 'sonner';
 import { getPublicHolidays } from '@/services/publicHolidayService';
 
@@ -223,84 +223,81 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      <ScrollArea className="w-full">
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-2 text-left text-sm font-medium w-24">Term</th>
-                {operatingDays.map(d => (
-                  <th key={d.value} className="p-2 text-center text-sm font-medium border-l min-w-[100px]">
-                    {d.short}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {termWeeks.map(week => (
-                <tr key={week.weekNumber} className="border-t hover:bg-muted/10">
-                  <td className="p-2 bg-muted/30">
-                    <div className="font-medium text-sm">Week {week.weekNumber}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(week.startDate, 'dd MMM')}
-                    </div>
-                  </td>
-                  {operatingDays.map(dayInfo => {
-                    const dayDate = week.days.find(d => d.getDay() === dayInfo.value);
-                    const classesForDay = getClassesForWeekday(dayInfo.value);
-                    
-                    if (!dayDate || classesForDay.length === 0) {
-                      return (
-                        <td key={dayInfo.value} className="p-2 border-l text-center text-muted-foreground">
-                          -
-                        </td>
-                      );
-                    }
-                    
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full table-fixed border-collapse">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-1 py-1.5 text-center text-xs font-medium w-10">Term</th>
+              {operatingDays.map(d => (
+                <th key={d.value} className="px-1 py-1.5 text-center text-xs font-medium border-l">
+                  {d.short}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {termWeeks.map(week => (
+              <tr key={week.weekNumber} className="border-t hover:bg-muted/10">
+                <td className="px-1 py-1.5 bg-muted/30 w-10">
+                  <div className="flex items-center justify-center [writing-mode:vertical-lr] rotate-180">
+                    <span className="text-xs font-semibold whitespace-nowrap">Wk {week.weekNumber}</span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-0.5">({format(week.startDate, 'd MMM')})</span>
+                  </div>
+                </td>
+                {operatingDays.map(dayInfo => {
+                  const dayDate = week.days.find(d => d.getDay() === dayInfo.value);
+                  const classesForDay = getClassesForWeekday(dayInfo.value);
+                  
+                  if (!dayDate || classesForDay.length === 0) {
                     return (
-                      <td key={dayInfo.value} className="p-2 border-l align-top">
-                        <div className="space-y-2">
-                          {classesForDay.map((cls: any) => {
-                            const isSelected = isSlotSelected(cls.id, dayDate);
-                            
-                            return (
-                              <button
-                                key={cls.id}
-                                onClick={() => handleToggleSlot(cls.id, dayDate)}
-                                disabled={!isSelected && isAtLimit}
-                                className={`
-                                  px-2 py-2 rounded text-center transition-all w-full
-                                  ${isSelected 
-                                    ? 'bg-primary text-primary-foreground' 
-                                    : isAtLimit
-                                      ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
-                                      : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
-                                  }
-                                `}
-                              >
-                                <div className="text-xs font-medium truncate">
-                                  {cls.class_type}
-                                </div>
-                                <div className={`text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                  {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
-                                </div>
-                                <div className="text-xs font-medium mt-0.5">
-                                  {format(dayDate, 'EEE d')}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
+                      <td key={dayInfo.value} className="px-1 py-1.5 border-l text-center text-muted-foreground">
+                        -
                       </td>
                     );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+                  }
+                  
+                  return (
+                    <td key={dayInfo.value} className="px-1 py-1.5 border-l align-top">
+                      <div className="space-y-1">
+                        {classesForDay.map((cls: any) => {
+                          const isSelected = isSlotSelected(cls.id, dayDate);
+                          
+                          return (
+                            <button
+                              key={cls.id}
+                              onClick={() => handleToggleSlot(cls.id, dayDate)}
+                              disabled={!isSelected && isAtLimit}
+                              className={`
+                                px-1 py-1 rounded text-center transition-all w-full
+                                ${isSelected 
+                                  ? 'bg-primary text-primary-foreground' 
+                                  : isAtLimit
+                                    ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
+                                    : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                                }
+                              `}
+                            >
+                              <div className="text-[10px] font-medium truncate">
+                                {cls.class_type}
+                              </div>
+                              <div className={`text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                {formatTime(cls.start_time)}-{formatTime(cls.end_time)}
+                              </div>
+                              <div className="text-[10px] font-medium mt-0.5">
+                                {format(dayDate, 'EEE d')}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Summary footer with limit info */}
       <div className="text-sm pt-2 border-t flex justify-between items-center">
