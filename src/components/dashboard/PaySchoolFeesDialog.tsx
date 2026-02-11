@@ -415,9 +415,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-3xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">
             {step === 'select' && 'Pay School Fees'}
           </DialogTitle>
           <DialogDescription>
@@ -426,7 +426,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         </DialogHeader>
 
         {step === 'select' && (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Previous Enrollment Info */}
             {previousEnrollment && (
               <Card className="bg-muted/50">
@@ -536,21 +536,21 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 {/* Summary */}
                 {selectedTerm && selectedProduct && (
                   <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="p-4 space-y-2">
+                    <CardContent className="p-3 sm:p-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Term</span>
-                        <span className="font-medium">
+                        <span className="font-medium text-right truncate ml-2">
                           {selectedTerm.name}
                           {isRemainingWeeks && <span className="text-primary ml-1">(Remaining)</span>}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Duration</span>
-                        <span className="font-medium">{termWeeks} {isRemainingWeeks ? 'remaining weeks' : 'weeks'}</span>
+                        <span className="font-medium text-right">{termWeeks} {isRemainingWeeks ? 'remaining weeks' : 'weeks'}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Rate</span>
-                        <span className="font-medium">${selectedProduct.effective_price}/week</span>
+                        <span className="font-medium text-right">${selectedProduct.effective_price}/week</span>
                       </div>
                       {selectedClassSlots.length > 0 && (
                         <div className="flex justify-between text-sm">
@@ -560,7 +560,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       )}
                       <div className="border-t pt-2 flex justify-between">
                         <span className="font-semibold">Total</span>
-                        <span className="font-bold text-lg">${calculatedPrice.toFixed(2)}</span>
+                        <span className="font-bold text-base sm:text-lg">${calculatedPrice.toFixed(2)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -569,7 +569,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 {/* Payment Section */}
                 {selectedTerm && selectedProduct && (
                   <Card>
-                    <CardContent className="p-4 space-y-4">
+                    <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <CreditCard className="w-4 h-4" />
                         Payment Details
@@ -612,7 +612,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       {/* Proof of Payment */}
                       <div className="space-y-2">
                         <Label>Proof of Payment *</Label>
-                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        <div className="border-2 border-dashed rounded-lg p-3 sm:p-4 text-center">
                           <input
                             type="file"
                             accept="image/*,.pdf"
@@ -623,8 +623,8 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                           <label htmlFor="proof-upload" className="cursor-pointer">
                             {proofFile ? (
                               <div className="flex items-center justify-center gap-2 text-primary">
-                                <CheckCircle className="w-5 h-5" />
-                                <span className="text-sm">{proofFile.name}</span>
+                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                <span className="text-sm truncate max-w-[200px]">{proofFile.name}</span>
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -643,8 +643,8 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               </>
             )}
 
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={handleClose}>
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
+              <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Cancel
               </Button>
               <Button
@@ -657,11 +657,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   isUploading ||
                   unpaidTerms.length === 0
                 }
+                className="w-full sm:w-auto"
               >
                 {(createInvoiceAndPayMutation.isPending || isUploading) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Create Invoice & Pay
+                <span className="sm:hidden">Pay</span>
+                <span className="hidden sm:inline">Create Invoice & Pay</span>
               </Button>
             </div>
           </div>
@@ -669,7 +671,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
 
         {step === 'success' && (
-          <div className="text-center py-6 space-y-4">
+          <div className="text-center py-4 sm:py-6 space-y-4">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
