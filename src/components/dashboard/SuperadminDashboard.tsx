@@ -8,6 +8,7 @@ import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimi
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
 import { getPendingGradingDeletionRequestsCount } from '@/services/gradingDeletionRequestService';
+import { getPendingEditRequestsCount } from '@/services/slotBookingEditRequestService';
 import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
 import { getPendingOrdersCount } from '@/services/inventoryOrderService';
 
@@ -22,6 +23,7 @@ import ClaimsApprovals from './ClaimsApprovals';
 import LeaveApprovals from './LeaveApprovals';
 import SlotBookingApprovals from './SlotBookingApprovals';
 import GradingDeletionApprovals from './GradingDeletionApprovals';
+import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 
 
 const SuperadminDashboard = () => {
@@ -83,6 +85,13 @@ const SuperadminDashboard = () => {
     refetchInterval: 60 * 1000,
   });
 
+  // Load pending slot booking edit requests count
+  const { data: pendingEditRequestsCount = 0 } = useQuery({
+    queryKey: ['pending-edit-requests-count'],
+    queryFn: getPendingEditRequestsCount,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
 
   // Load pending leave count
   const { data: pendingLeaveCount = 0 } = useQuery({
@@ -107,7 +116,7 @@ const SuperadminDashboard = () => {
   });
 
   // Total pending deletions (payments + invoices)
-  const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount + pendingGradingDeletionsCount;
+  const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount + pendingGradingDeletionsCount + pendingEditRequestsCount;
   const pendingStudentUpdatesCount = Array.isArray(pendingStudentUpdates) ? pendingStudentUpdates.length : 0;
 
   const statsConfig = [
@@ -315,6 +324,9 @@ const SuperadminDashboard = () => {
 
         {/* Inventory Order Approvals */}
         <InventoryOrderApprovals />
+
+        {/* Slot Booking Edit Approvals */}
+        <SlotBookingEditApprovals />
 
         {/* Class Weekly Planner */}
         <ClassWeeklyPlanner />

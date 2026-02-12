@@ -3110,6 +3110,48 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_booking_edit_requests: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          new_employee_id: string | null
+          new_employee_name: string | null
+          reason: string
+          request_type: string
+          requested_by: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          new_employee_id?: string | null
+          new_employee_name?: string | null
+          reason: string
+          request_type: string
+          requested_by: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          new_employee_id?: string | null
+          new_employee_name?: string | null
+          reason?: string
+          request_type?: string
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       slot_booking_pricing_config: {
         Row: {
           created_at: string
