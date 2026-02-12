@@ -1207,6 +1207,56 @@ export type Database = {
         }
         Relationships: []
       }
+      grading_deletion_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          registration_id: string
+          requested_by: string
+          requested_by_email: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_id: string
+          student_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          registration_id: string
+          requested_by: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id: string
+          student_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          registration_id?: string
+          requested_by?: string
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id?: string
+          student_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_deletion_requests_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "grading_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grading_registrations: {
         Row: {
           certificate_ii_issued: boolean | null

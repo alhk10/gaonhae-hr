@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getRecentActivity } from '@/services/dashboardOptimizationService';
 import { getPendingDeletionRequestsCount } from '@/services/paymentDeletionRequestService';
 import { getPendingInvoiceDeletionRequestsCount } from '@/services/invoiceDeletionRequestService';
+import { getPendingGradingDeletionRequestsCount } from '@/services/gradingDeletionRequestService';
 import { getAllPendingRequests } from '@/services/studentUpdateRequestService';
 import { getPendingOrdersCount } from '@/services/inventoryOrderService';
 
@@ -20,6 +21,7 @@ import InventoryOrderApprovals from './InventoryOrderApprovals';
 import ClaimsApprovals from './ClaimsApprovals';
 import LeaveApprovals from './LeaveApprovals';
 import SlotBookingApprovals from './SlotBookingApprovals';
+import GradingDeletionApprovals from './GradingDeletionApprovals';
 
 
 const SuperadminDashboard = () => {
@@ -58,7 +60,14 @@ const SuperadminDashboard = () => {
     refetchInterval: 60 * 1000, // Refetch every minute
   });
 
-  // Load pending student update requests count
+  // Load pending grading deletion requests count
+  const { data: pendingGradingDeletionsCount = 0 } = useQuery({
+    queryKey: ['pending-grading-deletion-count'],
+    queryFn: getPendingGradingDeletionRequestsCount,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
   const { data: pendingStudentUpdates } = useQuery({
     queryKey: ['pending-student-updates'],
     queryFn: getAllPendingRequests,
@@ -98,7 +107,7 @@ const SuperadminDashboard = () => {
   });
 
   // Total pending deletions (payments + invoices)
-  const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount;
+  const totalPendingDeletions = pendingPaymentDeletionsCount + pendingInvoiceDeletionsCount + pendingGradingDeletionsCount;
   const pendingStudentUpdatesCount = Array.isArray(pendingStudentUpdates) ? pendingStudentUpdates.length : 0;
 
   const statsConfig = [
@@ -297,6 +306,11 @@ const SuperadminDashboard = () => {
         {/* Invoice Deletion Approvals */}
         {pendingInvoiceDeletionsCount > 0 && (
           <InvoiceDeletionApprovals />
+        )}
+
+        {/* Grading Registration Deletion Approvals */}
+        {pendingGradingDeletionsCount > 0 && (
+          <GradingDeletionApprovals />
         )}
 
         {/* Inventory Order Approvals */}
