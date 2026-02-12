@@ -1,0 +1,1 @@
+UPDATE products SET is_lesson = true WHERE sku IN ('1XWD', '1XWE', '2XWD', '2XWE', '3XWD', '3XWE', '4XWD', '4XWE');
