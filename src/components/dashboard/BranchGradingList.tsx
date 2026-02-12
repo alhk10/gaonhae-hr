@@ -18,9 +18,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection, type Term } from '@/services/termCalendarService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { removeGradingRegistration } from '@/services/gradingService';
-import { FileText, Loader2, User, Pencil, Trash2 } from 'lucide-react';
+import { FileText, Loader2, User, Pencil, Trash2, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import GradingStudentDetailDialog from '@/components/sales/GradingStudentDetailDialog';
 
 interface GradingListStudent {
   student_id: string;
@@ -56,6 +57,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
   const queryClient = useQueryClient();
   
   const [selectedTerm, setSelectedTerm] = useState<string>('');
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch terms
   const { data: terms = [] } = useQuery<Term[]>({
@@ -476,6 +478,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
+                              title="View Details"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => navigate(`/parties/student/${student.student_id}`)}
                               title="Edit"
                             >
@@ -517,6 +527,20 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Student Detail Dialog */}
+      {selectedTermData && (
+        <GradingStudentDetailDialog
+          open={!!detailStudent}
+          onOpenChange={(open) => { if (!open) setDetailStudent(null); }}
+          studentId={detailStudent?.id || null}
+          studentName={detailStudent?.name || ''}
+          branchId={branchId}
+          termId={selectedTerm}
+          termStartDate={selectedTermData.start_date}
+          termEndDate={selectedTermData.end_date}
+        />
+      )}
     </div>
   );
 };
