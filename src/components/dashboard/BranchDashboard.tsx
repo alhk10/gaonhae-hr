@@ -432,8 +432,15 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
             open={studentDetailsOpen}
             onOpenChange={setStudentDetailsOpen}
             student={selectedStudent}
+            branchId={branchId}
             onStudentUpdated={() => {
               queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+            }}
+            onViewInvoice={(invoiceId) => {
+              setStudentDetailsOpen(false);
+              setSelectedInvoiceId(invoiceId);
+              setInvoiceDialogMode('view');
+              setInvoiceDialogOpen(true);
             }}
           />
         </TabsContent>
