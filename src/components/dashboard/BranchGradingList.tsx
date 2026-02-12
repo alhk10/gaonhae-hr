@@ -1,6 +1,6 @@
 /**
  * Branch Grading List Component
- * Shows students invoiced for current term with grading status tracking
+ * Shows active students with paid term invoices, enriched grading data
  * Pre-filtered by branch ID from props
  */
 
@@ -12,12 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection, type Term } from '@/services/termCalendarService';
-import { getNextBeltLevel, getDoubleBeltLevel, formatBeltLevel } from '@/constants/beltLevels';
-import { FileText, Loader2, User } from 'lucide-react';
+import { formatBeltLevel } from '@/constants/beltLevels';
+import { removeGradingRegistration } from '@/services/gradingService';
+import { FileText, Loader2, User, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 interface GradingListStudent {
   student_id: string;
@@ -30,6 +33,11 @@ interface GradingListStudent {
   certificate_issued: boolean;
   certificate_ii_issued: boolean;
   registration_id: string | null;
+  lessons_attended: number;
+  grading_paid: 'paid' | 'unpaid' | 'n/a';
+  grading_slot_title: string | null;
+  grading_slot_date: string | null;
+  grading_slot_id: string | null;
 }
 
 interface BranchGradingListProps {
@@ -48,7 +56,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
   const queryClient = useQueryClient();
   
   const [selectedTerm, setSelectedTerm] = useState<string>('');
-  const [paymentFilter, setPaymentFilter] = useState<string>('all');
 
   // Fetch terms
   const { data: terms = [] } = useQuery<Term[]>({
@@ -77,13 +84,15 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
     }
   }, [branchId, branchTerms]);
 
-  // Fetch students with lesson invoices for selected term
+  const selectedTermData = terms.find(t => t.id === selectedTerm);
+
+  // Fetch students with paid lesson invoices for selected term
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
-    queryKey: ['grading-list-students', branchId, selectedTerm, paymentFilter],
+    queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
-      // Get lesson products (is_lesson = true)
+      // Get lesson products
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
@@ -92,7 +101,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       const lessonProductIds = (lessonProducts || []).map(p => p.id);
       if (lessonProductIds.length === 0) return [];
 
-      // Get invoice items with term_id in metadata
+      // Get invoice items with term_id in metadata, only paid invoices
       const { data: invoiceItems, error: itemsError } = await supabase
         .from('invoice_items')
         .select(`
@@ -107,7 +116,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
           )
         `)
         .in('product_id', lessonProductIds)
-        .eq('invoices.branch_id', branchId);
+        .eq('invoices.branch_id', branchId)
+        .eq('invoices.status', 'paid');
 
       if (itemsError) throw itemsError;
 
@@ -122,72 +132,119 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       // Get unique student IDs
       const studentIds = [...new Set(termItems.map(item => (item.invoices as any).student_id))];
 
-      // Fetch students
+      // Fetch active students only
       const { data: studentsData } = await supabase
         .from('students')
-        .select('id, first_name, last_name, current_belt')
-        .in('id', studentIds);
+        .select('id, first_name, last_name, current_belt, status')
+        .in('id', studentIds)
+        .eq('status', 'Active');
 
-      // Fetch existing grading registrations for these students in this term
-      const { data: registrations } = await supabase
-        .from('grading_registrations')
-        .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued')
-        .in('student_id', studentIds);
+      const activeStudentIds = (studentsData || []).map(s => s.id);
+      if (activeStudentIds.length === 0) return [];
+
+      // Parallel fetches
+      const [regResult, attendanceResult] = await Promise.all([
+        supabase
+          .from('grading_registrations')
+          .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id')
+          .in('student_id', activeStudentIds),
+        selectedTermData ? supabase
+          .from('class_attendance')
+          .select('student_id')
+          .in('student_id', activeStudentIds)
+          .eq('branch_id', branchId)
+          .eq('status', 'present')
+          .gte('class_date', selectedTermData.start_date)
+          .lte('class_date', selectedTermData.end_date) : Promise.resolve({ data: [] }),
+      ]);
+
+      const registrations = regResult.data || [];
+      const attendanceRecords = attendanceResult.data || [];
+
+      // Count attendance per student
+      const attendanceCountMap: Record<string, number> = {};
+      attendanceRecords.forEach((a: any) => {
+        attendanceCountMap[a.student_id] = (attendanceCountMap[a.student_id] || 0) + 1;
+      });
+
+      // Build registration map
+      const regMap: Record<string, any> = {};
+      registrations.forEach(r => {
+        if (!regMap[r.student_id]) {
+          regMap[r.student_id] = r;
+        }
+      });
+
+      // Fetch grading slot info
+      const slotIds = [...new Set(registrations.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
+      let slotMap: Record<string, any> = {};
+      if (slotIds.length > 0) {
+        const { data: slots } = await supabase
+          .from('grading_slots')
+          .select('id, title, grading_date')
+          .in('id', slotIds);
+        (slots || []).forEach(s => { slotMap[s.id] = s; });
+      }
+
+      // Fetch grading paid status
+      const invoiceItemIds = registrations.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
+      let gradingPaidMap: Record<string, string> = {};
+      if (invoiceItemIds.length > 0) {
+        const { data: gradingInvItems } = await supabase
+          .from('invoice_items')
+          .select('id, invoice_id, invoices!inner(id, status)')
+          .in('id', invoiceItemIds);
+        const itemToStatus: Record<string, string> = {};
+        (gradingInvItems || []).forEach((ii: any) => {
+          itemToStatus[ii.id] = (ii.invoices as any)?.status || 'draft';
+        });
+        registrations.forEach(r => {
+          if (r.invoice_item_id && itemToStatus[r.invoice_item_id]) {
+            gradingPaidMap[r.student_id] = itemToStatus[r.invoice_item_id] === 'paid' ? 'paid' : 'unpaid';
+          }
+        });
+      }
 
       const studentMap = (studentsData || []).reduce((acc, s) => {
         acc[s.id] = s;
         return acc;
       }, {} as Record<string, any>);
 
-      const regMap = (registrations || []).reduce((acc, r) => {
-        // Use the most recent registration per student
-        if (!acc[r.student_id]) {
-          acc[r.student_id] = r;
-        }
-        return acc;
-      }, {} as Record<string, any>);
-
-      // Build the result list - dedupe by student
+      // Build result list
       const studentResultMap = new Map<string, GradingListStudent>();
       
       for (const item of termItems) {
         const invoice = item.invoices as any;
         const studentId = invoice.student_id;
-        
-        // Skip if already processed this student
         if (studentResultMap.has(studentId)) continue;
         
         const student = studentMap[studentId];
+        if (!student) continue;
+
         const reg = regMap[studentId];
-        
-        if (student) {
-          studentResultMap.set(studentId, {
-            student_id: studentId,
-            student_name: `${student.first_name} ${student.last_name}`,
-            current_belt: student.current_belt,
-            invoice_status: invoice.status,
-            invoice_id: invoice.id,
-            ready_for_grading: reg?.ready_for_grading || false,
-            result: reg?.result || null,
-            certificate_issued: reg?.certificate_issued || false,
-            certificate_ii_issued: reg?.certificate_ii_issued || false,
-            registration_id: reg?.id || null
-          });
-        }
+        const slot = reg?.grading_slot_id ? slotMap[reg.grading_slot_id] : null;
+
+        studentResultMap.set(studentId, {
+          student_id: studentId,
+          student_name: `${student.first_name} ${student.last_name}`,
+          current_belt: student.current_belt,
+          invoice_status: invoice.status,
+          invoice_id: invoice.id,
+          ready_for_grading: reg?.ready_for_grading || false,
+          result: reg?.result || null,
+          certificate_issued: reg?.certificate_issued || false,
+          certificate_ii_issued: reg?.certificate_ii_issued || false,
+          registration_id: reg?.id || null,
+          lessons_attended: attendanceCountMap[studentId] || 0,
+          grading_paid: (gradingPaidMap[studentId] as 'paid' | 'unpaid') || 'n/a',
+          grading_slot_title: slot?.title || null,
+          grading_slot_date: slot?.grading_date || null,
+          grading_slot_id: reg?.grading_slot_id || null,
+        });
       }
 
-      let result = Array.from(studentResultMap.values());
-
-      // Apply payment filter
-      if (paymentFilter === 'paid') {
-        result = result.filter(s => s.invoice_status === 'paid');
-      } else if (paymentFilter === 'unpaid') {
-        result = result.filter(s => s.invoice_status !== 'paid');
-      }
-
-      // Sort by name
+      const result = Array.from(studentResultMap.values());
       result.sort((a, b) => a.student_name.localeCompare(b.student_name));
-
       return result;
     },
     enabled: !!branchId && !!selectedTerm
@@ -197,74 +254,50 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
   const updateReadyMutation = useMutation({
     mutationFn: async ({ studentId, isReady }: { studentId: string; isReady: boolean }) => {
       const student = students.find(s => s.student_id === studentId);
-      if (!student) return;
-
-      if (student.registration_id) {
-        // Update existing registration
-        const { error } = await supabase
-          .from('grading_registrations')
-          .update({ ready_for_grading: isReady })
-          .eq('id', student.registration_id);
-        if (error) throw error;
-      } else {
-        throw new Error('Student must be registered to a grading slot first');
-      }
+      if (!student?.registration_id) throw new Error('Student must be registered to a grading slot first');
+      const { error } = await supabase
+        .from('grading_registrations')
+        .update({ ready_for_grading: isReady })
+        .eq('id', student.registration_id);
+      if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update ready status');
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['grading-list-students'] }),
+    onError: (error: Error) => toast.error(error.message || 'Failed to update ready status'),
   });
 
   // Mutation to update result
   const updateResultMutation = useMutation({
     mutationFn: async ({ studentId, result }: { studentId: string; result: string | null }) => {
       const student = students.find(s => s.student_id === studentId);
-      if (!student) return;
-
-      if (student.registration_id) {
-        const { error } = await supabase
-          .from('grading_registrations')
-          .update({ result: result || null })
-          .eq('id', student.registration_id);
-        if (error) throw error;
-      } else {
-        throw new Error('Student must be registered to a grading slot first');
-      }
+      if (!student?.registration_id) throw new Error('Student must be registered to a grading slot first');
+      const { error } = await supabase
+        .from('grading_registrations')
+        .update({ result: result || null })
+        .eq('id', student.registration_id);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
       toast.success('Result updated');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update result');
-    }
+    onError: (error: Error) => toast.error(error.message || 'Failed to update result'),
   });
 
-  // Calculate new current belt based on result
-  const getNewCurrentBelt = (currentBelt: string | null, result: string | null): string | null => {
-    if (!currentBelt || !result) return null;
-    
-    switch (result) {
-      case 'fail':
-      case 'confirmed':
-        return currentBelt;
-      case 'pass':
-        return getNextBeltLevel(currentBelt);
-      case 'double':
-        return getDoubleBeltLevel(currentBelt);
-      default:
-        return null;
-    }
-  };
+  // Mutation to delete registration
+  const deleteMutation = useMutation({
+    mutationFn: async (registrationId: string) => {
+      await removeGradingRegistration(registrationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
+      toast.success('Registration deleted');
+    },
+    onError: (error: Error) => toast.error(error.message || 'Failed to delete registration'),
+  });
 
   const handleViewCertificate = (studentId: string, certificateNumber: 1 | 2) => {
     toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
   };
-
-  const selectedTermData = terms.find(t => t.id === selectedTerm);
 
   return (
     <div className="space-y-4">
@@ -287,19 +320,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="w-40">
-              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Payment Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -310,7 +330,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
           <CardTitle>Students for Grading</CardTitle>
           <CardDescription>
             {selectedTermData 
-              ? `${students.length} student${students.length !== 1 ? 's' : ''} with class invoices for ${selectedTermData.name}`
+              ? `${students.length} active student${students.length !== 1 ? 's' : ''} with paid invoices for ${selectedTermData.name}`
               : 'Select a term to view students'}
           </CardDescription>
         </CardHeader>
@@ -325,7 +345,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No students found with class invoices for this term.
+              No active students found with paid class invoices for this term.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -334,18 +354,19 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                   <TableRow>
                     <TableHead>Student Name</TableHead>
                     <TableHead className="w-[120px]">Current Belt</TableHead>
-                    <TableHead className="w-[100px]">Class Invoice</TableHead>
+                    <TableHead className="w-[80px] text-center">Lessons</TableHead>
                     <TableHead className="w-[80px] text-center">Ready</TableHead>
+                    <TableHead className="w-[100px]">Grading Paid</TableHead>
+                    <TableHead className="w-[160px]">Grading Slot</TableHead>
                     <TableHead className="w-[140px]">Result</TableHead>
-                    <TableHead className="w-[130px]">New Current Belt</TableHead>
-                    <TableHead className="w-[100px]">Certificate</TableHead>
+                    <TableHead className="w-[90px]">Certificate</TableHead>
                     <TableHead className="w-[100px]">Certificate II</TableHead>
+                    <TableHead className="w-[90px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {students.map((student) => {
-                    const newBelt = getNewCurrentBelt(student.current_belt, student.result);
-                    const canViewCertificate = student.result === 'pass' || student.result === 'double' || student.result === 'confirmed';
+                    const canViewCertificate = student.result === 'pass' || student.result === 'confirmed';
                     const canViewCertificateII = student.result === 'double';
                     
                     return (
@@ -369,15 +390,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge 
-                            className={student.invoice_status === 'paid' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                            }
-                          >
-                            {student.invoice_status === 'paid' ? 'Paid' : 'Unpaid'}
-                          </Badge>
+                        <TableCell className="text-center font-medium">
+                          {student.lessons_attended}
                         </TableCell>
                         <TableCell className="text-center">
                           <Checkbox
@@ -390,6 +404,22 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                             }}
                             disabled={!student.registration_id || updateReadyMutation.isPending}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
+                          >
+                            {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {student.grading_slot_title || student.grading_slot_date ? (
+                            <span className="text-sm">
+                              {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Not Assigned</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
@@ -416,15 +446,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {newBelt ? (
-                            <Badge variant="secondary">
-                              {formatBeltLevel(newBelt)}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
                           {canViewCertificate ? (
                             <Button
                               variant="ghost"
@@ -449,6 +470,43 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/parties/student/${student.student_id}`)}
+                              title="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            {student.registration_id && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" title="Delete Registration">
+                                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Registration</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the grading registration for {student.student_name}? This cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteMutation.mutate(student.registration_id!)}
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
