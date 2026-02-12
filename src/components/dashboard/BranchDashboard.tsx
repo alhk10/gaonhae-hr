@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
+import BranchCasualSchedule from './BranchCasualSchedule';
 import CreateInvoiceDialog from '@/components/sales/CreateInvoiceDialog';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditInvoiceDialog from '@/components/sales/ViewEditInvoiceDialog';
@@ -316,6 +317,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
+          <TabsTrigger value="casual-schedule">Casual Employee Schedule</TabsTrigger>
           <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
         </TabsList>
 
@@ -621,7 +623,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <BranchGradingList branchId={branchId} />
         </TabsContent>
 
-
+        <TabsContent value="casual-schedule">
+          <BranchCasualSchedule branchId={branchId} />
+        </TabsContent>
         <TabsContent value="timetable">
           <BranchWeeklyTimetable branchId={branchId} />
         </TabsContent>
