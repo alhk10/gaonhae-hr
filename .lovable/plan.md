@@ -1,88 +1,69 @@
 
-# Add "Casual Employee Schedule" Tab to Branch Dashboard
+
+# Make SuperAdmin Dashboard Mobile Friendly
 
 ## Overview
-Add a new tab to the Branch Dashboard that displays a calendar view of approved casual employee slot bookings for the selected branch. Editing (cancelling or swapping employees) will require superadmin approval rather than being performed directly.
+The SuperAdmin Dashboard (including the DashboardSwitcher wrapper) has several mobile layout issues visible in the screenshot: tabs are truncated, stats cards don't fit well, and spacing is too generous for small screens. This plan addresses all of these across both `DashboardSwitcher.tsx` and `SuperadminDashboard.tsx`.
 
 ## Changes
 
-### 1. New Component: `BranchCasualSchedule.tsx`
-Create `src/components/dashboard/BranchCasualSchedule.tsx` that:
-- Fetches approved slot bookings from `slot_bookings_new` filtered by `branch_id` and `status = 'approved'`
-- Displays a monthly calendar view (reusing the same Calendar component pattern from `SlotBookingManagementContent`)
-- Each day cell shows employee names with color-coded booking cards
-- Clicking a booking opens a detail view (read-only by default)
-- Includes a "Request Change" action (cancel/swap) that creates a pending approval request instead of performing the action directly
+### 1. DashboardSwitcher.tsx - Mobile Tab Layout
+- Make the `TabsList` horizontally scrollable on mobile (overflow-x-auto) to prevent tab label truncation ("Emp..." issue)
+- Hide tab icons on mobile to save space, show text only
+- Stack the tab bar and contextual selectors (branch/employee/student dropdowns) vertically on mobile instead of inline
+- Make selectors full-width on mobile (`w-full` vs fixed `w-[200px]`)
+- Move "Viewing as Superadmin" badge below tabs on mobile
 
-### 2. New Database Table: `slot_booking_edit_requests`
-Store edit requests that require superadmin approval:
-- `id` (uuid, PK)
-- `booking_id` (text, references the slot booking)
-- `request_type` (text: 'cancel' or 'swap')
-- `requested_by` (text, employee ID)
-- `new_employee_id` (text, nullable - for swaps)
-- `new_employee_name` (text, nullable - for swaps)
-- `reason` (text)
-- `status` (text: 'pending', 'approved', 'rejected')
-- `reviewed_by` (text, nullable)
-- `reviewed_at` (timestamptz, nullable)
-- `created_at` (timestamptz, default now())
-- RLS policies for authenticated users
+### 2. SuperadminDashboard.tsx - Header and Stats
+- Stack the header title and TabsList vertically on mobile
+- Reduce title size on mobile (`text-xl` instead of `text-2xl`)
+- Change stats grid from `lg:grid-cols-5` to `grid-cols-2 md:grid-cols-3 lg:grid-cols-5` so cards display in a 2-column grid on phones
+- Reduce card padding on mobile (`p-4` instead of `p-6`)
+- Reduce stat value font size on mobile (`text-xl` instead of `text-2xl`)
+- Reduce icon container size on mobile (`p-2` instead of `p-3`)
 
-### 3. New Service: `slotBookingEditRequestService.ts`
-- `createEditRequest()` - submit a cancel/swap request
-- `getPendingEditRequests()` - fetch pending requests (for superadmin dashboard)
-- `approveEditRequest()` - approve and execute the change (cancel booking or swap employee)
-- `rejectEditRequest()` - reject the request
-
-### 4. Update `BranchDashboard.tsx`
-- Add a new tab trigger: "Casual Employee Schedule"
-- Render the `BranchCasualSchedule` component in its `TabsContent`
-- Fetch count of approved bookings for the current month to show in tab badge
-
-### 5. New Component: `SlotBookingEditApprovals.tsx`
-Add to the Superadmin Dashboard to review and approve/reject slot booking edit requests, similar to existing approval sections (GradingDeletionApprovals pattern).
-
-### 6. Update `SuperadminDashboard.tsx`
-- Import and render `SlotBookingEditApprovals` in the Overview tab
-- Add pending edit request count to dashboard stats
+### 3. SuperadminDashboard.tsx - Content Sections
+- Change the Recent Claims / System Status grid from `lg:grid-cols-2` to stack on mobile (already `grid-cols-1` but ensure card padding is compact)
+- Reduce `CardHeader` and `CardContent` padding on mobile
+- Ensure approval sections (Claims, Leave, Slot Booking, etc.) remain readable with smaller text and compact layouts
 
 ## Technical Details
 
-### Calendar Display
-- Reuse the `Calendar` component with custom `Day` rendering
-- Show only `approved` status bookings for the specific branch
-- Employee names displayed as colored cards within day cells
-- Month navigation for browsing past/future schedules
-
-### Edit Request Flow
-```text
-Branch User clicks "Request Cancel/Swap"
-  --> Creates record in slot_booking_edit_requests (status: pending)
-  --> Toast: "Request submitted for superadmin approval"
-
-Superadmin Dashboard shows pending requests
-  --> Approve: executes the cancel/swap via existing slotBookingService functions
-  --> Reject: updates status to rejected
+### DashboardSwitcher mobile layout
+```tsx
+<div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4">
+  <Tabs ...>
+    <TabsList className="w-full sm:w-auto overflow-x-auto">
+      <TabsTrigger value="overview">
+        <Eye className="w-4 h-4 hidden sm:block" />
+        Overview
+      </TabsTrigger>
+      ...
+    </TabsList>
+  </Tabs>
+  {/* Selectors become full-width on mobile */}
+  <Select ...>
+    <SelectTrigger className="w-full sm:w-[200px]">...</SelectTrigger>
+  </Select>
+</div>
 ```
 
-### Query for Branch Schedule
-```typescript
-const { data } = await supabase
-  .from('slot_bookings_new')
-  .select('*')
-  .eq('branch_id', branchId)
-  .eq('status', 'approved')
-  .gte('date', monthStart)
-  .lte('date', monthEnd);
+### Stats grid responsive sizing
+```tsx
+<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
+  <Card>
+    <CardContent className="p-3 md:p-6">
+      <p className="text-xs md:text-sm ...">{stat.title}</p>
+      <p className="text-lg md:text-2xl ...">{stat.value}</p>
+      <div className="p-2 md:p-3 rounded-lg">
+        <stat.icon className="w-4 h-4 md:w-6 md:h-6 text-white" />
+      </div>
+    </CardContent>
+  </Card>
+</div>
 ```
-
-### Files to Create
-- `src/components/dashboard/BranchCasualSchedule.tsx`
-- `src/services/slotBookingEditRequestService.ts`
-- `src/components/dashboard/SlotBookingEditApprovals.tsx`
-- Migration for `slot_booking_edit_requests` table
 
 ### Files to Modify
-- `src/components/dashboard/BranchDashboard.tsx` - add tab
-- `src/components/dashboard/SuperadminDashboard.tsx` - add approval section
+- `src/components/dashboard/DashboardSwitcher.tsx`
+- `src/components/dashboard/SuperadminDashboard.tsx`
+
