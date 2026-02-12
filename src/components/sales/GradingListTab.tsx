@@ -153,7 +153,7 @@ const GradingListTab: React.FC = () => {
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
         .in('id', studentIds)
-        .eq('status', 'Active');
+        .ilike('status', 'active');
 
       const activeStudentIds = (studentsData || []).map(s => s.id);
       if (activeStudentIds.length === 0) return [];
