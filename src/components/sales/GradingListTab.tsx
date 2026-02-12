@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection, type Term } from '@/services/termCalendarService';
 import { formatBeltLevel } from '@/constants/beltLevels';
-import { removeGradingRegistration } from '@/services/gradingService';
+import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { FileText, Loader2, User, Trash2, Eye, Save, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -353,16 +353,15 @@ const GradingListTab: React.FC = () => {
     onError: (error: Error) => toast.error(error.message || 'Failed to save changes'),
   });
 
-  // Mutation to delete registration
+  // Mutation to request deletion (requires superadmin approval)
   const deleteMutation = useMutation({
-    mutationFn: async (registrationId: string) => {
-      await removeGradingRegistration(registrationId);
+    mutationFn: async ({ registrationId, studentId, studentName }: { registrationId: string; studentId: string; studentName: string }) => {
+      await createGradingDeletionRequest(registrationId, studentId, studentName);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
-      toast.success('Registration deleted');
+      toast.success('Deletion request submitted for superadmin approval');
     },
-    onError: (error: Error) => toast.error(error.message || 'Failed to delete registration'),
+    onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
   const handleViewCertificate = (studentId: string, certificateNumber: 1 | 2) => {
@@ -595,17 +594,17 @@ const GradingListTab: React.FC = () => {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Registration</AlertDialogTitle>
+                                    <AlertDialogTitle>Request Deletion</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Are you sure you want to delete the grading registration for {student.student_name}? This cannot be undone.
+                                      This will submit a deletion request for {student.student_name}'s grading registration. A superadmin must approve it before it takes effect.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => deleteMutation.mutate(student.registration_id!)}
+                                      onClick={() => deleteMutation.mutate({ registrationId: student.registration_id!, studentId: student.student_id, studentName: student.student_name })}
                                     >
-                                      Delete
+                                      Submit Request
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
