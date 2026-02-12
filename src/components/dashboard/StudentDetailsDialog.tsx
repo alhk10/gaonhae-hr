@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,25 +19,75 @@ import {
   Shield,
   Heart,
   GraduationCap,
-  FileText
+  FileText,
+  Receipt,
+  ClipboardList,
+  Eye
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Student } from '@/services/studentService';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface StudentDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   student: Student | null;
+  branchId?: string;
   onStudentUpdated?: () => void;
+  onViewInvoice?: (invoiceId: string) => void;
 }
 
 const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
   open,
   onOpenChange,
   student,
+  branchId,
   onStudentUpdated,
+  onViewInvoice,
 }) => {
+  // Fetch invoices for this student
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ['student-invoices-dialog', student?.id, branchId],
+    queryFn: async () => {
+      let query = supabase
+        .from('invoices')
+        .select('id, invoice_number, issue_date, total_amount, balance_due, status')
+        .eq('student_id', student!.id)
+        .order('issue_date', { ascending: false });
+      if (branchId) {
+        query = query.eq('branch_id', branchId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open && !!student?.id,
+  });
+
+  // Fetch class attendance for this student
+  const { data: attendance = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['student-attendance-dialog', student?.id, branchId],
+    queryFn: async () => {
+      let query = supabase
+        .from('class_attendance')
+        .select('id, class_date, status, timetable_id, branch_timetables(class_type, start_time, end_time)')
+        .eq('student_id', student!.id)
+        .order('class_date', { ascending: false })
+        .limit(50);
+      if (branchId) {
+        query = query.eq('branch_id', branchId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open && !!student?.id,
+  });
+
   if (!student) return null;
 
   const formatDate = (dateStr?: string) => {
@@ -63,6 +113,9 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
 
   const age = calculateAge(student.date_of_birth);
 
+  const presentCount = attendance.filter(a => a.status === 'present').length;
+  const absentCount = attendance.filter(a => a.status === 'absent').length;
+
   const InfoRow = ({ label, value }: { label: string; value?: string | null }) => (
     <div className="flex justify-between py-0.5">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -71,6 +124,24 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
       </span>
     </div>
   );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'default';
+      case 'unpaid': case 'overdue': return 'destructive';
+      case 'partial': return 'secondary';
+      default: return 'outline';
+    }
+  };
+
+  const getAttendanceColor = (status: string) => {
+    switch (status) {
+      case 'present': return 'default';
+      case 'absent': return 'destructive';
+      case 'late': return 'secondary';
+      default: return 'outline';
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -159,6 +230,103 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
                 <InfoRow label="Enrollment Date" value={formatDate(student.enrollment_date)} />
                 <InfoRow label="Previous Experience" value={student.previous_experience} />
                 <InfoRow label="Training Goals" value={student.training_goals} />
+              </div>
+            </section>
+
+            {/* Invoices */}
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
+                <Receipt className="w-4 h-4" />
+                Invoices
+              </h3>
+              <div className="bg-muted/50 rounded-lg p-2">
+                {invoicesLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : invoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">No invoices found</p>
+                ) : (
+                  <div className="space-y-1">
+                    {invoices.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between py-1.5 px-1 rounded hover:bg-muted/80">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{inv.invoice_number}</span>
+                            <Badge variant={getStatusColor(inv.status || 'unpaid')} className="text-[10px] px-1.5 py-0">
+                              {inv.status}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(inv.issue_date)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            {formatCurrency(inv.total_amount)}
+                          </span>
+                          {onViewInvoice && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => onViewInvoice(inv.id)}
+                              title="View invoice details"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Class Attendance */}
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
+                <ClipboardList className="w-4 h-4" />
+                Class Attendance
+                {!attendanceLoading && attendance.length > 0 && (
+                  <span className="ml-auto flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                    <Badge variant="default" className="text-[10px] px-1.5 py-0">{presentCount}</Badge>
+                    <span>present</span>
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{absentCount}</Badge>
+                    <span>absent</span>
+                  </span>
+                )}
+              </h3>
+              <div className="bg-muted/50 rounded-lg p-2">
+                {attendanceLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : attendance.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">No attendance records found</p>
+                ) : (
+                  <div className="space-y-1">
+                    {attendance.map((record: any) => (
+                      <div key={record.id} className="flex items-center justify-between py-1 px-1 rounded hover:bg-muted/80">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm">{formatDate(record.class_date)}</span>
+                          {record.branch_timetables && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {record.branch_timetables.class_type}
+                              {record.branch_timetables.start_time && ` • ${record.branch_timetables.start_time.slice(0, 5)}-${record.branch_timetables.end_time?.slice(0, 5)}`}
+                            </span>
+                          )}
+                        </div>
+                        <Badge variant={getAttendanceColor(record.status)} className="text-[10px] px-1.5 py-0 capitalize">
+                          {record.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 
