@@ -108,23 +108,23 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
       {/* Dashboard Selector */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
             <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)}>
-              <TabsList>
-                <TabsTrigger value="overview" className="flex items-center gap-2">
-                  <Eye className="w-4 h-4" />
+              <TabsList className="w-full sm:w-auto overflow-x-auto">
+                <TabsTrigger value="overview" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Eye className="w-4 h-4 hidden sm:block" />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="branch" className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
+                <TabsTrigger value="branch" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Building2 className="w-4 h-4 hidden sm:block" />
                   Branch
                 </TabsTrigger>
-                <TabsTrigger value="employee" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
+                <TabsTrigger value="employee" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <User className="w-4 h-4 hidden sm:block" />
                   Employee
                 </TabsTrigger>
-                <TabsTrigger value="student" className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4" />
+                <TabsTrigger value="student" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <GraduationCap className="w-4 h-4 hidden sm:block" />
                   Student
                 </TabsTrigger>
               </TabsList>
@@ -133,7 +133,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
             {/* Contextual selectors */}
             {activeView === 'branch' && (
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Select branch..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,7 +148,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
 
             {activeView === 'employee' && (
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-[250px]">
+                <SelectTrigger className="w-full sm:w-[250px]">
                   <SelectValue placeholder="Select employee..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,7 +163,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
 
             {activeView === 'student' && (
               <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                <SelectTrigger className="w-[250px]">
+                <SelectTrigger className="w-full sm:w-[250px]">
                   <SelectValue placeholder="Select student..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,7 +177,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
             )}
 
             {activeView !== 'overview' && (
-              <Badge variant="outline" className="ml-auto">
+              <Badge variant="outline" className="self-start sm:self-auto sm:ml-auto text-xs">
                 Viewing as Superadmin
               </Badge>
             )}

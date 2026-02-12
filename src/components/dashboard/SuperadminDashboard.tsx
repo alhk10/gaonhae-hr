@@ -175,10 +175,10 @@ const SuperadminDashboard = () => {
   // Show error state if critical data fails to load
   if (statsError) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Superadmin Dashboard</h2>
-          <p className="text-red-600">Error loading dashboard data. Please refresh the page.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
+          <p className="text-destructive">Error loading dashboard data. Please refresh the page.</p>
         </div>
       </div>
     );
@@ -186,32 +186,32 @@ const SuperadminDashboard = () => {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Superadmin Dashboard</h2>
-          <p className="text-gray-600">Complete oversight of HR operations</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Complete oversight of HR operations</p>
         </div>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
         </TabsList>
       </div>
 
-      <TabsContent value="overview" className="space-y-6 mt-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
           {statsConfig.map((stat) => (
             <Card key={stat.title} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+              <CardContent className="p-3 md:p-6">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs md:text-sm font-medium text-muted-foreground truncate">{stat.title}</p>
                     {statsLoading ? (
-                      <Skeleton className="h-8 w-16 mt-1" />
+                      <Skeleton className="h-6 md:h-8 w-12 md:w-16 mt-1" />
                     ) : (
-                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                      <p className="text-lg md:text-2xl font-bold text-foreground">{stat.value}</p>
                     )}
                   </div>
-                  <div className={`${stat.color} p-3 rounded-lg`}>
-                    <stat.icon className="w-6 h-6 text-white" />
+                  <div className={`${stat.color} p-2 md:p-3 rounded-lg shrink-0`}>
+                    <stat.icon className="w-4 h-4 md:w-6 md:h-6 text-white" />
                   </div>
                 </div>
               </CardContent>
