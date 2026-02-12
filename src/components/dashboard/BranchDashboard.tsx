@@ -558,45 +558,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
             </CardContent>
           </Card>
 
-          {/* Invoice View/Edit Dialog */}
-          {selectedInvoiceId && (
-            <ViewEditInvoiceDialog
-              invoiceId={selectedInvoiceId}
-              open={invoiceDialogOpen}
-              onOpenChange={(open) => { setInvoiceDialogOpen(open); if (!open) setSelectedInvoiceId(null); }}
-              onInvoiceUpdated={refreshData}
-              initialMode={invoiceDialogMode}
-            />
-          )}
-
-          {/* Payment View/Edit Dialog */}
-          {selectedPaymentId && (
-            <ViewEditPaymentDialog
-              paymentId={selectedPaymentId}
-              open={paymentDialogOpen}
-              onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) setSelectedPaymentId(null); }}
-              onPaymentUpdated={refreshData}
-              initialMode={paymentDialogMode}
-            />
-          )}
-
-          {/* Delete Confirmation */}
-          <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete {deleteTarget?.type}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete {deleteTarget?.type} "{deleteTarget?.label}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </TabsContent>
 
         <TabsContent value="approvals">
@@ -665,6 +626,46 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <BranchWeeklyTimetable branchId={branchId} />
         </TabsContent>
       </Tabs>
+
+      {/* Invoice View/Edit Dialog */}
+      {selectedInvoiceId && (
+        <ViewEditInvoiceDialog
+          invoiceId={selectedInvoiceId}
+          open={invoiceDialogOpen}
+          onOpenChange={(open) => { setInvoiceDialogOpen(open); if (!open) setSelectedInvoiceId(null); }}
+          onInvoiceUpdated={refreshData}
+          initialMode={invoiceDialogMode}
+        />
+      )}
+
+      {/* Payment View/Edit Dialog */}
+      {selectedPaymentId && (
+        <ViewEditPaymentDialog
+          paymentId={selectedPaymentId}
+          open={paymentDialogOpen}
+          onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) setSelectedPaymentId(null); }}
+          onPaymentUpdated={refreshData}
+          initialMode={paymentDialogMode}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.type}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {deleteTarget?.type} "{deleteTarget?.label}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
