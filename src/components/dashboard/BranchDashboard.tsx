@@ -394,14 +394,23 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               ) : (
                 <div className="divide-y">
                   {filteredStudents.slice(0, 20).map((student) => (
-                    <div key={student.id} className="p-4 flex items-center justify-between hover:bg-muted/50">
+                    <div
+                      key={student.id}
+                      className="p-4 flex items-center justify-between hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        setSelectedStudent(student as Student);
+                        setStudentDetailsOpen(true);
+                      }}
+                    >
                       <div>
                         <p className="font-medium">
                           {student.first_name} {student.last_name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {student.email || 'No email'}
-                        </p>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          {student.phone && <span>{student.phone}</span>}
+                          {student.phone && student.email && <span>•</span>}
+                          <span>{student.email || 'No email'}</span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={student.current_belt ? 'default' : 'secondary'}>
@@ -410,17 +419,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                         <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
                           {student.status}
                         </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedStudent(student as Student);
-                            setStudentDetailsOpen(true);
-                          }}
-                          title="View student details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   ))}
