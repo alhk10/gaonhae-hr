@@ -107,10 +107,10 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         setLocationError('');
         console.log('Location exception active - clock in enabled');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Dashboard: Location check failed:', error);
       setLocationCheckPassed(false);
-      const errorMessage = error instanceof Error ? error.message : 'Location check failed';
+      const errorMessage = error?.message || (error instanceof Error ? error.message : 'Location check failed. Please check your browser location settings.');
       setLocationError(errorMessage);
     } finally {
       setIsCheckingLocation(false);
@@ -372,8 +372,8 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         if (locationCheck.hasException) {
           console.log('Using admin location exception for clock in/out');
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Location access failed';
+      } catch (error: any) {
+        const errorMessage = error?.message || (error instanceof Error ? error.message : 'Location access failed. Please check settings.');
         toast.error(errorMessage);
         setLocationError(errorMessage);
         return;

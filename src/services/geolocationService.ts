@@ -30,31 +30,42 @@ export const calculateDistance = (
   return R * c; // Distance in meters
 };
 
-// Check if employee has location exception
-export const hasLocationException = async (employeeId: string): Promise<boolean> => {
-  try {
-    logger.debug('Checking location exception for employee', { employeeId });
-    
-    const { data, error } = await supabase
-      .from('location_exceptions')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .eq('enabled', true)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-      .maybeSingle();
+// Check if employee has location exception (with retry for resilience on mobile)
+export const hasLocationException = async (employeeId: string, retries: number = 2): Promise<boolean> => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      logger.debug('Checking location exception for employee', { employeeId, attempt });
+      
+      const { data, error } = await supabase
+        .from('location_exceptions')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('enabled', true)
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .maybeSingle();
 
-    if (error) {
-      logger.error('Error checking location exception', error);
+      if (error) {
+        logger.error('Error checking location exception', { error, attempt });
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+          continue;
+        }
+        return false;
+      }
+
+      const hasException = !!data;
+      logger.debug('Location exception check result', { employeeId, hasException, attempt });
+      return hasException;
+    } catch (error) {
+      logger.error('Error in hasLocationException', { error, attempt });
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
       return false;
     }
-
-    const hasException = !!data;
-    logger.debug('Location exception check result', { employeeId, hasException });
-    return hasException;
-  } catch (error) {
-    logger.error('Error in hasLocationException', error);
-    return false;
   }
+  return false;
 };
 
 // Get current user location with better error handling
@@ -108,15 +119,17 @@ export const getCurrentLocation = (): Promise<Coordinates> => {
   });
 };
 
-// Updated Singapore branch coordinates with more accurate locations
+// Singapore branch coordinates - verified against actual addresses
 const BRANCH_COORDINATES: { [key: string]: Coordinates } = {
-  'Headquarters': { latitude: 1.2786, longitude: 103.8480 }, // CBD area
-  'Balmoral': { latitude: 1.3200, longitude: 103.8450 }, // Balmoral area
-  'Jurong West': { latitude: 1.3404, longitude: 103.7090 }, // Jurong West
-  'Kembangan': { latitude: 1.3210, longitude: 103.9130 }, // Kembangan
-  'Yishun': { latitude: 1.4304, longitude: 103.8354 }, // Yishun
-  'Bukit Merah': { latitude: 1.2830, longitude: 103.8200 }, // Bukit Merah
-  'Main Office': { latitude: 1.2786, longitude: 103.8480 }, // Default to CBD
+  'Headquarters': { latitude: 1.3131, longitude: 103.8268 }, // 271 Bukit Timah Road, Balmoral Plaza
+  'Balmoral': { latitude: 1.3131, longitude: 103.8268 }, // 271 Bukit Timah Road, Balmoral Plaza
+  'Jurong West': { latitude: 1.3494, longitude: 103.6988 }, // Block 960 Jurong West Street 92
+  'Kembangan': { latitude: 1.3210, longitude: 103.9130 }, // 18 Jalan Masjid, Kembangan Plaza
+  'Yishun': { latitude: 1.4304, longitude: 103.8354 }, // Block 418 Yishun Ave 11
+  'Bukit Merah': { latitude: 1.2830, longitude: 103.8200 }, // Block 162 Bukit Merah Central
+  'Main Office': { latitude: 1.3131, longitude: 103.8268 }, // Same as Balmoral Plaza
+  'Carpe Diem Jurong West': { latitude: 1.3440, longitude: 103.6960 }, // Blk 739 Jurong West Street 73
+  'Carpe Diem Stradia': { latitude: 1.3770, longitude: 103.8590 }, // 78 Yio Chu Kang Road
 };
 
 // Updated function to check location with admin override support
