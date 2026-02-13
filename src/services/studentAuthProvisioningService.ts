@@ -82,7 +82,7 @@ export const createStudentAuthAccount = async (
     let passwordResetSent = false;
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}/auth/reset-password`
       });
       
       if (resetError) {
@@ -130,7 +130,7 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 export const sendPasswordResetEmail = async (email: string): Promise<boolean> => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
-      redirectTo: `${window.location.origin}/`
+      redirectTo: `${window.location.origin}/auth/reset-password`
     });
     
     if (error) {

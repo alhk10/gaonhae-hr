@@ -134,7 +134,7 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCrea
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         normalizedEmail,
         {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/auth/reset-password`
         }
       );
 
