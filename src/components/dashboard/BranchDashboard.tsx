@@ -516,12 +516,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                             href={payment.proof_of_payment_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 w-[126px] h-[126px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
+                            className="shrink-0 w-[252px] max-h-[252px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
                           >
                             <img
                               src={payment.proof_of_payment_url}
                               alt="Payment proof"
-                              className="w-full h-full object-cover"
+                              className="w-full h-auto object-contain"
                             />
                           </a>
                           <div className="min-w-0 flex-1">
