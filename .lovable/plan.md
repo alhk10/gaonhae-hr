@@ -1,39 +1,25 @@
 
 
-## Payment Verification Section in Branch Dashboard
+## Default Filter: Show All Unpaid Invoices
 
 ### Overview
-Add a "Payment Verification" section within the Invoice & Payment tab that lists all unverified payments with their uploaded proof documents. Staff can view the proof, then mark payments as verified, which updates the related invoice status to "verified".
+Change the Invoice & Payment tab to default to showing all unpaid invoices (instead of the last 20 from all statuses), and show all related payments without the 20-item slice limit.
 
-### Database Changes
+### Changes
 
-**Add columns to `payments` table:**
-- `is_verified` (boolean, default false) -- whether the payment has been manually verified
-- `verified_by` (text, nullable) -- employee ID who verified
-- `verified_at` (timestamptz, nullable) -- when verification occurred
+**File: `src/components/dashboard/BranchDashboard.tsx`**
 
-### UI Changes (BranchDashboard.tsx)
+1. **Invoice query** (line ~121-126): Add a filter to only fetch unpaid invoices by default -- filter for statuses `draft`, `sent`, `unpaid`, `partial`, `overdue` using `.in('status', [...])`. Remove the `.limit(50)` so all unpaid invoices are returned.
 
-1. **Payment Verification Section** -- A new subsection at the top of the Invoice & Payment tab content, shown only when there are unverified payments (payments where `is_verified = false` and `proof_of_payment_url` is not null, and payment method is not cash).
+2. **Invoice display** (line ~597): Remove `.slice(0, 20)` so all fetched invoices are shown.
 
-2. **Verification Card per Payment** -- Each unverified payment shows:
-   - Payment number, student name, amount, date, payment method
-   - A "View Proof" button linking to the uploaded `proof_of_payment_url`
-   - A "Verify" button that marks the payment as verified and updates the invoice status to "verified"
+3. **Payment display** (line ~635): Remove `.slice(0, 20)` so all fetched payments are shown.
 
-3. **Verify Action Flow:**
-   - On clicking "Verify", update `payments` row: `is_verified = true`, `verified_by = currentUser.employeeId`, `verified_at = now()`
-   - Update the related `invoices` row: set `status = 'verified'` (only if currently 'paid')
-   - Invalidate relevant queries to refresh the list
+4. **Payment query** (line ~136-142): Remove `.limit(50)` to allow all payments to load.
 
-### Technical Details
-
-- Query unverified payments: filter `branch-payments` data client-side for `is_verified === false` and non-cash methods with proof URLs
-- The verification section auto-hides when all payments are verified (zero pending)
-- Badge count for unverified payments shown in the section header
-- Uses existing `useAuth` for `verified_by` employee ID
-
-### Files to Modify
-- **Migration**: Add `is_verified`, `verified_by`, `verified_at` columns to `payments`
-- **src/components/dashboard/BranchDashboard.tsx**: Add verification section UI, verify handler, updated payment query to include new fields
+### Technical Notes
+- The invoice query will use `.in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue'])` to fetch only unpaid invoices by default
+- Both `.slice(0, 20)` caps on display will be removed
+- Both `.limit(50)` caps on queries will be removed
+- The query key will be updated to reflect the filter so cache works correctly
 
