@@ -2600,6 +2600,7 @@ export type Database = {
           created_by: string | null
           id: string
           invoice_id: string
+          is_verified: boolean
           notes: string | null
           payment_date: string
           payment_method: string
@@ -2609,6 +2610,8 @@ export type Database = {
           reference_number: string | null
           updated_at: string
           updated_by: string | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           amount: number
@@ -2616,6 +2619,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           invoice_id: string
+          is_verified?: boolean
           notes?: string | null
           payment_date?: string
           payment_method: string
@@ -2625,6 +2629,8 @@ export type Database = {
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           amount?: number
@@ -2632,6 +2638,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           invoice_id?: string
+          is_verified?: boolean
           notes?: string | null
           payment_date?: string
           payment_method?: string
@@ -2641,6 +2648,8 @@ export type Database = {
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {

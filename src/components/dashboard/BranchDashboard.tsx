@@ -14,7 +14,9 @@ import {
   FileText,
   DollarSign,
   Edit,
-  Trash2
+  Trash2,
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -484,6 +486,105 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Payment Verification Section */}
+              {(() => {
+                const unverifiedPayments = payments.filter(
+                  (p: any) =>
+                    !p.is_verified &&
+                    p.proof_of_payment_url &&
+                    p.payment_method !== 'cash'
+                );
+                if (unverifiedPayments.length === 0) return null;
+                return (
+                  <div className="border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-orange-600" />
+                      <h4 className="font-medium text-foreground">
+                        Payment Verification
+                      </h4>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                        {unverifiedPayments.length} pending
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {unverifiedPayments.map((payment: any) => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-3 bg-background rounded-lg border"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm">
+                              {payment.invoices?.invoice_number || 'N/A'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {payment.invoices?.students
+                                ? `${payment.invoices.students.first_name} ${payment.invoices.students.last_name}`
+                                : 'Unknown'}{' '}
+                              · ${payment.amount?.toFixed(2)} ·{' '}
+                              {format(new Date(payment.payment_date), 'dd MMM yyyy')} ·{' '}
+                              <span className="capitalize">
+                                {payment.payment_method?.replace('_', ' ')}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                window.open(payment.proof_of_payment_url, '_blank')
+                              }
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              View Proof
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const { error: paymentError } = await supabase
+                                    .from('payments')
+                                    .update({
+                                      is_verified: true,
+                                      verified_by: user?.employeeId || null,
+                                      verified_at: new Date().toISOString(),
+                                    })
+                                    .eq('id', payment.id);
+                                  if (paymentError) throw paymentError;
+
+                                  // Update invoice status to verified if currently paid
+                                  if (payment.invoice_id) {
+                                    const { error: invoiceError } = await supabase
+                                      .from('invoices')
+                                      .update({ status: 'verified' })
+                                      .eq('id', payment.invoice_id)
+                                      .eq('status', 'paid');
+                                    if (invoiceError) throw invoiceError;
+                                  }
+
+                                  queryClient.invalidateQueries({
+                                    queryKey: ['branch-payments', branchId],
+                                  });
+                                  queryClient.invalidateQueries({
+                                    queryKey: ['branch-invoices', branchId],
+                                  });
+                                  toast.success('Payment verified successfully');
+                                } catch (error) {
+                                  toast.error('Failed to verify payment');
+                                }
+                              }}
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Verify
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Invoices Section */}
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">Invoices</h4>
