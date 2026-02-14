@@ -116,14 +116,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   // Fetch invoices for this branch with student names
   const { data: invoices = [] } = useQuery({
-    queryKey: ['branch-invoices', branchId],
+    queryKey: ['branch-invoices', branchId, 'unpaid'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('invoices')
         .select('*, students(first_name, last_name)')
         .eq('branch_id', branchId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue'])
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -138,8 +138,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         .from('payments')
         .select('*, invoices!inner(invoice_number, branch_id, students(first_name, last_name))')
         .eq('invoices.branch_id', branchId)
-        .order('payment_date', { ascending: false })
-        .limit(50);
+        .order('payment_date', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -594,7 +593,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   <p className="text-center text-muted-foreground py-4">No invoices found</p>
                 ) : (
                   <div className="space-y-2">
-                    {invoices.slice(0, 20).map((invoice: any) => (
+                    {invoices.map((invoice: any) => (
                       <div key={invoice.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium">{invoice.invoice_number}</p>
@@ -632,7 +631,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   <p className="text-center text-muted-foreground py-4">No payments found</p>
                 ) : (
                   <div className="space-y-2">
-                    {payments.slice(0, 20).map((payment: any) => (
+                    {payments.map((payment: any) => (
                       <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium">{payment.invoices?.invoice_number || 'N/A'}</p>
