@@ -96,8 +96,8 @@ export const addAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 
     .insert({
       employee_id: record.employeeId,
       date: record.date,
-      check_in: record.checkIn,
-      check_out: record.checkOut,
+      check_in: record.checkIn || null,
+      check_out: record.checkOut || null,
       status: record.status,
       hours_worked: record.hoursWorked,
       location: record.location,
