@@ -355,29 +355,48 @@ const GradingListTab: React.FC = () => {
   // Batch save mutation
   const batchSaveMutation = useMutation({
     mutationFn: async () => {
-      const updates: Promise<any>[] = [];
+      const operations: Promise<any>[] = [];
       
       for (const [studentId, changes] of Object.entries(pendingChanges)) {
         const student = students.find(s => s.student_id === studentId);
-        if (!student?.registration_id) continue;
+        if (!student) continue;
         
-        const updateData: Record<string, any> = {};
-        if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
-        if (changes.result !== undefined) updateData.result = changes.result;
-        if (changes.grading_slot_id !== undefined) updateData.grading_slot_id = changes.grading_slot_id;
-        
-        if (Object.keys(updateData).length > 0) {
-          updates.push(
+        if (student.registration_id) {
+          // Update existing registration
+          const updateData: Record<string, any> = {};
+          if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
+          if (changes.result !== undefined) updateData.result = changes.result;
+          if (changes.grading_slot_id !== undefined) updateData.grading_slot_id = changes.grading_slot_id;
+          
+          if (Object.keys(updateData).length > 0) {
+            operations.push(
+              supabase
+                .from('grading_registrations')
+                .update(updateData)
+                .eq('id', student.registration_id)
+                .then(({ error }) => { if (error) throw error; }) as Promise<any>
+            );
+          }
+        } else {
+          // Create new registration for students without one
+          const insertData = {
+            student_id: studentId,
+            current_belt: student.current_belt || 'white',
+            target_belt: student.current_belt || 'white',
+            grading_slot_id: changes.grading_slot_id || 'placeholder',
+            ready_for_grading: changes.ready_for_grading || false,
+            result: changes.result || null,
+          } as const;
+          operations.push(
             supabase
               .from('grading_registrations')
-              .update(updateData)
-              .eq('id', student.registration_id)
+              .insert([insertData])
               .then(({ error }) => { if (error) throw error; }) as Promise<any>
           );
         }
       }
       
-      await Promise.all(updates);
+      await Promise.all(operations);
     },
     onSuccess: () => {
       setPendingChanges({});
@@ -559,7 +578,7 @@ const GradingListTab: React.FC = () => {
                               onCheckedChange={(checked) => {
                                 setLocalReady(student.student_id, !!checked, student.ready_for_grading);
                               }}
-                              disabled={!student.registration_id}
+                              disabled={false}
                             />
                           ) : (
                             <span className={effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
@@ -581,7 +600,7 @@ const GradingListTab: React.FC = () => {
                               onValueChange={(value) => {
                                 setLocalSlot(student.student_id, value === 'none' ? null : value, student.grading_slot_id);
                               }}
-                              disabled={!student.registration_id}
+                              disabled={false}
                             >
                               <SelectTrigger className="h-8">
                                 <SelectValue placeholder="Select..." />
@@ -616,7 +635,7 @@ const GradingListTab: React.FC = () => {
                               onValueChange={(value) => {
                                 setLocalResult(student.student_id, value === 'none' ? null : value, student.result);
                               }}
-                              disabled={!student.registration_id}
+                              disabled={false}
                             >
                               <SelectTrigger className="h-8">
                                 <SelectValue placeholder="Select..." />
