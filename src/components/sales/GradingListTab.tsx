@@ -600,7 +600,7 @@ const GradingListTab: React.FC = () => {
                               onValueChange={(value) => {
                                 setLocalSlot(student.student_id, value === 'none' ? null : value, student.grading_slot_id);
                               }}
-                              disabled={false}
+                              disabled={student.grading_paid !== 'paid'}
                             >
                               <SelectTrigger className="h-8">
                                 <SelectValue placeholder="Select..." />
@@ -635,7 +635,7 @@ const GradingListTab: React.FC = () => {
                               onValueChange={(value) => {
                                 setLocalResult(student.student_id, value === 'none' ? null : value, student.result);
                               }}
-                              disabled={false}
+                              disabled={student.grading_paid !== 'paid'}
                             >
                               <SelectTrigger className="h-8">
                                 <SelectValue placeholder="Select..." />
