@@ -1,66 +1,39 @@
 
 
-# Redesign Superadmin Dashboard Overview Tab
+## Payment Verification Section in Branch Dashboard
 
-## Overview
-Streamline the Superadmin Dashboard by removing several sections and adding a full slot booking management calendar with manage booking dialog -- identical to the Slot Booking page management tab.
+### Overview
+Add a "Payment Verification" section within the Invoice & Payment tab that lists all unverified payments with their uploaded proof documents. Staff can view the proof, then mark payments as verified, which updates the related invoice status to "verified".
 
-## Changes to `SuperadminDashboard.tsx`
+### Database Changes
 
-### Remove
-1. **Header description** -- Remove the "Complete oversight of HR operations" subtitle
-2. **Stats cards grid** -- Remove the entire grid of 7 stat cards (Total Employees, Pending Claims, etc.)
-3. **Recent Claims section** -- Remove the card showing latest submitted claims
-4. **System Status section** -- Remove the "System Operational" card
-5. **Class Weekly Planner** -- Remove the `<ClassWeeklyPlanner />` component and its import
-6. **Pending Student Updates alert** -- Remove the purple alert card (it relied on stats)
+**Add columns to `payments` table:**
+- `is_verified` (boolean, default false) -- whether the payment has been manually verified
+- `verified_by` (text, nullable) -- employee ID who verified
+- `verified_at` (timestamptz, nullable) -- when verification occurred
 
-### Conditionally Hide
-7. **Slot Booking Edit Approvals** -- Wrap `<SlotBookingEditApprovals />` to only render when `pendingEditRequestsCount > 0`
+### UI Changes (BranchDashboard.tsx)
 
-### Add
-8. **Slot Booking Management Calendar** -- Add a full calendar view identical to the one in `SlotBookingManagementContent.tsx`, including:
-   - Summary cards (Total Slots, Approved, Pending, Available)
-   - Branch filter dropdown
-   - Add Booking button and Settings button
-   - Monthly calendar with color-coded booking cards per day
-   - Selected date details with `BookingCardWithPay` component
-   - Full "Manage Booking" dialog on click (with Cancel, Reject, Approve, Swap Employee, Change Branch actions)
-   - Swap Employee dialog, Bulk Booking dialog, Cancel dialog
-   - Settings dialog (Weekly Slots, Pricing, Timing tabs)
+1. **Payment Verification Section** -- A new subsection at the top of the Invoice & Payment tab content, shown only when there are unverified payments (payments where `is_verified = false` and `proof_of_payment_url` is not null, and payment method is not cash).
 
-This will essentially embed `SlotBookingManagementContent` directly into the Overview tab.
+2. **Verification Card per Payment** -- Each unverified payment shows:
+   - Payment number, student name, amount, date, payment method
+   - A "View Proof" button linking to the uploaded `proof_of_payment_url`
+   - A "Verify" button that marks the payment as verified and updates the invoice status to "verified"
 
-### Remove unused queries/imports
-- Remove `getRecentActivity`, `getDashboardStats` queries
-- Remove `getAllPendingRequests` (student updates) query
-- Remove `ClassWeeklyPlanner` import
-- Remove stats-related state and config
-- Keep queries needed for conditional rendering of approval sections (pending counts)
+3. **Verify Action Flow:**
+   - On clicking "Verify", update `payments` row: `is_verified = true`, `verified_by = currentUser.employeeId`, `verified_at = now()`
+   - Update the related `invoices` row: set `status = 'verified'` (only if currently 'paid')
+   - Invalidate relevant queries to refresh the list
 
-## Technical Approach
+### Technical Details
 
-Rather than duplicating all the slot booking calendar code, import and render `SlotBookingManagementContent` directly inside the Overview tab. This ensures it stays identical to the slot booking page and avoids code duplication.
-
-```tsx
-import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
-
-// In the Overview TabsContent, after approval sections:
-<SlotBookingManagementContent />
-```
-
-### Resulting Overview Tab Layout
-1. Title: "Superadmin Dashboard" (no subtitle)
-2. Claims Approvals
-3. Leave Approvals
-4. Slot Booking Approvals
-5. Payment Deletion Approvals (if any)
-6. Invoice Deletion Approvals (if any)
-7. Grading Deletion Approvals (if any)
-8. Inventory Order Approvals
-9. Slot Booking Edit Approvals (only if pending requests exist)
-10. **Slot Booking Management Calendar** (full calendar + manage dialog)
+- Query unverified payments: filter `branch-payments` data client-side for `is_verified === false` and non-cash methods with proof URLs
+- The verification section auto-hides when all payments are verified (zero pending)
+- Badge count for unverified payments shown in the section header
+- Uses existing `useAuth` for `verified_by` employee ID
 
 ### Files to Modify
-- `src/components/dashboard/SuperadminDashboard.tsx`
+- **Migration**: Add `is_verified`, `verified_by`, `verified_at` columns to `payments`
+- **src/components/dashboard/BranchDashboard.tsx**: Add verification section UI, verify handler, updated payment query to include new fields
 
