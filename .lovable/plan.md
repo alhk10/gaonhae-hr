@@ -1,25 +1,43 @@
 
 
-## Default Filter: Show All Unpaid Invoices
+## Add Class Schedule Selection to Create Invoice Dialog
 
 ### Overview
-Change the Invoice & Payment tab to default to showing all unpaid invoices (instead of the last 20 from all statuses), and show all related payments without the 20-item slice limit.
+When the "Classes" category is selected and a term is chosen, show the `ClassScheduleSelector` component (already used in the Pay School Fees dialog) below the invoice items table. This lets admins pick specific weekly class slots for the student, with the selections stored in invoice item metadata.
 
 ### Changes
 
-**File: `src/components/dashboard/BranchDashboard.tsx`**
+**File: `src/components/sales/CreateInvoiceDialog.tsx`**
 
-1. **Invoice query** (line ~121-126): Add a filter to only fetch unpaid invoices by default -- filter for statuses `draft`, `sent`, `unpaid`, `partial`, `overdue` using `.in('status', [...])`. Remove the `.limit(50)` so all unpaid invoices are returned.
+1. **Import ClassScheduleSelector and date utils**: Add imports for `ClassScheduleSelector`, `differenceInYears`, `differenceInMonths`, and `calculateAge` helper.
 
-2. **Invoice display** (line ~597): Remove `.slice(0, 20)` so all fetched invoices are shown.
+2. **Add state for selected class slots**: Add `selectedClassSlots` state (`string[]`) to track selected slots in `classId_YYYY-MM-DD` format. Reset when term, branch, or student changes.
 
-3. **Payment display** (line ~635): Remove `.slice(0, 20)` so all fetched payments are shown.
+3. **Calculate student age**: Add a `studentAge` computation from the selected student's `date_of_birth` (need to fetch DOB from students table -- update `loadStudents` to include `date_of_birth`).
 
-4. **Payment query** (line ~136-142): Remove `.limit(50)` to allow all payments to load.
+4. **Show ClassScheduleSelector below items table**: When the Classes category is active and a term is selected, render the `ClassScheduleSelector` component between the items table and the totals section. Pass: `branchId`, `studentAge`, `selectedSlots`, `onSlotsChange`, and `term` (the selected term object).
 
-### Technical Notes
-- The invoice query will use `.in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue'])` to fetch only unpaid invoices by default
-- Both `.slice(0, 20)` caps on display will be removed
-- Both `.limit(50)` caps on queries will be removed
-- The query key will be updated to reflect the filter so cache works correctly
+5. **Store slots in invoice item metadata**: When adding the Classes item, include `selected_class_slots` array in the metadata alongside `term_id`.
+
+6. **Update InvoiceItem interface**: Add optional `selected_class_slots: string[]` field.
+
+7. **Reset class slots on context changes**: Clear `selectedClassSlots` when branch, student, term, or category changes.
+
+### Technical Details
+
+- Reuses the existing `ClassScheduleSelector` component from `src/components/dashboard/ClassScheduleSelector.tsx` -- no new components needed
+- The selector displays a grid of term weeks (rows) x operating days (columns), with clickable class type buttons per cell
+- Student age filtering ensures only age-appropriate classes appear
+- Past dates and public holidays are automatically excluded
+- Selected slots are stored as `["timetableId_YYYY-MM-DD", ...]` in `invoice_items.metadata.selected_class_slots`
+- No database migration needed -- metadata is already a JSONB column
+- Students table query updated to include `date_of_birth` for age calculation
+
+### UI Flow
+1. Admin selects Branch and Student
+2. Selects "Classes" category, picks a product and term
+3. The ClassScheduleSelector appears below the items table showing the term weeks grid
+4. Admin clicks class slots to select/deselect them
+5. Admin clicks "+" to add the item (slots saved in metadata)
+6. The selector resets for the next item
 
