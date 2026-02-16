@@ -4,7 +4,7 @@
  * Supports branch-based access control for non-superadmin users
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,10 +23,21 @@ import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
+import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
+import { differenceInYears, differenceInMonths } from 'date-fns';
 
 interface CreateInvoiceDialogProps {
   trigger: React.ReactNode;
   onInvoiceCreated?: () => void;
+}
+
+// Calculate age in decimal years
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  const years = differenceInYears(today, dob);
+  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
+  return years + (monthsAfterBirthday / 12);
 }
 
 interface InvoiceItem {
@@ -41,6 +52,7 @@ interface InvoiceItem {
   term_name?: string;
   grading_slot_id?: string;
   grading_slot_title?: string;
+  selected_class_slots?: string[];
   total: number;
 }
 
@@ -106,7 +118,8 @@ const isProductAvailableForBelt = (
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
+  const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -175,7 +188,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         email: s.email || '',
         branch_id: s.branch_id,
         status: s.status,
-        current_belt: s.current_belt
+        current_belt: s.current_belt,
+        date_of_birth: s.date_of_birth
       })));
     } catch (error) {
       console.error('Error loading students:', error);
@@ -326,7 +340,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           unit_price: item.unit_price,
           size_variant: item.size_variant || undefined,
           metadata: item.term_id 
-            ? { term_id: item.term_id } 
+            ? { term_id: item.term_id, ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}) } 
             : item.grading_slot_id 
               ? { grading_slot_id: item.grading_slot_id }
               : undefined
@@ -367,6 +381,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     });
     setBranchTerms([]);
     setTermError(null);
+    setSelectedClassSlots([]);
   };
 
   const handleInputChange = async (field: string, value: any) => {
@@ -374,6 +389,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     
     // Load terms when branch changes
     if (field === 'branch_id') {
+      setSelectedClassSlots([]);
       loadBranchTerms(value);
       
       // Refresh term selection if Classes category is selected
@@ -384,9 +400,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
     
     // Refresh term selection when student changes (if Classes category selected)
-    if (field === 'student_id' && selectedCategory?.name === 'Classes' && formData.branch_id) {
-      const selectedTermId = await refreshTermSelection(formData.branch_id, value);
-      setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
+    if (field === 'student_id') {
+      setSelectedClassSlots([]);
+      if (selectedCategory?.name === 'Classes' && formData.branch_id) {
+        const selectedTermId = await refreshTermSelection(formData.branch_id, value);
+        setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
+      }
     }
   };
 
@@ -551,6 +570,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     let selectedTermId = '';
     
     setTermError(null);
+    setSelectedClassSlots([]);
     
     if (category?.name === 'Classes') {
       // Set quantity defaults based on country
@@ -602,6 +622,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   };
 
   const handleNewItemChange = (field: string, value: any) => {
+    // Reset class slots when term changes
+    if (field === 'term_id') {
+      setSelectedClassSlots([]);
+    }
+    
     setNewItem(prev => {
       const updated = { ...prev, [field]: value };
       
@@ -622,6 +647,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Get selected student's belt for filtering
   const selectedStudent = students.find(s => s.id === formData.student_id);
   const studentBelt = selectedStudent?.current_belt || '';
+
+  // Calculate student age for class schedule filtering
+  const studentAge = useMemo(() => {
+    if (!selectedStudent?.date_of_birth) return 0;
+    return calculateAge(selectedStudent.date_of_birth);
+  }, [selectedStudent?.date_of_birth]);
 
   // Get filtered grading slots based on selected branch and student's current belt
   const getFilteredGradingSlots = (): GradingSlot[] => {
@@ -744,10 +775,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       term_name: term?.name || undefined,
       grading_slot_id: newItem.grading_slot_id || undefined,
       grading_slot_title: gradingSlot?.title || undefined,
+      selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
       total: newItem.quantity * newItem.unit_price
     };
 
     setItems([...items, item]);
+    setSelectedClassSlots([]);
     setNewItem({
       product_id: '',
       category_id: newItem.category_id, // Keep category selected
@@ -1096,6 +1129,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
             {termError && selectedCategory?.name === 'Classes' && (
               <p className="text-sm text-destructive">{termError}</p>
+            )}
+
+            {/* Class Schedule Selector - shown when Classes category is active and term is selected */}
+            {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Select Class Schedule</h4>
+                <ClassScheduleSelector
+                  branchId={formData.branch_id}
+                  studentAge={studentAge}
+                  selectedSlots={selectedClassSlots}
+                  onSlotsChange={setSelectedClassSlots}
+                  term={branchTerms.find(t => t.id === newItem.term_id)!}
+                />
+              </div>
             )}
 
             {/* Totals Section - After Invoice Items */}
