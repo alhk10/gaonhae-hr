@@ -200,11 +200,27 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
         }
 
         // Sync student_scheduled_classes: find enrollment linked to this invoice item
-        const { data: enrollment } = await supabase
+        // First try by invoice_item_id, then fall back to matching by student + term
+        let enrollment: { id: string } | null = null;
+        const { data: enrollmentByItem } = await supabase
           .from('student_class_enrollments')
           .select('id')
           .eq('invoice_item_id', itemId)
           .maybeSingle();
+        
+        enrollment = enrollmentByItem;
+
+        // Fallback: find enrollment by student_id + term_id from metadata
+        if (!enrollment && invoice.student_id && existingMetadata?.term_id) {
+          const { data: enrollmentByTerm } = await supabase
+            .from('student_class_enrollments')
+            .select('id')
+            .eq('student_id', invoice.student_id)
+            .eq('term_id', existingMetadata.term_id)
+            .eq('status', 'active')
+            .maybeSingle();
+          enrollment = enrollmentByTerm;
+        }
 
         if (enrollment) {
           // Delete existing scheduled classes that haven't been attended
