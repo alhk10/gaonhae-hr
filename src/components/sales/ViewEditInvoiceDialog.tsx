@@ -3,7 +3,7 @@
  * Displays invoice details and allows editing permitted fields
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,11 @@ import { createDeletionRequest } from '@/services/paymentDeletionRequestService'
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2 } from 'lucide-react';
+import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
+import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
+import { getTerm, type Term } from '@/services/termCalendarService';
 
 interface ViewEditInvoiceDialogProps {
   invoiceId: string;
@@ -58,12 +61,77 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [deleteReason, setDeleteReason] = useState('');
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
+  // Class slots editing state
+  const [editingClassSlots, setEditingClassSlots] = useState<Record<string, string[]>>({});
+  const [studentDob, setStudentDob] = useState<string | null>(null);
+  const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
+
   useEffect(() => {
     if (open && invoiceId) {
       loadInvoiceData();
       setMode(initialMode);
     }
   }, [open, invoiceId, initialMode]);
+
+  // When entering edit mode, initialize editingClassSlots from item metadata
+  useEffect(() => {
+    if (mode === 'edit' && invoice) {
+      const slots: Record<string, string[]> = {};
+      invoice.items.forEach((item) => {
+        const metadata = item.metadata as any;
+        if (metadata?.selected_class_slots) {
+          slots[item.id] = [...metadata.selected_class_slots];
+        }
+      });
+      setEditingClassSlots(slots);
+    }
+  }, [mode, invoice]);
+
+  // Fetch student DOB and term data when invoice loads
+  useEffect(() => {
+    if (!invoice) return;
+
+    // Fetch student DOB
+    const fetchStudentDob = async () => {
+      const { data } = await supabase
+        .from('students')
+        .select('date_of_birth')
+        .eq('id', invoice.student_id)
+        .maybeSingle();
+      if (data?.date_of_birth) setStudentDob(data.date_of_birth);
+    };
+
+    // Fetch term data for items that have term_id or term_ids in metadata
+    const fetchTermData = async () => {
+      const termIds = new Set<string>();
+      invoice.items.forEach((item) => {
+        const metadata = item.metadata as any;
+        if (metadata?.term_id) termIds.add(metadata.term_id);
+        if (metadata?.term_ids) {
+          (metadata.term_ids as string[]).forEach((id: string) => termIds.add(id));
+        }
+      });
+      if (termIds.size === 0) return;
+
+      const termMap: Record<string, Term> = {};
+      await Promise.all(
+        Array.from(termIds).map(async (id) => {
+          const term = await getTerm(id);
+          if (term) termMap[id] = term;
+        })
+      );
+      setTermDataMap(termMap);
+    };
+
+    fetchStudentDob();
+    fetchTermData();
+  }, [invoice]);
+
+  // Calculate student age
+  const studentAge = useMemo(() => {
+    if (!studentDob) return 0;
+    return differenceInYears(new Date(), parseISO(studentDob));
+  }, [studentDob]);
 
   const loadInvoiceData = async () => {
     setLoading(true);
@@ -113,6 +181,23 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
         .eq('id', invoice.id);
 
       if (error) throw error;
+
+      // Update class slots in invoice_items metadata
+      for (const [itemId, slots] of Object.entries(editingClassSlots)) {
+        const item = invoice.items.find((i) => i.id === itemId);
+        if (!item) continue;
+        const existingMetadata = (item.metadata as any) || {};
+        const { error: itemError } = await supabase
+          .from('invoice_items')
+          .update({
+            metadata: { ...existingMetadata, selected_class_slots: slots },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', itemId);
+        if (itemError) {
+          console.error('Error updating item class slots:', itemError);
+        }
+      }
 
       toast.success('Invoice updated successfully');
       setMode('view');
@@ -362,22 +447,87 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoice.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{item.product_name || item.description}</div>
-                        {item.size_variant && (
-                          <div className="text-xs text-muted-foreground">Size: {item.size_variant}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.tax_amount)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(item.total_amount)}</TableCell>
-                  </TableRow>
-                ))}
+                {invoice.items.map((item) => {
+                  const metadata = item.metadata as any;
+                  const classSlots: string[] = mode === 'edit' 
+                    ? (editingClassSlots[item.id] || metadata?.selected_class_slots || [])
+                    : (metadata?.selected_class_slots || []);
+                  const hasClassSlots = classSlots.length > 0 || metadata?.selected_class_slots;
+                  const termIds: string[] = metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []);
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <TableRow>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{item.product_name || item.description}</div>
+                            {item.size_variant && (
+                              <div className="text-xs text-muted-foreground">Size: {item.size_variant}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.tax_amount)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(item.total_amount)}</TableCell>
+                      </TableRow>
+
+                      {/* Display class dates */}
+                      {hasClassSlots && classSlots.length > 0 && (
+                        <TableRow className="border-0 hover:bg-transparent">
+                          <TableCell colSpan={5} className="pt-0 pb-2">
+                            <div className="flex flex-wrap gap-1 items-center">
+                              <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
+                              {classSlots
+                                .map((slot: string) => {
+                                  const datePart = slot.split('_')[1];
+                                  if (!datePart) return null;
+                                  try {
+                                    return { slot, date: parseISO(datePart), dateStr: datePart };
+                                  } catch { return null; }
+                                })
+                                .filter(Boolean)
+                                .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
+                                .map((info: any) => (
+                                  <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {format(info.date, 'EEE d MMM')}
+                                  </Badge>
+                                ))}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+
+                      {/* ClassScheduleSelector in edit mode */}
+                      {mode === 'edit' && hasClassSlots && termIds.length > 0 && invoice.branch_id && (
+                        <TableRow className="border-0 hover:bg-transparent">
+                          <TableCell colSpan={5} className="pt-0 pb-4">
+                            <div className="space-y-3">
+                              {termIds.map((termId: string) => {
+                                const term = termDataMap[termId];
+                                if (!term) return null;
+                                return (
+                                  <div key={termId} className="space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground">{term.name}</div>
+                                    <ClassScheduleSelector
+                                      branchId={invoice.branch_id!}
+                                      studentAge={studentAge}
+                                      selectedSlots={editingClassSlots[item.id] || []}
+                                      onSlotsChange={(slots) =>
+                                        setEditingClassSlots((prev) => ({ ...prev, [item.id]: slots }))
+                                      }
+                                      term={term}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
 
