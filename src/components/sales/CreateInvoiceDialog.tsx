@@ -6,6 +6,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,7 +23,7 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, ChevronsUpDown } from 'lucide-react';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
 import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
@@ -48,8 +51,8 @@ interface InvoiceItem {
   unit_price: number;
   size_variant?: string;
   color_variant?: string;
-  term_id?: string;
-  term_name?: string;
+  term_ids?: string[];
+  term_names?: string[];
   grading_slot_id?: string;
   grading_slot_title?: string;
   selected_class_slots?: string[];
@@ -120,6 +123,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
   const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
+  const [selectedTermIds, setSelectedTermIds] = useState<string[]>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -148,7 +152,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     unit_price: 0,
     size_variant: '',
     color_variant: '',
-    term_id: '',
     grading_slot_id: ''
   });
 
@@ -339,8 +342,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           quantity: item.quantity,
           unit_price: item.unit_price,
           size_variant: item.size_variant || undefined,
-          metadata: item.term_id 
-            ? { term_id: item.term_id, ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}) } 
+          metadata: item.term_ids?.length 
+            ? { 
+                term_id: item.term_ids[0], // backward compat
+                term_ids: item.term_ids, 
+                ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}) 
+              } 
             : item.grading_slot_id 
               ? { grading_slot_id: item.grading_slot_id }
               : undefined
@@ -376,12 +383,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: '',
       grading_slot_id: ''
     });
     setBranchTerms([]);
     setTermError(null);
     setSelectedClassSlots([]);
+    setSelectedTermIds([]);
   };
 
   const handleInputChange = async (field: string, value: any) => {
@@ -390,21 +397,23 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     // Load terms when branch changes
     if (field === 'branch_id') {
       setSelectedClassSlots([]);
+      setSelectedTermIds([]);
       loadBranchTerms(value);
       
-      // Refresh term selection if Classes category is selected
+      // Auto-select term if Classes category is selected
       if (selectedCategory?.name === 'Classes' && formData.student_id) {
         const selectedTermId = await refreshTermSelection(value, formData.student_id);
-        setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
+        if (selectedTermId) setSelectedTermIds([selectedTermId]);
       }
     }
     
     // Refresh term selection when student changes (if Classes category selected)
     if (field === 'student_id') {
       setSelectedClassSlots([]);
+      setSelectedTermIds([]);
       if (selectedCategory?.name === 'Classes' && formData.branch_id) {
         const selectedTermId = await refreshTermSelection(formData.branch_id, value);
-        setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
+        if (selectedTermId) setSelectedTermIds([selectedTermId]);
       }
     }
   };
@@ -567,10 +576,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     
     let defaultQuantity = 1;
-    let selectedTermId = '';
     
     setTermError(null);
     setSelectedClassSlots([]);
+    setSelectedTermIds([]);
     
     if (category?.name === 'Classes') {
       // Set quantity defaults based on country
@@ -582,20 +591,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       
       // Auto-select term if branch and student are selected
       if (formData.branch_id && formData.student_id) {
-        selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+        const selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+        if (selectedTermId) setSelectedTermIds([selectedTermId]);
       }
     }
     
     setNewItem(prev => ({
       ...prev,
       category_id: categoryId,
-      product_id: '', // Reset product when category changes
+      product_id: '',
       quantity: defaultQuantity,
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: selectedTermId,
-      grading_slot_id: '' // Reset grading slot when category changes
+      grading_slot_id: ''
     }));
   };
 
@@ -604,11 +613,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const product = products.find(p => p.id === productId);
     const isClassesCategory = selectedCategory?.name === 'Classes';
     
-    let selectedTermId = newItem.term_id;
-    
     // Refresh term when product changes (for Classes category)
-    if (isClassesCategory && formData.branch_id && formData.student_id) {
-      selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+    if (isClassesCategory && formData.branch_id && formData.student_id && selectedTermIds.length === 0) {
+      const selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+      if (selectedTermId) setSelectedTermIds([selectedTermId]);
     }
     
     setNewItem(prev => ({
@@ -616,17 +624,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       product_id: productId,
       unit_price: product?.base_price || 0,
       size_variant: '',
-      color_variant: '',
-      term_id: selectedTermId
+      color_variant: ''
     }));
   };
 
   const handleNewItemChange = (field: string, value: any) => {
-    // Reset class slots when term changes
-    if (field === 'term_id') {
-      setSelectedClassSlots([]);
-    }
-    
     setNewItem(prev => {
       const updated = { ...prev, [field]: value };
       
@@ -701,10 +703,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Auto-select term if only 1 option available for Classes category
   useEffect(() => {
     const categoryName = categories.find(c => c.id === newItem.category_id)?.name;
-    if (categoryName === 'Classes' && branchTerms.length === 1 && !newItem.term_id) {
-      handleNewItemChange('term_id', branchTerms[0].id);
+    if (categoryName === 'Classes' && branchTerms.length === 1 && selectedTermIds.length === 0) {
+      setSelectedTermIds([branchTerms[0].id]);
+      setSelectedClassSlots([]);
     }
-  }, [branchTerms.length, newItem.category_id, newItem.term_id, categories]);
+  }, [branchTerms.length, newItem.category_id, selectedTermIds.length, categories]);
 
   // Auto-select grading slot if only 1 option available for Grading Fees category
   useEffect(() => {
@@ -750,8 +753,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
     // Validate term for Classes category (only if terms are available)
     if (selectedCategory?.name === 'Classes' && branchTerms.length > 0) {
-      if (!newItem.term_id) {
-        toast.error('Please select a term for class items');
+      if (selectedTermIds.length === 0) {
+        toast.error('Please select at least one term for class items');
         return;
       }
       if (termError) {
@@ -760,7 +763,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       }
     }
 
-    const term = branchTerms.find(t => t.id === newItem.term_id);
+    const termNames = selectedTermIds.map(id => branchTerms.find(t => t.id === id)?.name).filter(Boolean) as string[];
     const gradingSlot = gradingSlots.find(s => s.id === newItem.grading_slot_id);
 
     const item: InvoiceItem = {
@@ -771,8 +774,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       unit_price: newItem.unit_price,
       size_variant: newItem.size_variant || undefined,
       color_variant: newItem.color_variant || undefined,
-      term_id: newItem.term_id || undefined,
-      term_name: term?.name || undefined,
+      term_ids: selectedTermIds.length > 0 ? [...selectedTermIds] : undefined,
+      term_names: termNames.length > 0 ? termNames : undefined,
       grading_slot_id: newItem.grading_slot_id || undefined,
       grading_slot_title: gradingSlot?.title || undefined,
       selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
@@ -781,14 +784,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
     setItems([...items, item]);
     setSelectedClassSlots([]);
+    setSelectedTermIds([]);
     setNewItem({
       product_id: '',
-      category_id: newItem.category_id, // Keep category selected
+      category_id: newItem.category_id,
       quantity: 1,
       unit_price: 0,
       size_variant: '',
       color_variant: '',
-      term_id: '',
       grading_slot_id: ''
     });
   };
@@ -959,7 +962,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
                       <TableCell>{item.color_variant || '-'}</TableCell>
-                      <TableCell>{item.term_name || item.grading_slot_title || '-'}</TableCell>
+                      <TableCell>{item.term_names?.join(', ') || item.grading_slot_title || '-'}</TableCell>
                       <TableCell className="font-medium">
                         ${item.total.toFixed(2)}
                       </TableCell>
@@ -1067,22 +1070,47 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <TableCell>
                     {selectedCategory?.name === 'Classes' ? (
                       branchTerms.length > 0 ? (
-                        <Select 
-                          value={newItem.term_id} 
-                          onValueChange={(value) => handleNewItemChange('term_id', value)}
-                          disabled={termLoading}
-                        >
-                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}>
-                            <SelectValue placeholder={termLoading ? "..." : "Term"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {branchTerms.map((term) => (
-                              <SelectItem key={term.id} value={term.id}>
-                                {term.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={`h-8 w-36 justify-between text-xs ${termError ? 'border-destructive' : ''}`}
+                              disabled={termLoading}
+                            >
+                              {termLoading ? '...' : selectedTermIds.length === 0 ? 'Select terms' : `${selectedTermIds.length} term${selectedTermIds.length > 1 ? 's' : ''}`}
+                              <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48 p-0 z-50" align="start">
+                            <Command>
+                              <CommandList>
+                                <CommandGroup>
+                                  {branchTerms.map((term) => (
+                                    <CommandItem
+                                      key={term.id}
+                                      onSelect={() => {
+                                        setSelectedTermIds(prev => 
+                                          prev.includes(term.id)
+                                            ? prev.filter(id => id !== term.id)
+                                            : [...prev, term.id]
+                                        );
+                                        setSelectedClassSlots([]);
+                                      }}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <Checkbox
+                                        checked={selectedTermIds.includes(term.id)}
+                                        className="pointer-events-none"
+                                      />
+                                      <span className="text-xs">{term.name}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       ) : (
                         <span className="text-muted-foreground text-xs">No terms</span>
                       )
@@ -1132,16 +1160,27 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             )}
 
             {/* Class Schedule Selector - shown when Classes category is active and term is selected */}
-            {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
-              <div className="space-y-2">
+            {selectedCategory?.name === 'Classes' && selectedTermIds.length > 0 && formData.branch_id && (
+              <div className="space-y-4">
                 <h4 className="text-sm font-medium">Select Class Schedule</h4>
-                <ClassScheduleSelector
-                  branchId={formData.branch_id}
-                  studentAge={studentAge}
-                  selectedSlots={selectedClassSlots}
-                  onSlotsChange={setSelectedClassSlots}
-                  term={branchTerms.find(t => t.id === newItem.term_id)!}
-                />
+                {selectedTermIds.map(termId => {
+                  const term = branchTerms.find(t => t.id === termId);
+                  if (!term) return null;
+                  return (
+                    <div key={termId} className="space-y-2">
+                      {selectedTermIds.length > 1 && (
+                        <p className="text-xs font-medium text-muted-foreground">{term.name}</p>
+                      )}
+                      <ClassScheduleSelector
+                        branchId={formData.branch_id}
+                        studentAge={studentAge}
+                        selectedSlots={selectedClassSlots}
+                        onSlotsChange={setSelectedClassSlots}
+                        term={term}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 
