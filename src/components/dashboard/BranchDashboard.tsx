@@ -75,6 +75,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [activeTab, setActiveTab] = useState('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('unpaid');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -116,14 +117,25 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   // Fetch invoices for this branch with student names
   const { data: invoices = [] } = useQuery({
-    queryKey: ['branch-invoices', branchId, 'unpaid'],
+    queryKey: ['branch-invoices', branchId, invoiceStatusFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('invoices')
         .select('*, students(first_name, last_name)')
         .eq('branch_id', branchId)
-        .in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue'])
         .order('created_at', { ascending: false });
+
+      if (invoiceStatusFilter === 'unpaid') {
+        query = query.in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue']);
+      } else if (invoiceStatusFilter === 'paid') {
+        query = query.in('status', ['paid', 'verified']);
+      } else if (invoiceStatusFilter === 'cancelled') {
+        query = query.eq('status', 'cancelled');
+      } else if (invoiceStatusFilter === 'replaced') {
+        query = query.eq('status', 'replaced');
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -456,7 +468,23 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   <CardTitle>Invoices & Payments</CardTitle>
                   <CardDescription>Last 20 invoices for this branch</CardDescription>
                 </div>
-                <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Filter className="w-4 h-4 mr-2" />
+                        {invoiceStatusFilter === 'unpaid' ? 'Unpaid' : invoiceStatusFilter === 'paid' ? 'Paid' : invoiceStatusFilter === 'cancelled' ? 'Cancelled' : 'Replaced'}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Invoice Status</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setInvoiceStatusFilter('unpaid')}>Unpaid</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setInvoiceStatusFilter('paid')}>Paid</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setInvoiceStatusFilter('cancelled')}>Cancelled</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setInvoiceStatusFilter('replaced')}>Replaced</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <CreateInvoiceDialog
                     trigger={
                       <Button size="sm">
@@ -465,18 +493,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </Button>
                     }
                     onInvoiceCreated={() => {
-                      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-                      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-                    }}
-                  />
-                  <CreatePaymentDialog
-                    trigger={
-                      <Button size="sm" variant="outline">
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        Record Payment
-                      </Button>
-                    }
-                    onPaymentCreated={() => {
                       queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
                       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
                     }}
@@ -624,41 +640,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 )}
               </div>
 
-              {/* Payments Section */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Payments</h4>
-                {payments.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No payments found</p>
-                ) : (
-                  <div className="space-y-2">
-                    {payments.map((payment: any) => (
-                      <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">{payment.invoices?.invoice_number || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {payment.invoices?.students ? `${payment.invoices.students.first_name} ${payment.invoices.students.last_name}` : 'Unknown'} · {format(new Date(payment.payment_date), 'dd MMM yyyy')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right mr-2">
-                            <p className="font-medium">${payment.amount?.toFixed(2)}</p>
-                            <Badge variant="outline" className="capitalize">{payment.payment_method?.replace('_', ' ')}</Badge>
-                          </div>
-                          <Button variant="ghost" size="icon" title="View" onClick={() => { setSelectedPaymentId(payment.id); setPaymentDialogMode('view'); setPaymentDialogOpen(true); }}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => { setSelectedPaymentId(payment.id); setPaymentDialogMode('edit'); setPaymentDialogOpen(true); }}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: 'payment', id: payment.id, label: payment.invoices?.invoice_number || payment.id })}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
 
