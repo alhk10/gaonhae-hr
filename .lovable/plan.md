@@ -1,53 +1,55 @@
 
-
-## Multi-Select Terms in Create Invoice Dialog
+## Show and Edit Class Dates in View Invoice Dialog
 
 ### Overview
-Change the term selector in the Create Invoice dialog from a single-select dropdown to a multi-select, allowing admins to select multiple terms at once. Each selected term will display its own ClassScheduleSelector grid, so class slots can be picked across multiple terms.
+Display the selected class dates from invoice item metadata below the "3x Weekend" item row in the Items tab. In edit mode, allow adding/removing dates using the ClassScheduleSelector component.
 
 ### Changes
 
-**File: `src/components/sales/CreateInvoiceDialog.tsx`**
+**File: `src/components/sales/ViewEditInvoiceDialog.tsx`**
 
-1. **Replace single `term_id` with `selectedTermIds: string[]`**
-   - Change `newItem.term_id` (string) to a new state `selectedTermIds` (string array)
-   - Remove `term_id` from the `newItem` state object
-   - Update all reset logic (branch change, student change, category change) to clear `selectedTermIds`
+1. **Import ClassScheduleSelector and date-fns utilities**
+   - Import `ClassScheduleSelector` from `@/components/dashboard/ClassScheduleSelector`
+   - Import `format, parseISO` from `date-fns`
 
-2. **Replace the term `<Select>` dropdown with a multi-select using checkboxes**
-   - Use a `Popover` with `Command` (similar to existing searchable select patterns) showing checkboxes for each term
-   - Display selected term count or names in the trigger button
-   - Toggling a term adds/removes it from `selectedTermIds`
+2. **Add state for editing class slots**
+   - `editingClassSlots`: `Record<string, string[]>` keyed by item ID, storing the editable slots per item
+   - Initialize from item metadata when entering edit mode
 
-3. **Render one ClassScheduleSelector per selected term**
-   - In the class schedule section (lines 1134-1146), loop over `selectedTermIds` and render a `ClassScheduleSelector` for each, with term name as a heading
-   - All selectors share the same `selectedClassSlots` state (slots from different terms are distinguishable by date)
+3. **Display class dates below item rows (view mode)**
+   - After each item row in the Items table, check if `item.metadata?.selected_class_slots` exists
+   - If yes, render an additional row spanning all columns showing the dates as a list of badges or formatted date chips (e.g., "Mon 3 Jan", "Mon 10 Jan", etc.)
+   - Group dates by week or show as a simple comma-separated list
 
-4. **Update `addItem` to store all selected terms**
-   - Store `term_ids: string[]` and `term_names: string[]` in the invoice item metadata instead of single `term_id`
-   - Update the `InvoiceItem` interface: replace `term_id?: string` and `term_name?: string` with `term_ids?: string[]` and `term_names?: string[]`
-   - Update validation to check at least one term is selected
-   - Update the metadata stored in `invoice_items` table to include `term_ids` array
+4. **Show ClassScheduleSelector in edit mode**
+   - When in edit mode and an item has class slots, render the `ClassScheduleSelector` below the item row
+   - Need to fetch the term from `item.metadata.term_id` to pass to the selector
+   - Need to calculate student age from invoice student data (fetch `date_of_birth`)
+   - The selector allows toggling slots on/off
 
-5. **Update the items table display**
-   - In the items table where term name is displayed, show comma-separated term names or a count badge
+5. **Save updated class slots**
+   - In `handleSave`, update `invoice_items.metadata` with the modified `selected_class_slots` for each edited item
+   - Use direct Supabase update on `invoice_items` table
 
-6. **Update auto-select logic**
-   - Auto-select the current/next term by default (same as before, but as a single-element array)
-   - Remove auto-select-if-only-1 effect since multi-select behavior is different
+6. **Fetch student DOB and term data**
+   - Load student `date_of_birth` when invoice loads (for age calculation)
+   - Load term data from `term_calendar` when an item has a `term_id` in metadata
 
 ### Technical Details
 
-- The `ClassScheduleSelector` component remains unchanged -- it accepts a single `term` prop, so we render one instance per selected term
-- Selected class slots across terms are stored in a single `selectedClassSlots` array (each slot includes the date, so they are unique across terms)
-- The metadata in `invoice_items` will contain `{ term_ids: [...], selected_class_slots: [...] }` instead of `{ term_id: "..." }`
-- The multi-select UI will use a `Popover` + `Command` pattern with checkboxes, consistent with existing patterns in the app
-- No database migration needed -- metadata is JSONB
+- Class slot format: `"timetableId_YYYY-MM-DD"` -- extract the date portion for display
+- In view mode, parse each slot string, extract the date, format it nicely, and display as small badges below the item description
+- In edit mode, render the full `ClassScheduleSelector` grid for the term, pre-populated with existing selections
+- The `ClassScheduleSelector` requires: `branchId` (from invoice), `studentAge` (from student DOB), `selectedSlots`, `onSlotsChange`, `term` (from metadata term_id)
+- Metadata update: `supabase.from('invoice_items').update({ metadata: { ...existing, selected_class_slots: newSlots } }).eq('id', itemId)`
+- No database migration needed -- metadata is already JSONB
 
-### UI Flow
-1. Admin selects Branch and Student, picks "Classes" category
-2. Term column shows a multi-select button (e.g., "2 terms selected")
-3. Clicking opens a popover with checkboxes for each available term
-4. Below the items table, one ClassScheduleSelector grid appears per selected term, each with a term heading
-5. Admin selects slots across terms, then clicks "+" to add the item
-
+### UI Layout (Items tab)
+```text
+| Description     | Qty | Unit Price | Tax    | Total    |
+|-----------------|-----|------------|--------|----------|
+| 3x Weekend      | 7   | $25.00     | $15.75 | $190.75  |
+| Selected Dates: Mon 6 Jan, Mon 13 Jan, Mon 20 Jan...    |
+|                                                          |
+| [ClassScheduleSelector grid - only in edit mode]         |
+```
