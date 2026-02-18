@@ -589,8 +589,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                     ? ` ${info.startTime.slice(0, 5)}-${info.endTime.slice(0, 5)}`
                                     : '';
                                   return (
-                                    <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                      {format(info.date, 'EEE d MMM')}{timeStr}
+                                    <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex flex-col items-center leading-tight">
+                                      <span>{format(info.date, 'EEE d MMM')}</span>
+                                      {info.startTime && info.endTime && (
+                                        <span className="text-muted-foreground">{info.startTime.slice(0, 5)}-{info.endTime.slice(0, 5)}</span>
+                                      )}
                                     </Badge>
                                   );
                                 })}
