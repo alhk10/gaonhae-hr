@@ -5,7 +5,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Settings, Users, Briefcase, Clock, Star } from 'lucide-react';
+import { Plus, Settings, Users, Briefcase, Clock, Star, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -22,6 +22,7 @@ import StudentManagementList from '@/components/sales/StudentManagementList';
 import TrialManagementList from '@/components/sales/TrialManagementList';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
+import ImportStudentsDialog from '@/components/sales/ImportStudentsDialog';
 import { AdminAccessPermissions, EmployeePageAccessPermissions } from '@/types/employee';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSalesModuleAccess } from '@/hooks/useSalesModuleAccess';
@@ -44,6 +45,7 @@ const PartyManagement = () => {
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
   const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
+  const [showImportStudentsDialog, setShowImportStudentsDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
   
   // Form States
@@ -388,6 +390,10 @@ const PartyManagement = () => {
                   <DropdownMenuItem onClick={() => handleAddParty('student')}>
                     <Users className="w-4 h-4 mr-2" />
                     Add Student
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowImportStudentsDialog(true)}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import Students
                   </DropdownMenuItem>
                   {canViewEmployeeTabs && (
                     <>
@@ -782,6 +788,15 @@ const PartyManagement = () => {
           onTrialAdded={() => {
             queryClient.invalidateQueries({ queryKey: ['trials'] });
             setShowAddTrialDialog(false);
+          }}
+        />
+
+        {/* Import Students Dialog */}
+        <ImportStudentsDialog
+          open={showImportStudentsDialog}
+          onOpenChange={setShowImportStudentsDialog}
+          onImportComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['students'] });
           }}
         />
       </ResponsiveLayout>
