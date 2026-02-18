@@ -182,7 +182,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
       if (error) throw error;
 
-      // Update class slots in invoice_items metadata
+      // Update class slots in invoice_items metadata and sync scheduled classes
       for (const [itemId, slots] of Object.entries(editingClassSlots)) {
         const item = invoice.items.find((i) => i.id === itemId);
         if (!item) continue;
@@ -196,6 +196,59 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           .eq('id', itemId);
         if (itemError) {
           console.error('Error updating item class slots:', itemError);
+          continue;
+        }
+
+        // Sync student_scheduled_classes: find enrollment linked to this invoice item
+        const { data: enrollment } = await supabase
+          .from('student_class_enrollments')
+          .select('id')
+          .eq('invoice_item_id', itemId)
+          .maybeSingle();
+
+        if (enrollment) {
+          // Delete existing scheduled classes that haven't been attended
+          await supabase
+            .from('student_scheduled_classes')
+            .delete()
+            .eq('enrollment_id', enrollment.id)
+            .in('status', ['scheduled']);
+
+          // Recreate scheduled classes from updated slots
+          if (slots.length > 0) {
+            const timetableIds = [...new Set(slots.map((s: string) => s.split('_')[0]))];
+            const { data: timetables } = await supabase
+              .from('branch_timetables')
+              .select('id, start_time, end_time')
+              .in('id', timetableIds);
+
+            const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+
+            const newClasses = slots
+              .map((slot: string) => {
+                const [timetableId, date] = slot.split('_');
+                const timetable = timetableMap.get(timetableId);
+                if (!timetable || !date) return null;
+                return {
+                  enrollment_id: enrollment.id,
+                  timetable_id: timetableId,
+                  scheduled_date: date,
+                  start_time: timetable.start_time,
+                  end_time: timetable.end_time,
+                  status: 'scheduled',
+                };
+              })
+              .filter(Boolean);
+
+            if (newClasses.length > 0) {
+              const { error: insertError } = await supabase
+                .from('student_scheduled_classes')
+                .insert(newClasses);
+              if (insertError) {
+                console.error('Error syncing scheduled classes:', insertError);
+              }
+            }
+          }
         }
       }
 
