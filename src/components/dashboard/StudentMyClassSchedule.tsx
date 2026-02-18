@@ -28,10 +28,12 @@ interface ScheduledClassDisplay {
   end_time: string;
   status: string;
   class_type: string;
+  timetable_class_type?: string;
   term_name: string;
   term_id: string;
   swapped_from_id: string | null;
   swap_reason: string | null;
+  timetable_id?: string | null;
 }
 
 const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ studentId, branchId }) => {
@@ -111,8 +113,12 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
   // Build display data
   const enrollmentMap = enrollments.reduce((acc, e) => ({ ...acc, [e.id]: e }), {} as Record<string, any>);
 
+  // Build timetable class_type lookup
+  const timetableClassTypeMap = timetables.reduce((acc, t) => ({ ...acc, [t.id]: t.class_type }), {} as Record<string, string>);
+
   const displayClasses: ScheduledClassDisplay[] = scheduledClasses.map(sc => {
     const enrollment = enrollmentMap[sc.enrollment_id];
+    const timetableClassType = sc.timetable_id ? timetableClassTypeMap[sc.timetable_id] : undefined;
     return {
       id: sc.id,
       enrollment_id: sc.enrollment_id,
@@ -121,10 +127,12 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
       end_time: sc.end_time,
       status: sc.status,
       class_type: enrollment?.class_type || 'Class',
+      timetable_class_type: timetableClassType,
       term_name: enrollment ? (termMap[enrollment.term_id] || 'Term') : 'Term',
       term_id: enrollment?.term_id || '',
       swapped_from_id: sc.swapped_from_id,
       swap_reason: sc.swap_reason,
+      timetable_id: sc.timetable_id,
     };
   });
 

@@ -20,7 +20,9 @@ interface ScheduledClassInfo {
   end_time: string;
   status: string;
   class_type: string;
+  timetable_class_type?: string;
   term_name: string;
+  timetable_id?: string | null;
 }
 
 interface TimetableSlot {
@@ -53,10 +55,11 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<TimetableSlot | null>(null);
   const [reason, setReason] = useState('');
 
-  // Filter timetable slots matching the same class_type
+  // Filter timetable slots matching the same class_type (use timetable class type if available)
   const matchingSlots = useMemo(() => {
-    return timetables.filter(t => t.class_type === scheduledClass.class_type && t.is_active);
-  }, [timetables, scheduledClass.class_type]);
+    const matchType = scheduledClass.timetable_class_type || scheduledClass.class_type;
+    return timetables.filter(t => t.class_type === matchType && t.is_active);
+  }, [timetables, scheduledClass.timetable_class_type, scheduledClass.class_type]);
 
   // Valid weekdays from matching slots
   const validWeekdays = useMemo(() => {
