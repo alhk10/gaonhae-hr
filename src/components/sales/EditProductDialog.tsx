@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Package, Tag, Award, Layers, Settings, Briefcase, Calendar } from 'lucide-react';
+import { CLASS_TYPES } from '@/services/branchTimetableService';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { updateProduct, getProductCategories, Product, ProductVariants } from '@/services/productService';
@@ -52,6 +53,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     is_lesson: false,
     lessons_per_week: 1,
     lesson_days: [] as string[],
+    allowed_class_types: [] as string[],
     metadata: {}
   });
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
@@ -78,6 +80,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         is_lesson: product.is_lesson || false,
         lessons_per_week: product.lessons_per_week || 1,
         lesson_days: product.lesson_days || [],
+        allowed_class_types: product.allowed_class_types || [],
         metadata: product.metadata || {}
       });
       setEnabledVariantTypes({
@@ -128,7 +131,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
         is_lesson: formData.is_lesson,
         lessons_per_week: formData.is_lesson ? formData.lessons_per_week : null,
-        lesson_days: formData.is_lesson ? formData.lesson_days : null
+        lesson_days: formData.is_lesson ? formData.lesson_days : null,
+        allowed_class_types: formData.is_lesson ? formData.allowed_class_types : null
       });
 
       // Save branch pricing if there are changes
@@ -151,7 +155,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     setFormData(prev => {
       // Clear lesson fields when toggling off
       if (field === 'is_lesson' && !value) {
-        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [] };
+        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [], allowed_class_types: [] };
       }
       return { ...prev, [field]: value };
     });
@@ -162,6 +166,13 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       ? [...formData.lesson_days, day]
       : formData.lesson_days.filter(d => d !== day);
     setFormData(prev => ({ ...prev, lesson_days: newDays }));
+  };
+
+  const toggleClassType = (classType: string, checked: boolean) => {
+    const newTypes = checked
+      ? [...formData.allowed_class_types, classType]
+      : formData.allowed_class_types.filter(t => t !== classType);
+    setFormData(prev => ({ ...prev, allowed_class_types: newTypes }));
   };
 
   if (!product) return null;
@@ -382,9 +393,25 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                         Note: Selected {formData.lesson_days.length} day(s) but lessons per week is {formData.lessons_per_week}
                       </p>
                     )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Class Type (types students can book)</Label>
+                  <p className="text-xs text-muted-foreground">Select which class types are allowed for this product</p>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {CLASS_TYPES.map(ct => (
+                      <label key={ct} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox 
+                          checked={formData.allowed_class_types.includes(ct)}
+                          onCheckedChange={(checked) => toggleClassType(ct, !!checked)}
+                        />
+                        <span className="text-xs">{ct}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
             </section>
 
             {/* Status Section */}

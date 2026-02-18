@@ -68,6 +68,7 @@ interface ProductWithVariants {
   };
   requires_belt_level?: boolean;
   allowed_belt_levels?: string[];
+  allowed_class_types?: string[];
 }
 
 // Grading category ID for validation
@@ -238,7 +239,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         category_id: p.category_id,
         available_variants: p.available_variants,
         requires_belt_level: p.requires_belt_level,
-        allowed_belt_levels: p.allowed_belt_levels
+        allowed_belt_levels: p.allowed_belt_levels,
+        allowed_class_types: p.allowed_class_types
       })));
     } catch (error) {
       console.error('Error loading products:', error);
@@ -1141,6 +1143,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   selectedSlots={selectedClassSlots}
                   onSlotsChange={setSelectedClassSlots}
                   term={branchTerms.find(t => t.id === newItem.term_id)!}
+                  allowedClassTypes={selectedProduct?.allowed_class_types}
                 />
               </div>
             )}

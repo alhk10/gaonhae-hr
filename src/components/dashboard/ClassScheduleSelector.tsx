@@ -16,6 +16,7 @@ interface ClassScheduleSelectorProps {
   onSlotsChange: (slots: string[]) => void;
   term: Term;
   lessonsPerWeek?: number; // Max lessons allowed per week (from product config)
+  allowedClassTypes?: string[]; // Filter to only show these class types
 }
 
 const WEEKDAYS = [
@@ -35,6 +36,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   onSlotsChange,
   term,
   lessonsPerWeek,
+  allowedClassTypes,
 }) => {
   // Fetch class schedules for this branch
   const { data: allClasses = [], isLoading } = useQuery({
@@ -63,12 +65,19 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   // Filter classes based on student's age
   const eligibleClasses = useMemo(() => {
     return allClasses.filter((cls: any) => {
-      if (!cls.age_from && !cls.age_to) return true;
-      const minAge = cls.age_from || 0;
-      const maxAge = cls.age_to || 100;
-      return studentAge >= minAge && studentAge <= maxAge;
+      // Filter by age
+      if (cls.age_from || cls.age_to) {
+        const minAge = cls.age_from || 0;
+        const maxAge = cls.age_to || 100;
+        if (studentAge < minAge || studentAge > maxAge) return false;
+      }
+      // Filter by allowed class types
+      if (allowedClassTypes && allowedClassTypes.length > 0) {
+        if (!cls.class_type || !allowedClassTypes.includes(cls.class_type)) return false;
+      }
+      return true;
     });
-  }, [allClasses, studentAge]);
+  }, [allClasses, studentAge, allowedClassTypes]);
 
   // Determine operating days (days that have classes)
   const operatingDays = useMemo(() => {

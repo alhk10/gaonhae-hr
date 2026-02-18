@@ -2912,6 +2912,7 @@ export type Database = {
       products: {
         Row: {
           allowed_belt_levels: string[] | null
+          allowed_class_types: string[] | null
           available_sizes: string[] | null
           available_variants: Json | null
           base_price: number
@@ -2945,6 +2946,7 @@ export type Database = {
         }
         Insert: {
           allowed_belt_levels?: string[] | null
+          allowed_class_types?: string[] | null
           available_sizes?: string[] | null
           available_variants?: Json | null
           base_price?: number
@@ -2978,6 +2980,7 @@ export type Database = {
         }
         Update: {
           allowed_belt_levels?: string[] | null
+          allowed_class_types?: string[] | null
           available_sizes?: string[] | null
           available_variants?: Json | null
           base_price?: number
