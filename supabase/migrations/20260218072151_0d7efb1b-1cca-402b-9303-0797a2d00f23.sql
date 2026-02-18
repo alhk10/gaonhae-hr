@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN allowed_class_types text[];

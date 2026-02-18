@@ -529,6 +529,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       onSlotsChange={setSelectedClassSlots}
                       term={selectedTerm}
                       lessonsPerWeek={selectedProduct?.lessons_per_week}
+                      allowedClassTypes={selectedProduct?.allowed_class_types}
                     />
                   </div>
                 )}

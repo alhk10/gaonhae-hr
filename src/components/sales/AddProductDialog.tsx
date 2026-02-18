@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { toast } from 'sonner';
 import { createProduct, getProductCategories, ProductVariants } from '@/services/productService';
 import { Loader2, Package, Tag, Award, Layers, Settings, Globe, Briefcase, Calendar } from 'lucide-react';
+import { CLASS_TYPES } from '@/services/branchTimetableService';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProductVariantManager } from './ProductVariantManager';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -47,7 +48,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     is_active: true,
     is_lesson: false,
     lessons_per_week: 1,
-    lesson_days: [] as string[]
+    lesson_days: [] as string[],
+    allowed_class_types: [] as string[]
   });
   
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
@@ -101,7 +103,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         is_active: formData.is_active,
         is_lesson: formData.is_lesson,
         lessons_per_week: formData.is_lesson ? formData.lessons_per_week : undefined,
-        lesson_days: formData.is_lesson ? formData.lesson_days : undefined
+        lesson_days: formData.is_lesson ? formData.lesson_days : undefined,
+        allowed_class_types: formData.is_lesson ? formData.allowed_class_types : undefined
       };
 
       await createProduct(productData);
@@ -132,7 +135,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       is_active: true,
       is_lesson: false,
       lessons_per_week: 1,
-      lesson_days: []
+      lesson_days: [],
+      allowed_class_types: []
     });
     setEnabledVariantTypes({ size: false, color: false });
   };
@@ -141,7 +145,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     setFormData(prev => {
       // Clear lesson fields when toggling off
       if (field === 'is_lesson' && !value) {
-        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [] };
+        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [], allowed_class_types: [] };
       }
       return { ...prev, [field]: value };
     });
@@ -152,6 +156,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       ? [...formData.lesson_days, day]
       : formData.lesson_days.filter(d => d !== day);
     setFormData(prev => ({ ...prev, lesson_days: newDays }));
+  };
+
+  const toggleClassType = (classType: string, checked: boolean) => {
+    const newTypes = checked
+      ? [...formData.allowed_class_types, classType]
+      : formData.allowed_class_types.filter(t => t !== classType);
+    setFormData(prev => ({ ...prev, allowed_class_types: newTypes }));
   };
 
   // Count total variants configured
@@ -389,6 +400,22 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                       Note: Selected {formData.lesson_days.length} day(s) but lessons per week is {formData.lessons_per_week}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Class Type (types students can book)</Label>
+                  <p className="text-xs text-muted-foreground">Select which class types are allowed for this product</p>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {CLASS_TYPES.map(ct => (
+                      <label key={ct} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox 
+                          checked={formData.allowed_class_types.includes(ct)}
+                          onCheckedChange={(checked) => toggleClassType(ct, !!checked)}
+                        />
+                        <span className="text-xs">{ct}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

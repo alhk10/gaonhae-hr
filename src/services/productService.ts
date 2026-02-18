@@ -50,6 +50,7 @@ const transformProduct = (raw: any): Product => ({
   is_lesson: raw.is_lesson,
   lessons_per_week: raw.lessons_per_week,
   lesson_days: raw.lesson_days,
+  allowed_class_types: raw.allowed_class_types,
   is_active: raw.is_active,
   metadata: raw.metadata,
   created_at: raw.created_at,
@@ -88,6 +89,7 @@ export interface Product {
   is_lesson?: boolean;
   lessons_per_week?: number;
   lesson_days?: string[];
+  allowed_class_types?: string[];
   is_active: boolean;
   metadata?: any;
   created_at: string;
@@ -254,6 +256,7 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       is_lesson: productData.is_lesson,
       lessons_per_week: productData.is_lesson ? productData.lessons_per_week : null,
       lesson_days: productData.is_lesson ? productData.lesson_days : null,
+      allowed_class_types: productData.is_lesson ? productData.allowed_class_types : null,
       is_active: productData.is_active,
       metadata: productData.metadata,
       created_by: productData.created_by,

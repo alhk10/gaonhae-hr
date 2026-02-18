@@ -8,11 +8,13 @@ import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import ProductManagementList from '@/components/sales/ProductManagementList';
 import InventoryListTab from '@/components/sales/InventoryListTab';
 import InventoryOrderFormTab from '@/components/sales/InventoryOrderFormTab';
+import ClassTypeManagementTab from '@/components/sales/ClassTypeManagementTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Package, 
   Warehouse,
-  ShoppingCart
+  ShoppingCart,
+  Dumbbell
 } from 'lucide-react';
 
 const ProductManagement: React.FC = () => {
@@ -21,9 +23,8 @@ const ProductManagement: React.FC = () => {
   return (
     <ResponsiveLayout>
       <div className="space-y-6">
-        {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsList className="grid w-full grid-cols-4 max-w-lg">
             <TabsTrigger value="products" className="flex items-center gap-2">
               <Package className="w-4 h-4" />
               Products
@@ -35,6 +36,10 @@ const ProductManagement: React.FC = () => {
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="class-types" className="flex items-center gap-2">
+              <Dumbbell className="w-4 h-4" />
+              Class Types
             </TabsTrigger>
           </TabsList>
 
@@ -48,6 +53,10 @@ const ProductManagement: React.FC = () => {
 
           <TabsContent value="orders" className="mt-6">
             <InventoryOrderFormTab />
+          </TabsContent>
+
+          <TabsContent value="class-types" className="mt-6">
+            <ClassTypeManagementTab />
           </TabsContent>
         </Tabs>
       </div>
