@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader2, Clock } from 'lucide-react';
 import { format, addDays, isBefore, isAfter, startOfDay, parseISO } from 'date-fns';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { swapScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ScheduledClassInfo {
@@ -32,6 +33,7 @@ interface TimetableSlot {
   end_time: string;
   class_type: string;
   is_active: boolean;
+  max_capacity?: number | null;
 }
 
 interface RescheduleClassDialogProps {
@@ -79,12 +81,44 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
     return !validWeekdays.includes(date.getDay());
   };
 
-  // Slots available for the selected date
-  const availableSlotsForDate = useMemo(() => {
+  // Slots available for the selected date (before capacity check)
+  const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
     const dayOfWeek = selectedDate.getDay();
     return matchingSlots.filter(s => s.weekday === dayOfWeek);
   }, [selectedDate, matchingSlots]);
+
+  // Query booked counts for each slot on the selected date
+  const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  const { data: slotBookedCounts } = useQuery({
+    queryKey: ['slot-booked-counts', selectedDateStr, slotsForDate.map(s => s.id)],
+    queryFn: async () => {
+      if (!selectedDateStr || slotsForDate.length === 0) return {};
+      const timetableIds = slotsForDate.map(s => s.id);
+      const { data } = await (supabase
+        .from('student_scheduled_classes')
+        .select('timetable_id') as any)
+        .eq('class_date', selectedDateStr)
+        .in('timetable_id', timetableIds)
+        .in('status', ['scheduled', 'attended']);
+      const counts: Record<string, number> = {};
+      (data || []).forEach(r => {
+        counts[r.timetable_id] = (counts[r.timetable_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!selectedDateStr && slotsForDate.length > 0,
+  });
+
+  // Filter out full slots
+  const availableSlotsForDate = useMemo(() => {
+    if (!slotBookedCounts) return slotsForDate;
+    return slotsForDate.filter(slot => {
+      if (!slot.max_capacity) return true; // no cap = unlimited
+      const booked = slotBookedCounts[slot.id] || 0;
+      return booked < slot.max_capacity;
+    });
+  }, [slotsForDate, slotBookedCounts]);
 
   const formatTime = (time: string) => time?.substring(0, 5) || '';
 
