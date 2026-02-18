@@ -1,43 +1,70 @@
 
 
-## Add Class Schedule Selection to Create Invoice Dialog
+## Add Import Student Button with CSV Upload Dialog
 
 ### Overview
-When the "Classes" category is selected and a term is chosen, show the `ClassScheduleSelector` component (already used in the Pay School Fees dialog) below the invoice items table. This lets admins pick specific weekly class slots for the student, with the selections stored in invoice item metadata.
+Add an "Import Students" button to the Party Management page (Students tab). Clicking it opens a dialog with two features:
+1. **Download CSV Template** -- downloads a pre-formatted CSV with the correct column headers
+2. **Upload CSV** -- upload a CSV file, parse it client-side, validate rows, and bulk-insert students into Supabase
 
 ### Changes
 
-**File: `src/components/sales/CreateInvoiceDialog.tsx`**
+**New File: `src/components/sales/ImportStudentsDialog.tsx`**
 
-1. **Import ClassScheduleSelector and date utils**: Add imports for `ClassScheduleSelector`, `differenceInYears`, `differenceInMonths`, and `calculateAge` helper.
+A new dialog component with:
+- A "Download Template" button that generates and downloads a CSV file with columns: `first_name, last_name, certificate_name, display_name, date_of_birth, gender, email, phone, address, postal_code, nric_passport, branch_id, current_belt, referral_source, parent_guardian_name, parent_guardian_phone, parent_guardian_email, medical_conditions, notes`
+- A file upload area (drag-and-drop or click) accepting `.csv` files
+- Client-side CSV parsing (no external library needed -- use native `FileReader` + split logic)
+- Row validation: checks required field `first_name`, skips empty rows, normalizes text to uppercase (following existing convention)
+- Displays a preview summary (total rows found, valid rows, errors) before importing
+- An "Import" button that calls `createStudent` from `studentService.ts` for each valid row (or a batch insert function)
+- Progress indicator during import
+- Success/error toast notifications with counts
 
-2. **Add state for selected class slots**: Add `selectedClassSlots` state (`string[]`) to track selected slots in `classId_YYYY-MM-DD` format. Reset when term, branch, or student changes.
+**Modified File: `src/pages/PartyManagement.tsx`**
 
-3. **Calculate student age**: Add a `studentAge` computation from the selected student's `date_of_birth` (need to fetch DOB from students table -- update `loadStudents` to include `date_of_birth`).
+- Import `ImportStudentsDialog`
+- Add state `showImportStudentsDialog`
+- Add an "Import Students" menu item in the "Add Party" dropdown (with an Upload icon), or a separate button next to "Add Party" when the Students tab is active
+- Render `<ImportStudentsDialog>` with open/close handlers and a callback to refresh the students query
 
-4. **Show ClassScheduleSelector below items table**: When the Classes category is active and a term is selected, render the `ClassScheduleSelector` component between the items table and the totals section. Pass: `branchId`, `studentAge`, `selectedSlots`, `onSlotsChange`, and `term` (the selected term object).
-
-5. **Store slots in invoice item metadata**: When adding the Classes item, include `selected_class_slots` array in the metadata alongside `term_id`.
-
-6. **Update InvoiceItem interface**: Add optional `selected_class_slots: string[]` field.
-
-7. **Reset class slots on context changes**: Clear `selectedClassSlots` when branch, student, term, or category changes.
+### CSV Template Columns
+The template will include these columns matching the `CreateStudentData` interface:
+- `first_name` (required)
+- `last_name`
+- `certificate_name`
+- `display_name`
+- `date_of_birth` (YYYY-MM-DD format)
+- `gender`
+- `email`
+- `phone`
+- `address`
+- `postal_code`
+- `nric_passport`
+- `branch_id`
+- `current_belt`
+- `referral_source`
+- `medical_conditions`
+- `notes`
 
 ### Technical Details
 
-- Reuses the existing `ClassScheduleSelector` component from `src/components/dashboard/ClassScheduleSelector.tsx` -- no new components needed
-- The selector displays a grid of term weeks (rows) x operating days (columns), with clickable class type buttons per cell
-- Student age filtering ensures only age-appropriate classes appear
-- Past dates and public holidays are automatically excluded
-- Selected slots are stored as `["timetableId_YYYY-MM-DD", ...]` in `invoice_items.metadata.selected_class_slots`
-- No database migration needed -- metadata is already a JSONB column
-- Students table query updated to include `date_of_birth` for age calculation
+- CSV parsing done client-side with `FileReader` API and basic comma/newline splitting (handles quoted values)
+- Each row is mapped to `CreateStudentData` and passed through `createStudent()` which handles student number generation, uppercase normalization, and emergency contact creation
+- Errors per row are collected and displayed after import completes
+- The dialog resets state on close
+- No new dependencies required
+- No database migration needed
 
 ### UI Flow
-1. Admin selects Branch and Student
-2. Selects "Classes" category, picks a product and term
-3. The ClassScheduleSelector appears below the items table showing the term weeks grid
-4. Admin clicks class slots to select/deselect them
-5. Admin clicks "+" to add the item (slots saved in metadata)
-6. The selector resets for the next item
+1. User navigates to Party Management, Students tab
+2. Clicks "Import Students" button (in Add Party dropdown or as separate button)
+3. Dialog opens with two sections: Download Template and Upload CSV
+4. User downloads template, fills in student data in Excel/Sheets
+5. User uploads the filled CSV
+6. Dialog shows preview: "Found X rows, Y valid, Z errors"
+7. User clicks "Import" to proceed
+8. Progress bar shows during import
+9. Toast shows results: "Imported X students successfully, Y failed"
+10. Student list refreshes automatically
 
