@@ -65,7 +65,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
       if (termIds.length === 0) return [];
       const { data, error } = await supabase
         .from('term_calendars')
-        .select('id, name')
+        .select('id, name, start_date, end_date')
         .in('id', termIds);
       if (error) throw error;
       return data || [];
@@ -74,6 +74,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
   });
 
   const termMap = terms.reduce((acc, t) => ({ ...acc, [t.id]: t.name }), {} as Record<string, string>);
+  const termDateMap = terms.reduce((acc, t) => ({ ...acc, [t.id]: { start_date: t.start_date, end_date: t.end_date } }), {} as Record<string, { start_date: string; end_date: string }>);
 
   // Fetch scheduled classes for all enrollments
   const enrollmentIds = enrollments.map(e => e.id);
@@ -347,6 +348,8 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
           scheduledClass={rescheduleClass}
           timetables={timetables}
           mode={rescheduleMode}
+          termStartDate={rescheduleClass.term_id ? termDateMap[rescheduleClass.term_id]?.start_date : undefined}
+          termEndDate={rescheduleClass.term_id ? termDateMap[rescheduleClass.term_id]?.end_date : undefined}
         />
       )}
     </div>
