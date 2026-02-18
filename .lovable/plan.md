@@ -1,70 +1,53 @@
 
 
-## Add Import Student Button with CSV Upload Dialog
+## Multi-Select Terms in Create Invoice Dialog
 
 ### Overview
-Add an "Import Students" button to the Party Management page (Students tab). Clicking it opens a dialog with two features:
-1. **Download CSV Template** -- downloads a pre-formatted CSV with the correct column headers
-2. **Upload CSV** -- upload a CSV file, parse it client-side, validate rows, and bulk-insert students into Supabase
+Change the term selector in the Create Invoice dialog from a single-select dropdown to a multi-select, allowing admins to select multiple terms at once. Each selected term will display its own ClassScheduleSelector grid, so class slots can be picked across multiple terms.
 
 ### Changes
 
-**New File: `src/components/sales/ImportStudentsDialog.tsx`**
+**File: `src/components/sales/CreateInvoiceDialog.tsx`**
 
-A new dialog component with:
-- A "Download Template" button that generates and downloads a CSV file with columns: `first_name, last_name, certificate_name, display_name, date_of_birth, gender, email, phone, address, postal_code, nric_passport, branch_id, current_belt, referral_source, parent_guardian_name, parent_guardian_phone, parent_guardian_email, medical_conditions, notes`
-- A file upload area (drag-and-drop or click) accepting `.csv` files
-- Client-side CSV parsing (no external library needed -- use native `FileReader` + split logic)
-- Row validation: checks required field `first_name`, skips empty rows, normalizes text to uppercase (following existing convention)
-- Displays a preview summary (total rows found, valid rows, errors) before importing
-- An "Import" button that calls `createStudent` from `studentService.ts` for each valid row (or a batch insert function)
-- Progress indicator during import
-- Success/error toast notifications with counts
+1. **Replace single `term_id` with `selectedTermIds: string[]`**
+   - Change `newItem.term_id` (string) to a new state `selectedTermIds` (string array)
+   - Remove `term_id` from the `newItem` state object
+   - Update all reset logic (branch change, student change, category change) to clear `selectedTermIds`
 
-**Modified File: `src/pages/PartyManagement.tsx`**
+2. **Replace the term `<Select>` dropdown with a multi-select using checkboxes**
+   - Use a `Popover` with `Command` (similar to existing searchable select patterns) showing checkboxes for each term
+   - Display selected term count or names in the trigger button
+   - Toggling a term adds/removes it from `selectedTermIds`
 
-- Import `ImportStudentsDialog`
-- Add state `showImportStudentsDialog`
-- Add an "Import Students" menu item in the "Add Party" dropdown (with an Upload icon), or a separate button next to "Add Party" when the Students tab is active
-- Render `<ImportStudentsDialog>` with open/close handlers and a callback to refresh the students query
+3. **Render one ClassScheduleSelector per selected term**
+   - In the class schedule section (lines 1134-1146), loop over `selectedTermIds` and render a `ClassScheduleSelector` for each, with term name as a heading
+   - All selectors share the same `selectedClassSlots` state (slots from different terms are distinguishable by date)
 
-### CSV Template Columns
-The template will include these columns matching the `CreateStudentData` interface:
-- `first_name` (required)
-- `last_name`
-- `certificate_name`
-- `display_name`
-- `date_of_birth` (YYYY-MM-DD format)
-- `gender`
-- `email`
-- `phone`
-- `address`
-- `postal_code`
-- `nric_passport`
-- `branch_id`
-- `current_belt`
-- `referral_source`
-- `medical_conditions`
-- `notes`
+4. **Update `addItem` to store all selected terms**
+   - Store `term_ids: string[]` and `term_names: string[]` in the invoice item metadata instead of single `term_id`
+   - Update the `InvoiceItem` interface: replace `term_id?: string` and `term_name?: string` with `term_ids?: string[]` and `term_names?: string[]`
+   - Update validation to check at least one term is selected
+   - Update the metadata stored in `invoice_items` table to include `term_ids` array
+
+5. **Update the items table display**
+   - In the items table where term name is displayed, show comma-separated term names or a count badge
+
+6. **Update auto-select logic**
+   - Auto-select the current/next term by default (same as before, but as a single-element array)
+   - Remove auto-select-if-only-1 effect since multi-select behavior is different
 
 ### Technical Details
 
-- CSV parsing done client-side with `FileReader` API and basic comma/newline splitting (handles quoted values)
-- Each row is mapped to `CreateStudentData` and passed through `createStudent()` which handles student number generation, uppercase normalization, and emergency contact creation
-- Errors per row are collected and displayed after import completes
-- The dialog resets state on close
-- No new dependencies required
-- No database migration needed
+- The `ClassScheduleSelector` component remains unchanged -- it accepts a single `term` prop, so we render one instance per selected term
+- Selected class slots across terms are stored in a single `selectedClassSlots` array (each slot includes the date, so they are unique across terms)
+- The metadata in `invoice_items` will contain `{ term_ids: [...], selected_class_slots: [...] }` instead of `{ term_id: "..." }`
+- The multi-select UI will use a `Popover` + `Command` pattern with checkboxes, consistent with existing patterns in the app
+- No database migration needed -- metadata is JSONB
 
 ### UI Flow
-1. User navigates to Party Management, Students tab
-2. Clicks "Import Students" button (in Add Party dropdown or as separate button)
-3. Dialog opens with two sections: Download Template and Upload CSV
-4. User downloads template, fills in student data in Excel/Sheets
-5. User uploads the filled CSV
-6. Dialog shows preview: "Found X rows, Y valid, Z errors"
-7. User clicks "Import" to proceed
-8. Progress bar shows during import
-9. Toast shows results: "Imported X students successfully, Y failed"
-10. Student list refreshes automatically
+1. Admin selects Branch and Student, picks "Classes" category
+2. Term column shows a multi-select button (e.g., "2 terms selected")
+3. Clicking opens a popover with checkboxes for each available term
+4. Below the items table, one ClassScheduleSelector grid appears per selected term, each with a term heading
+5. Admin selects slots across terms, then clicks "+" to add the item
 
