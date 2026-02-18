@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader2, Clock } from 'lucide-react';
-import { format, addDays, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, isBefore, isAfter, startOfDay, parseISO } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { swapScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
@@ -40,6 +40,8 @@ interface RescheduleClassDialogProps {
   scheduledClass: ScheduledClassInfo;
   timetables: TimetableSlot[];
   mode: 'reschedule' | 'makeup';
+  termStartDate?: string;
+  termEndDate?: string;
 }
 
 const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
@@ -48,6 +50,8 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
   scheduledClass,
   timetables,
   mode,
+  termStartDate,
+  termEndDate,
 }) => {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -70,6 +74,8 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
   const isDateDisabled = (date: Date) => {
     const today = startOfDay(new Date());
     if (isBefore(date, today)) return true;
+    if (termStartDate && isBefore(date, startOfDay(parseISO(termStartDate)))) return true;
+    if (termEndDate && isAfter(date, startOfDay(parseISO(termEndDate)))) return true;
     return !validWeekdays.includes(date.getDay());
   };
 
@@ -152,9 +158,9 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
                   setSelectedSlot(null);
                 }}
                 disabled={isDateDisabled}
-                fromDate={new Date()}
-                toDate={addDays(new Date(), 90)}
-                className="rounded-md border"
+                fromDate={termStartDate ? parseISO(termStartDate) : new Date()}
+                toDate={termEndDate ? parseISO(termEndDate) : addDays(new Date(), 90)}
+                className="rounded-md border pointer-events-auto"
               />
             )}
           </div>
