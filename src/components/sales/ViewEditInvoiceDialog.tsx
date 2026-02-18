@@ -65,6 +65,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [editingClassSlots, setEditingClassSlots] = useState<Record<string, string[]>>({});
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
+  const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -123,8 +124,33 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       setTermDataMap(termMap);
     };
 
+    // Fetch timetable times for class slot display
+    const fetchTimetableTimes = async () => {
+      const timetableIds = new Set<string>();
+      invoice.items.forEach((item) => {
+        const metadata = item.metadata as any;
+        if (metadata?.selected_class_slots) {
+          (metadata.selected_class_slots as string[]).forEach((slot: string) => {
+            const ttId = slot.split('_')[0];
+            if (ttId) timetableIds.add(ttId);
+          });
+        }
+      });
+      if (timetableIds.size === 0) return;
+      const { data: timetables } = await supabase
+        .from('branch_timetables')
+        .select('id, start_time, end_time')
+        .in('id', Array.from(timetableIds));
+      if (timetables) {
+        const map: Record<string, { start_time: string; end_time: string }> = {};
+        timetables.forEach(t => { map[t.id] = { start_time: t.start_time, end_time: t.end_time }; });
+        setTimetableTimeMap(map);
+      }
+    };
+
     fetchStudentDob();
     fetchTermData();
+    fetchTimetableTimes();
   }, [invoice]);
 
   // Calculate student age
@@ -549,19 +575,25 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
                               {classSlots
                                 .map((slot: string) => {
-                                  const datePart = slot.split('_')[1];
+                                  const [timetableId, datePart] = slot.split('_');
                                   if (!datePart) return null;
                                   try {
-                                    return { slot, date: parseISO(datePart), dateStr: datePart };
+                                    const tt = timetableTimeMap[timetableId];
+                                    return { slot, date: parseISO(datePart), dateStr: datePart, startTime: tt?.start_time, endTime: tt?.end_time };
                                   } catch { return null; }
                                 })
                                 .filter(Boolean)
                                 .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
-                                .map((info: any) => (
-                                  <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                    {format(info.date, 'EEE d MMM')}
-                                  </Badge>
-                                ))}
+                                .map((info: any) => {
+                                  const timeStr = info.startTime && info.endTime
+                                    ? ` ${info.startTime.slice(0, 5)}-${info.endTime.slice(0, 5)}`
+                                    : '';
+                                  return (
+                                    <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                      {format(info.date, 'EEE d MMM')}{timeStr}
+                                    </Badge>
+                                  );
+                                })}
                             </div>
                           </TableCell>
                         </TableRow>
