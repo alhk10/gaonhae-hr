@@ -162,9 +162,33 @@ export async function getEnrollment(enrollmentId: string): Promise<ClassEnrollme
   }
 }
 
-// Create a new enrollment
+// Create a new enrollment (deactivates previous enrollments for same student/term/branch)
 export async function createEnrollment(data: CreateEnrollmentData): Promise<string> {
   try {
+    // Deactivate existing enrollments for the same student/term/branch
+    const { data: existing } = await supabase
+      .from('student_class_enrollments')
+      .select('id')
+      .eq('student_id', data.student_id)
+      .eq('term_id', data.term_id)
+      .eq('branch_id', data.branch_id)
+      .eq('status', 'active');
+
+    if (existing && existing.length > 0) {
+      const oldIds = existing.map(e => e.id);
+      // Cancel scheduled classes for old enrollments
+      await supabase
+        .from('student_scheduled_classes')
+        .update({ status: 'cancelled' })
+        .in('enrollment_id', oldIds)
+        .eq('status', 'scheduled');
+      // Deactivate old enrollments
+      await supabase
+        .from('student_class_enrollments')
+        .update({ status: 'inactive' })
+        .in('id', oldIds);
+    }
+
     const { data: result, error } = await supabase
       .from('student_class_enrollments')
       .insert({
