@@ -21,7 +21,7 @@ import { getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2 } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
@@ -721,15 +721,30 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           {formatCurrency(payment.amount)}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Request Delete"
-                            onClick={() => handleOpenDeleteDialog(payment)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {payment.proof_of_payment_url && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="View Uploaded File"
+                                asChild
+                              >
+                                <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Request Delete"
+                              onClick={() => handleOpenDeleteDialog(payment)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
