@@ -243,7 +243,7 @@ export const addAdminSlotBooking = async (booking: {
       .select('*')
       .eq('employee_id', booking.employeeId)
       .eq('date', booking.date)
-      .neq('status', 'cancelled');
+      .not('status', 'in', '("cancelled","rejected")');
 
     if (existingError) {
       logger.error('Error checking existing bookings for admin override', existingError);
