@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
+import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
 
 import { toast } from 'sonner';
 import { getPublicHolidays } from '@/services/publicHolidayService';
@@ -62,22 +63,40 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     queryFn: getPublicHolidays,
   });
 
-  // Filter classes based on student's age
+  // Fetch branch class type age settings
+  const { data: classTypeAgeSettings = [] } = useQuery({
+    queryKey: ['branch-class-type-settings', branchId],
+    queryFn: () => getBranchClassTypeSettings(branchId),
+    enabled: !!branchId,
+  });
+
+  // Filter classes based on student's age (timetable-level and branch class type settings)
   const eligibleClasses = useMemo(() => {
+    const settingsMap = new Map(classTypeAgeSettings.map(s => [s.class_type, s]));
+
     return allClasses.filter((cls: any) => {
-      // Filter by age
+      // Filter by timetable-level age range
       if (cls.age_from || cls.age_to) {
         const minAge = cls.age_from || 0;
         const maxAge = cls.age_to || 100;
         if (studentAge < minAge || studentAge > maxAge) return false;
       }
+
+      // Filter by branch class type age settings
+      const typeSetting = settingsMap.get(cls.class_type);
+      if (typeSetting) {
+        const minAge = typeSetting.min_age ?? 0;
+        const maxAge = typeSetting.max_age ?? 100;
+        if (studentAge < minAge || studentAge > maxAge) return false;
+      }
+
       // Filter by allowed class types
       if (allowedClassTypes && allowedClassTypes.length > 0) {
         if (!cls.class_type || !allowedClassTypes.includes(cls.class_type)) return false;
       }
       return true;
     });
-  }, [allClasses, studentAge, allowedClassTypes]);
+  }, [allClasses, studentAge, allowedClassTypes, classTypeAgeSettings]);
 
   // Determine operating days (days that have classes)
   const operatingDays = useMemo(() => {
