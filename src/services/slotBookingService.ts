@@ -751,7 +751,7 @@ export const checkForExistingBooking = async (employeeId: string, date: string):
       .select('*')
       .eq('employee_id', employeeId)
       .eq('date', date)
-      .neq('status', 'cancelled'); // Exclude cancelled bookings
+      .not('status', 'in', '("cancelled","rejected")'); // Exclude cancelled and rejected bookings
 
     if (error) {
       logger.error('Error checking for existing booking', error);
