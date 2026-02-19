@@ -16,7 +16,8 @@ import {
   Edit,
   Trash2,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  Settings
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,7 +62,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
-
+import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
 import { Student } from '@/services/studentService';
 
 interface BranchDashboardProps {
@@ -85,6 +86,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
+  const [classTypeSettingsOpen, setClassTypeSettingsOpen] = useState(false);
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
@@ -317,11 +319,23 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
+        <Button variant="outline" size="sm" onClick={() => setClassTypeSettingsOpen(true)}>
+          <Settings className="w-4 h-4 mr-2" />
+          Settings
+        </Button>
       </div>
+
+      {/* Class Type Age Settings Dialog */}
+      <BranchClassTypeAgeSettings
+        open={classTypeSettingsOpen}
+        onOpenChange={setClassTypeSettingsOpen}
+        branchId={branchId}
+        branchName={branch?.name || ''}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
