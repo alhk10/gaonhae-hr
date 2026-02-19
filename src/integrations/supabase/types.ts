@@ -299,6 +299,44 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_class_type_settings: {
+        Row: {
+          branch_id: string
+          class_type: string
+          created_at: string
+          id: string
+          max_age: number | null
+          min_age: number | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          class_type: string
+          created_at?: string
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          class_type?: string
+          created_at?: string
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_class_type_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_operating_schedule: {
         Row: {
           branch_id: string
