@@ -67,7 +67,7 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="auth-users" className="w-full">
-          <TabsList className="grid w-full grid-cols-11">
+          <TabsList className="flex flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="auth-users">Auth Users</TabsTrigger>
             <TabsTrigger value="user-management">User Mgmt</TabsTrigger>
             <TabsTrigger value="employee-modules">Emp Modules</TabsTrigger>
