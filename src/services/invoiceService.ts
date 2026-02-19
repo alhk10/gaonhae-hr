@@ -449,7 +449,41 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
       });
     }
 
-    // Delete invoice items first (foreign key constraint)
+    // Get invoice items to find linked enrollments
+    const { data: invoiceItems } = await supabase
+      .from('invoice_items')
+      .select('id')
+      .eq('invoice_id', invoiceId);
+
+    // Clean up enrollments and scheduled classes linked to this invoice's items
+    if (invoiceItems && invoiceItems.length > 0) {
+      const itemIds = invoiceItems.map(item => item.id);
+      
+      // Find enrollments linked to these invoice items
+      const { data: enrollments } = await supabase
+        .from('student_class_enrollments')
+        .select('id')
+        .in('invoice_item_id', itemIds);
+
+      if (enrollments && enrollments.length > 0) {
+        const enrollmentIds = enrollments.map(e => e.id);
+        
+        // Cancel scheduled classes for these enrollments
+        await supabase
+          .from('student_scheduled_classes')
+          .update({ status: 'cancelled' })
+          .in('enrollment_id', enrollmentIds)
+          .eq('status', 'scheduled');
+
+        // Deactivate the enrollments
+        await supabase
+          .from('student_class_enrollments')
+          .update({ status: 'inactive' })
+          .in('id', enrollmentIds);
+      }
+    }
+
+    // Delete invoice items (foreign key constraint)
     const { error: itemsError } = await supabase
       .from('invoice_items')
       .delete()
