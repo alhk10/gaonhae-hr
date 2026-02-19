@@ -15,6 +15,7 @@ import LeaveApprovals from './LeaveApprovals';
 import SlotBookingApprovals from './SlotBookingApprovals';
 import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
+import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 
 const SuperadminDashboard = () => {
@@ -75,6 +76,9 @@ const SuperadminDashboard = () => {
 
         {/* Slot Booking Approvals */}
         <SlotBookingApprovals />
+
+        {/* Payment Verification Approvals */}
+        <PaymentVerificationApprovals />
 
         {/* Payment Deletion Approvals */}
         {pendingPaymentDeletionsCount > 0 && (
