@@ -368,7 +368,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
             student_id: studentId,
             current_belt: student.current_belt || 'white',
             target_belt: student.current_belt || 'white',
-            grading_slot_id: changes.grading_slot_id || 'placeholder',
+            grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
           } as const;

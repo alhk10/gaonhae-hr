@@ -1,0 +1,1 @@
+ALTER TABLE public.grading_registrations ALTER COLUMN grading_slot_id DROP NOT NULL;

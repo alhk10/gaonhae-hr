@@ -1302,7 +1302,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           current_belt: string
-          grading_slot_id: string
+          grading_slot_id: string | null
           id: string
           invoice_item_id: string | null
           notes: string | null
@@ -1317,7 +1317,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           current_belt: string
-          grading_slot_id: string
+          grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
@@ -1332,7 +1332,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           current_belt?: string
-          grading_slot_id?: string
+          grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
