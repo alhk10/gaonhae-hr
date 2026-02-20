@@ -82,22 +82,37 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   });
 
   // Check for grading slots matching student's belt
+  // Fetch ALL active future slots and filter to those accessible by student's branch
+  // (either created in their branch OR their branch is in available_branch_ids)
   const { data: gradingSlots = [] } = useQuery({
     queryKey: ['grading-slots-for-belt', student.branch_id, student.current_belt],
     queryFn: async () => {
       if (!student.branch_id || !student.current_belt) return [];
       const today = new Date().toISOString().split('T')[0];
+
+      // Fetch all active future slots (no branch filter - we'll filter client-side)
       const slots = await getGradingSlots({
-        branch_id: student.branch_id,
         status: 'active',
         from_date: today,
       });
-      
+
+      // Filter to slots accessible by the student's branch
+      const branchAccessible = slots.filter(slot => {
+        // Slot belongs to student's branch
+        if (slot.branch_id === student.branch_id) return true;
+        // Slot is available to student's branch via available_branch_ids
+        const availableBranchIds = (slot as any).available_branch_ids as string[] | null;
+        if (availableBranchIds && availableBranchIds.length > 0) {
+          return availableBranchIds.includes(student.branch_id!);
+        }
+        return false;
+      });
+
       // Filter by matching belt level
       const normalizedStudentBelt = normalizeBelt(student.current_belt || '');
-      return slots.filter(slot => {
+      return branchAccessible.filter(slot => {
         if (!slot.belt_levels || slot.belt_levels.length === 0) return true;
-        return slot.belt_levels.some(beltLevel => 
+        return slot.belt_levels.some(beltLevel =>
           normalizeBelt(beltLevel) === normalizedStudentBelt
         );
       });
