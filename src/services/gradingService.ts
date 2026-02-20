@@ -56,6 +56,8 @@ export interface CreateGradingSlotData {
   max_capacity?: number;
   notes?: string;
   title?: string;
+  min_age?: number;
+  max_age?: number;
 }
 
 export interface UpdateGradingSlotData extends Partial<CreateGradingSlotData> {

@@ -31,6 +31,8 @@ interface BulkRow {
   title: string;
   belt_levels: string[];
   max_capacity: number;
+  min_age: string;
+  max_age: string;
   hasError?: boolean;
 }
 
@@ -47,6 +49,8 @@ const createEmptyRow = (): BulkRow => ({
   title: '',
   belt_levels: [],
   max_capacity: 20,
+  min_age: '',
+  max_age: '',
 });
 
 const generateTitle = (branchName: string, date: string, time: string, belts: string[]): string => {
@@ -179,6 +183,8 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
           title: row.title || undefined,
           belt_levels: row.belt_levels.length > 0 ? row.belt_levels : undefined,
           max_capacity: row.max_capacity,
+          min_age: row.min_age !== '' ? parseInt(row.min_age) : undefined,
+          max_age: row.max_age !== '' ? parseInt(row.max_age) : undefined,
         });
         saved++;
         setSaveProgress({ current: saved, total });
@@ -213,7 +219,9 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-28">Time</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground">Title (auto)</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-32">Belt Levels</th>
-                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-20">Cap</th>
+                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Min Age</th>
+                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Max Age</th>
+                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Cap</th>
                 <th className="py-2 px-2 w-10"></th>
               </tr>
             </thead>
@@ -268,6 +276,30 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                     <BeltLevelPopover
                       selected={row.belt_levels}
                       onChange={belts => updateRow(row.id, 'belt_levels', belts)}
+                    />
+                  </td>
+                  {/* Min Age */}
+                  <td className="py-1.5 px-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={row.min_age}
+                      onChange={e => updateRow(row.id, 'min_age', e.target.value)}
+                      placeholder="—"
+                      className="h-9 text-xs"
+                    />
+                  </td>
+                  {/* Max Age */}
+                  <td className="py-1.5 px-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={row.max_age}
+                      onChange={e => updateRow(row.id, 'max_age', e.target.value)}
+                      placeholder="—"
+                      className="h-9 text-xs"
                     />
                   </td>
                   {/* Capacity */}
