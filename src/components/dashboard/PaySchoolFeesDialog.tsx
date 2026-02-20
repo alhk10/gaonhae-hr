@@ -18,11 +18,12 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, CreditCard, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Calendar, CreditCard, Upload, CheckCircle, AlertCircle, GraduationCap, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, differenceInYears, differenceInMonths } from 'date-fns';
+import { format, parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
@@ -30,6 +31,9 @@ import { createEnrollment, createScheduledClass } from '@/services/classEnrollme
 import ClassScheduleSelector from './ClassScheduleSelector';
 import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
+import { GradingSlot } from '@/services/gradingService';
+import { formatBeltLevel } from '@/constants/beltLevels';
+import { getNextBelt } from './QuickActionsSection';
 
 interface PaySchoolFeesDialogProps {
   open: boolean;
@@ -41,9 +45,11 @@ interface PaySchoolFeesDialogProps {
     last_name: string;
     branch_id?: string;
     date_of_birth?: string;
+    current_belt?: string;
   };
   availableTerms: Term[];
   previousEnrollment: any | null;
+  gradingSlots?: GradingSlot[];
 }
 
 // Calculate age in decimal years (e.g., 4.5 for 4 years 6 months)
@@ -62,6 +68,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   student,
   availableTerms,
   previousEnrollment,
+  gradingSlots = [],
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
@@ -76,6 +83,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Grading opt-in state
+  const [includeGrading, setIncludeGrading] = useState(false);
+  const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
+  const [wasGradingIncluded, setWasGradingIncluded] = useState(false);
+
+  const nextBelt = getNextBelt(student.current_belt);
+
   // Calculate student's age
   const studentAge = useMemo(() => {
     if (!student.date_of_birth) return 0;
@@ -86,12 +100,11 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const { data: paidTermIds = [] } = useQuery({
     queryKey: ['student-paid-terms', studentId],
     queryFn: async () => {
-      // Get all invoice items for this student that have term_id in metadata
       const { data: invoices } = await supabase
         .from('invoices')
         .select('id, status')
         .eq('student_id', studentId)
-        .in('status', ['paid', 'draft']); // Both paid and unpaid invoices count
+        .in('status', ['paid', 'draft']);
 
       if (!invoices || invoices.length === 0) return [];
 
@@ -104,7 +117,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
       if (!items) return [];
 
-      // Extract term_ids from metadata
       const termIds: string[] = [];
       items.forEach(item => {
         const metadata = item.metadata as any;
@@ -113,7 +125,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         }
       });
 
-      return [...new Set(termIds)]; // Unique term IDs
+      return [...new Set(termIds)];
     },
     enabled: !!studentId,
   });
@@ -123,18 +135,16 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     const today = new Date().toISOString().split('T')[0];
     return availableTerms
       .filter(term => !paidTermIds.includes(term.id))
-      .filter(term => term.end_date >= today) // Only future or current terms
-      .sort((a, b) => a.start_date.localeCompare(b.start_date)); // Earliest first
+      .filter(term => term.end_date >= today)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
   }, [availableTerms, paidTermIds]);
 
-  // Check if current term is available for "remaining weeks" payment
   const currentTermForRemaining = useMemo(() => {
     return unpaidTerms.find(term => isInsideTerm(term));
   }, [unpaidTerms]);
 
   const selectedTerm = unpaidTerms.find(t => t.id === selectedTermId);
 
-  // Calculate remaining weeks for current term
   const remainingWeeksForCurrentTerm = useMemo(() => {
     if (!currentTermForRemaining) return 0;
     return calculateRemainingTeachingWeeks(currentTermForRemaining.end_date, currentTermForRemaining.breaks || []);
@@ -177,7 +187,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     queryFn: async () => {
       if (!student.branch_id) return [];
       
-      // First get the Classes category ID
       const { data: categories } = await supabase
         .from('product_categories')
         .select('id')
@@ -186,7 +195,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       if (!categories) return [];
       
-      // Fetch products in the Classes category
       const { data: products } = await supabase
         .from('products')
         .select('*')
@@ -195,7 +203,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       if (!products || products.length === 0) return [];
       
-      // Fetch branch-specific price rules for this branch
       const productIds = products.map(p => p.id);
       const { data: priceRules } = await supabase
         .from('price_rules')
@@ -205,14 +212,10 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       
       const priceRuleMap = new Map(priceRules?.map(r => [r.product_id, r]) || []);
       
-      // Filter products: show if NO rule exists (default visible) OR rule is active
-      // Hide only if a rule exists with is_active = false
       return products
         .filter(product => {
           const rule = priceRuleMap.get(product.id);
-          // If no rule exists, product is visible (default)
           if (!rule) return true;
-          // If rule exists, check is_active (true = visible, false = hidden)
           return rule.is_active === true;
         })
         .map(product => {
@@ -227,10 +230,79 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     enabled: !!student.branch_id,
   });
 
+  // Fetch grading fee product based on belt transition
+  const { data: gradingProduct } = useQuery({
+    queryKey: ['grading-product-fees', student.current_belt, nextBelt, student.branch_id],
+    queryFn: async () => {
+      if (!student.current_belt || !nextBelt) return null;
+      
+      const productName = `${formatBeltLevel(student.current_belt)} >> ${formatBeltLevel(nextBelt)}`;
+      
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .eq('name', productName)
+        .maybeSingle();
+      
+      if (!data) return null;
+      
+      if (student.branch_id) {
+        const { data: priceRule } = await supabase
+          .from('price_rules')
+          .select('price_override, is_active')
+          .eq('product_id', data.id)
+          .eq('branch_id', student.branch_id)
+          .maybeSingle();
+        
+        if (priceRule?.is_active === false) return null;
+        
+        return {
+          ...data,
+          effective_price: priceRule?.price_override ?? data.base_price,
+        };
+      }
+      
+      return { ...data, effective_price: data.base_price };
+    },
+    enabled: !!student.current_belt && !!nextBelt,
+  });
+
+  // Check for duplicate grading invoice (60-day rule)
+  const { data: existingGradingInvoice } = useQuery({
+    queryKey: ['grading-duplicate-check-fees', studentId, gradingProduct?.id],
+    queryFn: async () => {
+      if (!gradingProduct?.id) return null;
+      
+      const sixtyDaysAgo = subDays(new Date(), 60).toISOString().split('T')[0];
+      
+      const { data } = await supabase
+        .from('invoice_items')
+        .select(`
+          id,
+          invoice_id,
+          invoices!inner(id, status, created_at, student_id)
+        `)
+        .eq('product_id', gradingProduct.id)
+        .eq('invoices.student_id', studentId)
+        .neq('invoices.status', 'cancelled')
+        .gte('invoices.created_at', sixtyDaysAgo)
+        .limit(1)
+        .maybeSingle();
+
+      return data;
+    },
+    enabled: !!gradingProduct?.id,
+  });
+
+  // Is grading opt-in eligible?
+  const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice;
+
   // Get selected product
   const selectedProduct = classProducts.find(p => p.id === selectedProductId);
+  const selectedGradingSlot = gradingSlots.find(s => s.id === selectedGradingSlotId);
 
-  // Auto-fill from previous enrollment (match by product name if possible)
+  // Auto-fill from previous enrollment
   useEffect(() => {
     if (previousEnrollment && !selectedProductId && classProducts.length > 0) {
       const matchingProduct = classProducts.find(p => 
@@ -242,15 +314,35 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     }
   }, [previousEnrollment, classProducts, selectedProductId]);
 
-  // Auto-select first unpaid term (next available)
+  // Auto-select first unpaid term
   useEffect(() => {
     if (unpaidTerms.length > 0 && !selectedTermId) {
       setSelectedTermId(unpaidTerms[0].id);
     }
   }, [unpaidTerms, selectedTermId]);
 
+  // Auto-reset grading opt-in when not eligible
+  useEffect(() => {
+    if (!gradingEligible) setIncludeGrading(false);
+  }, [gradingEligible]);
+
+  // Auto-select first grading slot when opting in
+  useEffect(() => {
+    if (includeGrading && gradingSlots.length > 0 && !selectedGradingSlotId) {
+      setSelectedGradingSlotId(gradingSlots[0].id);
+    }
+  }, [includeGrading, gradingSlots, selectedGradingSlotId]);
+
+  // Set default payment method based on country
+  useEffect(() => {
+    if (branch?.country === 'Australia') {
+      setPaymentMethod('bank_transfer');
+    } else {
+      setPaymentMethod('paynow');
+    }
+  }, [branch?.country]);
+
   // Calculate price based on selected product and term weeks
-  // If "remaining weeks" is selected, use remaining weeks calculation
   const termWeeks = useMemo(() => {
     if (!selectedTerm) return 0;
     if (isRemainingWeeks && currentTermForRemaining && selectedTerm.id === currentTermForRemaining.id) {
@@ -263,6 +355,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     ? termWeeks * selectedProduct.effective_price
     : 0;
 
+  const gradingFee = gradingProduct?.effective_price ?? 0;
+  const combinedTotal = calculatedPrice + (includeGrading ? gradingFee : 0);
+
   // Payment methods based on country
   const getPaymentMethods = () => {
     const country = branch?.country;
@@ -271,11 +366,29 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         { value: 'bank_transfer', label: 'Bank Transfer' },
       ];
     }
-    // Singapore and default
     return [
       { value: 'paynow', label: 'PayNow' },
       { value: 'bank_transfer', label: 'Bank Transfer' },
     ];
+  };
+
+  // Handle file upload
+  const uploadProofOfPayment = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${studentId}.${fileExt}`;
+    const filePath = `payment-proofs/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('receipts')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('receipts')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
   };
 
   // Combined create invoice and payment mutation
@@ -289,7 +402,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         throw new Error('Proof of payment is required');
       }
 
-      // Step 1: Create invoice
+      // Step 1: Create school fees invoice
       const weeksLabel = isRemainingWeeks ? 'remaining weeks' : 'weeks';
       const invoice = await createInvoice({
         student_id: studentId,
@@ -312,11 +425,11 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         }],
       });
 
-      // Step 2: Upload proof of payment
+      // Step 2: Upload proof of payment (shared for both)
       setIsUploading(true);
       const proofUrl = await uploadProofOfPayment(proofFile);
 
-      // Step 3: Create payment
+      // Step 3: Create school fees payment
       await createPayment({
         invoice_id: invoice.id,
         amount: invoice.total_amount,
@@ -334,12 +447,11 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         class_type: selectedProduct.name || 'Class',
         tier_name: selectedProduct.name || 'Standard',
         total_price: invoice.total_amount,
-        invoice_item_id: undefined, // Will be linked via invoice metadata
+        invoice_item_id: undefined,
       });
 
       // Step 5: Create scheduled classes from selected slots
       if (selectedClassSlots.length > 0) {
-        // Fetch timetable data for start/end times
         const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
         const { data: timetables } = await supabase
           .from('branch_timetables')
@@ -363,16 +475,53 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         }
       }
 
-      return invoice;
+      // Step 6: If grading opted in, create grading invoice + payment
+      if (includeGrading && selectedGradingSlot && gradingProduct && student.current_belt) {
+        const gradingInvoice = await createInvoice({
+          student_id: studentId,
+          branch_id: student.branch_id,
+          payment_terms_days: 7,
+          internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedGradingSlot.grading_date), 'dd MMM yyyy')}`,
+          items: [{
+            product_id: gradingProduct.id,
+            description: gradingProduct.name,
+            quantity: 1,
+            unit_price: gradingProduct.effective_price || gradingProduct.base_price || 0,
+            metadata: {
+              grading_slot_id: selectedGradingSlot.id,
+              grading_date: selectedGradingSlot.grading_date,
+              current_belt: student.current_belt,
+              target_belt: nextBelt,
+            },
+          }],
+        });
+
+        await createPayment({
+          invoice_id: gradingInvoice.id,
+          amount: gradingInvoice.total_amount,
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: paymentMethod as any,
+          reference_number: referenceNumber || undefined,
+          proof_of_payment_url: proofUrl,
+        });
+      }
+
+      return { invoice, gradingIncluded: includeGrading };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setWasGradingIncluded(result.gradingIncluded);
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
       queryClient.invalidateQueries({ queryKey: ['student-my-enrollments'] });
       queryClient.invalidateQueries({ queryKey: ['student-all-scheduled-classes'] });
       queryClient.invalidateQueries({ queryKey: ['student-entitlements'] });
-      toast.success('Invoice created and payment recorded successfully!');
+      if (result.gradingIncluded) {
+        queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
+        toast.success('Enrollment and grading registration confirmed!');
+      } else {
+        toast.success('Invoice created and payment recorded successfully!');
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to create invoice and payment');
@@ -382,26 +531,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     },
   });
 
-  // Handle file upload
-  const uploadProofOfPayment = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${studentId}.${fileExt}`;
-    const filePath = `payment-proofs/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('receipts')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('receipts')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
-  };
-
-
   const handleClose = () => {
     setStep('select');
     setSelectedTermId('');
@@ -410,6 +539,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setIsRemainingWeeks(false);
     setProofFile(null);
     setReferenceNumber('');
+    setIncludeGrading(false);
+    setSelectedGradingSlotId('');
+    setWasGradingIncluded(false);
     onOpenChange(false);
   };
 
@@ -455,7 +587,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
             {unpaidTerms.length > 0 && (
               <>
-                {/* Term Selection - Show next unpaid term */}
+                {/* Term Selection */}
                 <div className="space-y-2">
                   <Label>Select Term *</Label>
                   <Select 
@@ -474,7 +606,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       <SelectValue placeholder="Choose a term" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Show "Remaining weeks" option for current term */}
                       {currentTermForRemaining && remainingWeeksForCurrentTerm > 0 && (
                         <SelectItem key={`${currentTermForRemaining.id}:remaining`} value={`${currentTermForRemaining.id}:remaining`}>
                           {currentTermForRemaining.name} - Remaining {remainingWeeksForCurrentTerm} weeks
@@ -495,7 +626,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   </Select>
                 </div>
 
-                {/* Package (from Products) */}
+                {/* Package */}
                 <div className="space-y-2">
                   <Label>Package *</Label>
                   {classProducts.length === 0 ? (
@@ -559,10 +690,69 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                           <span className="font-medium">{selectedClassSlots.length}</span>
                         </div>
                       )}
+                      <div className="flex justify-between text-xs sm:text-sm">
+                        <span className="text-muted-foreground">School Fees</span>
+                        <span className="font-medium">${calculatedPrice.toFixed(2)}</span>
+                      </div>
+                      {includeGrading && gradingProduct && (
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-muted-foreground">Grading Fee</span>
+                          <span className="font-medium">${gradingFee.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="border-t pt-1.5 flex justify-between">
                         <span className="font-semibold text-sm">Total</span>
-                        <span className="font-bold text-sm sm:text-lg">${calculatedPrice.toFixed(2)}</span>
+                        <span className="font-bold text-sm sm:text-lg">${combinedTotal.toFixed(2)}</span>
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Grading Opt-In */}
+                {gradingEligible && selectedTerm && selectedProduct && (
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardContent className="p-3 sm:p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="include-grading"
+                          checked={includeGrading}
+                          onCheckedChange={(v) => setIncludeGrading(!!v)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="include-grading" className="font-medium text-foreground cursor-pointer flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4" />
+                            Also register for grading
+                          </label>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-xs text-muted-foreground">{formatBeltLevel(student.current_belt)}</span>
+                            <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-xs font-medium text-foreground">{formatBeltLevel(nextBelt)}</span>
+                            {gradingProduct && (
+                              <span className="text-xs text-muted-foreground ml-1">— ${gradingFee.toFixed(2)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {includeGrading && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Select Grading Session *</Label>
+                          <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a grading session" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {gradingSlots.map(slot => (
+                                <SelectItem key={slot.id} value={slot.id}>
+                                  {format(parseISO(slot.grading_date), 'EEEE, dd MMM yyyy')}
+                                  {slot.start_time && ` at ${slot.start_time.slice(0, 5)}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -574,6 +764,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <CreditCard className="w-4 h-4" />
                         Payment Details
+                        {includeGrading && (
+                          <span className="text-xs text-muted-foreground font-normal">(covers both school fees & grading)</span>
+                        )}
                       </div>
 
                       {/* Payment Method */}
@@ -593,7 +786,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         </Select>
                       </div>
 
-                      {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
+                      {/* Payment Info Display */}
                       <PaymentInfoDisplay
                         paymentMethod={paymentMethod}
                         bankTransferInfo={invoiceTemplate?.bank_transfer_info}
@@ -654,6 +847,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   !selectedTermId || 
                   !selectedProductId || 
                   !proofFile ||
+                  (includeGrading && !selectedGradingSlotId) ||
                   createInvoiceAndPayMutation.isPending || 
                   isUploading ||
                   unpaidTerms.length === 0
@@ -663,13 +857,14 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                 {(createInvoiceAndPayMutation.isPending || isUploading) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                <span className="sm:hidden">Pay</span>
-                <span className="hidden sm:inline">Create Invoice & Pay</span>
+                <span className="sm:hidden">{includeGrading ? 'Pay Both' : 'Pay'}</span>
+                <span className="hidden sm:inline">
+                  {includeGrading ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
+                </span>
               </Button>
             </div>
           </div>
         )}
-
 
         {step === 'success' && (
           <div className="text-center py-4 sm:py-6 space-y-4">
@@ -677,6 +872,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <h3 className="font-semibold text-lg">Enrollment Confirmed!</h3>
+            {wasGradingIncluded && (
+              <p className="text-sm text-purple-700 flex items-center justify-center gap-1.5">
+                <GraduationCap className="w-4 h-4" />
+                Grading registration also confirmed.
+              </p>
+            )}
             <Button onClick={handleClose}>
               Done
             </Button>
