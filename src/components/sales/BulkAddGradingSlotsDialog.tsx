@@ -33,6 +33,7 @@ interface BulkRow {
   max_capacity: number;
   min_age: string;
   max_age: string;
+  available_branch_ids: string[];
   hasError?: boolean;
 }
 
@@ -51,6 +52,7 @@ const createEmptyRow = (): BulkRow => ({
   max_capacity: 20,
   min_age: '',
   max_age: '',
+  available_branch_ids: [],
 });
 
 const generateTitle = (branchName: string, date: string, time: string, belts: string[]): string => {
@@ -91,6 +93,46 @@ const BeltLevelPopover: React.FC<{
                 onCheckedChange={() => toggle(belt)}
               />
               {belt}
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const BranchMultiSelectPopover: React.FC<{
+  selected: string[];
+  branches: Branch[];
+  onChange: (ids: string[]) => void;
+}> = ({ selected, branches, onChange }) => {
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(b => b !== id) : [...selected, id]);
+  };
+
+  const label = selected.length === 0
+    ? 'All branches'
+    : selected.length === 1
+      ? branches.find(b => b.id === selected[0])?.name ?? '1 branch'
+      : `${selected.length} branches`;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 w-full justify-between text-xs">
+          <span className="truncate">{label}</span>
+          <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2 max-h-72 overflow-y-auto" align="start">
+        <div className="space-y-1">
+          {branches.map(branch => (
+            <label key={branch.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox
+                checked={selected.includes(branch.id)}
+                onCheckedChange={() => toggle(branch.id)}
+              />
+              {branch.name}
             </label>
           ))}
         </div>
@@ -185,6 +227,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
           max_capacity: row.max_capacity,
           min_age: row.min_age !== '' ? parseInt(row.min_age) : undefined,
           max_age: row.max_age !== '' ? parseInt(row.max_age) : undefined,
+          available_branch_ids: row.available_branch_ids.length > 0 ? row.available_branch_ids : undefined,
         });
         saved++;
         setSaveProgress({ current: saved, total });
@@ -219,6 +262,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-28">Time</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground">Title (auto)</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-32">Belt Levels</th>
+                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-40">Avail. to Branches</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Min Age</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Max Age</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Cap</th>
@@ -276,6 +320,14 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                     <BeltLevelPopover
                       selected={row.belt_levels}
                       onChange={belts => updateRow(row.id, 'belt_levels', belts)}
+                    />
+                  </td>
+                  {/* Available to Branches */}
+                  <td className="py-1.5 px-2">
+                    <BranchMultiSelectPopover
+                      selected={row.available_branch_ids}
+                      branches={branches}
+                      onChange={ids => updateRow(row.id, 'available_branch_ids', ids)}
                     />
                   </td>
                   {/* Min Age */}
