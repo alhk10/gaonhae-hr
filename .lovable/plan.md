@@ -1,32 +1,76 @@
 
+## Replace "Add Grading Slot" with Bulk Spreadsheet Dialog
 
-# Add Payment Verification to Superadmin Dashboard
+### Goal
+The existing `+ Add Grading Slot` button will open a new bulk spreadsheet-style dialog instead of the single-slot dialog. The button label stays `+ Grading Slot`. The single-slot dialog (`AddGradingSlotDialog`) is kept only for the **Edit** and **Duplicate** row actions — it will no longer be used for creation.
 
-## Overview
-Add a Payment Verification section to the Superadmin Dashboard so that superadmins can also verify student payments made through the Pay School Fees and Pay Grading dialogs, in addition to the existing verification in the Branch Dashboard.
+### What the Bulk Dialog Looks Like
 
-## Current State
-- Payment verification currently only exists in the Branch Dashboard, filtering unverified non-cash payments with proof of payment uploads
-- When students pay via the portal, payments are created with `is_verified: false` (default) and include a `proof_of_payment_url`
-- Branch staff can verify these payments, which updates `is_verified`, `verified_by`, and `verified_at` fields, and advances the invoice status to `verified`
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│  + Grading Slot                                              [X Close]   │
+│  Add multiple grading slots at once                                      │
+├──────────┬──────────┬───────┬──────────────────────┬──────────┬─────────┤
+│  Branch  │   Date   │ Time  │        Title         │  Belts   │ Cap │ ✕ │
+├──────────┼──────────┼───────┼──────────────────────┼──────────┼─────────┤
+│ [sel ▼]  │ [date]   │[time] │ [auto-generated]     │ [btn▼]   │ 20  │ 🗑│
+│ [sel ▼]  │ [date]   │[time] │ [auto-generated]     │ [btn▼]   │ 20  │ 🗑│
+└──────────┴──────────┴───────┴──────────────────────┴──────────┴─────────┘
+  [+ Add Row]  [Duplicate Last Row]          [Cancel]  [Save All (2)]
+```
 
-## Changes
+### Implementation Plan
 
-### 1. Create a new `PaymentVerificationApprovals` component
-- **File**: `src/components/dashboard/PaymentVerificationApprovals.tsx`
-- Fetches all unverified payments across all branches where `is_verified = false`, `proof_of_payment_url` is not null, and `payment_method != 'cash'`
-- Displays each payment with: proof of payment image/thumbnail, student name, invoice number, amount, payment date, payment method, and branch name
-- Includes a "Verify" button per payment that updates `is_verified`, `verified_by`, `verified_at` and advances invoice status to `verified`
-- Uses the same visual pattern as the Branch Dashboard verification section (orange highlight, ShieldCheck icon)
-- Groups or labels payments by branch for clarity
+#### 1. New Component: `BulkAddGradingSlotsDialog.tsx`
 
-### 2. Add the component to `SuperadminDashboard.tsx`
-- **File**: `src/components/dashboard/SuperadminDashboard.tsx`
-- Import and render `PaymentVerificationApprovals` in the Overview tab alongside existing approval sections
-- Place it after Slot Booking Approvals and before Payment Deletion Approvals (logical grouping with payment-related items)
+**Local row state:**
+```typescript
+interface BulkRow {
+  id: string;          // temp local key (uuid)
+  branch_id: string;
+  grading_date: string;
+  start_time: string;
+  title: string;       // auto-generated, editable
+  belt_levels: string[];
+  max_capacity: number;
+}
+```
 
-### Technical Details
-- Query: `supabase.from('payments').select('*, invoices!inner(invoice_number, branch_id, total_amount, students(first_name, last_name))').eq('is_verified', false).not('proof_of_payment_url', 'is', null).neq('payment_method', 'cash')`
-- Verification action mirrors the Branch Dashboard logic: update payment record, then update invoice status from `paid` to `verified`
-- Cache invalidation on verify: invalidate relevant payment and invoice queries
+**Row interactions:**
+- Branch: `<Select>` dropdown (filtered to real branches)
+- Date: `<input type="date">`
+- Time: `<input type="time">`
+- Title: `<Input>` — auto-fills when branch/date/time/belts change (reuses `generateDefaultTitle` logic), user can override
+- Belt Levels: compact `<Popover>` button showing count (e.g. "3 belts"), opens checkbox list of all `BELT_LEVELS`
+- Capacity: `<input type="number">`
+- Delete icon: removes that row
 
+**Toolbar controls:**
+- `+ Add Row` — appends a blank row
+- `Duplicate Last Row` — copies last row's values for fast repetitive entry
+
+**Validation before save:**
+- Each row must have `branch_id` and `grading_date`
+- Invalid rows highlighted with red border
+- Toast shows count of errors if any
+
+**Save logic:**
+- Calls `createGradingSlot(row)` for each valid row
+- Shows inline progress text: "Saving 2 of 5..."
+- On completion: success toast with count, dialog closes, parent `loadData()` called
+
+**Dialog starts with 1 blank row by default.**
+
+#### 2. Changes to `GradingManagement.tsx`
+- Replace the `GradingSlotDialog` trigger block (lines 151–161) with the new `BulkAddGradingSlotsDialog`
+- Button label stays `+ Grading Slot` (just changes the `Plus` icon + label text to match)
+- Keep existing `GradingSlotDialog` for Edit (inline per-row) and Duplicate (pre-filled copy dialog) — no change to those
+
+### Files
+
+| Action | File |
+|--------|------|
+| Create | `src/components/sales/BulkAddGradingSlotsDialog.tsx` |
+| Edit | `src/pages/sales/GradingManagement.tsx` |
+
+No database changes needed — uses existing `createGradingSlot` from `gradingService.ts`.
