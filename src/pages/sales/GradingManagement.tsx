@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getGradingSlots, updateGradingSlot, deleteGradingSlot, type GradingSlot } from '@/services/gradingService';
 import GradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
+import BulkAddGradingSlotsDialog from '@/components/sales/BulkAddGradingSlotsDialog';
 import GradingListTab from '@/components/sales/GradingListTab';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Plus, Users, Trash2, CheckCircle, XCircle, AlertCircle, Pencil, Copy } from 'lucide-react';
@@ -149,14 +150,14 @@ const GradingManagement: React.FC = () => {
           <TabsContent value="slots" className="space-y-6 mt-6">
             {/* Add Button */}
             <div className="flex justify-end">
-              <GradingSlotDialog 
+              <BulkAddGradingSlotsDialog
                 trigger={
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Grading Slot
+                    Grading Slot
                   </Button>
                 }
-                onSlotSaved={loadData}
+                onSlotsSaved={loadData}
               />
             </div>
 
