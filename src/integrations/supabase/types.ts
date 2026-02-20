@@ -1376,7 +1376,9 @@ export type Database = {
           grading_date: string
           id: string
           location: string | null
+          max_age: number | null
           max_capacity: number | null
+          min_age: number | null
           notes: string | null
           start_time: string | null
           status: string | null
@@ -1394,7 +1396,9 @@ export type Database = {
           grading_date: string
           id?: string
           location?: string | null
+          max_age?: number | null
           max_capacity?: number | null
+          min_age?: number | null
           notes?: string | null
           start_time?: string | null
           status?: string | null
@@ -1412,7 +1416,9 @@ export type Database = {
           grading_date?: string
           id?: string
           location?: string | null
+          max_age?: number | null
           max_capacity?: number | null
+          min_age?: number | null
           notes?: string | null
           start_time?: string | null
           status?: string | null
