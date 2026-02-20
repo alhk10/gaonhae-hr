@@ -9,11 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type GradingSlot } from '@/services/gradingService';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown } from 'lucide-react';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 
 interface GradingSlotDialogProps {
@@ -52,14 +54,16 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     title: '',
     belt_levels: [],
     max_capacity: 20,
-    notes: ''
+    notes: '',
+    min_age: undefined,
+    max_age: undefined,
+    available_branch_ids: [],
   });
 
   useEffect(() => {
     if (open) {
       loadBranches();
       if (duplicateSlot) {
-        // Pre-fill with duplicate slot data but in add mode
         setFormData({
           branch_id: duplicateSlot.branch_id,
           grading_date: duplicateSlot.grading_date,
@@ -67,7 +71,10 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
           title: duplicateSlot.title ? `${duplicateSlot.title} (Copy)` : '',
           belt_levels: duplicateSlot.belt_levels || [],
           max_capacity: duplicateSlot.max_capacity || 20,
-          notes: duplicateSlot.notes || ''
+          notes: duplicateSlot.notes || '',
+          min_age: (duplicateSlot as any).min_age ?? undefined,
+          max_age: (duplicateSlot as any).max_age ?? undefined,
+          available_branch_ids: (duplicateSlot as any).available_branch_ids || [],
         });
       } else if (editSlot && mode === 'edit') {
         setFormData({
@@ -77,7 +84,10 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
           title: editSlot.title || '',
           belt_levels: editSlot.belt_levels || [],
           max_capacity: editSlot.max_capacity || 20,
-          notes: editSlot.notes || ''
+          notes: editSlot.notes || '',
+          min_age: (editSlot as any).min_age ?? undefined,
+          max_age: (editSlot as any).max_age ?? undefined,
+          available_branch_ids: (editSlot as any).available_branch_ids || [],
         });
       } else {
         resetForm();
@@ -140,7 +150,10 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       title: '',
       belt_levels: [],
       max_capacity: 20,
-      notes: ''
+      notes: '',
+      min_age: undefined,
+      max_age: undefined,
+      available_branch_ids: [],
     });
   };
 
@@ -276,6 +289,72 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Age Range</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Min Age</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={formData.min_age ?? ''}
+                  onChange={e => handleInputChange('min_age', e.target.value !== '' ? parseInt(e.target.value) : undefined)}
+                  placeholder="—"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Max Age</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={formData.max_age ?? ''}
+                  onChange={e => handleInputChange('max_age', e.target.value !== '' ? parseInt(e.target.value) : undefined)}
+                  placeholder="—"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Available to Branches</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between" type="button">
+                  <span className="truncate text-sm">
+                    {!formData.available_branch_ids || formData.available_branch_ids.length === 0
+                      ? 'All branches'
+                      : formData.available_branch_ids.length === 1
+                        ? branches.find(b => b.id === formData.available_branch_ids![0])?.name ?? '1 branch'
+                        : `${formData.available_branch_ids.length} branches selected`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-2 max-h-60 overflow-y-auto" align="start">
+                <div className="space-y-1">
+                  {branches.map(branch => (
+                    <label key={branch.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={(formData.available_branch_ids || []).includes(branch.id)}
+                        onCheckedChange={() => {
+                          const current = formData.available_branch_ids || [];
+                          handleInputChange(
+                            'available_branch_ids',
+                            current.includes(branch.id) ? current.filter(id => id !== branch.id) : [...current, branch.id]
+                          );
+                        }}
+                      />
+                      {branch.name}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">Leave empty to allow all branches</p>
           </div>
 
           <div className="space-y-2">
