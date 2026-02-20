@@ -16,8 +16,8 @@ import { getGradingSlots, updateGradingSlot, deleteGradingSlot, type GradingSlot
 import GradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
 import GradingListTab from '@/components/sales/GradingListTab';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle, Pencil, Copy } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Plus, Users, Trash2, CheckCircle, XCircle, AlertCircle, Pencil, Copy } from 'lucide-react';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -247,10 +247,7 @@ const GradingManagement: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Branch</TableHead>
+                        <TableHead className="w-64">Title</TableHead>
                         <TableHead>Belt Levels</TableHead>
                         <TableHead>Capacity</TableHead>
                         <TableHead>Status</TableHead>
@@ -260,26 +257,11 @@ const GradingManagement: React.FC = () => {
                     <TableBody>
                       {gradingSlots.map((slot) => (
                         <TableRow key={slot.id}>
-                          <TableCell className="font-medium max-w-[250px]">
-                            <span className="truncate block" title={slot.title || '-'}>
+                          <TableCell className="font-medium w-64">
+                            <span className="block whitespace-normal line-clamp-2" title={slot.title || '-'}>
                               {slot.title || '-'}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                              {format(parseISO(slot.grading_date), 'dd MMM yyyy')}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {slot.start_time ? (
-                              <div className="flex items-center text-sm">
-                                <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                                {slot.start_time.slice(0, 5)}
-                              </div>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell>{slot.branch_name}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {(slot.belt_levels || []).slice(0, 3).map(belt => (
