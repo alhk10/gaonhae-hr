@@ -16,7 +16,7 @@ import { getGradingSlots, updateGradingSlot, deleteGradingSlot, type GradingSlot
 import GradingSlotDialog from '@/components/sales/AddGradingSlotDialog';
 import GradingListTab from '@/components/sales/GradingListTab';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
-import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle, Pencil } from 'lucide-react';
+import { Plus, Calendar, Users, Clock, Trash2, CheckCircle, XCircle, AlertCircle, Pencil, Copy } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import {
   AlertDialog,
@@ -93,14 +93,34 @@ const GradingManagement: React.FC = () => {
     }
   };
 
+  const handleDuplicate = async (slot: GradingSlot) => {
+    try {
+      const { createGradingSlot } = await import('@/services/gradingService');
+      await createGradingSlot({
+        branch_id: slot.branch_id,
+        grading_date: slot.grading_date,
+        start_time: slot.start_time || '',
+        title: slot.title ? `${slot.title} (Copy)` : '',
+        belt_levels: slot.belt_levels || [],
+        max_capacity: slot.max_capacity || 20,
+        notes: slot.notes || ''
+      });
+      toast.success('Grading slot duplicated');
+      loadData();
+    } catch (error) {
+      console.error('Error duplicating slot:', error);
+      toast.error('Failed to duplicate grading slot');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
+        return <Badge variant="outline" className="border-green-600 text-green-700"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
       case 'cancelled':
         return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Cancelled</Badge>;
       case 'completed':
-        return <Badge className="bg-blue-100 text-blue-800"><AlertCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+        return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Completed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -298,7 +318,7 @@ const GradingManagement: React.FC = () => {
                               </Select>
                               <GradingSlotDialog
                                 trigger={
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit slot">
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                 }
@@ -306,6 +326,15 @@ const GradingManagement: React.FC = () => {
                                 mode="edit"
                                 onSlotSaved={loadData}
                               />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                title="Duplicate slot"
+                                onClick={() => handleDuplicate(slot)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
