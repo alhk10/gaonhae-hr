@@ -61,36 +61,39 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      loadBranches();
-      if (duplicateSlot) {
-        setFormData({
-          branch_id: duplicateSlot.branch_id,
-          grading_date: duplicateSlot.grading_date,
-          start_time: duplicateSlot.start_time || '',
-          title: duplicateSlot.title ? `${duplicateSlot.title} (Copy)` : '',
-          belt_levels: duplicateSlot.belt_levels || [],
-          max_capacity: duplicateSlot.max_capacity || 20,
-          notes: duplicateSlot.notes || '',
-          min_age: (duplicateSlot as any).min_age ?? undefined,
-          max_age: (duplicateSlot as any).max_age ?? undefined,
-          available_branch_ids: (duplicateSlot as any).available_branch_ids || [],
-        });
-      } else if (editSlot && mode === 'edit') {
-        setFormData({
-          branch_id: editSlot.branch_id,
-          grading_date: editSlot.grading_date,
-          start_time: editSlot.start_time || '',
-          title: editSlot.title || '',
-          belt_levels: editSlot.belt_levels || [],
-          max_capacity: editSlot.max_capacity || 20,
-          notes: editSlot.notes || '',
-          min_age: (editSlot as any).min_age ?? undefined,
-          max_age: (editSlot as any).max_age ?? undefined,
-          available_branch_ids: (editSlot as any).available_branch_ids || [],
-        });
-      } else {
-        resetForm();
-      }
+      const initForm = async () => {
+        await loadBranches();
+        if (duplicateSlot) {
+          setFormData({
+            branch_id: duplicateSlot.branch_id,
+            grading_date: duplicateSlot.grading_date,
+            start_time: duplicateSlot.start_time || '',
+            title: duplicateSlot.title ? `${duplicateSlot.title} (Copy)` : '',
+            belt_levels: duplicateSlot.belt_levels || [],
+            max_capacity: duplicateSlot.max_capacity || 20,
+            notes: duplicateSlot.notes || '',
+            min_age: (duplicateSlot as any).min_age ?? undefined,
+            max_age: (duplicateSlot as any).max_age ?? undefined,
+            available_branch_ids: (duplicateSlot as any).available_branch_ids || [],
+          });
+        } else if (editSlot && mode === 'edit') {
+          setFormData({
+            branch_id: editSlot.branch_id,
+            grading_date: editSlot.grading_date,
+            start_time: editSlot.start_time || '',
+            title: editSlot.title || '',
+            belt_levels: editSlot.belt_levels || [],
+            max_capacity: editSlot.max_capacity || 20,
+            notes: editSlot.notes || '',
+            min_age: (editSlot as any).min_age ?? undefined,
+            max_age: (editSlot as any).max_age ?? undefined,
+            available_branch_ids: (editSlot as any).available_branch_ids || [],
+          });
+        } else {
+          resetForm();
+        }
+      };
+      initForm();
     }
   }, [open, editSlot, duplicateSlot, mode]);
 
