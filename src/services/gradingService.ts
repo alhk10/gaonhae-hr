@@ -65,29 +65,28 @@ export interface UpdateGradingSlotData extends Partial<CreateGradingSlotData> {
 // Get all grading slots with optional filters
 export const getGradingSlots = async (filters?: {
   branch_id?: string;
+  branch_ids?: string[];
   status?: string;
   from_date?: string;
-  to_date?: string;
-}): Promise<GradingSlot[]> => {
+}) => {
   let query = supabase
     .from('grading_slots')
     .select(`
       *,
-      branches:branch_id (name)
+      branches!grading_slots_branch_id_fkey(name)
     `)
-    .order('grading_date', { ascending: true });
+    .order('grading_date', { ascending: false });
 
   if (filters?.branch_id) {
     query = query.eq('branch_id', filters.branch_id);
+  } else if (filters?.branch_ids && filters.branch_ids.length > 0) {
+    query = query.in('branch_id', filters.branch_ids);
   }
   if (filters?.status) {
     query = query.eq('status', filters.status);
   }
   if (filters?.from_date) {
     query = query.gte('grading_date', filters.from_date);
-  }
-  if (filters?.to_date) {
-    query = query.lte('grading_date', filters.to_date);
   }
 
   const { data, error } = await query;
