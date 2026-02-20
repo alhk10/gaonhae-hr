@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -131,14 +131,9 @@ const GradingManagement: React.FC = () => {
 
   return (
     <ResponsiveLayout>
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Grading Management</h1>
-            
-          </div>
-        </div>
+        <h1 className="text-xl font-bold">Grading Management</h1>
 
         {/* Tabs */}
         <Tabs defaultValue="slots" className="w-full">
@@ -147,13 +142,27 @@ const GradingManagement: React.FC = () => {
             <TabsTrigger value="list">Grading List</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="slots" className="space-y-6 mt-6">
-            {/* Add Button */}
-            <div className="flex justify-end">
+          <TabsContent value="slots" className="space-y-3 mt-3">
+            {/* Header row: stats + add button */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-1 flex-wrap gap-2 min-w-0">
+                <div className="flex items-center gap-1.5 bg-card border rounded-md px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Upcoming</span>
+                  <span className="font-bold">{upcomingCount}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-card border rounded-md px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Registrations</span>
+                  <span className="font-bold">{totalRegistrations}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-card border rounded-md px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Completed</span>
+                  <span className="font-bold">{completedCount}</span>
+                </div>
+              </div>
               <BulkAddGradingSlotsDialog
                 trigger={
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
+                  <Button size="sm">
+                    <Plus className="w-4 h-4 mr-1" />
                     Grading Slot
                   </Button>
                 }
@@ -161,86 +170,48 @@ const GradingManagement: React.FC = () => {
               />
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Gradings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{upcomingCount}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Registrations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalRegistrations}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Completed Gradings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{completedCount}</div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Filters */}
-            <Card>
-              <CardContent>
-                <div className="flex flex-wrap gap-4">
-                  <div className="w-48">
-                    <Select value={filterCountry} onValueChange={(val) => { setFilterCountry(val); setFilterBranch('all'); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Countries" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Countries</SelectItem>
-                        <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
-                        <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-48">
-                    <Select value={filterBranch} onValueChange={setFilterBranch}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Branches" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Branches</SelectItem>
-                        {(filterCountry === 'all'
-                          ? branches
-                          : branches.filter(b => b.country?.toLowerCase() === filterCountry.toLowerCase())
-                        ).map(b => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-48">
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap gap-2">
+              <Select value={filterCountry} onValueChange={(val) => { setFilterCountry(val); setFilterBranch('all'); }}>
+                <SelectTrigger className="h-9 w-36">
+                  <SelectValue placeholder="All Countries" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Countries</SelectItem>
+                  <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                  <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterBranch} onValueChange={setFilterBranch}>
+                <SelectTrigger className="h-9 w-36">
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {(filterCountry === 'all'
+                    ? branches
+                    : branches.filter(b => b.country?.toLowerCase() === filterCountry.toLowerCase())
+                  ).map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-9 w-36">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Grading Slots Table */}
             <Card>
-              <CardContent>
+              <CardContent className="p-0">
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading...</div>
                 ) : gradingSlots.length === 0 ? (
