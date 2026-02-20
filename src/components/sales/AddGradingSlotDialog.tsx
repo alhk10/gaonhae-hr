@@ -7,7 +7,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -276,19 +275,33 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
           <div className="space-y-2">
             <Label>Belt Levels</Label>
-            <div className="flex flex-wrap gap-2">
-              {BELT_LEVELS.map((belt) => (
-                <Button
-                  key={belt}
-                  type="button"
-                  variant={(formData.belt_levels || []).includes(belt) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => toggleBeltLevel(belt)}
-                >
-                  {belt}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between" type="button">
+                  <span className="truncate text-sm">
+                    {(formData.belt_levels || []).length === 0
+                      ? 'Select belt levels'
+                      : (formData.belt_levels || []).length === 1
+                        ? formData.belt_levels![0]
+                        : `${formData.belt_levels!.length} belts selected`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-              ))}
-            </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-60 overflow-y-auto bg-popover border shadow-md z-50" align="start">
+                <div className="space-y-1">
+                  {BELT_LEVELS.map(belt => (
+                    <label key={belt} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={(formData.belt_levels || []).includes(belt)}
+                        onCheckedChange={() => toggleBeltLevel(belt)}
+                      />
+                      {belt}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -334,7 +347,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
                   <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-2 max-h-60 overflow-y-auto" align="start">
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-60 overflow-y-auto bg-popover border shadow-md z-50" align="start">
                 <div className="space-y-1">
                   {branches.map(branch => (
                     <label key={branch.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
@@ -355,16 +368,6 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">Leave empty to allow all branches</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              value={formData.notes || ''}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
-              placeholder="Additional notes..."
-              rows={2}
-            />
           </div>
 
           <DialogFooter>
