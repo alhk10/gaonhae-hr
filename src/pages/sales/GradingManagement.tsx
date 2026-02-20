@@ -136,7 +136,7 @@ const GradingManagement: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Grading Management</h1>
-            <p className="text-muted-foreground">Schedule and manage grading examination slots</p>
+            
           </div>
         </div>
 
@@ -191,9 +191,6 @@ const GradingManagement: React.FC = () => {
 
             {/* Filters */}
             <Card>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
-              </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
                   <div className="w-48">
@@ -243,12 +240,6 @@ const GradingManagement: React.FC = () => {
 
             {/* Grading Slots Table */}
             <Card>
-              <CardHeader>
-                <CardTitle>Grading Slots</CardTitle>
-                <CardDescription>
-                  {gradingSlots.length} slot{gradingSlots.length !== 1 ? 's' : ''} found
-                </CardDescription>
-              </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading...</div>
