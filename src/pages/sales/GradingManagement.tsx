@@ -34,6 +34,8 @@ const GradingManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
   const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [slotToDuplicate, setSlotToDuplicate] = useState<GradingSlot | null>(null);
   
   // Filters
   const [filterBranch, setFilterBranch] = useState<string>('all');
@@ -93,24 +95,9 @@ const GradingManagement: React.FC = () => {
     }
   };
 
-  const handleDuplicate = async (slot: GradingSlot) => {
-    try {
-      const { createGradingSlot } = await import('@/services/gradingService');
-      await createGradingSlot({
-        branch_id: slot.branch_id,
-        grading_date: slot.grading_date,
-        start_time: slot.start_time || '',
-        title: slot.title ? `${slot.title} (Copy)` : '',
-        belt_levels: slot.belt_levels || [],
-        max_capacity: slot.max_capacity || 20,
-        notes: slot.notes || ''
-      });
-      toast.success('Grading slot duplicated');
-      loadData();
-    } catch (error) {
-      console.error('Error duplicating slot:', error);
-      toast.error('Failed to duplicate grading slot');
-    }
+  const handleDuplicateClick = (slot: GradingSlot) => {
+    setSlotToDuplicate(slot);
+    setDuplicateDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -313,7 +300,7 @@ const GradingManagement: React.FC = () => {
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
                                 title="Duplicate slot"
-                                onClick={() => handleDuplicate(slot)}
+                                onClick={() => handleDuplicateClick(slot)}
                               >
                                 <Copy className="h-4 w-4" />
                               </Button>
@@ -340,6 +327,22 @@ const GradingManagement: React.FC = () => {
             <GradingListTab />
           </TabsContent>
         </Tabs>
+
+        {/* Duplicate Dialog */}
+        <GradingSlotDialog
+          trigger={<span />}
+          duplicateSlot={slotToDuplicate}
+          open={duplicateDialogOpen}
+          onOpenChange={(val) => {
+            setDuplicateDialogOpen(val);
+            if (!val) setSlotToDuplicate(null);
+          }}
+          onSlotSaved={() => {
+            setDuplicateDialogOpen(false);
+            setSlotToDuplicate(null);
+            loadData();
+          }}
+        />
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteSlotId} onOpenChange={() => setDeleteSlotId(null)}>
