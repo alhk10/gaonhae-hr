@@ -1367,6 +1367,7 @@ export type Database = {
       }
       grading_slots: {
         Row: {
+          available_branch_ids: string[] | null
           belt_levels: string[] | null
           branch_id: string
           created_at: string | null
@@ -1387,6 +1388,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          available_branch_ids?: string[] | null
           belt_levels?: string[] | null
           branch_id: string
           created_at?: string | null
@@ -1407,6 +1409,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          available_branch_ids?: string[] | null
           belt_levels?: string[] | null
           branch_id?: string
           created_at?: string | null

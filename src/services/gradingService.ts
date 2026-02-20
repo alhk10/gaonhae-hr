@@ -58,6 +58,7 @@ export interface CreateGradingSlotData {
   title?: string;
   min_age?: number;
   max_age?: number;
+  available_branch_ids?: string[];
 }
 
 export interface UpdateGradingSlotData extends Partial<CreateGradingSlotData> {
