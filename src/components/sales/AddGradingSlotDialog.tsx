@@ -134,18 +134,14 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-generate title when key fields change (if title hasn't been manually edited or is empty)
+      // Always auto-generate title when key fields change
       if (['branch_id', 'grading_date', 'start_time', 'belt_levels'].includes(field)) {
-        const newTitle = generateDefaultTitle(
+        updated.title = generateDefaultTitle(
           field === 'branch_id' ? value : updated.branch_id,
           field === 'grading_date' ? value : updated.grading_date,
           field === 'start_time' ? value : updated.start_time || '',
           field === 'belt_levels' ? value : updated.belt_levels || []
         );
-        // Only update if title is empty or matches a previously generated pattern
-        if (!prev.title || prev.title === generateDefaultTitle(prev.branch_id, prev.grading_date, prev.start_time || '', prev.belt_levels || [])) {
-          updated.title = newTitle;
-        }
       }
       
       return updated;
