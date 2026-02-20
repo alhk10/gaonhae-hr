@@ -32,32 +32,42 @@ import {
 const GradingManagement: React.FC = () => {
   const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
+  const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [slotToDuplicate, setSlotToDuplicate] = useState<GradingSlot | null>(null);
   
   // Filters
+  const [filterCountry, setFilterCountry] = useState<string>('all');
   const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
     loadData();
-  }, [filterBranch, filterStatus]);
+  }, [filterCountry, filterBranch, filterStatus]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load branches
+      // Load branches with country
       const { data: branchData } = await supabase
         .from('branches')
-        .select('id, name')
+        .select('id, name, country')
         .order('name');
       setBranches(branchData?.filter(b => !['Competition', 'Headquarters'].includes(b.name)) || []);
 
       // Load grading slots with filters
       const filters: any = {};
-      if (filterBranch !== 'all') filters.branch_id = filterBranch;
+      if (filterBranch !== 'all') {
+        filters.branch_id = filterBranch;
+      } else if (filterCountry !== 'all') {
+        // Get branch IDs for the selected country
+        const countryBranches = branchData?.filter(b =>
+          !['Competition', 'Headquarters'].includes(b.name) &&
+          (b.country?.toLowerCase() === filterCountry.toLowerCase())
+        ) || [];
+        filters.branch_ids = countryBranches.map(b => b.id);
+      }
       if (filterStatus !== 'all') filters.status = filterStatus;
       
       const slots = await getGradingSlots(filters);
@@ -186,13 +196,28 @@ const GradingManagement: React.FC = () => {
               <CardContent>
                 <div className="flex flex-wrap gap-4">
                   <div className="w-48">
+                    <Select value={filterCountry} onValueChange={(val) => { setFilterCountry(val); setFilterBranch('all'); }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Countries" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Countries</SelectItem>
+                        <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                        <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-48">
                     <Select value={filterBranch} onValueChange={setFilterBranch}>
                       <SelectTrigger>
                         <SelectValue placeholder="All Branches" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {branches.map(b => (
+                        {(filterCountry === 'all'
+                          ? branches
+                          : branches.filter(b => b.country?.toLowerCase() === filterCountry.toLowerCase())
+                        ).map(b => (
                           <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                         ))}
                       </SelectContent>
