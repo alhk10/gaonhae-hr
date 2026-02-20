@@ -20,19 +20,31 @@ interface GradingSlotDialogProps {
   trigger: React.ReactNode;
   onSlotSaved?: () => void;
   editSlot?: GradingSlot | null;
+  duplicateSlot?: GradingSlot | null;
   mode?: 'add' | 'edit';
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({ 
   trigger, 
   onSlotSaved, 
   editSlot = null,
-  mode = 'add'
+  duplicateSlot = null,
+  mode = 'add',
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
   
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled
+    ? (val: boolean) => controlledOnOpenChange?.(val)
+    : setInternalOpen;
+
   const [formData, setFormData] = useState<CreateGradingSlotData>({
     branch_id: '',
     grading_date: '',
@@ -46,7 +58,18 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   useEffect(() => {
     if (open) {
       loadBranches();
-      if (editSlot && mode === 'edit') {
+      if (duplicateSlot) {
+        // Pre-fill with duplicate slot data but in add mode
+        setFormData({
+          branch_id: duplicateSlot.branch_id,
+          grading_date: duplicateSlot.grading_date,
+          start_time: duplicateSlot.start_time || '',
+          title: duplicateSlot.title ? `${duplicateSlot.title} (Copy)` : '',
+          belt_levels: duplicateSlot.belt_levels || [],
+          max_capacity: duplicateSlot.max_capacity || 20,
+          notes: duplicateSlot.notes || ''
+        });
+      } else if (editSlot && mode === 'edit') {
         setFormData({
           branch_id: editSlot.branch_id,
           grading_date: editSlot.grading_date,
@@ -56,9 +79,11 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
           max_capacity: editSlot.max_capacity || 20,
           notes: editSlot.notes || ''
         });
+      } else {
+        resetForm();
       }
     }
-  }, [open, editSlot, mode]);
+  }, [open, editSlot, duplicateSlot, mode]);
 
   const loadBranches = async () => {
     try {
@@ -89,19 +114,19 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
     setLoading(true);
     try {
-      if (mode === 'edit' && editSlot) {
+      if (isEditMode && editSlot) {
         await updateGradingSlot(editSlot.id, formData);
         toast.success('Grading slot updated successfully');
       } else {
         await createGradingSlot(formData);
-        toast.success('Grading slot created successfully');
+        toast.success(isDuplicateMode ? 'Grading slot duplicated successfully' : 'Grading slot created successfully');
       }
       setOpen(false);
       resetForm();
       onSlotSaved?.();
     } catch (error) {
       console.error('Error saving grading slot:', error);
-      toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} grading slot`);
+      toast.error(`Failed to ${isEditMode ? 'update' : isDuplicateMode ? 'duplicate' : 'create'} grading slot`);
     } finally {
       setLoading(false);
     }
@@ -156,7 +181,14 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     handleInputChange('belt_levels', newBelts);
   };
 
-  const isEditMode = mode === 'edit';
+  const isEditMode = mode === 'edit' && !duplicateSlot;
+  const isDuplicateMode = !!duplicateSlot;
+
+  const dialogTitle = isDuplicateMode ? 'Duplicate Grading Slot' : isEditMode ? 'Edit Grading Slot' : 'Add Grading Slot';
+  const dialogDescription = isDuplicateMode
+    ? 'Review and adjust details before creating a copy'
+    : isEditMode ? 'Update grading slot details' : 'Create a new grading examination slot for students';
+  const submitLabel = isDuplicateMode ? 'Create Copy' : isEditMode ? 'Save Changes' : 'Create Slot';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -165,10 +197,8 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit Grading Slot' : 'Add Grading Slot'}</DialogTitle>
-          <DialogDescription>
-            {isEditMode ? 'Update grading slot details' : 'Create a new grading examination slot for students'}
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -264,7 +294,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isEditMode ? 'Save Changes' : 'Create Slot'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>
