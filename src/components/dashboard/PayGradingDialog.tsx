@@ -347,9 +347,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                 <SelectContent>
                   {gradingSlots.map((slot) => (
                     <SelectItem key={slot.id} value={slot.id}>
-                      {format(parseISO(slot.grading_date), 'EEEE, dd MMM yyyy')}
-                      {slot.start_time && ` at ${slot.start_time.slice(0, 5)}`}
-                      {slot.branch_name && ` - ${slot.branch_name}`}
+                      {slot.title || `Grading Session`}
                     </SelectItem>
                   ))}
                 </SelectContent>

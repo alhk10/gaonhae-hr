@@ -717,8 +717,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                             <SelectContent>
                               {gradingSlots.map(slot => (
                                 <SelectItem key={slot.id} value={slot.id}>
-                                  {slot.title ? `${slot.title} — ` : ''}{format(parseISO(slot.grading_date), 'EEEE, dd MMM yyyy')}
-                                  {slot.start_time && ` at ${slot.start_time.slice(0, 5)}`}
+                                  {slot.title || `Grading Session`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
