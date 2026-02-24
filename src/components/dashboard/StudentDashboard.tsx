@@ -64,6 +64,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showAutoSchoolFees, setShowAutoSchoolFees] = useState(false);
   const [showAutoGrading, setShowAutoGrading] = useState(false);
   const [showGradingCongrats, setShowGradingCongrats] = useState(false);
+  const [showSchoolFeesReminder, setShowSchoolFeesReminder] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -292,7 +293,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     if (unpaidInvoices.length > 0) {
       setShowUnpaidReminder(true);
     } else if (hasCurrentTermInvoice === false) {
-      setShowAutoSchoolFees(true);
+      setShowSchoolFeesReminder(true);
     } else if (isReadyForGrading && !hasRecentGradingInvoice) {
       setShowGradingCongrats(true);
     } else if (student && studentId) {
@@ -1100,7 +1101,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           if (!v) {
             // Chain: after unpaid invoices, check school fees
             if (hasCurrentTermInvoice === false) {
-              setShowAutoSchoolFees(true);
+              setShowSchoolFeesReminder(true);
             } else if (isReadyForGrading && !hasRecentGradingInvoice) {
               setShowGradingCongrats(true);
             } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
@@ -1112,6 +1113,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         studentId={studentId!}
         onGoToInvoices={() => setActiveTab('invoices')}
       />
+
+      {/* School Fees Reminder Confirmation Dialog */}
+      <AlertDialog open={showSchoolFeesReminder} onOpenChange={setShowSchoolFeesReminder}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>📋 Term Payment Reminder</AlertDialogTitle>
+            <AlertDialogDescription>
+              You may have forgotten to make payment for this term. Would you like to make payment now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowSchoolFeesReminder(false);
+              triggerNextAfterSchoolFees();
+            }}>
+              Maybe Later
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowSchoolFeesReminder(false);
+              setShowAutoSchoolFees(true);
+            }}>
+              Pay Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Auto-triggered School Fees Dialog */}
       {showAutoSchoolFees && (
