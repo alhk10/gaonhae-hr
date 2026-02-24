@@ -1089,10 +1089,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             last_name: student.last_name,
             branch_id: student.branch_id,
             current_belt: student.current_belt,
+            date_of_birth: student.date_of_birth,
           }}
           gradingSlots={gradingSlots}
           availableTerms={availableTerms}
-          onPaySchoolFees={() => setShowSchoolFeesDialog(true)}
+          previousEnrollment={previousEnrollment}
         />
       )}
 
@@ -1206,10 +1207,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             last_name: student.last_name,
             branch_id: student.branch_id,
             current_belt: student.current_belt,
+            date_of_birth: student.date_of_birth,
           }}
           gradingSlots={gradingSlots}
           availableTerms={availableTerms}
-          onPaySchoolFees={() => setShowAutoSchoolFees(true)}
+          previousEnrollment={previousEnrollment}
         />
       )}
 

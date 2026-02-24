@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -23,14 +23,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, subDays, differenceInYears, differenceInMonths } from 'date-fns';
 import { GradingSlot } from '@/services/gradingService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
+import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { getNextBelt } from './QuickActionsSection';
-import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
+import { getInvoiceTemplates } from '@/services/invoiceTemplateService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
+import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
+import ClassScheduleSelector from './ClassScheduleSelector';
 
 interface PayGradingDialogProps {
   open: boolean;
@@ -42,10 +45,19 @@ interface PayGradingDialogProps {
     last_name: string;
     branch_id?: string;
     current_belt?: string;
+    date_of_birth?: string;
   };
   gradingSlots: GradingSlot[];
-  availableTerms?: any[];
-  onPaySchoolFees?: () => void;
+  availableTerms?: Term[];
+  previousEnrollment?: any | null;
+}
+
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  const years = differenceInYears(today, dob);
+  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
+  return years + (monthsAfterBirthday / 12);
 }
 
 const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
@@ -55,7 +67,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   student,
   gradingSlots,
   availableTerms = [],
-  onPaySchoolFees,
+  previousEnrollment,
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
@@ -67,10 +79,22 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   const [referenceNumber, setReferenceNumber] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Term payment opt-in state
   const [alsoPayTermFees, setAlsoPayTermFees] = useState(false);
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
+  const [isRemainingWeeks, setIsRemainingWeeks] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
+  const [wasTermIncluded, setWasTermIncluded] = useState(false);
 
   const selectedSlot = gradingSlots.find(s => s.id === selectedSlotId);
   const nextBelt = getNextBelt(student.current_belt);
+
+  const studentAge = useMemo(() => {
+    if (!student.date_of_birth) return 0;
+    return calculateAge(student.date_of_birth);
+  }, [student.date_of_birth]);
 
   // Fetch branch for country-specific payment methods
   const { data: branch } = useQuery({
@@ -109,7 +133,6 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     queryFn: async () => {
       if (!student.current_belt || !nextBelt) return null;
       
-      // Build the expected product name pattern: "Foundation 1 >> Foundation 2"
       const productName = `${formatBeltLevel(student.current_belt)} >> ${formatBeltLevel(nextBelt)}`;
       
       const { data } = await supabase
@@ -121,7 +144,6 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
       
       if (!data) return null;
       
-      // Check for branch-specific pricing override
       if (student.branch_id) {
         const { data: priceRule } = await supabase
           .from('price_rules')
@@ -130,7 +152,6 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
           .eq('branch_id', student.branch_id)
           .maybeSingle();
         
-        // If rule exists and is hidden, return null
         if (priceRule?.is_active === false) return null;
         
         return {
@@ -171,6 +192,118 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     enabled: !!gradingProduct?.id,
   });
 
+  // === Term payment queries (only when opt-in is checked) ===
+
+  // Fetch paid term IDs
+  const { data: paidTermIds = [] } = useQuery({
+    queryKey: ['student-paid-terms', studentId],
+    queryFn: async () => {
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id, status')
+        .eq('student_id', studentId)
+        .in('status', ['paid', 'draft']);
+
+      if (!invoices || invoices.length === 0) return [];
+
+      const invoiceIds = invoices.map(inv => inv.id);
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('metadata')
+        .in('invoice_id', invoiceIds);
+
+      if (!items) return [];
+
+      const termIds: string[] = [];
+      items.forEach(item => {
+        const metadata = item.metadata as any;
+        if (metadata?.term_id) termIds.push(metadata.term_id);
+      });
+      return [...new Set(termIds)];
+    },
+    enabled: !!studentId && alsoPayTermFees,
+  });
+
+  // Fetch class products
+  const { data: classProducts = [] } = useQuery({
+    queryKey: ['class-products-with-pricing', student.branch_id],
+    queryFn: async () => {
+      if (!student.branch_id) return [];
+      
+      const { data: categories } = await supabase
+        .from('product_categories')
+        .select('id')
+        .eq('name', 'Classes')
+        .single();
+      
+      if (!categories) return [];
+      
+      const { data: products } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .eq('category_id', categories.id);
+      
+      if (!products || products.length === 0) return [];
+      
+      const productIds = products.map(p => p.id);
+      const { data: priceRules } = await supabase
+        .from('price_rules')
+        .select('*')
+        .in('product_id', productIds)
+        .eq('branch_id', student.branch_id);
+      
+      const priceRuleMap = new Map(priceRules?.map(r => [r.product_id, r]) || []);
+      
+      return products
+        .filter(product => {
+          const rule = priceRuleMap.get(product.id);
+          if (!rule) return true;
+          return rule.is_active === true;
+        })
+        .map(product => {
+          const branchRule = priceRuleMap.get(product.id);
+          return {
+            ...product,
+            effective_price: branchRule?.price_override ?? product.base_price,
+            has_branch_price: !!branchRule?.price_override,
+          };
+        });
+    },
+    enabled: !!student.branch_id && alsoPayTermFees,
+  });
+
+  // Computed unpaid terms
+  const unpaidTerms = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return availableTerms
+      .filter(term => !paidTermIds.includes(term.id))
+      .filter(term => term.end_date >= today)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [availableTerms, paidTermIds]);
+
+  const currentTermForRemaining = useMemo(() => {
+    return unpaidTerms.find(term => isInsideTerm(term));
+  }, [unpaidTerms]);
+
+  const selectedTerm = unpaidTerms.find(t => t.id === selectedTermId);
+
+  const remainingWeeksForCurrentTerm = useMemo(() => {
+    if (!currentTermForRemaining) return 0;
+    return calculateRemainingTeachingWeeks(currentTermForRemaining.end_date, currentTermForRemaining.breaks || []);
+  }, [currentTermForRemaining]);
+
+  const termWeeks = useMemo(() => {
+    if (!selectedTerm) return 0;
+    if (isRemainingWeeks && currentTermForRemaining && selectedTerm.id === currentTermForRemaining.id) {
+      return remainingWeeksForCurrentTerm;
+    }
+    return calculateTeachingWeeks(selectedTerm.start_date, selectedTerm.end_date, selectedTerm.breaks || []);
+  }, [selectedTerm, isRemainingWeeks, currentTermForRemaining, remainingWeeksForCurrentTerm]);
+
+  const selectedProduct = classProducts.find(p => p.id === selectedProductId);
+  const calculatedTermPrice = selectedProduct ? termWeeks * selectedProduct.effective_price : 0;
+
   // Set duplicate error
   useEffect(() => {
     if (existingGradingInvoice) {
@@ -196,13 +329,30 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     }
   }, [branch?.country]);
 
+  // Auto-select first unpaid term when opt-in checked
+  useEffect(() => {
+    if (alsoPayTermFees && unpaidTerms.length > 0 && !selectedTermId) {
+      setSelectedTermId(unpaidTerms[0].id);
+    }
+  }, [alsoPayTermFees, unpaidTerms, selectedTermId]);
+
+  // Auto-fill product from previous enrollment
+  useEffect(() => {
+    if (alsoPayTermFees && previousEnrollment && !selectedProductId && classProducts.length > 0) {
+      const matchingProduct = classProducts.find(p =>
+        p.name?.toLowerCase() === previousEnrollment.tier_name?.toLowerCase()
+      );
+      if (matchingProduct) {
+        setSelectedProductId(matchingProduct.id);
+      }
+    }
+  }, [alsoPayTermFees, previousEnrollment, classProducts, selectedProductId]);
+
   // Payment methods based on country
   const getPaymentMethods = () => {
     const country = branch?.country;
     if (country === 'Australia') {
-      return [
-        { value: 'bank_transfer', label: 'Bank Transfer' },
-      ];
+      return [{ value: 'bank_transfer', label: 'Bank Transfer' }];
     }
     return [
       { value: 'paynow', label: 'PayNow' },
@@ -229,6 +379,9 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     return publicUrl;
   };
 
+  const effectiveGradingPrice = gradingProduct?.effective_price ?? gradingProduct?.base_price ?? 0;
+  const combinedTotal = effectiveGradingPrice + (alsoPayTermFees ? calculatedTermPrice : 0);
+
   // Combined create invoice and payment mutation
   const createInvoiceAndPayMutation = useMutation({
     mutationFn: async () => {
@@ -241,9 +394,12 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
       if (duplicateError) {
         throw new Error(duplicateError);
       }
+      if (alsoPayTermFees && (!selectedTermId || !selectedProductId || !selectedTerm || !selectedProduct)) {
+        throw new Error('Please complete the term payment fields');
+      }
 
-      // Step 1: Create invoice
-      const invoice = await createInvoice({
+      // Step 1: Create grading invoice
+      const gradingInvoice = await createInvoice({
         student_id: studentId,
         branch_id: student.branch_id,
         payment_terms_days: 7,
@@ -266,23 +422,103 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
       setIsUploading(true);
       const proofUrl = await uploadProofOfPayment(proofFile);
 
-      // Step 3: Create payment
+      // Step 3: Create grading payment
       await createPayment({
-        invoice_id: invoice.id,
-        amount: invoice.total_amount,
+        invoice_id: gradingInvoice.id,
+        amount: gradingInvoice.total_amount,
         payment_date: new Date().toISOString().split('T')[0],
         payment_method: paymentMethod as any,
         reference_number: referenceNumber || undefined,
         proof_of_payment_url: proofUrl,
       });
 
-      return invoice;
+      // Step 4: If term fees opted in, create term invoice + payment + enrollment
+      if (alsoPayTermFees && selectedTerm && selectedProduct) {
+        const weeksLabel = isRemainingWeeks ? 'remaining weeks' : 'weeks';
+        const termInvoice = await createInvoice({
+          student_id: studentId,
+          branch_id: student.branch_id,
+          payment_terms_days: 7,
+          internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedProduct.name}${isRemainingWeeks ? ' (Remaining weeks)' : ''}`,
+          items: [{
+            product_id: selectedProduct.id,
+            description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} ${weeksLabel}`,
+            quantity: termWeeks,
+            unit_price: selectedProduct.effective_price,
+            metadata: {
+              term_id: selectedTerm.id,
+              term_name: selectedTerm.name,
+              product_name: selectedProduct.name,
+              weeks: termWeeks,
+              is_remaining_weeks: isRemainingWeeks,
+              selected_class_slots: selectedClassSlots,
+            },
+          }],
+        });
+
+        // Create term payment (reuse same proof)
+        await createPayment({
+          invoice_id: termInvoice.id,
+          amount: termInvoice.total_amount,
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: paymentMethod as any,
+          reference_number: referenceNumber || undefined,
+          proof_of_payment_url: proofUrl,
+        });
+
+        // Create enrollment record
+        const enrollmentId = await createEnrollment({
+          student_id: studentId,
+          term_id: selectedTerm.id,
+          branch_id: student.branch_id!,
+          class_type: selectedProduct.name || 'Class',
+          tier_name: selectedProduct.name || 'Standard',
+          total_price: termInvoice.total_amount,
+          invoice_item_id: undefined,
+        });
+
+        // Create scheduled classes
+        if (selectedClassSlots.length > 0) {
+          const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
+          const { data: timetables } = await supabase
+            .from('branch_timetables')
+            .select('id, start_time, end_time')
+            .in('id', timetableIds);
+
+          const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+
+          for (const slot of selectedClassSlots) {
+            const [timetableId, date] = slot.split('_');
+            const timetable = timetableMap.get(timetableId);
+            if (timetable && date) {
+              await createScheduledClass({
+                enrollment_id: enrollmentId,
+                timetable_id: timetableId,
+                scheduled_date: date,
+                start_time: timetable.start_time,
+                end_time: timetable.end_time,
+              });
+            }
+          }
+        }
+      }
+
+      return { termIncluded: alsoPayTermFees };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setWasTermIncluded(result.termIncluded);
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['student-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
-      toast.success('Invoice created and payment recorded successfully!');
+      if (result.termIncluded) {
+        queryClient.invalidateQueries({ queryKey: ['student-paid-terms'] });
+        queryClient.invalidateQueries({ queryKey: ['student-my-enrollments'] });
+        queryClient.invalidateQueries({ queryKey: ['student-all-scheduled-classes'] });
+        queryClient.invalidateQueries({ queryKey: ['student-entitlements'] });
+        toast.success('Grading registration and term enrollment confirmed!');
+      } else {
+        toast.success('Invoice created and payment recorded successfully!');
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to process');
@@ -297,14 +533,20 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     setSelectedSlotId('');
     setProofFile(null);
     setReferenceNumber('');
+    setAlsoPayTermFees(false);
+    setSelectedTermId('');
+    setSelectedProductId('');
+    setSelectedClassSlots([]);
+    setIsRemainingWeeks(false);
+    setWasTermIncluded(false);
     onOpenChange(false);
   };
 
-  const effectivePrice = gradingProduct?.effective_price ?? gradingProduct?.base_price ?? 0;
+  const isTermFieldsIncomplete = alsoPayTermFees && (!selectedTermId || !selectedProductId);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className={`${alsoPayTermFees ? 'max-w-3xl' : 'max-w-lg'} max-h-[85vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Register for Grading'}
@@ -312,7 +554,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
           </DialogTitle>
           <DialogDescription>
             {step === 'select' && 'Select a grading session and complete payment'}
-            {step === 'success' && 'Your grading registration is confirmed'}
+            {step === 'success' && 'Your registration is confirmed'}
           </DialogDescription>
         </DialogHeader>
 
@@ -360,8 +602,122 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
               </Select>
             </div>
 
-            {/* Summary */}
-            {selectedSlot && gradingProduct && (
+            {/* Also Pay Term Fees Opt-in */}
+            {selectedSlot && gradingProduct && !duplicateError && availableTerms.length > 0 && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="also-pay-term"
+                      checked={alsoPayTermFees}
+                      onCheckedChange={(v) => setAlsoPayTermFees(!!v)}
+                      className="mt-0.5"
+                    />
+                    <label htmlFor="also-pay-term" className="text-sm cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium">Also pay for the next term?</span>
+                      </div>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        Complete both grading registration and term enrollment in a single payment.
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* Expanded term fields */}
+                  {alsoPayTermFees && (
+                    <div className="space-y-3 pt-2 border-t border-blue-200">
+                      {unpaidTerms.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">All terms are already paid.</p>
+                      ) : (
+                        <>
+                          {/* Term Selection */}
+                          <div className="space-y-2">
+                            <Label>Select Term *</Label>
+                            <Select
+                              value={isRemainingWeeks ? `${selectedTermId}:remaining` : selectedTermId}
+                              onValueChange={(value) => {
+                                if (value.endsWith(':remaining')) {
+                                  setSelectedTermId(value.replace(':remaining', ''));
+                                  setIsRemainingWeeks(true);
+                                } else {
+                                  setSelectedTermId(value);
+                                  setIsRemainingWeeks(false);
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose a term" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {currentTermForRemaining && remainingWeeksForCurrentTerm > 0 && (
+                                  <SelectItem key={`${currentTermForRemaining.id}:remaining`} value={`${currentTermForRemaining.id}:remaining`}>
+                                    {currentTermForRemaining.name} - Remaining {remainingWeeksForCurrentTerm} weeks
+                                    <Badge variant="outline" className="ml-2 text-xs bg-primary/10 text-primary">Now</Badge>
+                                  </SelectItem>
+                                )}
+                                {unpaidTerms.map((term, index) => {
+                                  const isCurrentTerm = currentTermForRemaining?.id === term.id;
+                                  return (
+                                    <SelectItem key={term.id} value={term.id}>
+                                      {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
+                                      {index === 0 && !isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
+                                      {isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Full Term</Badge>}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Package Selection */}
+                          <div className="space-y-2">
+                            <Label>Package *</Label>
+                            {classProducts.length === 0 ? (
+                              <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md bg-muted/30">
+                                No packages available for this branch.
+                              </div>
+                            ) : (
+                              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select package" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {classProducts.map((product) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name} - ${product.effective_price}/week
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+
+                          {/* Class Schedule Selection */}
+                          {selectedTerm && selectedProductId && student.branch_id && student.date_of_birth && (
+                            <div className="space-y-2">
+                              <Label>Select Your Classes</Label>
+                              <ClassScheduleSelector
+                                branchId={student.branch_id}
+                                studentAge={studentAge}
+                                selectedSlots={selectedClassSlots}
+                                onSlotsChange={setSelectedClassSlots}
+                                term={selectedTerm}
+                                lessonsPerWeek={selectedProduct?.lessons_per_week}
+                                allowedClassTypes={selectedProduct?.allowed_class_types}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Combined Summary */}
+            {selectedSlot && gradingProduct && !duplicateError && (
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between text-sm">
@@ -376,34 +732,29 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                       <span className="font-medium">{selectedSlot.start_time.slice(0, 5)}</span>
                     </div>
                   )}
-                  <div className="border-t pt-2 flex justify-between">
-                    <span className="font-semibold">Grading Fee</span>
-                    <span className="font-bold text-lg">${effectivePrice.toFixed(2)}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Grading Fee</span>
+                    <span className="font-medium">${effectiveGradingPrice.toFixed(2)}</span>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Also Pay Term Fees Opt-in */}
-            {selectedSlot && gradingProduct && !duplicateError && availableTerms.length > 0 && onPaySchoolFees && (
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="also-pay-term"
-                      checked={alsoPayTermFees}
-                      onCheckedChange={(v) => setAlsoPayTermFees(!!v)}
-                      className="mt-0.5"
-                    />
-                    <label htmlFor="also-pay-term" className="text-sm cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <CalendarCheck className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium">Also pay for the next term?</span>
+                  {alsoPayTermFees && selectedTerm && selectedProduct && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          School Fees ({termWeeks} {isRemainingWeeks ? 'remaining' : ''} weeks)
+                        </span>
+                        <span className="font-medium">${calculatedTermPrice.toFixed(2)}</span>
                       </div>
-                      <p className="text-muted-foreground text-xs mt-1">
-                        After completing grading registration, you'll be prompted to make term payment.
-                      </p>
-                    </label>
+                      {selectedClassSlots.length > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Classes Selected</span>
+                          <span className="font-medium">{selectedClassSlots.length}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="border-t pt-2 flex justify-between">
+                    <span className="font-semibold">Total</span>
+                    <span className="font-bold text-lg">${combinedTotal.toFixed(2)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -412,7 +763,12 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
             {/* Payment Section */}
             {selectedSlot && gradingProduct && !duplicateError && (
               <div className="space-y-4 pt-2 border-t">
-                <Label className="text-base font-semibold">Payment</Label>
+                <Label className="text-base font-semibold">
+                  Payment
+                  {alsoPayTermFees && selectedProduct && (
+                    <span className="text-xs text-muted-foreground font-normal ml-2">(covers both grading & school fees)</span>
+                  )}
+                </Label>
                 
                 {/* Payment Method */}
                 <div className="space-y-2">
@@ -431,7 +787,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   </Select>
                 </div>
 
-                {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
+                {/* Payment Info Display */}
                 <PaymentInfoDisplay
                   paymentMethod={paymentMethod}
                   bankTransferInfo={invoiceTemplate?.bank_transfer_info}
@@ -490,6 +846,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   !gradingProduct || 
                   !proofFile || 
                   !!duplicateError || 
+                  isTermFieldsIncomplete ||
                   createInvoiceAndPayMutation.isPending ||
                   isUploading
                 }
@@ -497,7 +854,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                 {(createInvoiceAndPayMutation.isPending || isUploading) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Create Invoice & Pay
+                {alsoPayTermFees && selectedProduct ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
               </Button>
             </div>
           </div>
@@ -509,21 +866,18 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Grading Registration Confirmed!</h3>
+              <h3 className="font-semibold text-lg">
+                {wasTermIncluded
+                  ? 'Grading Registration & Term Enrollment Confirmed!'
+                  : 'Grading Registration Confirmed!'}
+              </h3>
               <p className="text-muted-foreground">
-                You are registered for the grading exam. Good luck!
+                {wasTermIncluded
+                  ? 'You are registered for the grading exam and enrolled for the next term. Good luck!'
+                  : 'You are registered for the grading exam. Good luck!'}
               </p>
             </div>
-            <Button onClick={() => {
-              if (alsoPayTermFees && onPaySchoolFees) {
-                handleClose();
-                onPaySchoolFees();
-              } else {
-                handleClose();
-              }
-            }}>
-              {alsoPayTermFees && onPaySchoolFees ? 'Continue to Term Payment' : 'Done'}
-            </Button>
+            <Button onClick={handleClose}>Done</Button>
           </div>
         )}
       </DialogContent>
