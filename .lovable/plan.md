@@ -1,72 +1,88 @@
 
 
-## Filter Grading Slots by Student Age (min_age / max_age)
+## Add "Pay for Next Term" Opt-in Card in PayGradingDialog
 
-### Problem
-Grading slots have optional `min_age` and `max_age` fields, but the dropdown in both `PaySchoolFeesDialog` and `PayGradingDialog` (and the dashboard queries) do not filter by the student's age. Students like Abby see slots they are not eligible for.
-
-### Solution
-Add age-based filtering to the grading slot queries in three locations where slots are fetched for students. The student's `date_of_birth` is already available in the student object. We calculate the student's age and exclude slots where they fall outside the `min_age`/`max_age` range.
+### Overview
+Add a card in the `PayGradingDialog` (between the grading summary card and the payment section) that asks: "Would you also like to make payment for the next term?" with a checkbox opt-in. When checked, it triggers the `PaySchoolFeesDialog` after the grading registration is complete.
 
 ### Changes
 
-#### 1. `src/services/gradingService.ts` - Add `min_age` and `max_age` to the `GradingSlot` interface
+#### 1. `src/components/dashboard/PayGradingDialog.tsx`
 
-Add the two optional fields so TypeScript recognizes them:
-```typescript
-min_age?: number | null;
-max_age?: number | null;
+**Props changes:**
+- Add new optional props: `availableTerms`, `studentDateOfBirth`, and `onPaySchoolFees` callback
+
+**New UI card (inserted between the summary card and payment section, around line 379):**
+- A card with a school/calendar icon asking "Would you also like to make payment for the next term?"
+- A checkbox to opt-in
+- Subtle styling (blue/green tinted card) to differentiate from the grading summary
+
+**State:**
+- Add `alsoPayTermFees` boolean state (default false)
+
+**Success step update:**
+- On the success screen, if `alsoPayTermFees` is checked and `onPaySchoolFees` callback is provided, show a "Pay Term Fees" button (or auto-trigger the callback) after "Done"
+- When user clicks "Done" and opt-in is checked, call `onPaySchoolFees()` which will open the `PaySchoolFeesDialog` from the parent
+
+#### 2. `src/components/dashboard/StudentDashboard.tsx`
+
+**Update all `PayGradingDialog` render instances (3 places):**
+- Pass `availableTerms`, `studentDateOfBirth`, and an `onPaySchoolFees` callback that opens the `PaySchoolFeesDialog`
+- The callback sets `showSchoolFeesDialog(true)` (for manual trigger) or `showAutoSchoolFees(true)` (for auto-trigger)
+
+### UI Layout in PayGradingDialog
+
+```
+Belt Progression Card
+Select Grading Session dropdown
+Summary Card (date, time, fee)
+--- NEW: "Also pay term fees?" card with checkbox ---
+Payment Section (method, QR, reference, proof)
+[Create Invoice & Pay] button
 ```
 
-#### 2. `src/components/dashboard/QuickActionsSection.tsx` - Filter by age
+### Technical Details
 
-After the belt-level filter (around line 113), add an age filter using the student's `date_of_birth`:
-```typescript
-// Calculate student age
-const studentDob = student.date_of_birth;
-if (studentDob) {
-  const today = new Date();
-  const dob = new Date(studentDob);
-  const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-
-  return beltFiltered.filter(slot => {
-    const s = slot as any;
-    if (s.min_age != null && ageInYears < s.min_age) return false;
-    if (s.max_age != null && ageInYears > s.max_age) return false;
-    return true;
-  });
-}
-return beltFiltered;
+**New card markup (in PayGradingDialog):**
+```tsx
+{selectedSlot && gradingProduct && !duplicateError && availableTerms.length > 0 && (
+  <Card className="bg-blue-50 border-blue-200">
+    <CardContent className="p-4">
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id="also-pay-term"
+          checked={alsoPayTermFees}
+          onCheckedChange={(v) => setAlsoPayTermFees(!!v)}
+        />
+        <label htmlFor="also-pay-term" className="text-sm cursor-pointer">
+          <span className="font-medium">Also pay for the next term?</span>
+          <p className="text-muted-foreground text-xs mt-1">
+            After completing grading registration, you'll be prompted to make term payment.
+          </p>
+        </label>
+      </div>
+    </CardContent>
+  </Card>
+)}
 ```
 
-#### 3. `src/components/dashboard/StudentDashboard.tsx` - Filter by age
+**Success step modification:**
+- If `alsoPayTermFees` is true, the "Done" button text changes to "Continue to Term Payment"
+- On click, it calls `handleClose()` then `onPaySchoolFees?.()`
 
-The grading slots query (line 163) uses `getGradingSlots` but does not filter by age. Add an age filter after fetching, using `student.date_of_birth`:
+**Props update for PayGradingDialog interface:**
 ```typescript
-// After fetching slots, filter by age
-if (student.date_of_birth) {
-  const today = new Date();
-  const dob = new Date(student.date_of_birth);
-  const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-  return slots.filter(slot => {
-    if (slot.min_age != null && ageInYears < slot.min_age) return false;
-    if (slot.max_age != null && ageInYears > slot.max_age) return false;
-    return true;
-  });
+interface PayGradingDialogProps {
+  // ... existing props
+  availableTerms?: Term[];
+  onPaySchoolFees?: () => void;
 }
-return slots;
 ```
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/services/gradingService.ts` | Add `min_age` and `max_age` to `GradingSlot` interface |
-| `src/components/dashboard/QuickActionsSection.tsx` | Add age filter after belt-level filter |
-| `src/components/dashboard/StudentDashboard.tsx` | Add age filter to grading slots query |
-
-### Result
-- Students like Abby who are outside the age range will no longer see ineligible grading slots in the dropdown.
-- Slots without age restrictions (null min/max) remain visible to all students.
-- The filtering applies consistently across the Pay School Fees dialog, Pay Grading dialog, and the Quick Actions card.
+| `src/components/dashboard/PayGradingDialog.tsx` | Add opt-in card, new props, updated success step |
+| `src/components/dashboard/StudentDashboard.tsx` | Pass new props to all 3 PayGradingDialog instances |
 
