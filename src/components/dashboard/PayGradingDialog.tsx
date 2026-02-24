@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle, CalendarCheck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -43,6 +44,8 @@ interface PayGradingDialogProps {
     current_belt?: string;
   };
   gradingSlots: GradingSlot[];
+  availableTerms?: any[];
+  onPaySchoolFees?: () => void;
 }
 
 const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
@@ -51,6 +54,8 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   studentId,
   student,
   gradingSlots,
+  availableTerms = [],
+  onPaySchoolFees,
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
@@ -62,6 +67,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   const [referenceNumber, setReferenceNumber] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [alsoPayTermFees, setAlsoPayTermFees] = useState(false);
 
   const selectedSlot = gradingSlots.find(s => s.id === selectedSlotId);
   const nextBelt = getNextBelt(student.current_belt);
@@ -378,6 +384,31 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
               </Card>
             )}
 
+            {/* Also Pay Term Fees Opt-in */}
+            {selectedSlot && gradingProduct && !duplicateError && availableTerms.length > 0 && onPaySchoolFees && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="also-pay-term"
+                      checked={alsoPayTermFees}
+                      onCheckedChange={(v) => setAlsoPayTermFees(!!v)}
+                      className="mt-0.5"
+                    />
+                    <label htmlFor="also-pay-term" className="text-sm cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium">Also pay for the next term?</span>
+                      </div>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        After completing grading registration, you'll be prompted to make term payment.
+                      </p>
+                    </label>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Payment Section */}
             {selectedSlot && gradingProduct && !duplicateError && (
               <div className="space-y-4 pt-2 border-t">
@@ -483,8 +514,15 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                 You are registered for the grading exam. Good luck!
               </p>
             </div>
-            <Button onClick={handleClose}>
-              Done
+            <Button onClick={() => {
+              if (alsoPayTermFees && onPaySchoolFees) {
+                handleClose();
+                onPaySchoolFees();
+              } else {
+                handleClose();
+              }
+            }}>
+              {alsoPayTermFees && onPaySchoolFees ? 'Continue to Term Payment' : 'Done'}
             </Button>
           </div>
         )}
