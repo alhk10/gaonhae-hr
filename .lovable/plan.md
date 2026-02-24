@@ -1,111 +1,72 @@
 
-## Auto-Popup Dialogs for School Fees and Grading Fees on Login
 
-### Overview
-Add two automatic popup dialogs that appear when a student logs in:
-1. **Pay School Fees** popup -- if no invoice exists for the current active term with a "lesson" type item
-2. **Pay Grading Fees** popup -- if the student is marked "ready for grading" but has no paid grading invoice
+## Filter Grading Slots by Student Age (min_age / max_age)
 
-These popups will integrate into the existing popup chain: Unpaid Invoices -> School Fees -> Grading Fees -> Profile Completion.
+### Problem
+Grading slots have optional `min_age` and `max_age` fields, but the dropdown in both `PaySchoolFeesDialog` and `PayGradingDialog` (and the dashboard queries) do not filter by the student's age. Students like Abby see slots they are not eligible for.
+
+### Solution
+Add age-based filtering to the grading slot queries in three locations where slots are fetched for students. The student's `date_of_birth` is already available in the student object. We calculate the student's age and exclude slots where they fall outside the `min_age`/`max_age` range.
 
 ### Changes
 
-#### `src/components/dashboard/StudentDashboard.tsx`
+#### 1. `src/services/gradingService.ts` - Add `min_age` and `max_age` to the `GradingSlot` interface
 
-1. **Add a query to check if a current-term lesson invoice exists:**
-   Query `invoices` joined with `invoice_items` to see if there is any invoice for the student where an item has `item_type = 'lesson'` and a `metadata->term_id` matching one of the current `availableTerms`. If none found, the student needs to pay school fees.
-
-2. **Add a query to check grading readiness and unpaid grading fees:**
-   - Query `grading_registrations` for `ready_for_grading = true` (reuse existing pattern)
-   - Check if any grading invoice exists in the last 60 days (same logic as in `PaySchoolFeesDialog`)
-
-3. **Add state variables:**
-   - `showAutoSchoolFees` (boolean)
-   - `showAutoGrading` (boolean)
-
-4. **Update the login popup chain in `useEffect`:**
-   Current chain: Unpaid Invoices -> Profile Completion.
-   New chain: **Unpaid Invoices -> School Fees (if no term invoice) -> Grading Fees (if ready but unpaid) -> Profile Completion**.
-   
-   Each dialog's `onOpenChange` callback will trigger the next dialog in the chain when closed.
-
-5. **Render the auto-triggered dialogs:**
-   Reuse existing `PaySchoolFeesDialog` and `PayGradingDialog` components with the auto-triggered state variables.
-
-### Popup Chain Flow
-
-```
-On Login
-  |
-  v
-Has unpaid invoices? --> YES --> Show UnpaidInvoiceReminderDialog
-  |                                    |
-  NO                              (on close)
-  |                                    |
-  v                                    v
-No current term invoice? --> YES --> Show PaySchoolFeesDialog
-  |                                    |
-  NO                              (on close)
-  |                                    |
-  v                                    v
-Ready for grading + no grading invoice? --> YES --> Show PayGradingDialog
-  |                                                      |
-  NO                                                (on close)
-  |                                                      |
-  v                                                      v
-Profile incomplete? --> YES --> Show ProfileCompletionDialog
-  |
-  NO --> Done
-```
-
-### Technical Details
-
-**Current term invoice check query:**
+Add the two optional fields so TypeScript recognizes them:
 ```typescript
-const { data: hasCurrentTermInvoice } = useQuery({
-  queryKey: ['student-current-term-invoice', studentId, availableTerms],
-  queryFn: async () => {
-    if (!availableTerms.length) return true; // no terms = nothing to pay
-    const termIds = availableTerms.map(t => t.id);
-    const { data: items } = await supabase
-      .from('invoice_items')
-      .select('id, invoice_id, metadata')
-      .eq('item_type', 'lesson');
-    // Filter by student's invoices and matching term_id in metadata
-    const studentInvoiceIds = invoices.map(i => i.id);
-    const hasMatch = items?.some(item => {
-      if (!studentInvoiceIds.includes(item.invoice_id)) return false;
-      const meta = item.metadata as any;
-      return meta?.term_id && termIds.includes(meta.term_id);
-    });
-    return !!hasMatch;
-  },
-  enabled: !!studentId && invoices.length >= 0 && availableTerms.length > 0,
-});
+min_age?: number | null;
+max_age?: number | null;
 ```
 
-**Grading readiness + unpaid check:**
+#### 2. `src/components/dashboard/QuickActionsSection.tsx` - Filter by age
+
+After the belt-level filter (around line 113), add an age filter using the student's `date_of_birth`:
 ```typescript
-const { data: isReadyForGrading } = useQuery({
-  queryKey: ['student-ready-for-grading', studentId],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('grading_registrations')
-      .select('id, ready_for_grading')
-      .eq('student_id', studentId)
-      .eq('ready_for_grading', true)
-      .limit(1)
-      .maybeSingle();
-    return !!data;
-  },
-  enabled: !!studentId,
-});
+// Calculate student age
+const studentDob = student.date_of_birth;
+if (studentDob) {
+  const today = new Date();
+  const dob = new Date(studentDob);
+  const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+
+  return beltFiltered.filter(slot => {
+    const s = slot as any;
+    if (s.min_age != null && ageInYears < s.min_age) return false;
+    if (s.max_age != null && ageInYears > s.max_age) return false;
+    return true;
+  });
+}
+return beltFiltered;
 ```
 
-The existing grading invoice check (60-day dedup) already exists inside `PaySchoolFeesDialog` and `PayGradingDialog`. For the auto-popup trigger, we add a similar check in `StudentDashboard` to decide whether to show the popup.
+#### 3. `src/components/dashboard/StudentDashboard.tsx` - Filter by age
+
+The grading slots query (line 163) uses `getGradingSlots` but does not filter by age. Add an age filter after fetching, using `student.date_of_birth`:
+```typescript
+// After fetching slots, filter by age
+if (student.date_of_birth) {
+  const today = new Date();
+  const dob = new Date(student.date_of_birth);
+  const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  return slots.filter(slot => {
+    if (slot.min_age != null && ageInYears < slot.min_age) return false;
+    if (slot.max_age != null && ageInYears > slot.max_age) return false;
+    return true;
+  });
+}
+return slots;
+```
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/components/dashboard/StudentDashboard.tsx` | Add current-term invoice check query, grading readiness query, new state variables, updated popup chain logic, render auto-triggered dialogs |
+| `src/services/gradingService.ts` | Add `min_age` and `max_age` to `GradingSlot` interface |
+| `src/components/dashboard/QuickActionsSection.tsx` | Add age filter after belt-level filter |
+| `src/components/dashboard/StudentDashboard.tsx` | Add age filter to grading slots query |
+
+### Result
+- Students like Abby who are outside the age range will no longer see ineligible grading slots in the dropdown.
+- Slots without age restrictions (null min/max) remain visible to all students.
+- The filtering applies consistently across the Pay School Fees dialog, Pay Grading dialog, and the Quick Actions card.
+
