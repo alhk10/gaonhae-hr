@@ -60,6 +60,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showGradingDialog, setShowGradingDialog] = useState(false);
   const [showUnpaidReminder, setShowUnpaidReminder] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const [showAutoSchoolFees, setShowAutoSchoolFees] = useState(false);
+  const [showAutoGrading, setShowAutoGrading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -173,6 +175,61 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     enabled: !!student?.branch_id && !!student?.current_belt,
   });
 
+  // Check if current-term lesson invoice exists
+  const { data: hasCurrentTermInvoice } = useQuery({
+    queryKey: ['student-current-term-invoice', studentId, availableTerms.map(t => t.id).join(',')],
+    queryFn: async () => {
+      if (!availableTerms.length) return true;
+      const termIds = availableTerms.map(t => t.id);
+      const studentInvoiceIds = invoices.map(i => i.id);
+      if (studentInvoiceIds.length === 0) return false;
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('id, invoice_id, metadata')
+        .in('invoice_id', studentInvoiceIds);
+      const hasMatch = items?.some(item => {
+        const meta = item.metadata as any;
+        return meta?.term_id && termIds.includes(meta.term_id);
+      });
+      return !!hasMatch;
+    },
+    enabled: !!studentId && availableTerms.length > 0,
+  });
+
+  // Check if student is ready for grading
+  const { data: isReadyForGrading } = useQuery({
+    queryKey: ['student-ready-for-grading-dashboard', studentId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grading_registrations')
+        .select('id, ready_for_grading')
+        .eq('student_id', studentId!)
+        .eq('ready_for_grading', true)
+        .limit(1)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!studentId,
+  });
+
+  // Check if grading invoice exists recently (60 days)
+  const { data: hasRecentGradingInvoice } = useQuery({
+    queryKey: ['student-recent-grading-invoice', studentId],
+    queryFn: async () => {
+      const studentInvoiceIds = invoices.map(i => i.id);
+      if (studentInvoiceIds.length === 0) return false;
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('id, invoice_id, description, metadata')
+        .in('invoice_id', studentInvoiceIds);
+      return items?.some(item => {
+        const meta = item.metadata as any;
+        return meta?.grading_slot_id;
+      }) || false;
+    },
+    enabled: !!studentId,
+  });
+
   // Calculate stats
   const totalSessions = entitlements.reduce((sum, e) => sum + (e.sessions_remaining || 0), 0);
   const outstandingBalance = invoices
@@ -195,18 +252,39 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     return !alreadyShownThisYear || hasMissingInfo;
   };
 
-  // Show unpaid invoice reminder when portal loads with unpaid invoices
+  // Helper to trigger next popup in chain after school fees
+  const triggerNextAfterSchoolFees = () => {
+    if (isReadyForGrading && !hasRecentGradingInvoice) {
+      setShowAutoGrading(true);
+    } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
+      setShowProfileCompletion(true);
+    }
+  };
+
+  // Helper to trigger next popup in chain after grading
+  const triggerNextAfterGrading = () => {
+    if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
+      setShowProfileCompletion(true);
+    }
+  };
+
+  // Show popup chain when portal loads
   useEffect(() => {
     if (studentLoading) return;
+    if (hasCurrentTermInvoice === undefined || isReadyForGrading === undefined || hasRecentGradingInvoice === undefined) return;
+    
     if (unpaidInvoices.length > 0) {
       setShowUnpaidReminder(true);
+    } else if (hasCurrentTermInvoice === false) {
+      setShowAutoSchoolFees(true);
+    } else if (isReadyForGrading && !hasRecentGradingInvoice) {
+      setShowAutoGrading(true);
     } else if (student && studentId) {
-      // No unpaid invoices — check profile completion directly
       if (shouldShowProfileCompletion(student, studentId)) {
         setShowProfileCompletion(true);
       }
     }
-  }, [studentLoading, invoices.length]);
+  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
@@ -1003,14 +1081,64 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         open={showUnpaidReminder}
         onOpenChange={(v) => {
           setShowUnpaidReminder(v);
-          if (!v && student && studentId && shouldShowProfileCompletion(student, studentId)) {
-            setShowProfileCompletion(true);
+          if (!v) {
+            // Chain: after unpaid invoices, check school fees
+            if (hasCurrentTermInvoice === false) {
+              setShowAutoSchoolFees(true);
+            } else if (isReadyForGrading && !hasRecentGradingInvoice) {
+              setShowAutoGrading(true);
+            } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
+              setShowProfileCompletion(true);
+            }
           }
         }}
         unpaidInvoices={unpaidInvoices}
         studentId={studentId!}
         onGoToInvoices={() => setActiveTab('invoices')}
       />
+
+      {/* Auto-triggered School Fees Dialog */}
+      {showAutoSchoolFees && (
+        <PaySchoolFeesDialog
+          open={showAutoSchoolFees}
+          onOpenChange={(v) => {
+            setShowAutoSchoolFees(v);
+            if (!v) triggerNextAfterSchoolFees();
+          }}
+          studentId={studentId!}
+          student={{
+            id: student.id,
+            first_name: student.first_name,
+            last_name: student.last_name,
+            branch_id: student.branch_id,
+            date_of_birth: student.date_of_birth,
+            current_belt: student.current_belt,
+          }}
+          availableTerms={availableTerms}
+          previousEnrollment={previousEnrollment}
+          gradingSlots={gradingSlots}
+        />
+      )}
+
+      {/* Auto-triggered Grading Fees Dialog */}
+      {showAutoGrading && (
+        <PayGradingDialog
+          open={showAutoGrading}
+          onOpenChange={(v) => {
+            setShowAutoGrading(v);
+            if (!v) triggerNextAfterGrading();
+          }}
+          studentId={studentId!}
+          student={{
+            id: student.id,
+            first_name: student.first_name,
+            last_name: student.last_name,
+            branch_id: student.branch_id,
+            current_belt: student.current_belt,
+          }}
+          gradingSlots={gradingSlots}
+        />
+      )}
 
       {student && studentId && (
         <StudentProfileCompletionDialog
