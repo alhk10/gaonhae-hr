@@ -1,88 +1,110 @@
 
 
-## Add "Pay for Next Term" Opt-in Card in PayGradingDialog
+## Embed Term Payment Within PayGradingDialog (Same Dialog Flow)
 
 ### Overview
-Add a card in the `PayGradingDialog` (between the grading summary card and the payment section) that asks: "Would you also like to make payment for the next term?" with a checkbox opt-in. When checked, it triggers the `PaySchoolFeesDialog` after the grading registration is complete.
+Instead of opening a separate `PaySchoolFeesDialog` after grading registration, embed the term payment fields directly inside `PayGradingDialog` when the "Also pay for the next term?" checkbox is checked. The summary card and total will combine both fees, and a single proof of payment covers both invoices.
 
 ### Changes
 
 #### 1. `src/components/dashboard/PayGradingDialog.tsx`
 
-**Props changes:**
-- Add new optional props: `availableTerms`, `studentDateOfBirth`, and `onPaySchoolFees` callback
+**New props:**
+- Add `previousEnrollment` (optional) to pre-fill the package selection
+- Keep `availableTerms` (already exists)
+- Add `student.date_of_birth` to the student interface for age-based class filtering
+- Remove `onPaySchoolFees` prop (no longer needed)
 
-**New UI card (inserted between the summary card and payment section, around line 379):**
-- A card with a school/calendar icon asking "Would you also like to make payment for the next term?"
-- A checkbox to opt-in
-- Subtle styling (blue/green tinted card) to differentiate from the grading summary
+**New state variables:**
+- `selectedTermId`, `isRemainingWeeks`, `selectedProductId`, `selectedClassSlots[]` -- mirrors PaySchoolFeesDialog
 
-**State:**
-- Add `alsoPayTermFees` boolean state (default false)
+**New queries (only fetched when `alsoPayTermFees` is true):**
+- `student-paid-terms` -- to filter out already-paid terms (same logic as PaySchoolFeesDialog)
+- `class-products-with-pricing` -- to fetch class packages for the branch
+- Compute `unpaidTerms`, `termWeeks`, `calculatedPrice`, `combinedTotal`
+
+**UI changes when checkbox is checked:**
+When `alsoPayTermFees` is true, expand the card to show:
+- Term selection dropdown (with remaining weeks option)
+- Package selection dropdown
+- ClassScheduleSelector component
+- Updated summary card showing both grading fee + term fee + combined total
+
+The expanded section appears directly below the checkbox card, before the payment section.
+
+**Summary card update:**
+When term fees are included, the summary shows:
+```
+Grading Fee              $70.00
+School Fees (10 weeks)   $250.00
+─────────────────────────────
+Total                    $320.00
+```
+
+**Mutation update:**
+When `alsoPayTermFees` is true and term fields are filled:
+1. Create grading invoice + payment (existing logic)
+2. Create term invoice + payment (same proof file, same pattern as PaySchoolFeesDialog)
+3. Create enrollment record + scheduled classes
+4. Invalidate all relevant query keys
 
 **Success step update:**
-- On the success screen, if `alsoPayTermFees` is checked and `onPaySchoolFees` callback is provided, show a "Pay Term Fees" button (or auto-trigger the callback) after "Done"
-- When user clicks "Done" and opt-in is checked, call `onPaySchoolFees()` which will open the `PaySchoolFeesDialog` from the parent
+- Show combined success message: "Grading registration and term enrollment confirmed!"
+- Remove the "Continue to Term Payment" button logic; just show "Done"
+
+**Button text:**
+- When term fees included: "Create Invoices & Pay Both"
+- When grading only: "Create Invoice & Pay"
+- Disable button if term checkbox is checked but term/product not selected
 
 #### 2. `src/components/dashboard/StudentDashboard.tsx`
 
-**Update all `PayGradingDialog` render instances (3 places):**
-- Pass `availableTerms`, `studentDateOfBirth`, and an `onPaySchoolFees` callback that opens the `PaySchoolFeesDialog`
-- The callback sets `showSchoolFeesDialog(true)` (for manual trigger) or `showAutoSchoolFees(true)` (for auto-trigger)
-
-### UI Layout in PayGradingDialog
-
-```
-Belt Progression Card
-Select Grading Session dropdown
-Summary Card (date, time, fee)
---- NEW: "Also pay term fees?" card with checkbox ---
-Payment Section (method, QR, reference, proof)
-[Create Invoice & Pay] button
-```
+**Update PayGradingDialog instances (2 places):**
+- Remove `onPaySchoolFees` callback prop
+- Add `previousEnrollment` prop
+- Add `date_of_birth` to the student object passed
 
 ### Technical Details
 
-**New card markup (in PayGradingDialog):**
-```tsx
-{selectedSlot && gradingProduct && !duplicateError && availableTerms.length > 0 && (
-  <Card className="bg-blue-50 border-blue-200">
-    <CardContent className="p-4">
-      <div className="flex items-start gap-3">
-        <Checkbox
-          id="also-pay-term"
-          checked={alsoPayTermFees}
-          onCheckedChange={(v) => setAlsoPayTermFees(!!v)}
-        />
-        <label htmlFor="also-pay-term" className="text-sm cursor-pointer">
-          <span className="font-medium">Also pay for the next term?</span>
-          <p className="text-muted-foreground text-xs mt-1">
-            After completing grading registration, you'll be prompted to make term payment.
-          </p>
-        </label>
-      </div>
-    </CardContent>
-  </Card>
-)}
+**Imports to add to PayGradingDialog:**
+```typescript
+import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
+import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
+import ClassScheduleSelector from './ClassScheduleSelector';
+import { differenceInYears, differenceInMonths } from 'date-fns';
 ```
 
-**Success step modification:**
-- If `alsoPayTermFees` is true, the "Done" button text changes to "Continue to Term Payment"
-- On click, it calls `handleClose()` then `onPaySchoolFees?.()`
+**Combined mutation flow (pseudocode):**
+```
+1. Create grading invoice (existing)
+2. Upload proof of payment (existing)
+3. Create grading payment (existing)
+4. IF alsoPayTermFees:
+   a. Create term invoice with term metadata
+   b. Create term payment (reuse same proof URL)
+   c. Create enrollment record
+   d. Create scheduled classes from selected slots
+5. Return { gradingOnly: false } or { gradingOnly: true }
+```
 
-**Props update for PayGradingDialog interface:**
-```typescript
-interface PayGradingDialogProps {
-  // ... existing props
-  availableTerms?: Term[];
-  onPaySchoolFees?: () => void;
-}
+**Expanded term section UI (when checkbox is checked):**
+```
+[x] Also pay for the next term?
+
+  Select Term *
+  [Dropdown: Term 3 2026 (01 Jul - 18 Sep 2026)]
+
+  Package *
+  [Dropdown: 2x/week - $30/week]
+
+  Select Your Classes
+  [ClassScheduleSelector component]
 ```
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/components/dashboard/PayGradingDialog.tsx` | Add opt-in card, new props, updated success step |
-| `src/components/dashboard/StudentDashboard.tsx` | Pass new props to all 3 PayGradingDialog instances |
+| `src/components/dashboard/PayGradingDialog.tsx` | Embed term payment fields, queries, and combined mutation logic |
+| `src/components/dashboard/StudentDashboard.tsx` | Update props for both PayGradingDialog instances (remove onPaySchoolFees, add previousEnrollment + date_of_birth) |
 
