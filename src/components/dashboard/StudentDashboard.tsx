@@ -1091,6 +1091,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             current_belt: student.current_belt,
           }}
           gradingSlots={gradingSlots}
+          availableTerms={availableTerms}
+          onPaySchoolFees={() => setShowSchoolFeesDialog(true)}
         />
       )}
 
@@ -1206,6 +1208,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             current_belt: student.current_belt,
           }}
           gradingSlots={gradingSlots}
+          availableTerms={availableTerms}
+          onPaySchoolFees={() => setShowAutoSchoolFees(true)}
         />
       )}
 
