@@ -1,26 +1,21 @@
 
 
-## Fix: Only Show Grading Opt-In When Student is Marked "Ready for Grading"
+## Fix: Add "Ready for Grading" Check to Hide Grading Section for Ineligible Students
 
 ### Problem
-The grading opt-in section in the Pay School Fees dialog currently appears whenever there are matching grading slots for the student's belt level. It does not check whether the student has actually been marked as "ready for grading" by the branch admin in the grading list. This means students like Akhil, who are not ready, still see the prompt.
+The grading opt-in section still appears for students like Akhil who are NOT marked as "ready for grading" by the branch admin. The `isReadyForGrading` query was never added to the code despite being in the previous plan.
 
 ### Root Cause
-The `gradingEligible` flag in `PaySchoolFeesDialog.tsx` (line 299) only checks:
-1. `gradingSlots.length > 0` (slots exist)
-2. `gradingProduct` exists (belt transition product)
-3. No duplicate invoice in 60 days
+Line 299 in `PaySchoolFeesDialog.tsx` computes `gradingEligible` without checking the `grading_registrations` table:
+```typescript
+const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice;
+```
 
-It does NOT check the `grading_registrations.ready_for_grading` field.
+### Fix
 
-### Solution
-Add a query to check if the student has a `grading_registrations` record with `ready_for_grading = true`, and include that in the `gradingEligible` condition.
+In `src/components/dashboard/PaySchoolFeesDialog.tsx`, between line 296 and 298:
 
-### Changes
-
-#### `src/components/dashboard/PaySchoolFeesDialog.tsx`
-
-1. **Add a new query** to check if the student is marked as ready for grading:
+1. Add a new query to check if the student is marked as ready:
 ```typescript
 const { data: isReadyForGrading } = useQuery({
   queryKey: ['student-ready-for-grading', studentId],
@@ -38,21 +33,17 @@ const { data: isReadyForGrading } = useQuery({
 });
 ```
 
-2. **Update the eligibility flag** (line 299) to include the new check:
+2. Update line 299 to include the check:
 ```typescript
-const gradingEligible = gradingSlots.length > 0 
-  && !!gradingProduct 
-  && !existingGradingInvoice 
-  && !!isReadyForGrading;
+const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 ```
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Add `isReadyForGrading` query against `grading_registrations`; add `&& !!isReadyForGrading` to the `gradingEligible` condition |
+| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Add `isReadyForGrading` query; add `&& !!isReadyForGrading` to `gradingEligible` |
 
 ### Result
-- Students NOT marked as ready for grading (like Akhil) will no longer see the grading opt-in section.
-- Students marked as ready by the branch admin will continue to see the prompt as expected.
-
+- Students NOT marked as ready (like Akhil) will no longer see the grading opt-in.
+- Students marked as ready will continue to see it.
