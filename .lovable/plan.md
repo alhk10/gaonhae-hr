@@ -1,23 +1,58 @@
 
 
-## UI Adjustments to Grading Opt-In Section in Pay School Fees
+## Fix: Only Show Grading Opt-In When Student is Marked "Ready for Grading"
+
+### Problem
+The grading opt-in section in the Pay School Fees dialog currently appears whenever there are matching grading slots for the student's belt level. It does not check whether the student has actually been marked as "ready for grading" by the branch admin in the grading list. This means students like Akhil, who are not ready, still see the prompt.
+
+### Root Cause
+The `gradingEligible` flag in `PaySchoolFeesDialog.tsx` (line 299) only checks:
+1. `gradingSlots.length > 0` (slots exist)
+2. `gradingProduct` exists (belt transition product)
+3. No duplicate invoice in 60 days
+
+It does NOT check the `grading_registrations.ready_for_grading` field.
+
+### Solution
+Add a query to check if the student has a `grading_registrations` record with `ready_for_grading = true`, and include that in the `gradingEligible` condition.
 
 ### Changes
 
-#### 1. Move grading section above the payment summary
-Currently the order is: Summary Card → Grading Opt-In → Payment Section. 
-Reorder to: **Grading Opt-In → Summary Card → Payment Section**.
-This means lines 711-758 (grading opt-in block) will be moved before lines 668-709 (summary block).
+#### `src/components/dashboard/PaySchoolFeesDialog.tsx`
 
-#### 2. Update the opt-in text
-Change `"Also register for grading"` to `"Your child is ready for the grading, would you like to pay for it together?"`.
+1. **Add a new query** to check if the student is marked as ready for grading:
+```typescript
+const { data: isReadyForGrading } = useQuery({
+  queryKey: ['student-ready-for-grading', studentId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('grading_registrations')
+      .select('id, ready_for_grading')
+      .eq('student_id', studentId)
+      .eq('ready_for_grading', true)
+      .limit(1)
+      .maybeSingle();
+    return !!data;
+  },
+  enabled: !!studentId,
+});
+```
 
-#### 3. Show slot title in dropdown instead of "Select Grading Session"
-Change the `<Label>` from `"Select Grading Session *"` to display each slot's `title` field in the dropdown items, and use the slot title as the dropdown label if available. The `<SelectItem>` entries already show date/time — they will also include the slot title (e.g., "Foundation 1-2 Grading — Sunday, 29 Mar 2026 at 10:35").
+2. **Update the eligibility flag** (line 299) to include the new check:
+```typescript
+const gradingEligible = gradingSlots.length > 0 
+  && !!gradingProduct 
+  && !existingGradingInvoice 
+  && !!isReadyForGrading;
+```
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Reorder the grading opt-in block to appear before the summary card; update label text; show slot title in dropdown |
+| `src/components/dashboard/PaySchoolFeesDialog.tsx` | Add `isReadyForGrading` query against `grading_registrations`; add `&& !!isReadyForGrading` to the `gradingEligible` condition |
+
+### Result
+- Students NOT marked as ready for grading (like Akhil) will no longer see the grading opt-in section.
+- Students marked as ready by the branch admin will continue to see the prompt as expected.
 
