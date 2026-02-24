@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +63,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showAutoSchoolFees, setShowAutoSchoolFees] = useState(false);
   const [showAutoGrading, setShowAutoGrading] = useState(false);
+  const [showGradingCongrats, setShowGradingCongrats] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -208,21 +210,23 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     enabled: !!studentId && availableTerms.length > 0,
   });
 
-  // Check if student is ready for grading
-  const { data: isReadyForGrading } = useQuery({
+  // Check if student is ready for grading (also fetch target_belt)
+  const { data: readyGradingInfo } = useQuery({
     queryKey: ['student-ready-for-grading-dashboard', studentId],
     queryFn: async () => {
       const { data } = await supabase
         .from('grading_registrations')
-        .select('id, ready_for_grading')
+        .select('id, ready_for_grading, target_belt')
         .eq('student_id', studentId!)
         .eq('ready_for_grading', true)
         .limit(1)
         .maybeSingle();
-      return !!data;
+      return data;
     },
     enabled: !!studentId,
   });
+  const isReadyForGrading = !!readyGradingInfo;
+  const gradingTargetBelt = readyGradingInfo?.target_belt;
 
   // Check if grading invoice exists recently (60 days)
   const { data: hasRecentGradingInvoice } = useQuery({
@@ -267,7 +271,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   // Helper to trigger next popup in chain after school fees
   const triggerNextAfterSchoolFees = () => {
     if (isReadyForGrading && !hasRecentGradingInvoice) {
-      setShowAutoGrading(true);
+      setShowGradingCongrats(true);
     } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
       setShowProfileCompletion(true);
     }
@@ -290,7 +294,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     } else if (hasCurrentTermInvoice === false) {
       setShowAutoSchoolFees(true);
     } else if (isReadyForGrading && !hasRecentGradingInvoice) {
-      setShowAutoGrading(true);
+      setShowGradingCongrats(true);
     } else if (student && studentId) {
       if (shouldShowProfileCompletion(student, studentId)) {
         setShowProfileCompletion(true);
@@ -1098,7 +1102,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             if (hasCurrentTermInvoice === false) {
               setShowAutoSchoolFees(true);
             } else if (isReadyForGrading && !hasRecentGradingInvoice) {
-              setShowAutoGrading(true);
+              setShowGradingCongrats(true);
             } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
               setShowProfileCompletion(true);
             }
@@ -1131,6 +1135,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           gradingSlots={gradingSlots}
         />
       )}
+
+      {/* Grading Congrats Confirmation Dialog */}
+      <AlertDialog open={showGradingCongrats} onOpenChange={setShowGradingCongrats}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🎉 Congratulations!</AlertDialogTitle>
+            <AlertDialogDescription>
+              {student?.first_name || 'Your child'} is now ready for the {gradingTargetBelt || 'next'} Grading Test! Would you like to register now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowGradingCongrats(false);
+              triggerNextAfterGrading();
+            }}>
+              Maybe Later
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowGradingCongrats(false);
+              setShowAutoGrading(true);
+            }}>
+              Register Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Auto-triggered Grading Fees Dialog */}
       {showAutoGrading && (
