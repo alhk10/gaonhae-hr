@@ -110,12 +110,27 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 
       // Filter by matching belt level
       const normalizedStudentBelt = normalizeBelt(student.current_belt || '');
-      return branchAccessible.filter(slot => {
+      const beltFiltered = branchAccessible.filter(slot => {
         if (!slot.belt_levels || slot.belt_levels.length === 0) return true;
         return slot.belt_levels.some(beltLevel =>
           normalizeBelt(beltLevel) === normalizedStudentBelt
         );
       });
+
+      // Filter by student age
+      const studentDob = student.date_of_birth;
+      if (studentDob) {
+        const today = new Date();
+        const dob = new Date(studentDob);
+        const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        return beltFiltered.filter(slot => {
+          const s = slot as any;
+          if (s.min_age != null && ageInYears < s.min_age) return false;
+          if (s.max_age != null && ageInYears > s.max_age) return false;
+          return true;
+        });
+      }
+      return beltFiltered;
     },
     enabled: hasBranch && !!student.current_belt,
   });

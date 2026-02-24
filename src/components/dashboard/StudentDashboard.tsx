@@ -166,11 +166,23 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     queryFn: async () => {
       if (!student?.branch_id || !student?.current_belt) return [];
       const today = new Date().toISOString().split('T')[0];
-      return getGradingSlots({
+      const slots = await getGradingSlots({
         branch_id: student.branch_id,
         status: 'active',
         from_date: today,
       });
+      // Filter by student age
+      if (student.date_of_birth) {
+        const now = new Date();
+        const dob = new Date(student.date_of_birth);
+        const ageInYears = (now.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        return slots.filter(slot => {
+          if (slot.min_age != null && ageInYears < slot.min_age) return false;
+          if (slot.max_age != null && ageInYears > slot.max_age) return false;
+          return true;
+        });
+      }
+      return slots;
     },
     enabled: !!student?.branch_id && !!student?.current_belt,
   });
