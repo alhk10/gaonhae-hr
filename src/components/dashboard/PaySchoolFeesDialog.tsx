@@ -665,6 +665,54 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   </div>
                 )}
 
+                {/* Grading Opt-In */}
+                {gradingEligible && selectedTerm && selectedProduct && (
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardContent className="p-3 sm:p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="include-grading"
+                          checked={includeGrading}
+                          onCheckedChange={(v) => setIncludeGrading(!!v)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="include-grading" className="font-medium text-foreground cursor-pointer flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4" />
+                            Your child is ready for the grading, would you like to pay for it together?
+                          </label>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-xs text-muted-foreground">{formatBeltLevel(student.current_belt)}</span>
+                            <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-xs font-medium text-foreground">{formatBeltLevel(nextBelt)}</span>
+                            {gradingProduct && (
+                              <span className="text-xs text-muted-foreground ml-1">— ${gradingFee.toFixed(2)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {includeGrading && (
+                        <div className="space-y-2">
+                          <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a grading session" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {gradingSlots.map(slot => (
+                                <SelectItem key={slot.id} value={slot.id}>
+                                  {slot.title ? `${slot.title} — ` : ''}{format(parseISO(slot.grading_date), 'EEEE, dd MMM yyyy')}
+                                  {slot.start_time && ` at ${slot.start_time.slice(0, 5)}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Summary */}
                 {selectedTerm && selectedProduct && (
                   <Card className="bg-primary/5 border-primary/20">
@@ -704,55 +752,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <span className="font-semibold text-sm">Total</span>
                         <span className="font-bold text-sm sm:text-lg">${combinedTotal.toFixed(2)}</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Grading Opt-In */}
-                {gradingEligible && selectedTerm && selectedProduct && (
-                  <Card className="border-primary/30 bg-primary/5">
-                    <CardContent className="p-3 sm:p-4 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          id="include-grading"
-                          checked={includeGrading}
-                          onCheckedChange={(v) => setIncludeGrading(!!v)}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <label htmlFor="include-grading" className="font-medium text-foreground cursor-pointer flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4" />
-                            Also register for grading
-                          </label>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-xs text-muted-foreground">{formatBeltLevel(student.current_belt)}</span>
-                            <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                            <span className="text-xs font-medium text-foreground">{formatBeltLevel(nextBelt)}</span>
-                            {gradingProduct && (
-                              <span className="text-xs text-muted-foreground ml-1">— ${gradingFee.toFixed(2)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {includeGrading && (
-                        <div className="space-y-2">
-                          <Label className="text-sm">Select Grading Session *</Label>
-                          <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a grading session" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {gradingSlots.map(slot => (
-                                <SelectItem key={slot.id} value={slot.id}>
-                                  {format(parseISO(slot.grading_date), 'EEEE, dd MMM yyyy')}
-                                  {slot.start_time && ` at ${slot.start_time.slice(0, 5)}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 )}
