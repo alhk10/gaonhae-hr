@@ -121,8 +121,23 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   });
 
 
+  const { data: isReadyForGrading } = useQuery({
+    queryKey: ['student-ready-for-grading', student.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grading_registrations')
+        .select('id, ready_for_grading')
+        .eq('student_id', student.id)
+        .eq('ready_for_grading', true)
+        .limit(1)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!student.id,
+  });
+
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
-  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0;
+  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0 && !!isReadyForGrading;
   const nextBelt = getNextBelt(student.current_belt);
 
   return (
@@ -162,25 +177,19 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Pay Grading */}
-        <Card className={`cursor-pointer transition-all hover:shadow-md ${!canPayGrading ? 'opacity-60' : ''}`}>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
-            <div className="flex items-start gap-3 md:gap-4">
-              <div className="bg-purple-500/10 p-2.5 md:p-3 rounded-lg flex-shrink-0">
-                <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Pay Grading</h3>
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {canPayGrading 
-                    ? `Register for ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} exam`
-                    : !hasBranch 
-                      ? 'No branch assigned'
-                      : !student.current_belt
-                        ? 'Belt level not set'
-                        : 'No grading sessions available for your belt'}
-                </p>
-                {canPayGrading ? (
+        {/* Pay Grading - only shown when student is marked ready */}
+        {canPayGrading && (
+          <Card className="cursor-pointer transition-all hover:shadow-md">
+            <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+              <div className="flex items-start gap-3 md:gap-4">
+                <div className="bg-purple-500/10 p-2.5 md:p-3 rounded-lg flex-shrink-0">
+                  <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Pay Grading</h3>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    {`Register for ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} exam`}
+                  </p>
                   <Button 
                     size="sm" 
                     variant="secondary"
@@ -189,16 +198,11 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                     <GraduationCap className="w-4 h-4 mr-2" />
                     Select Grading Session
                   </Button>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <AlertCircle className="w-4 h-4" />
-                    {!student.current_belt ? 'Belt level not assigned' : 'Check back later'}
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
     </div>
   );
