@@ -295,8 +295,24 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     enabled: !!gradingProduct?.id,
   });
 
+  // Check if student is marked as ready for grading by branch admin
+  const { data: isReadyForGrading } = useQuery({
+    queryKey: ['student-ready-for-grading', studentId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grading_registrations')
+        .select('id, ready_for_grading')
+        .eq('student_id', studentId)
+        .eq('ready_for_grading', true)
+        .limit(1)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!studentId,
+  });
+
   // Is grading opt-in eligible?
-  const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice;
+  const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 
   // Get selected product
   const selectedProduct = classProducts.find(p => p.id === selectedProductId);
