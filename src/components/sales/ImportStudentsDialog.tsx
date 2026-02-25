@@ -7,10 +7,14 @@ import { toast } from '@/components/ui/sonner';
 import { createStudent, CreateStudentData } from '@/services/studentService';
 
 const CSV_COLUMNS = [
-  'first_name', 'last_name', 'certificate_name', 'display_name',
-  'date_of_birth', 'gender', 'email', 'phone', 'address', 'postal_code',
-  'nric_passport', 'branch_id', 'current_belt', 'referral_source',
-  'medical_conditions', 'notes'
+  'first_name', 'last_name', 'preferred_name', 'certificate_name', 'display_name',
+  'date_of_birth', 'gender', 'nationality', 'languages_spoken',
+  'nric_passport', 'email', 'phone', 'whatsapp', 'address', 'postal_code',
+  'branch_id', 'current_belt', 'previous_experience', 'training_goals',
+  'referral_source', 'registered_date',
+  'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+  'emergency_contact_2_name', 'emergency_contact_2_phone', 'emergency_contact_2_relationship',
+  'medical_conditions', 'dietary_restrictions', 'notes'
 ];
 
 interface ParsedRow {
@@ -93,7 +97,17 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
   const errorRows = parsedRows.filter(r => r.errors.length > 0);
 
   const handleDownloadTemplate = () => {
-    const csv = CSV_COLUMNS.join(',') + '\n';
+    const sampleRow = [
+      'JOHN', 'DOE', 'JOHNNY', 'JOHN DOE', 'JOHN DOE',
+      '2015-03-15', 'Male', 'Singaporean;Brazilian', 'English;Mandarin',
+      'S1234567A', 'john@example.com', '91234567', '91234567', '123 EXAMPLE STREET', '123456',
+      '', 'White', '', '',
+      'Walk-in', '2026-01-15',
+      'JANE DOE', '98765432', 'Mother',
+      '', '', '',
+      'None', 'None', 'Sample student'
+    ];
+    const csv = CSV_COLUMNS.join(',') + '\n' + sampleRow.join(',') + '\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -162,19 +176,32 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
         const studentData: CreateStudentData = {
           first_name: row.first_name,
           last_name: row.last_name || '',
+          preferred_name: row.preferred_name || undefined,
           certificate_name: row.certificate_name || row.first_name,
           display_name: row.display_name || row.first_name,
           date_of_birth: row.date_of_birth || undefined,
           gender: row.gender || undefined,
+          nationality: row.nationality ? row.nationality.split(';').map(n => n.trim()).filter(Boolean) : undefined,
+          languages_spoken: row.languages_spoken ? row.languages_spoken.split(';').map(l => l.trim()).filter(Boolean) : undefined,
+          nric_passport: row.nric_passport || undefined,
           email: row.email || undefined,
           phone: row.phone || undefined,
           address: row.address || undefined,
           postal_code: row.postal_code || undefined,
-          nric_passport: row.nric_passport || undefined,
           branch_id: row.branch_id || undefined,
           current_belt: row.current_belt || undefined,
+          previous_experience: row.previous_experience || undefined,
+          training_goals: row.training_goals || undefined,
           referral_source: row.referral_source || undefined,
+          registered_date: row.registered_date || undefined,
+          emergency_contact_name: row.emergency_contact_name || undefined,
+          emergency_contact_phone: row.emergency_contact_phone || undefined,
+          emergency_contact_relationship: row.emergency_contact_relationship || undefined,
+          emergency_contact_2_name: row.emergency_contact_2_name || undefined,
+          emergency_contact_2_phone: row.emergency_contact_2_phone || undefined,
+          emergency_contact_2_relationship: row.emergency_contact_2_relationship || undefined,
           medical_conditions: row.medical_conditions || undefined,
+          dietary_restrictions: row.dietary_restrictions || undefined,
           notes: row.notes || undefined,
           status: 'active',
         };
