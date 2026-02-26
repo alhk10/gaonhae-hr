@@ -12,7 +12,12 @@ const parseDateValue = (value: string): string => {
   // DD-MM-YYYY or DD/MM/YYYY
   const match = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
   if (match) {
-    const [, dd, mm, yyyy] = match;
+    let [, part1, part2, yyyy] = match;
+    let dd = part1, mm = part2;
+    // If mm > 12, assume parts are swapped (MM/DD/YYYY format)
+    if (parseInt(mm) > 12 && parseInt(dd) <= 12) {
+      [dd, mm] = [mm, dd];
+    }
     return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
   }
   // Already YYYY-MM-DD
@@ -193,7 +198,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           certificate_name: row.certificate_name || row.first_name,
           display_name: row.display_name || row.first_name,
           date_of_birth: row.date_of_birth ? parseDateValue(row.date_of_birth) : undefined,
-          gender: row.gender || undefined,
+          gender: row.gender ? row.gender.trim().toLowerCase() : undefined,
           nationality: row.nationality ? row.nationality.split(';').map(n => n.trim()).filter(Boolean) : undefined,
           languages_spoken: row.languages_spoken ? row.languages_spoken.split(';').map(l => l.trim()).filter(Boolean) : undefined,
           nric_passport: row.nric_passport || undefined,
