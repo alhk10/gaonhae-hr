@@ -210,7 +210,17 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           address: row.address || undefined,
           postal_code: row.postal_code || undefined,
           branch_id: row.branch_id ? (branches.find(b => b.name.toLowerCase() === row.branch_id.trim().toLowerCase())?.id || row.branch_id) : undefined,
-          current_belt: row.current_belt || undefined,
+          current_belt: row.current_belt ? (() => {
+            const validBelts = [
+              'Foundation 1', 'Foundation 2', 'Foundation 3',
+              'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+              'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+              '1st Poom', '1st Dan', '2nd Poom', '2nd Dan',
+              '3rd Poom', '3rd Dan', '4th Poom', '4th Dan', '5th Dan'
+            ];
+            const belt = row.current_belt.trim();
+            return validBelts.includes(belt) ? belt : undefined;
+          })() : undefined,
           previous_experience: row.previous_experience || undefined,
           training_goals: row.training_goals || undefined,
           referral_source: row.referral_source || undefined,
