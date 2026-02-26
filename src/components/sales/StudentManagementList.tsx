@@ -45,7 +45,7 @@ const StudentManagementList: React.FC = () => {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   
-  const itemsPerPage = 20;
+  const itemsPerPage = 50;
 
   const loadStudents = async () => {
     try {
@@ -300,120 +300,54 @@ const StudentManagementList: React.FC = () => {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.length === students.length}
-                        onChange={handleSelectAll}
-                        className="rounded"
-                      />
-                    </TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Belt Level</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => handleSelectStudent(student.id)}
-                          className="rounded"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {student.first_name} {student.last_name}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            #{student.student_number}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="text-sm">{student.phone || 'No phone'}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {student.email || 'No email'}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {student.current_belt || 'No Belt'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(student.status)}>
-                          {student.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {student.enrollment_date 
-                          ? new Date(student.enrollment_date).toLocaleDateString()
-                          : 'Not set'
-                        }
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/parties/student/${student.id}`)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <EditStudentDialog
-                            trigger={
-                              <Button variant="ghost" size="sm">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            }
-                            student={student}
-                            onStudentUpdated={handleStudentUpdated}
-                          />
-                          {isSuperadmin && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Student</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete {student.first_name} {student.last_name}? 
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteStudent(student.id)}
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 pb-2 border-b mb-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.length === students.length}
+                    onChange={handleSelectAll}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{students.length} students</span>
+                </div>
+                {students.map((student) => (
+                  <div
+                    key={student.id}
+                    className="flex items-center gap-3 p-3 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => navigate(`/parties/student/${student.id}`)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStudents.includes(student.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleSelectStudent(student.id);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm uppercase tracking-wide truncate">
+                        {student.first_name} {student.last_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {student.phone || 'No phone'}
+                        {(student.phone && student.email) && ' • '}
+                        {student.email || ''}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-xs">
+                        {student.current_belt || 'No Belt'}
+                      </Badge>
+                      <Badge variant={getStatusBadgeVariant(student.status)} className="text-xs capitalize">
+                        {student.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
