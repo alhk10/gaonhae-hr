@@ -332,8 +332,10 @@ export interface CreateStudentData {
   nationality?: string[];
   languages_spoken?: string[];
   nric_passport?: string;
+  passport_no?: string;
   email?: string;
   phone?: string;
+  whatsapp?: string;
   address?: string;
   postal_code?: string;
   emergency_contact_name?: string;
@@ -467,6 +469,8 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
 
     if (error) {
       logger.error('Error updating student', error);
+      console.error('Supabase update error details:', JSON.stringify(error));
+      console.error('Sanitized data sent:', JSON.stringify(sanitizedData));
       await logSalesModuleAccess('update_student', false, { error: error.message, studentId });
       throw error;
     }
