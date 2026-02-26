@@ -1,6 +1,6 @@
 /**
  * Import Products Dialog
- * Allows CSV import of products with preview and validation
+ * Allows CSV import of products with preview, validation, and branch-specific pricing
  */
 
 import React, { useState, useRef } from 'react';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getProductCategories } from '@/services/productService';
 
@@ -27,6 +27,7 @@ interface ParsedProduct {
   session_count: string;
   min_belt_level: string;
   is_active: string;
+  branchPrices: Record<string, string>; // branchName -> price string
   errors: string[];
 }
 
@@ -36,7 +37,7 @@ interface ImportProductsDialogProps {
   onImportComplete: () => void;
 }
 
-const EXPECTED_HEADERS = [
+const BASE_HEADERS = [
   'name', 'sku', 'description', 'category', 'base_price', 'tax_rate',
   'is_service', 'is_lesson', 'session_count', 'min_belt_level', 'is_active'
 ];
@@ -69,6 +70,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [importing, setImporting] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [detectedBranches, setDetectedBranches] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,22 +91,39 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
       return;
     }
 
-    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
-    const missingHeaders = EXPECTED_HEADERS.filter(h => !headers.includes(h));
+    const headers = parseCSVLine(lines[0]).map(h => h.trim());
+    const headersLower = headers.map(h => h.toLowerCase());
+    const missingHeaders = BASE_HEADERS.filter(h => !headersLower.includes(h));
     if (missingHeaders.length > 0) {
       toast.error(`Missing columns: ${missingHeaders.join(', ')}`);
       return;
     }
 
-    // Load categories for validation
-    const categories = await getProductCategories();
+    // Detect branch price columns (price_*)
+    const branchPriceColumns: { headerIdx: number; branchName: string }[] = [];
+    headers.forEach((h, idx) => {
+      const match = h.match(/^price_(.+)$/i);
+      if (match && !BASE_HEADERS.includes(h.toLowerCase())) {
+        branchPriceColumns.push({ headerIdx: idx, branchName: match[1].trim() });
+      }
+    });
+    
+    const branchNames = branchPriceColumns.map(c => c.branchName);
+    setDetectedBranches(branchNames);
+
+    // Fetch categories and branches for validation
+    const [categories, branchesRes] = await Promise.all([
+      getProductCategories(),
+      supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")'),
+    ]);
     const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
+    const branchMap = new Map((branchesRes.data || []).map(b => [b.name.toLowerCase(), b.id]));
 
     const products: ParsedProduct[] = [];
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]);
       const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
+      headersLower.forEach((h, idx) => {
         row[h] = values[idx] || '';
       });
 
@@ -118,6 +137,20 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
         errors.push(`Category "${row.category}" not found`);
       }
 
+      // Parse branch prices
+      const branchPrices: Record<string, string> = {};
+      branchPriceColumns.forEach(({ headerIdx, branchName }) => {
+        const val = (values[headerIdx] || '').trim();
+        if (val) {
+          branchPrices[branchName] = val;
+          if (isNaN(Number(val))) {
+            errors.push(`Invalid price for branch "${branchName}"`);
+          } else if (!branchMap.has(branchName.toLowerCase())) {
+            errors.push(`Branch "${branchName}" not found`);
+          }
+        }
+      });
+
       products.push({
         name: row.name || '',
         sku: row.sku || '',
@@ -130,6 +163,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
         session_count: row.session_count || '',
         min_belt_level: row.min_belt_level || '',
         is_active: row.is_active || '',
+        branchPrices,
         errors,
       });
     }
@@ -150,33 +184,83 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
 
     setImporting(true);
     try {
-      const categories = await getProductCategories();
+      const [categories, branchesRes] = await Promise.all([
+        getProductCategories(),
+        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")'),
+      ]);
       const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
+      const branchMap = new Map((branchesRes.data || []).map(b => [b.name.toLowerCase(), b.id]));
 
       const parseBool = (val: string) => {
         const v = val.toLowerCase().trim();
         return v === 'true' || v === 'yes' || v === '1';
       };
 
-      const insertData = validProducts.map(p => ({
-        name: p.name,
-        sku: p.sku,
-        description: p.description || null,
-        category_id: p.category ? categoryMap.get(p.category.toLowerCase()) || null : null,
-        base_price: parseFloat(p.base_price),
-        tax_rate: p.tax_rate ? parseFloat(p.tax_rate) : 0,
-        is_service: parseBool(p.is_service),
-        is_lesson: parseBool(p.is_lesson),
-        session_count: p.session_count ? parseInt(p.session_count) : null,
-        min_belt_level: p.min_belt_level || null,
-        is_active: p.is_active ? parseBool(p.is_active) : true,
-      }));
+      // Insert products one by one to get IDs back for price_rules
+      let successCount = 0;
+      let priceRulesCount = 0;
 
-      const { error } = await supabase.from('products').insert(insertData);
-      if (error) throw error;
+      for (const p of validProducts) {
+        const insertData = {
+          name: p.name,
+          sku: p.sku,
+          description: p.description || null,
+          category_id: p.category ? categoryMap.get(p.category.toLowerCase()) || null : null,
+          base_price: parseFloat(p.base_price),
+          tax_rate: p.tax_rate ? parseFloat(p.tax_rate) : 0,
+          is_service: parseBool(p.is_service),
+          is_lesson: parseBool(p.is_lesson),
+          session_count: p.session_count ? parseInt(p.session_count) : null,
+          min_belt_level: p.min_belt_level || null,
+          is_active: p.is_active ? parseBool(p.is_active) : true,
+        };
 
-      toast.success(`Successfully imported ${validProducts.length} product(s)`);
+        const { data: inserted, error } = await supabase
+          .from('products')
+          .insert(insertData)
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error(`Failed to insert product "${p.name}":`, error);
+          continue;
+        }
+        successCount++;
+
+        // Insert branch-specific price rules
+        const branchPriceEntries = Object.entries(p.branchPrices).filter(([, val]) => val && !isNaN(Number(val)));
+        if (branchPriceEntries.length > 0 && inserted) {
+          const priceRules = branchPriceEntries
+            .map(([branchName, price]) => {
+              const branchId = branchMap.get(branchName.toLowerCase());
+              if (!branchId) return null;
+              return {
+                product_id: inserted.id,
+                branch_id: branchId,
+                price_override: parseFloat(price),
+                rule_name: `Branch: ${branchName}`,
+                is_active: true,
+              };
+            })
+            .filter(Boolean);
+
+          if (priceRules.length > 0) {
+            const { error: priceError } = await supabase.from('price_rules').insert(priceRules);
+            if (priceError) {
+              console.error(`Failed to insert price rules for "${p.name}":`, priceError);
+            } else {
+              priceRulesCount += priceRules.length;
+            }
+          }
+        }
+      }
+
+      const msg = priceRulesCount > 0
+        ? `Imported ${successCount} product(s) with ${priceRulesCount} branch price(s)`
+        : `Imported ${successCount} product(s)`;
+      toast.success(msg);
       setParsedProducts([]);
+      setDetectedBranches([]);
       setFileName('');
       onImportComplete();
       onOpenChange(false);
@@ -190,6 +274,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
 
   const handleClose = () => {
     setParsedProducts([]);
+    setDetectedBranches([]);
     setFileName('');
     onOpenChange(false);
   };
@@ -206,7 +291,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
 
         <div className="space-y-4">
           {/* File Upload */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
@@ -223,7 +308,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
               onChange={handleFileSelect}
             />
             {parsedProducts.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   {validCount} valid
@@ -232,6 +317,12 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
                   <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {invalidCount} errors
+                  </Badge>
+                )}
+                {detectedBranches.length > 0 && (
+                  <Badge variant="outline" className="border-blue-200 text-blue-700">
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    {detectedBranches.length} branch price column(s)
                   </Badge>
                 )}
               </div>
@@ -253,44 +344,71 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
                       <TableHead>Tax %</TableHead>
                       <TableHead>Service</TableHead>
                       <TableHead>Lesson</TableHead>
+                      {detectedBranches.length > 0 && <TableHead>Branch Prices</TableHead>}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parsedProducts.map((product, idx) => (
-                      <TableRow key={idx} className={product.errors.length > 0 ? 'bg-destructive/5' : ''}>
-                        <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                        <TableCell className="font-medium max-w-[150px] truncate">{product.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{product.sku}</TableCell>
-                        <TableCell className="text-sm">{product.category || '-'}</TableCell>
-                        <TableCell>${product.base_price}</TableCell>
-                        <TableCell>{product.tax_rate || '0'}%</TableCell>
-                        <TableCell>{product.is_service?.toLowerCase() === 'true' || product.is_service === '1' ? 'Yes' : 'No'}</TableCell>
-                        <TableCell>{product.is_lesson?.toLowerCase() === 'true' || product.is_lesson === '1' ? 'Yes' : 'No'}</TableCell>
-                        <TableCell>
-                          {product.errors.length > 0 ? (
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 cursor-help">
-                                  <AlertCircle className="w-3 h-3 mr-1" />
-                                  Error
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <ul className="text-xs space-y-1">
-                                  {product.errors.map((e, i) => <li key={i}>• {e}</li>)}
-                                </ul>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Valid
-                            </Badge>
+                    {parsedProducts.map((product, idx) => {
+                      const branchPriceCount = Object.keys(product.branchPrices).length;
+                      return (
+                        <TableRow key={idx} className={product.errors.length > 0 ? 'bg-destructive/5' : ''}>
+                          <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-medium max-w-[150px] truncate">{product.name}</TableCell>
+                          <TableCell className="font-mono text-xs">{product.sku}</TableCell>
+                          <TableCell className="text-sm">{product.category || '-'}</TableCell>
+                          <TableCell>${product.base_price}</TableCell>
+                          <TableCell>{product.tax_rate || '0'}%</TableCell>
+                          <TableCell>{product.is_service?.toLowerCase() === 'true' || product.is_service === '1' ? 'Yes' : 'No'}</TableCell>
+                          <TableCell>{product.is_lesson?.toLowerCase() === 'true' || product.is_lesson === '1' ? 'Yes' : 'No'}</TableCell>
+                          {detectedBranches.length > 0 && (
+                            <TableCell>
+                              {branchPriceCount > 0 ? (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Badge variant="outline" className="cursor-help text-xs">
+                                      <DollarSign className="w-3 h-3 mr-0.5" />
+                                      {branchPriceCount}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <ul className="text-xs space-y-1">
+                                      {Object.entries(product.branchPrices).map(([branch, price]) => (
+                                        <li key={branch}>{branch}: ${price}</li>
+                                      ))}
+                                    </ul>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
+                              )}
+                            </TableCell>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          <TableCell>
+                            {product.errors.length > 0 ? (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 cursor-help">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Error
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <ul className="text-xs space-y-1">
+                                    {product.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                                  </ul>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                Valid
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TooltipProvider>
