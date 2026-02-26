@@ -1,17 +1,34 @@
 
 
-## Purge All Student Data
+## Update Student List to Compact Card View
 
-Same operation as before — delete all records from 21 student-related tables in dependency order.
+Replace the current table layout in `StudentManagementList.tsx` with a compact card-based list matching the reference screenshot.
 
-### Implementation
+### Changes to `src/components/sales/StudentManagementList.tsx`
 
-Create a single migration file with `DELETE FROM` statements for all tables in this order:
+**Replace the `<Table>` block (lines 303-416) with a compact list:**
+- Each student rendered as a bordered row/card
+- Student name displayed in uppercase, bold, centered-left
+- Phone and email shown below the name separated by a dot
+- Belt level as a dark badge (or "No belt" in outline style) on the right
+- Status badge next to belt badge
+- Remove: Join Date column, Actions column (keep row clickable to navigate), table headers
+- Keep checkbox selection functionality via a subtle left-side checkbox
+- Maintain the existing pagination and bulk actions
 
-1. Child tables first: `student_auth`, `student_branch_chats`, `student_change_logs`, `student_class_enrollments`, `student_emergency_contacts`, `student_grading_history`, `student_medical_notes`, `student_notification_subscriptions`, `student_scheduled_classes`, `student_update_requests`
-2. Invoice/payment children: `invoice_change_logs`, `invoice_items`, `invoice_deletion_requests`, `payment_deletion_requests`, `payments`
-3. Remaining dependents: `invoices`, `class_attendance`, `grading_deletion_requests`, `grading_registrations`, `entitlements`
-4. Parent table last: `students`
+### Layout per row
+```text
+┌──────────────────────────────────────────────────────────┐
+│  STUDENT FULL NAME                    [Belt Badge] [status] │
+│  +65XXXXXXXX  •  email@example.com                          │
+└──────────────────────────────────────────────────────────┘
+```
 
-This will remove all 161 student records and their associated data. No code changes required.
+- Names rendered uppercase via CSS (`uppercase` class)
+- Belt badges use dark variant for actual belts, outline for "No belt"
+- Row is clickable (navigates to student profile)
+- Edit/delete actions accessible from student profile page instead
+
+### Items per page
+Increase `itemsPerPage` from 20 to 50 to show more students at once in the compact view.
 
