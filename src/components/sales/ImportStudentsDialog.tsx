@@ -330,6 +330,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
                       <TableHead className="text-xs">Email</TableHead>
                       <TableHead className="text-xs">Phone</TableHead>
                       <TableHead className="text-xs">Belt</TableHead>
+                      <TableHead className="text-xs">Branch</TableHead>
                       <TableHead className="text-xs">Emergency Contact</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
                     </TableRow>
@@ -351,6 +352,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
                           <TableCell className="text-xs py-1.5">{row.data.email || '-'}</TableCell>
                           <TableCell className="text-xs py-1.5">{row.data.phone || '-'}</TableCell>
                           <TableCell className="text-xs py-1.5">{row.data.current_belt || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.branch_id || '-'}</TableCell>
                           <TableCell className="text-xs py-1.5">{row.data.emergency_contact_name || '-'}</TableCell>
                           <TableCell className="text-xs py-1.5">
                             {row.errors.length > 0 ? (
