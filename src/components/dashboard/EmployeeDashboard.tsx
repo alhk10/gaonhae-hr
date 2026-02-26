@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2 } from 'lucide-react';
 import { History } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { getEmployeeById } from '@/services/employeeService';
 import { getAllLeaveRequests } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmployeeProfile } from '@/types/employee';
+import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +26,8 @@ import SubmitClaimDialog from './SubmitClaimDialog';
 import ViewPayslipDialog from './ViewPayslipDialog';
 import ApplyLeaveDialog from './ApplyLeaveDialog';
 import BranchProfitLossDialog from './BranchProfitLossDialog';
+import BranchDashboard from './BranchDashboard';
+import EmployeeBranchStudentList from './EmployeeBranchStudentList';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -57,6 +61,8 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   
   // Use simulated employee ID if provided (for superadmin viewing as employee)
   const effectiveEmployeeId = simulatedEmployeeId || user?.employeeId;
+  const { hasAccess: hasInvoiceAccess, accessibleBranches } = useInvoiceAccess();
+  const invoiceAccessBranchIds = accessibleBranches.map(b => b.branch_id);
   const [clockStatus, setClockStatus] = useState<ClockInOutRecord | undefined>();
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [employeeData, setEmployeeData] = useState<EmployeeProfile | null>(null);
@@ -459,7 +465,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     console.error('Dashboard: Error loading claims:', claimsError);
   }
 
-  return (
+  const dashboardContent = (
     <>
       <div className="space-y-4 md:space-y-6">
         <div>
@@ -772,6 +778,34 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         />
       )}
     </>
+  );
+
+  if (!hasInvoiceAccess || simulatedEmployeeId) {
+    return dashboardContent;
+  }
+
+  return (
+    <Tabs defaultValue="dashboard" className="space-y-4">
+      <TabsList className="h-auto flex-wrap">
+        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+        <TabsTrigger value="branch">Branch</TabsTrigger>
+        <TabsTrigger value="students">Students</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="dashboard">
+        {dashboardContent}
+      </TabsContent>
+
+      <TabsContent value="branch">
+        {invoiceAccessBranchIds.length > 0 && (
+          <BranchDashboard branchId={invoiceAccessBranchIds[0]} />
+        )}
+      </TabsContent>
+
+      <TabsContent value="students">
+        <EmployeeBranchStudentList branchIds={invoiceAccessBranchIds} />
+      </TabsContent>
+    </Tabs>
   );
 };
 
