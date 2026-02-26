@@ -12,10 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
-import { UserPlus, User, Mail, GraduationCap, Settings, Eye, ArrowLeft } from 'lucide-react';
+import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 interface AddStudentDialogProps {
   trigger?: React.ReactNode;
@@ -36,7 +35,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const { branches, loading: branchesLoading } = useBranches();
   
   // Comprehensive nationalities for the dropdown
@@ -174,7 +172,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     });
   };
 
-  const handlePreview = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
@@ -193,19 +191,15 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       return;
     }
 
-    setShowPreview(true);
-  };
-
-  const handleConfirmSubmit = async () => {
     setLoading(true);
     
     try {
+      // Import the createStudent function
       const { createStudent } = await import('@/services/studentService');
       
       await createStudent(formData);
       
       toast.success('Student added successfully');
-      setShowPreview(false);
       setIsOpen(false);
       setFormData({
         referral_source: '',
@@ -253,30 +247,6 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     }
   };
 
-  const getReferralLabel = (value: string) => {
-    const option = referralSourceOptions.find(o => o.value === value);
-    return option?.label || value || '-';
-  };
-
-  const getBranchName = (id: string) => {
-    const branch = branches.find(b => b.id === id);
-    return branch?.name || id || '-';
-  };
-
-  const getRelationshipLabel = (value: string) => {
-    return value ? value.charAt(0).toUpperCase() + value.slice(1) : '-';
-  };
-
-  const PreviewRow = ({ label, value }: { label: string; value: string }) => {
-    if (!value || value === '-') return null;
-    return (
-      <TableRow>
-        <TableCell className="font-medium text-xs text-muted-foreground py-1.5 w-[40%]">{label}</TableCell>
-        <TableCell className="text-xs py-1.5">{value}</TableCell>
-      </TableRow>
-    );
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger && (
@@ -287,121 +257,12 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {showPreview ? (
-              <>
-                <Eye className="w-5 h-5" />
-                Review Student Details
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-5 h-5" />
-                Add New Student
-              </>
-            )}
+            <UserPlus className="w-5 h-5" />
+            Add New Student
           </DialogTitle>
         </DialogHeader>
 
-        {showPreview ? (
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto">
-            {/* Personal Information */}
-            <section className="rounded-lg bg-accent/30 p-3">
-              <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Personal Information</h3>
-              <Table>
-                <TableBody>
-                  <PreviewRow label="First Name" value={formData.first_name} />
-                  <PreviewRow label="Last Name" value={formData.last_name} />
-                  <PreviewRow label="Certificate Name" value={formData.certificate_name} />
-                  <PreviewRow label="Display Name" value={formData.display_name} />
-                  <PreviewRow label="Preferred Name" value={formData.preferred_name} />
-                  <PreviewRow label="NRIC/FIN" value={formData.nric_passport} />
-                  <PreviewRow label="Passport No." value={formData.passport_no} />
-                  <PreviewRow label="Gender" value={formData.gender ? formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1) : '-'} />
-                  <PreviewRow label="Date of Birth" value={formData.date_of_birth || '-'} />
-                  <PreviewRow label="Phone" value={formData.phone} />
-                  <PreviewRow label="WhatsApp" value={formData.whatsapp} />
-                  <PreviewRow label="Email" value={formData.email} />
-                  <PreviewRow label="Address" value={formData.address} />
-                  <PreviewRow label="Postal Code" value={formData.postal_code} />
-                  <PreviewRow label="Nationality" value={formData.nationality.length > 0 ? formData.nationality.join(', ') : '-'} />
-                  <PreviewRow label="Languages Spoken" value={formData.languages_spoken.length > 0 ? formData.languages_spoken.join(', ') : '-'} />
-                </TableBody>
-              </Table>
-            </section>
-
-            {/* Emergency Contacts */}
-            {(formData.emergency_contact_name || formData.emergency_contact_2_name) && (
-              <section className="rounded-lg bg-muted/50 p-3">
-                <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Emergency Contacts</h3>
-                <Table>
-                  <TableBody>
-                    {formData.emergency_contact_name && (
-                      <>
-                        <PreviewRow label="Contact 1 Name" value={formData.emergency_contact_name} />
-                        <PreviewRow label="Contact 1 Phone" value={formData.emergency_contact_phone} />
-                        <PreviewRow label="Contact 1 Relationship" value={getRelationshipLabel(formData.emergency_contact_relationship)} />
-                      </>
-                    )}
-                    {formData.emergency_contact_2_name && (
-                      <>
-                        <PreviewRow label="Contact 2 Name" value={formData.emergency_contact_2_name} />
-                        <PreviewRow label="Contact 2 Phone" value={formData.emergency_contact_2_phone} />
-                        <PreviewRow label="Contact 2 Relationship" value={getRelationshipLabel(formData.emergency_contact_2_relationship)} />
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </section>
-            )}
-
-            {/* Training Information */}
-            {(formData.current_belt || formData.previous_experience || formData.training_goals || formData.medical_conditions || formData.dietary_restrictions) && (
-              <section className="rounded-lg bg-muted/50 p-3">
-                <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> Training Information</h3>
-                <Table>
-                  <TableBody>
-                    <PreviewRow label="Current Belt" value={formData.current_belt || '-'} />
-                    <PreviewRow label="Previous Experience" value={formData.previous_experience} />
-                    <PreviewRow label="Training Goals" value={formData.training_goals} />
-                    <PreviewRow label="Medical Conditions" value={formData.medical_conditions} />
-                    <PreviewRow label="Dietary Restrictions" value={formData.dietary_restrictions} />
-                  </TableBody>
-                </Table>
-              </section>
-            )}
-
-            {/* Administrative */}
-            <section className="rounded-lg bg-accent/30 p-3">
-              <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Settings className="w-3.5 h-3.5" /> Administrative</h3>
-              <Table>
-                <TableBody>
-                  <PreviewRow label="Referral Source" value={getReferralLabel(formData.referral_source)} />
-                  <PreviewRow label="Primary Branch" value={getBranchName(formData.branch_id)} />
-                  <PreviewRow label="Registered Date" value={formData.registered_date || '-'} />
-                  <PreviewRow label="Status" value={formData.status.charAt(0).toUpperCase() + formData.status.slice(1)} />
-                  <PreviewRow label="Notes" value={formData.notes} />
-                </TableBody>
-              </Table>
-            </section>
-
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowPreview(false)}
-                disabled={loading}
-                size="sm"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                Back to Edit
-              </Button>
-              <Button onClick={handleConfirmSubmit} disabled={loading} size="sm">
-                {loading ? 'Adding...' : 'Confirm & Add Student'}
-              </Button>
-            </DialogFooter>
-          </div>
-        ) : (
-
-        <form onSubmit={handlePreview} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Referral Source Section */}
           <section className="rounded-lg bg-muted/50 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -890,12 +751,10 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={loading} size="sm">
-              <Eye className="w-3.5 h-3.5 mr-1" />
-              Preview & Submit
+              {loading ? 'Adding...' : 'Add Student'}
             </Button>
           </DialogFooter>
         </form>
-        )}
       </DialogContent>
     </Dialog>
   );
