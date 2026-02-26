@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2 } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2, GraduationCap } from 'lucide-react';
 import { History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeClaims } from '@/services/claimsService';
@@ -27,7 +28,7 @@ import ViewPayslipDialog from './ViewPayslipDialog';
 import ApplyLeaveDialog from './ApplyLeaveDialog';
 import BranchProfitLossDialog from './BranchProfitLossDialog';
 import BranchDashboard from './BranchDashboard';
-import EmployeeBranchStudentList from './EmployeeBranchStudentList';
+import StudentDashboard from './StudentDashboard';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -785,27 +786,89 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   }
 
   return (
-    <Tabs defaultValue="dashboard" className="space-y-4">
-      <TabsList className="h-auto flex-wrap justify-start">
-        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-        <TabsTrigger value="branch">Branch</TabsTrigger>
-        <TabsTrigger value="students">Students</TabsTrigger>
-      </TabsList>
+    <EmployeeDashboardWithTabs
+      dashboardContent={dashboardContent}
+      invoiceAccessBranchIds={invoiceAccessBranchIds}
+    />
+  );
+};
 
-      <TabsContent value="dashboard">
-        {dashboardContent}
-      </TabsContent>
+const EmployeeDashboardWithTabs: React.FC<{
+  dashboardContent: React.ReactNode;
+  invoiceAccessBranchIds: string[];
+}> = ({ dashboardContent, invoiceAccessBranchIds }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedStudent, setSelectedStudent] = useState('');
 
-      <TabsContent value="branch">
-        {invoiceAccessBranchIds.length > 0 && (
-          <BranchDashboard branchId={invoiceAccessBranchIds[0]} />
-        )}
-      </TabsContent>
+  const { data: students = [] } = useQuery({
+    queryKey: ['employee-branch-students', invoiceAccessBranchIds],
+    queryFn: async () => {
+      if (!invoiceAccessBranchIds.length) return [];
+      const { data, error } = await supabase
+        .from('students')
+        .select('id, first_name, last_name, status')
+        .in('branch_id', invoiceAccessBranchIds)
+        .ilike('status', 'active')
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: activeTab === 'students' && invoiceAccessBranchIds.length > 0,
+  });
 
-      <TabsContent value="students">
-        <EmployeeBranchStudentList branchIds={invoiceAccessBranchIds} />
-      </TabsContent>
-    </Tabs>
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                <TabsTrigger value="branch">Branch</TabsTrigger>
+                <TabsTrigger value="students" className="flex items-center gap-1.5">
+                  <GraduationCap className="w-4 h-4 hidden sm:block" />
+                  Students
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {activeTab === 'students' && (
+              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                <SelectTrigger className="w-full sm:w-[250px]">
+                  <SelectValue placeholder="Select student..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map((student) => (
+                    <SelectItem key={student.id} value={student.id}>
+                      <span className="uppercase">{student.first_name} {student.last_name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {activeTab === 'dashboard' && dashboardContent}
+
+      {activeTab === 'branch' && invoiceAccessBranchIds.length > 0 && (
+        <BranchDashboard branchId={invoiceAccessBranchIds[0]} />
+      )}
+
+      {activeTab === 'students' && (
+        selectedStudent ? (
+          <StudentDashboard studentId={selectedStudent} isSimulated />
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Select a student to view their portal</p>
+            </CardContent>
+          </Card>
+        )
+      )}
+    </div>
   );
 };
 
