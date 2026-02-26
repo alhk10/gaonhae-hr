@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Download, Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -253,7 +254,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Students</DialogTitle>
         </DialogHeader>
@@ -296,7 +297,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
 
           {/* Preview Summary */}
           {parsedRows.length > 0 && !importResults && (
-            <div className="border border-border rounded-lg p-4 space-y-2">
+            <div className="border border-border rounded-lg p-4 space-y-3">
               <p className="text-sm font-medium">Preview</p>
               <div className="flex items-center gap-4 text-sm">
                 <span className="flex items-center gap-1">
@@ -314,6 +315,56 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
                   </span>
                 )}
               </div>
+
+              {/* Preview Data Table */}
+              <div className="max-h-64 overflow-auto border border-border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs w-10">#</TableHead>
+                      <TableHead className="text-xs">First Name</TableHead>
+                      <TableHead className="text-xs">Last Name</TableHead>
+                      <TableHead className="text-xs">Preferred</TableHead>
+                      <TableHead className="text-xs">DOB</TableHead>
+                      <TableHead className="text-xs">Gender</TableHead>
+                      <TableHead className="text-xs">Email</TableHead>
+                      <TableHead className="text-xs">Phone</TableHead>
+                      <TableHead className="text-xs">Belt</TableHead>
+                      <TableHead className="text-xs">Emergency Contact</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...parsedRows]
+                      .sort((a, b) => a.rowIndex - b.rowIndex)
+                      .map((row) => (
+                        <TableRow
+                          key={row.rowIndex}
+                          className={row.errors.length > 0 ? 'bg-destructive/10' : ''}
+                        >
+                          <TableCell className="text-xs py-1.5">{row.rowIndex}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.first_name || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.last_name || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.preferred_name || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.date_of_birth || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.gender || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.email || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.phone || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.current_belt || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{row.data.emergency_contact_name || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">
+                            {row.errors.length > 0 ? (
+                              <span className="text-destructive font-medium" title={row.errors.join(', ')}>Error</span>
+                            ) : (
+                              <span className="text-primary font-medium">Valid</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+
               {errorRows.length > 0 && (
                 <div className="max-h-24 overflow-y-auto text-xs text-destructive space-y-1">
                   {errorRows.map((r) => (
