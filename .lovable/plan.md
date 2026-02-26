@@ -1,20 +1,34 @@
 
 
-## Add Preview Table for Student Import
+## Purge All Student Data
 
-Add a scrollable data table between the preview summary and the import button, showing all parsed student details so users can review before importing.
+Delete all records from student-related tables in the correct dependency order (child tables first).
 
-### Changes
+### Tables to purge (in order)
 
-**File: `src/components/sales/ImportStudentsDialog.tsx`**
+1. `student_auth`
+2. `student_branch_chats`
+3. `student_change_logs`
+4. `student_class_enrollments`
+5. `student_emergency_contacts`
+6. `student_grading_history`
+7. `student_medical_notes`
+8. `student_notification_subscriptions`
+9. `student_scheduled_classes`
+10. `student_update_requests`
+11. `invoice_change_logs`
+12. `invoice_items`
+13. `invoice_deletion_requests`
+14. `payment_deletion_requests`
+15. `payments`
+16. `invoices`
+17. `class_attendance`
+18. `grading_deletion_requests`
+19. `grading_registrations`
+20. `entitlements`
+21. `students`
 
-1. Widen dialog to `sm:max-w-6xl` to fit the table
-2. Import `Table, TableHeader, TableBody, TableRow, TableHead, TableCell` from UI
-3. Add a scrollable preview table after the summary section (inside the preview block) showing key columns: `#`, `First Name`, `Last Name`, `DOB`, `Gender`, `Email`, `Phone`, `Belt`, `Branch`, `Status` (valid/error)
-4. Table container: `max-h-64 overflow-auto` for scroll
-5. Error rows highlighted with red background, valid rows normal
-6. Show all `validRows` and `errorRows` in the table, sorted by row index
+### Implementation
 
-### Key columns displayed
-- Row #, First Name, Last Name, Preferred Name, DOB, Gender, Email, Phone, Current Belt, Emergency Contact — enough to verify data at a glance without overwhelming the view
+Execute `DELETE FROM` for each table via the Supabase insert tool. No code changes needed — data-only operation.
 
