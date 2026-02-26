@@ -231,37 +231,69 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const headers = 'name,sku,description,category,base_price,tax_rate,is_service,is_lesson,session_count,min_belt_level,is_active';
-    const example = 'Example Product,SKU-001,A sample product,Equipment,29.90,8,false,false,,White Belt,true';
-    const csv = headers + '\n' + example;
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'products_import_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Template downloaded');
+  const handleDownloadTemplate = async () => {
+    try {
+      const { data: branchData } = await supabase
+        .from('branches')
+        .select('id, name')
+        .not('name', 'in', '("Competition","Headquarters")')
+        .order('name');
+      const branchNames = (branchData || []).map(b => b.name);
+      const branchHeaders = branchNames.map(n => `price_${n}`);
+      
+      const headers = ['name','sku','description','category','base_price','tax_rate','is_service','is_lesson','session_count','min_belt_level','is_active', ...branchHeaders].join(',');
+      const exampleBranchValues = branchNames.map(() => '');
+      const example = ['Example Product','SKU-001','A sample product','Equipment','29.90','8','false','false','','White Belt','true', ...exampleBranchValues].join(',');
+      const csv = headers + '\n' + example;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'products_import_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Template downloaded');
+    } catch (error) {
+      console.error('Template download error:', error);
+      toast.error('Failed to download template');
+    }
   };
 
   const handleExportCSV = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, product_categories(name)')
-        .order('name');
+      // Fetch products, branches, and price rules in parallel
+      const [productsRes, branchesRes, priceRulesRes] = await Promise.all([
+        supabase.from('products').select('*, product_categories(name)').order('name'),
+        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")').order('name'),
+        supabase.from('price_rules').select('product_id, branch_id, price_override').not('price_override', 'is', null),
+      ]);
 
-      if (error) throw error;
+      if (productsRes.error) throw productsRes.error;
+      const data = productsRes.data;
       if (!data || data.length === 0) {
         toast.error('No products to export');
         return;
       }
 
-      const headers = 'name,sku,description,category,base_price,tax_rate,is_service,is_lesson,session_count,min_belt_level,is_active';
+      const branchList = branchesRes.data || [];
+      const branchNames = branchList.map(b => b.name);
+      
+      // Build price lookup: product_id -> branch_id -> price_override
+      const priceLookup = new Map<string, Map<string, number>>();
+      (priceRulesRes.data || []).forEach(pr => {
+        if (!priceLookup.has(pr.product_id)) priceLookup.set(pr.product_id, new Map());
+        if (pr.branch_id && pr.price_override != null) {
+          priceLookup.get(pr.product_id)!.set(pr.branch_id, pr.price_override);
+        }
+      });
+
+      const branchHeaders = branchNames.map(n => `price_${n}`);
+      const headers = ['name','sku','description','category','base_price','tax_rate','is_service','is_lesson','session_count','min_belt_level','is_active', ...branchHeaders].join(',');
+      
+      const escape = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+      
       const rows = data.map(p => {
-        const escape = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
-        return [
+        const baseColumns = [
           escape(p.name || ''),
           escape(p.sku || ''),
           escape(p.description || ''),
@@ -273,7 +305,15 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
           p.session_count?.toString() || '',
           escape(p.min_belt_level || ''),
           p.is_active ? 'true' : 'false'
-        ].join(',');
+        ];
+        
+        const branchPrices = branchList.map(b => {
+          const productPrices = priceLookup.get(p.id);
+          const price = productPrices?.get(b.id);
+          return price != null ? price.toString() : '';
+        });
+        
+        return [...baseColumns, ...branchPrices].join(',');
       });
 
       const csv = headers + '\n' + rows.join('\n');
