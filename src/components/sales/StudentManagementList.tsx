@@ -314,7 +314,7 @@ const StudentManagementList: React.FC = () => {
                 {students.map((student) => (
                   <div
                     key={student.id}
-                    className="flex items-center gap-3 p-3 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer hover:bg-muted/50 transition-colors text-sm whitespace-nowrap"
                     onClick={() => navigate(`/parties/student/${student.id}`)}
                   >
                     <input
@@ -327,16 +327,15 @@ const StudentManagementList: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       className="rounded shrink-0"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm uppercase tracking-wide truncate">
-                        {student.first_name} {student.last_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {student.phone || 'No phone'}
-                        {(student.phone && student.email) && ' • '}
-                        {student.email || ''}
-                      </div>
-                    </div>
+                    <span className="font-semibold uppercase tracking-wide truncate w-48 shrink-0">
+                      {student.first_name} {student.last_name}
+                    </span>
+                    <span className="text-muted-foreground text-xs truncate w-28 shrink-0">
+                      {student.phone || '—'}
+                    </span>
+                    <span className="text-muted-foreground text-xs truncate flex-1 min-w-0">
+                      {student.email || '—'}
+                    </span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-xs">
                         {student.current_belt || 'No Belt'}
