@@ -120,7 +120,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
       'JOHN', 'DOE', 'JOHNNY', 'JOHN DOE', 'JOHN DOE',
       '15-03-2015', 'Male', 'Singaporean;Brazilian', 'English;Mandarin',
       'S1234567A', 'john@example.com', '91234567', '91234567', '123 EXAMPLE STREET', '123456',
-      '', 'White', '', '',
+      'Main Branch', 'White', '', '',
       'Walk-in', '15-01-2026',
       'JANE DOE', '98765432', 'Mother',
       '', '', '',
