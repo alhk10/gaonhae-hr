@@ -2,33 +2,16 @@
 
 ## Purge All Student Data
 
-Delete all records from student-related tables in the correct dependency order (child tables first).
-
-### Tables to purge (in order)
-
-1. `student_auth`
-2. `student_branch_chats`
-3. `student_change_logs`
-4. `student_class_enrollments`
-5. `student_emergency_contacts`
-6. `student_grading_history`
-7. `student_medical_notes`
-8. `student_notification_subscriptions`
-9. `student_scheduled_classes`
-10. `student_update_requests`
-11. `invoice_change_logs`
-12. `invoice_items`
-13. `invoice_deletion_requests`
-14. `payment_deletion_requests`
-15. `payments`
-16. `invoices`
-17. `class_attendance`
-18. `grading_deletion_requests`
-19. `grading_registrations`
-20. `entitlements`
-21. `students`
+Same operation as before — delete all records from 21 student-related tables in dependency order.
 
 ### Implementation
 
-Execute `DELETE FROM` for each table via the Supabase insert tool. No code changes needed — data-only operation.
+Create a single migration file with `DELETE FROM` statements for all tables in this order:
+
+1. Child tables first: `student_auth`, `student_branch_chats`, `student_change_logs`, `student_class_enrollments`, `student_emergency_contacts`, `student_grading_history`, `student_medical_notes`, `student_notification_subscriptions`, `student_scheduled_classes`, `student_update_requests`
+2. Invoice/payment children: `invoice_change_logs`, `invoice_items`, `invoice_deletion_requests`, `payment_deletion_requests`, `payments`
+3. Remaining dependents: `invoices`, `class_attendance`, `grading_deletion_requests`, `grading_registrations`, `entitlements`
+4. Parent table last: `students`
+
+This will remove all 161 student records and their associated data. No code changes required.
 
