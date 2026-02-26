@@ -1,35 +1,20 @@
 
 
-## Purge All Student Data
+## Add Preview Table for Student Import
 
-Delete all records from student-related tables in the correct order (child tables first to respect foreign keys).
+Add a scrollable data table between the preview summary and the import button, showing all parsed student details so users can review before importing.
 
-### Tables to purge (in order)
+### Changes
 
-1. `student_auth` — portal login mappings
-2. `student_branch_chats`
-3. `student_change_logs`
-4. `student_class_enrollments`
-5. `student_emergency_contacts`
-6. `student_grading_history`
-7. `student_medical_notes`
-8. `student_notification_subscriptions`
-9. `student_scheduled_classes`
-10. `student_update_requests`
-11. `invoice_change_logs` — child of invoices
-12. `invoice_items` — child of invoices
-13. `invoice_deletion_requests` — references invoices
-14. `payments` — references invoices
-15. `payment_deletion_requests` — references payments
-16. `invoices` — references students
-17. `class_attendance` — references students
-18. `grading_registrations` — may reference students
-19. `grading_deletion_requests` — references students
-20. `students` — parent table, deleted last
+**File: `src/components/sales/ImportStudentsDialog.tsx`**
 
-### Implementation
+1. Widen dialog to `sm:max-w-6xl` to fit the table
+2. Import `Table, TableHeader, TableBody, TableRow, TableHead, TableCell` from UI
+3. Add a scrollable preview table after the summary section (inside the preview block) showing key columns: `#`, `First Name`, `Last Name`, `DOB`, `Gender`, `Email`, `Phone`, `Belt`, `Branch`, `Status` (valid/error)
+4. Table container: `max-h-64 overflow-auto` for scroll
+5. Error rows highlighted with red background, valid rows normal
+6. Show all `validRows` and `errorRows` in the table, sorted by row index
 
-Run `DELETE FROM` statements via the Supabase insert tool for each table above. With CASCADE FKs now in place, deleting from `students` would cascade to `invoices` and `class_attendance`, but we'll explicitly clear child tables first for safety and clarity.
-
-No code changes needed — this is a data-only operation.
+### Key columns displayed
+- Row #, First Name, Last Name, Preferred Name, DOB, Gender, Email, Phone, Current Belt, Emergency Contact — enough to verify data at a glance without overwhelming the view
 
