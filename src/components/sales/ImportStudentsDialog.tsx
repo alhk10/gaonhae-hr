@@ -7,14 +7,16 @@ import { toast } from '@/components/ui/sonner';
 import { createStudent, CreateStudentData } from '@/services/studentService';
 
 // Parse DD-MM-YYYY to YYYY-MM-DD for database storage
-const parseDDMMYYYY = (value: string): string => {
-  const match = value.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+const parseDateValue = (value: string): string => {
+  const trimmed = value.trim();
+  // DD-MM-YYYY or DD/MM/YYYY
+  const match = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
   if (match) {
     const [, dd, mm, yyyy] = match;
     return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
   }
-  // Fallback: return as-is if already YYYY-MM-DD or other format
-  return value.trim();
+  // Already YYYY-MM-DD
+  return trimmed;
 };
 
 const CSV_COLUMNS = [
@@ -88,8 +90,8 @@ function validateRow(data: Record<string, string>, rowIndex: number): ParsedRow 
   if (!data.first_name) {
     errors.push('first_name is required');
   }
-  if (data.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(data.date_of_birth)) {
-    errors.push('date_of_birth must be YYYY-MM-DD');
+  if (data.date_of_birth && !/^(\d{1,2}-\d{1,2}-\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})$/.test(data.date_of_birth.trim())) {
+    errors.push('date_of_birth must be DD-MM-YYYY');
   }
   return { data, rowIndex, errors };
 }
@@ -190,7 +192,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           preferred_name: row.preferred_name || undefined,
           certificate_name: row.certificate_name || row.first_name,
           display_name: row.display_name || row.first_name,
-          date_of_birth: row.date_of_birth ? parseDDMMYYYY(row.date_of_birth) : undefined,
+          date_of_birth: row.date_of_birth ? parseDateValue(row.date_of_birth) : undefined,
           gender: row.gender || undefined,
           nationality: row.nationality ? row.nationality.split(';').map(n => n.trim()).filter(Boolean) : undefined,
           languages_spoken: row.languages_spoken ? row.languages_spoken.split(';').map(l => l.trim()).filter(Boolean) : undefined,
@@ -204,7 +206,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           previous_experience: row.previous_experience || undefined,
           training_goals: row.training_goals || undefined,
           referral_source: row.referral_source || undefined,
-          registered_date: row.registered_date ? parseDDMMYYYY(row.registered_date) : undefined,
+          registered_date: row.registered_date ? parseDateValue(row.registered_date) : undefined,
           emergency_contact_name: row.emergency_contact_name || undefined,
           emergency_contact_phone: row.emergency_contact_phone || undefined,
           emergency_contact_relationship: row.emergency_contact_relationship || undefined,
