@@ -246,15 +246,16 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Edit className="w-5 h-5" />
             Edit Student: {student.first_name} {student.last_name}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 space-y-3">
           {/* Referral Source Section */}
           <section className="rounded-lg bg-muted/50 p-4 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -731,8 +732,9 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
               </div>
             </div>
           </section>
+          </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="p-6 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
