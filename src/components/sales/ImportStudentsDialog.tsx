@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Download, Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { createStudent, CreateStudentData } from '@/services/studentService';
+import { useBranches } from '@/hooks/useBranches';
 
 // Parse DD-MM-YYYY to YYYY-MM-DD for database storage
 const parseDateValue = (value: string): string => {
@@ -111,6 +112,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
   const [progress, setProgress] = useState(0);
   const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { branches } = useBranches();
 
   const validRows = parsedRows.filter(r => r.errors.length === 0);
   const errorRows = parsedRows.filter(r => r.errors.length > 0);
@@ -120,7 +122,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
       'JOHN', 'DOE', 'JOHNNY', 'JOHN DOE', 'JOHN DOE',
       '15-03-2015', 'Male', 'Singaporean;Brazilian', 'English;Mandarin',
       'S1234567A', 'john@example.com', '91234567', '91234567', '123 EXAMPLE STREET', '123456',
-      'Main Branch', 'White', '', '',
+      'Balmoral', 'White', '', '',
       'Walk-in', '15-01-2026',
       'JANE DOE', '98765432', 'Mother',
       '', '', '',
@@ -207,7 +209,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           phone: row.phone || undefined,
           address: row.address || undefined,
           postal_code: row.postal_code || undefined,
-          branch_id: row.branch_id || undefined,
+          branch_id: row.branch_id ? (branches.find(b => b.name.toLowerCase() === row.branch_id.trim().toLowerCase())?.id || row.branch_id) : undefined,
           current_belt: row.current_belt || undefined,
           previous_experience: row.previous_experience || undefined,
           training_goals: row.training_goals || undefined,
