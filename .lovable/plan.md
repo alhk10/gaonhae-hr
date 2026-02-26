@@ -1,38 +1,31 @@
 
 
-## Revised Plan: Add Branch-Access Tabs to Employee Dashboard
+## Fix: Sulis Cannot See Yishun Students
 
-### Overview
-When an employee has invoice access (via `useInvoiceAccess`), their Employee Dashboard gets a tabbed layout with 3 tabs: Dashboard, Branch, Students.
+### Root Cause
+The `students` table has RLS enabled with only two SELECT policies:
+1. `students_view_own_record` — allows students to see their own record
+2. `superadmin_manage_students` — allows superadmins full access
 
-The **Students tab** shows a branch-filtered student list; clicking a student renders the full `StudentDashboard` component (same view students see) with `isSimulated=true`, making it read-only.
+Sulis is an employee with invoice access to Yishun (via `employee_invoice_access` table), but there is **no RLS policy** that grants employees with invoice access the ability to SELECT students from their accessible branches. This affects both the Branch tab's BranchDashboard and the Students tab's EmployeeBranchStudentList.
 
-### Changes to `src/components/dashboard/EmployeeDashboard.tsx`
+### Fix: Add RLS Policy on `students` Table
 
-1. Import `useInvoiceAccess`, `Tabs`/`TabsList`/`TabsTrigger`/`TabsContent`, and new `EmployeeBranchStudentList` component
-2. Call `useInvoiceAccess()` — if `hasAccess` is true, wrap the entire return in a `Tabs` component
-3. If no access, render unchanged
+Create a new SELECT policy that allows authenticated users who have `employee_invoice_access` records to view students from the branches they have access to:
 
-### Tab Structure
-```text
-[ Dashboard ] [ Branch ] [ Students ]
+```sql
+CREATE POLICY "employees_with_invoice_access_view_branch_students"
+  ON public.students
+  FOR SELECT
+  USING (
+    branch_id IN (
+      SELECT eia.branch_id 
+      FROM public.employee_invoice_access eia
+      JOIN public.employees e ON eia.employee_id = e.id
+      WHERE e.email = auth.email()
+    )
+  );
 ```
 
-- **Dashboard** — existing Employee Dashboard content (stats, quick actions, dialogs)
-- **Branch** — renders `BranchDashboard` filtered to accessible branch(es)
-- **Students** — renders `EmployeeBranchStudentList` component
-
-### New Component: `src/components/dashboard/EmployeeBranchStudentList.tsx`
-
-Props: `branchIds: string[]`
-
-Two states:
-1. **List view** (default): Fetches students where `branch_id` is in `branchIds`. Displays compact single-line rows (Name, Contact, Email, Belt, Status). Includes search filter. Clicking a row transitions to detail view.
-2. **Detail view**: Renders `StudentDashboard` with `studentId={selectedStudentId}` and `isSimulated={true}`. Shows a "Back to list" button above it. This gives the exact same dashboard view that students see — overview, invoices, entitlements, class schedule, profile — but in simulated/read-only mode.
-
-### Data Flow
-- `useInvoiceAccess()` → `accessibleBranches` with `branch_id` values
-- Branch tab: passes first `branch_id` to `BranchDashboard`
-- Students tab: passes all accessible `branch_id` values to `EmployeeBranchStudentList`
-- Student detail: passes selected `studentId` to existing `StudentDashboard` component
+This single migration is the only change needed. No code changes required — the existing queries in `EmployeeBranchStudentList` and `BranchDashboard` already filter by `branch_id`, they just get empty results due to RLS blocking.
 
