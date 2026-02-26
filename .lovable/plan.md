@@ -1,23 +1,25 @@
 
 
-## Plan: Read-Only Student Dashboard for Branch Access Users
+## Plan: Add Branch-Specific Pricing to CSV Export/Import
+
+### Approach
+Add dynamic branch columns to the CSV so each branch gets its own price column (e.g., `price_Jurong West`, `price_Bishan`). On import, parse these columns and create/update `price_rules` entries accordingly.
 
 ### Changes
 
-**`src/components/dashboard/StudentDashboard.tsx`**
+**`src/components/sales/ProductManagementList.tsx`** — Update `handleExportCSV` and `handleDownloadTemplate`:
 
-1. Add `readOnly?: boolean` prop to `StudentDashboardProps`
-2. Add `showActionBlocked` state and an `AlertDialog` with title "Action Not Allowed" and message "Please use the Branch Dashboard to perform this function."
-3. Create `guardAction(callback)` helper — shows blocked dialog if `readOnly`, otherwise runs callback
-4. All tabs (Overview, Profile, Invoices, Schedule) remain fully navigable and viewable
-5. Guard all mutation triggers across ALL tabs:
-   - **Overview tab**: Pay School Fees button, Pay Grading button, invoice Pay buttons (`CreatePaymentDialog`)
-   - **Profile tab**: Edit Profile button, Submit for Approval button, Photo Upload button, Photo Remove button
-   - **Invoices tab**: any Pay buttons on unpaid invoices
-   - **Schedule tab**: any action buttons if present
-6. Suppress auto-popup dialogs when `readOnly`: unpaid invoice reminder, profile completion prompt, grading congratulations
+1. **Export**: After fetching products, also fetch all branches and all `price_rules`. For each product row, append branch-specific price columns (`price_<BranchName>`) after the base columns. If a price rule exists for that product+branch, output the `price_override`; otherwise leave blank.
 
-**`src/components/dashboard/EmployeeDashboard.tsx`**
+2. **Template**: Fetch branches and append `price_<BranchName>` columns to the header row, with example values in the sample row.
 
-- Pass `readOnly={true}` to `<StudentDashboard>` when rendered from the Students tab
+**`src/components/sales/ImportProductsDialog.tsx`** — Update parsing and import logic:
+
+1. **Header detection**: After validating the base 11 expected headers, detect any additional columns matching `price_*` pattern — extract branch names from them.
+
+2. **Validation**: For each `price_<BranchName>` column with a value, validate it's a valid number and that the branch name maps to an existing branch.
+
+3. **Import**: After inserting products, for each successfully inserted product, create `price_rules` entries for any branch columns that had values — using `upsertBranchPrice` or direct insert into `price_rules`.
+
+4. **Preview table**: Show a summary indicator if branch pricing is present (e.g., badge showing "3 branch prices").
 
