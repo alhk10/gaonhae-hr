@@ -786,7 +786,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
 
   return (
     <Tabs defaultValue="dashboard" className="space-y-4">
-      <TabsList className="h-auto flex-wrap">
+      <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="branch">Branch</TabsTrigger>
         <TabsTrigger value="students">Students</TabsTrigger>
