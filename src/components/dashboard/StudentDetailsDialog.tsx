@@ -167,7 +167,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+        <div className="flex-1 px-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <div className="space-y-4 pb-6">
             {/* Personal Information */}
             <section>
@@ -357,7 +357,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
               </section>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator />
         
