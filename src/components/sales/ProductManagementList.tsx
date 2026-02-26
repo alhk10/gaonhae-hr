@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { 
   Package, 
@@ -24,7 +25,11 @@ import {
   XCircle,
   Boxes,
   Briefcase,
-  FolderOpen
+  FolderOpen,
+  Download,
+  Upload,
+  FileDown,
+  MoreHorizontal
 } from 'lucide-react';
 import { getProducts, Product, getProductCategories, deleteProduct } from '@/services/productService';
 import { getProductInventory, ProductInventory } from '@/services/inventoryService';
@@ -36,6 +41,7 @@ import { InventoryStatusBadge } from './InventoryStatusBadge';
 import { InventoryAdjustmentDialog } from './InventoryAdjustmentDialog';
 import { BranchPricingManager } from './BranchPricingManager';
 import ProductCategoriesDialog from './ProductCategoriesDialog';
+import ImportProductsDialog from './ImportProductsDialog';
 import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -64,6 +70,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
   const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   
   const itemsPerPage = 20;
 
@@ -224,6 +231,66 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = 'name,sku,description,category,base_price,tax_rate,is_service,is_lesson,session_count,min_belt_level,is_active';
+    const example = 'Example Product,SKU-001,A sample product,Equipment,29.90,8,false,false,,White Belt,true';
+    const csv = headers + '\n' + example;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'products_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Template downloaded');
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, product_categories(name)')
+        .order('name');
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.error('No products to export');
+        return;
+      }
+
+      const headers = 'name,sku,description,category,base_price,tax_rate,is_service,is_lesson,session_count,min_belt_level,is_active';
+      const rows = data.map(p => {
+        const escape = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+        return [
+          escape(p.name || ''),
+          escape(p.sku || ''),
+          escape(p.description || ''),
+          escape((p.product_categories as any)?.name || ''),
+          p.base_price?.toString() || '0',
+          p.tax_rate?.toString() || '0',
+          p.is_service ? 'true' : 'false',
+          p.is_lesson ? 'true' : 'false',
+          p.session_count?.toString() || '',
+          escape(p.min_belt_level || ''),
+          p.is_active ? 'true' : 'false'
+        ].join(',');
+      });
+
+      const csv = headers + '\n' + rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${data.length} products`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export products');
+    }
+  };
+
   const totalPages = Math.ceil(total / itemsPerPage);
 
   return (
@@ -292,6 +359,28 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
         </Button>
 
         <div className="flex items-center justify-end gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <FileDown className="w-4 h-4" />
+                CSV
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Products
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import Products
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadTemplate}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Download Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             onClick={() => setShowCategoriesDialog(true)}
@@ -624,6 +713,16 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Products Dialog */}
+      <ImportProductsDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImportComplete={() => {
+          loadProducts();
+          onDataChange?.();
+        }}
+      />
     </div>
   );
 };
