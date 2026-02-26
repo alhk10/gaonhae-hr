@@ -858,7 +858,7 @@ const EmployeeDashboardWithTabs: React.FC<{
 
       {activeTab === 'students' && (
         selectedStudent ? (
-          <StudentDashboard studentId={selectedStudent} isSimulated />
+          <StudentDashboard studentId={selectedStudent} isSimulated readOnly />
         ) : (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">

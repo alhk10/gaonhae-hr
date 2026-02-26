@@ -47,9 +47,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface StudentDashboardProps {
   studentId?: string;
   isSimulated?: boolean;
+  readOnly?: boolean;
 }
 
-const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStudentId, isSimulated = false }) => {
+const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStudentId, isSimulated = false, readOnly = false }) => {
   const { user, userDetails, logout, linkedStudents } = useAuth();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -66,7 +67,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showGradingCongrats, setShowGradingCongrats] = useState(false);
   const [showSchoolFeesReminder, setShowSchoolFeesReminder] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showActionBlocked, setShowActionBlocked] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Guard helper for read-only mode
+  const guardAction = (callback: () => void) => {
+    if (readOnly) {
+      setShowActionBlocked(true);
+      return;
+    }
+    callback();
+  };
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
@@ -285,8 +296,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     }
   };
 
-  // Show popup chain when portal loads
+  // Show popup chain when portal loads (suppressed in readOnly mode)
   useEffect(() => {
+    if (readOnly) return;
     if (studentLoading) return;
     if (hasCurrentTermInvoice === undefined || isReadyForGrading === undefined || hasRecentGradingInvoice === undefined) return;
     
@@ -301,7 +313,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         setShowProfileCompletion(true);
       }
     }
-  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice]);
+  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, readOnly]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
@@ -747,8 +759,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               current_belt: student.current_belt,
               date_of_birth: student.date_of_birth,
             }}
-            onOpenSchoolFees={() => setShowSchoolFeesDialog(true)}
-            onOpenGrading={() => setShowGradingDialog(true)}
+            onOpenSchoolFees={() => guardAction(() => setShowSchoolFeesDialog(true))}
+            onOpenGrading={() => guardAction(() => setShowGradingDialog(true))}
             
           />
 
@@ -805,7 +817,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                                 {displayStatus}
                               </Badge>
                             </div>
-                            {!isPaid && invoice.balance_due > 0 && (
+                            {!isPaid && invoice.balance_due > 0 && !readOnly && (
                               <CreatePaymentDialog
                                 trigger={
                                   <Button variant="outline" size="sm">
@@ -840,7 +852,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 </CardDescription>
               </div>
               {!isEditing ? (
-                <Button onClick={handleStartEdit} disabled={hasPendingRequest} size={isMobile ? 'sm' : 'default'}>
+                <Button onClick={() => guardAction(handleStartEdit)} disabled={hasPendingRequest || readOnly} size={isMobile ? 'sm' : 'default'}>
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Profile
                 </Button>
@@ -850,7 +862,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveEdit} disabled={submitUpdateMutation.isPending} size={isMobile ? 'sm' : 'default'}>
+                  <Button onClick={() => guardAction(handleSaveEdit)} disabled={submitUpdateMutation.isPending} size={isMobile ? 'sm' : 'default'}>
                     <Save className="w-4 h-4 mr-2" />
                     {isMobile ? 'Submit' : 'Submit for Approval'}
                   </Button>
@@ -881,8 +893,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => photoInputRef.current?.click()}
-                      disabled={uploadingPhoto}
+                      onClick={() => guardAction(() => photoInputRef.current?.click())}
+                      disabled={uploadingPhoto || readOnly}
                     >
                       {uploadingPhoto ? (
                         <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -895,8 +907,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={handleRemovePhoto}
-                        disabled={uploadingPhoto}
+                        onClick={() => guardAction(handleRemovePhoto)}
+                        disabled={uploadingPhoto || readOnly}
                         className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
@@ -1014,7 +1026,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                               {displayStatus}
                             </Badge>
                           </div>
-                          {!isPaid && invoice.balance_due > 0 && (
+                          {!isPaid && invoice.balance_due > 0 && !readOnly && (
                             <CreatePaymentDialog
                               trigger={
                                 <Button variant="default" size="sm">
@@ -1223,6 +1235,23 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           studentId={studentId}
         />
       )}
+
+      {/* Action Not Allowed Dialog for readOnly mode */}
+      <AlertDialog open={showActionBlocked} onOpenChange={setShowActionBlocked}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Action Not Allowed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please use the Branch Dashboard to perform this function.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowActionBlocked(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
