@@ -448,11 +448,29 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
       .eq('id', studentId)
       .single();
 
-    // Sanitize date fields - convert empty strings to null
+    // Sanitize empty strings to null for fields that don't accept empty strings
     const rawData = { ...studentData };
+    
+    // Date fields - empty string → null
     const dateFields = ['date_of_birth', 'trial_date', 'enrollment_date', 'registered_date'];
     for (const field of dateFields) {
       if (field in rawData && rawData[field as keyof typeof rawData] === '') {
+        (rawData as any)[field] = null;
+      }
+    }
+    
+    // FK and optional string fields - empty string → null
+    const nullableStringFields = [
+      'branch_id', 'gender', 'nric_passport', 'passport_no', 'phone', 'whatsapp', 
+      'email', 'address', 'postal_code', 'current_belt', 'previous_experience',
+      'training_goals', 'medical_conditions', 'dietary_restrictions', 'notes',
+      'referral_source', 'emergency_contact_name', 'emergency_contact_phone',
+      'emergency_contact_relationship', 'emergency_contact_2_name', 
+      'emergency_contact_2_phone', 'emergency_contact_2_relationship',
+      'trial_time'
+    ];
+    for (const field of nullableStringFields) {
+      if (field in rawData && (rawData as any)[field] === '') {
         (rawData as any)[field] = null;
       }
     }
