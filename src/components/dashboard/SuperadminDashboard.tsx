@@ -18,6 +18,7 @@ import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
+import StockTransferApprovals from './StockTransferApprovals';
 import { useAuth } from '@/contexts/AuthContext';
 
 const SuperadminDashboard = () => {
@@ -101,6 +102,9 @@ const SuperadminDashboard = () => {
 
         {/* Inventory Order Approvals */}
         <InventoryOrderApprovals />
+
+        {/* Stock Transfer Approvals */}
+        <StockTransferApprovals />
 
         {/* Slot Booking Edit Approvals - only show if pending */}
         {pendingEditRequestsCount > 0 && (
