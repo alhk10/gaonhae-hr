@@ -75,6 +75,18 @@ export const resetNotificationTemplate = async (
     booking_reminder: {
       title: 'Time to Book Your Slots',
       body: "Don't forget to book your work slots for the upcoming period. Book now to secure your preferred dates!"
+    },
+    new_notice: {
+      title: 'New Notice: {subject}',
+      body: 'A new notice has been posted: {subject}'
+    },
+    outstanding_fees_reminder: {
+      title: 'Outstanding Fees Reminder',
+      body: 'You have outstanding fees of {amount}. Please make payment at your earliest convenience.'
+    },
+    grading_test_reminder: {
+      title: 'Ready for Grading Test',
+      body: '{student_name} is ready for grading test on {grading_date} at {branch}. Belt: {current_belt} → {target_belt}'
     }
   };
 
@@ -103,6 +115,19 @@ export const TEMPLATE_VARIABLES = {
   booking_reminder: [
     { variable: '{employee_name}', description: 'Employee name' },
     { variable: '{period}', description: 'Booking period (e.g., "1st-14th" or "15th-28th")' }
+  ],
+  new_notice: [
+    { variable: '{subject}', description: 'Notice subject' }
+  ],
+  outstanding_fees_reminder: [
+    { variable: '{amount}', description: 'Outstanding fee amount' }
+  ],
+  grading_test_reminder: [
+    { variable: '{student_name}', description: 'Student name' },
+    { variable: '{grading_date}', description: 'Grading test date' },
+    { variable: '{branch}', description: 'Branch name' },
+    { variable: '{current_belt}', description: 'Current belt level' },
+    { variable: '{target_belt}', description: 'Target belt level' }
   ]
 };
 

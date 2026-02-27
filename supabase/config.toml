@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.check-booking-reminders]
 verify_jwt = false
+
+[functions.check-outstanding-fees]
+verify_jwt = false
+
+[functions.check-grading-reminders]
+verify_jwt = false
