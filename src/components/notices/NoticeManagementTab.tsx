@@ -89,12 +89,6 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
                       <Badge variant="secondary" className="text-xs">All Branches</Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(notice.created_at), 'dd MMM yyyy')} • {notice.created_by_email}
-                  </p>
-                  {notice.content && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{notice.content}</p>
-                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)}>
