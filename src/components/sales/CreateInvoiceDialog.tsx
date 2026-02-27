@@ -119,17 +119,35 @@ const isProductAvailableForBelt = (
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
-// Searchable student select component
+// Fuzzy match: checks if all characters of query appear in order within target
+const fuzzyMatch = (target: string, query: string): boolean => {
+  const t = target.toLowerCase();
+  const q = query.toLowerCase();
+  let ti = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const idx = t.indexOf(q[qi], ti);
+    if (idx === -1) return false;
+    ti = idx + 1;
+  }
+  return true;
+};
+
+// Searchable student select component with fuzzy matching
 const StudentSearchSelect: React.FC<{
   students: Array<{id: string, name: string}>;
   value: string;
   onValueChange: (value: string) => void;
 }> = ({ students, value, onValueChange }) => {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const selectedName = students.find(s => s.id === value)?.name;
 
+  const filtered = search.trim()
+    ? students.filter(s => fuzzyMatch(s.name, search.trim()))
+    : students;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
           {selectedName || <span className="text-muted-foreground">Select student</span>}
@@ -137,13 +155,13 @@ const StudentSearchSelect: React.FC<{
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
-        <Command>
-          <CommandInput placeholder="Search student..." />
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="Search student..." value={search} onValueChange={setSearch} />
           <CommandList>
             <CommandEmpty>No student found.</CommandEmpty>
             <CommandGroup>
-              {students.map((student) => (
-                <CommandItem key={student.id} value={student.name} onSelect={() => { onValueChange(student.id); setOpen(false); }}>
+              {filtered.map((student) => (
+                <CommandItem key={student.id} value={student.id} onSelect={() => { onValueChange(student.id); setOpen(false); setSearch(''); }}>
                   <Check className={cn('mr-2 h-4 w-4', value === student.id ? 'opacity-100' : 'opacity-0')} />
                   {student.name}
                 </CommandItem>
