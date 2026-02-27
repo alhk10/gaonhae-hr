@@ -144,6 +144,24 @@ export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url?: str
   }
 };
 
+export const updateClaim = async (
+  id: number,
+  updates: { type?: string; amount?: number; description?: string }
+): Promise<void> => {
+  try {
+    logger.debug('Updating claim', { id, updates });
+    const { error } = await supabase
+      .from('claims')
+      .update(updates)
+      .eq('id', id);
+    if (error) throw error;
+    logger.info('Claim updated successfully');
+  } catch (error) {
+    logger.error('Error in updateClaim:', error);
+    throw error;
+  }
+};
+
 export const updateClaimStatus = async (
   id: number, 
   status: 'Approved' | 'Rejected'
