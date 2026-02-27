@@ -36,6 +36,8 @@ import { getGradingSlots } from '@/services/gradingService';
 import { useAuth } from '@/contexts/AuthContext';
 import StudentMyClassSchedule from './StudentMyClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
+import NoticePopupDialog from '@/components/notices/NoticePopupDialog';
+import { getNotices, Notice } from '@/services/noticeService';
 
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
@@ -68,6 +70,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showSchoolFeesReminder, setShowSchoolFeesReminder] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showActionBlocked, setShowActionBlocked] = useState(false);
+  const [showNoticePopup, setShowNoticePopup] = useState(false);
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
   // Guard helper for read-only mode
@@ -258,6 +262,46 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     enabled: !!studentId,
   });
 
+  // Fetch active notices for student's branch
+  const { data: activeNotices = [] } = useQuery({
+    queryKey: ['student-notices', student?.branch_id],
+    queryFn: async () => {
+      const allNotices = await getNotices();
+      const branchId = student?.branch_id;
+      return allNotices.filter(n => {
+        if (!n.target_branches || n.target_branches.length === 0) return true;
+        return branchId && n.target_branches.includes(branchId);
+      });
+    },
+    enabled: !!student?.branch_id,
+  });
+
+  // Filter out dismissed notices
+  const getUndismissedNotices = (): Notice[] => {
+    if (!studentId || activeNotices.length === 0) return [];
+    const dismissedKey = `dismissed_notices_${studentId}`;
+    const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    return activeNotices.filter(n => !dismissed.includes(n.id));
+  };
+
+  const undismissedNotices = getUndismissedNotices();
+
+  const handleDismissNotice = () => {
+    if (!studentId || !undismissedNotices[currentNoticeIndex]) return;
+    const dismissedKey = `dismissed_notices_${studentId}`;
+    const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    dismissed.push(undismissedNotices[currentNoticeIndex].id);
+    localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+
+    if (currentNoticeIndex < undismissedNotices.length - 1) {
+      setCurrentNoticeIndex(prev => prev + 1);
+    } else {
+      setShowNoticePopup(false);
+      // Chain to next popup
+      triggerUnpaidOrNext();
+    }
+  };
+
   // Calculate stats
   const totalSessions = entitlements.reduce((sum, e) => sum + (e.sessions_remaining || 0), 0);
   const outstandingBalance = invoices
@@ -280,6 +324,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     return !alreadyShownThisYear || hasMissingInfo;
   };
 
+  // Helper to trigger the unpaid invoice flow or subsequent popups
+  const triggerUnpaidOrNext = () => {
+    if (unpaidInvoices.length > 0) {
+      setShowUnpaidReminder(true);
+    } else if (hasCurrentTermInvoice === false) {
+      setShowSchoolFeesReminder(true);
+    } else if (isReadyForGrading && !hasRecentGradingInvoice) {
+      setShowGradingCongrats(true);
+    } else if (student && studentId && shouldShowProfileCompletion(student, studentId)) {
+      setShowProfileCompletion(true);
+    }
+  };
+
   // Helper to trigger next popup in chain after school fees
   const triggerNextAfterSchoolFees = () => {
     if (isReadyForGrading && !hasRecentGradingInvoice) {
@@ -297,23 +354,20 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   };
 
   // Show popup chain when portal loads (suppressed in readOnly mode)
+  // Chain: Notices → Unpaid Invoices → School Fees → Grading Congrats → Profile Completion
   useEffect(() => {
     if (readOnly) return;
     if (studentLoading) return;
     if (hasCurrentTermInvoice === undefined || isReadyForGrading === undefined || hasRecentGradingInvoice === undefined) return;
     
-    if (unpaidInvoices.length > 0) {
-      setShowUnpaidReminder(true);
-    } else if (hasCurrentTermInvoice === false) {
-      setShowSchoolFeesReminder(true);
-    } else if (isReadyForGrading && !hasRecentGradingInvoice) {
-      setShowGradingCongrats(true);
-    } else if (student && studentId) {
-      if (shouldShowProfileCompletion(student, studentId)) {
-        setShowProfileCompletion(true);
-      }
+    // Start with notices if any undismissed
+    if (undismissedNotices.length > 0) {
+      setCurrentNoticeIndex(0);
+      setShowNoticePopup(true);
+    } else {
+      triggerUnpaidOrNext();
     }
-  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, readOnly]);
+  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, readOnly, activeNotices.length]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
@@ -1235,6 +1289,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           studentId={studentId}
         />
       )}
+
+      {/* Notice Popup */}
+      <NoticePopupDialog
+        open={showNoticePopup}
+        onOpenChange={(open) => {
+          if (!open) handleDismissNotice();
+        }}
+        notice={undismissedNotices[currentNoticeIndex] || null}
+      />
 
       {/* Action Not Allowed Dialog for readOnly mode */}
       <AlertDialog open={showActionBlocked} onOpenChange={setShowActionBlocked}>
