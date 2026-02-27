@@ -20,7 +20,7 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
-import { Loader2, Plus, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, ChevronsUpDown, Percent, DollarSign } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,8 @@ interface InvoiceItem {
   grading_slot_id?: string;
   grading_slot_title?: string;
   selected_class_slots?: string[];
+  discount_type?: 'percentage' | 'amount';
+  discount_value?: number;
   total: number;
 }
 
@@ -90,16 +92,9 @@ const BELT_LEVELS = [
 // Normalize belt format: "green-tip" or "Green Tip" → "Green Tip"
 const normalizeBelt = (belt: string): string => {
   if (!belt) return '';
-  // Split by either hyphen or space, then normalize each word
   return belt.split(/[-\s]+/)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
-};
-
-// Get belt index for comparison
-const getBeltIndex = (belt: string): number => {
-  const normalized = normalizeBelt(belt);
-  return BELT_LEVELS.indexOf(normalized);
 };
 
 // Check if student belt is in product's allowed belt levels
@@ -107,15 +102,10 @@ const isProductAvailableForBelt = (
   product: ProductWithVariants,
   studentBelt: string
 ): boolean => {
-  // If product doesn't require belt level, it's available to all
   if (!product.requires_belt_level) return true;
-  
-  // If no allowed belt levels specified, available to all
   if (!product.allowed_belt_levels || product.allowed_belt_levels.length === 0) return true;
-  
   const normalizedStudentBelt = normalizeBelt(studentBelt);
-  if (!normalizedStudentBelt) return true; // Unknown belt, allow all
-  
+  if (!normalizedStudentBelt) return true;
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
@@ -130,6 +120,14 @@ const fuzzyMatch = (target: string, query: string): boolean => {
     ti = idx + 1;
   }
   return true;
+};
+
+// Calculate line total with discount
+const calculateLineTotal = (qty: number, price: number, discountType?: 'percentage' | 'amount', discountValue?: number): number => {
+  const gross = qty * price;
+  if (!discountType || !discountValue || discountValue <= 0) return gross;
+  if (discountType === 'percentage') return gross - (gross * discountValue / 100);
+  return gross - discountValue;
 };
 
 // Searchable student select component with fuzzy matching
@@ -169,6 +167,118 @@ const StudentSearchSelect: React.FC<{
             </CommandGroup>
           </CommandList>
         </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// Searchable product select component with fuzzy matching
+const ProductSearchSelect: React.FC<{
+  products: ProductWithVariants[];
+  value: string;
+  onValueChange: (value: string) => void;
+}> = ({ products, value, onValueChange }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const selectedName = products.find(p => p.id === value)?.name;
+
+  const filtered = search.trim()
+    ? products.filter(p => fuzzyMatch(p.name, search.trim()) || fuzzyMatch(p.sku, search.trim()))
+    : products;
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="h-8 w-32 justify-between font-normal text-xs px-2">
+          {selectedName ? <span className="truncate">{selectedName}</span> : <span className="text-muted-foreground">Product</span>}
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-0">
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="Search product..." value={search} onValueChange={setSearch} />
+          <CommandList>
+            <CommandEmpty>No product found.</CommandEmpty>
+            <CommandGroup>
+              {filtered.map((product) => (
+                <CommandItem key={product.id} value={product.id} onSelect={() => { onValueChange(product.id); setOpen(false); setSearch(''); }}>
+                  <Check className={cn('mr-2 h-4 w-4', value === product.id ? 'opacity-100' : 'opacity-0')} />
+                  <div className="flex flex-col">
+                    <span>{product.name}</span>
+                    <span className="text-xs text-muted-foreground">{product.sku} — ${product.base_price.toFixed(2)}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// Line discount popover component
+const LineDiscountPopover: React.FC<{
+  discountType?: 'percentage' | 'amount';
+  discountValue?: number;
+  onChange: (type: 'percentage' | 'amount', value: number) => void;
+}> = ({ discountType = 'percentage', discountValue = 0, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [localType, setLocalType] = useState<'percentage' | 'amount'>(discountType);
+  const [localValue, setLocalValue] = useState(discountValue.toString());
+
+  useEffect(() => {
+    setLocalType(discountType);
+    setLocalValue(discountValue.toString());
+  }, [discountType, discountValue]);
+
+  const handleApply = () => {
+    onChange(localType, parseFloat(localValue) || 0);
+    setOpen(false);
+  };
+
+  const displayText = discountValue && discountValue > 0
+    ? (discountType === 'percentage' ? `${discountValue}%` : `$${discountValue.toFixed(2)}`)
+    : '-';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" className="h-8 px-2 text-xs font-normal min-w-[40px]">
+          {displayText}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-3 space-y-2">
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'percentage' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('percentage')}
+          >
+            <Percent className="h-3 w-3 mr-1" /> %
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'amount' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('amount')}
+          >
+            <DollarSign className="h-3 w-3 mr-1" /> $
+          </Button>
+        </div>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          className="h-8"
+          placeholder={localType === 'percentage' ? 'e.g. 10' : 'e.g. 5.00'}
+        />
+        <Button type="button" size="sm" className="w-full h-7" onClick={handleApply}>Apply</Button>
       </PopoverContent>
     </Popover>
   );
@@ -401,21 +511,29 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       const invoiceData: CreateInvoiceData = {
         student_id: formData.student_id,
         branch_id: formData.branch_id || undefined,
-        payment_terms_days: 30, // Default value
+        payment_terms_days: 30,
         notes: formData.notes || undefined,
         internal_notes: formData.internal_notes || undefined,
-        items: items.map(item => ({
-          product_id: item.product_id,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          size_variant: item.size_variant || undefined,
-          metadata: item.term_id 
-            ? { term_id: item.term_id, ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}) } 
-            : item.grading_slot_id 
-              ? { grading_slot_id: item.grading_slot_id }
-              : undefined
-        }))
+        items: items.map(item => {
+          const lineDiscount = item.discount_type && item.discount_value && item.discount_value > 0
+            ? { discount_type: item.discount_type, discount_value: item.discount_value }
+            : undefined;
+
+          return {
+            product_id: item.product_id,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            size_variant: item.size_variant || undefined,
+            total_override: item.total,
+            metadata: {
+              ...(item.term_id ? { term_id: item.term_id } : {}),
+              ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}),
+              ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}),
+              ...(lineDiscount ? { line_discount: lineDiscount } : {})
+            }
+          };
+        })
       };
 
       await createInvoice(invoiceData);
@@ -458,19 +576,16 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const handleInputChange = async (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Load terms when branch changes
     if (field === 'branch_id') {
       setSelectedClassSlots([]);
       loadBranchTerms(value);
       
-      // Refresh term selection if Classes category is selected
       if (selectedCategory?.name === 'Classes' && formData.student_id) {
         const selectedTermId = await refreshTermSelection(value, formData.student_id);
         setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
       }
     }
     
-    // Refresh term selection when student changes (if Classes category selected)
     if (field === 'student_id') {
       setSelectedClassSlots([]);
       if (selectedCategory?.name === 'Classes' && formData.branch_id) {
@@ -489,8 +604,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     
     try {
       const today = new Date().toISOString().split('T')[0];
-      console.log('[loadBranchTerms] Fetching terms for branch:', branchId, 'today:', today);
-      
       const { data, error } = await supabase
         .from('term_calendars')
         .select('*')
@@ -499,16 +612,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         .gte('end_date', today)
         .order('start_date', { ascending: true });
       
-      if (error) {
-        console.error('[loadBranchTerms] Query error:', error);
-        throw error;
-      }
-      
-      console.log('[loadBranchTerms] Found terms:', data?.length || 0, data);
+      if (error) throw error;
       setBranchTerms((data || []) as Term[]);
     } catch (error: any) {
       console.error('[loadBranchTerms] Error loading terms:', error);
-      // If it's an auth error, show appropriate message
       if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
         setTermError('Session expired. Please refresh the page.');
       }
@@ -524,7 +631,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     if (!studentId || !termId) return false;
     
     try {
-      // Get invoices for this student
       const { data: invoices, error: invError } = await supabase
         .from('invoices')
         .select('id')
@@ -534,7 +640,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       
       const invoiceIds = invoices.map(i => i.id);
       
-      // Check if any invoice items have this term in metadata
       const { data: items, error: itemsError } = await supabase
         .from('invoice_items')
         .select('id, metadata')
@@ -542,7 +647,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       
       if (itemsError) return false;
       
-      // Check metadata for term_id match
       return (items || []).some(item => {
         const metadata = item.metadata as Record<string, any> | null;
         return metadata?.term_id === termId;
@@ -553,19 +657,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  // Refresh term selection - fetches terms and auto-selects the appropriate one
+  // Refresh term selection
   const refreshTermSelection = async (branchId: string, studentId: string): Promise<string> => {
-    if (!branchId || !studentId) {
-      console.log('[refreshTermSelection] Missing branchId or studentId:', { branchId, studentId });
-      return '';
-    }
+    if (!branchId || !studentId) return '';
     
     setTermLoading(true);
     setTermError(null);
     
     try {
       const today = new Date().toISOString().split('T')[0];
-      console.log('[refreshTermSelection] Fetching terms for branch:', branchId, 'today:', today);
       
       const { data: termsData, error: termsError } = await supabase
         .from('term_calendars')
@@ -575,12 +675,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         .gte('end_date', today)
         .order('start_date', { ascending: true });
       
-      if (termsError) {
-        console.error('[refreshTermSelection] Query error:', termsError);
-        throw termsError;
-      }
-      
-      console.log('[refreshTermSelection] Found terms:', termsData?.length || 0, termsData);
+      if (termsError) throw termsError;
       
       const availableTerms = (termsData || []) as Term[];
       setBranchTerms(availableTerms);
@@ -590,40 +685,30 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         return '';
       }
       
-      // Find current term (today is within term dates)
       const currentTerm = availableTerms.find(t => 
         t.start_date <= today && t.end_date >= today
       );
       
-      console.log('[refreshTermSelection] Current term:', currentTerm);
-      
       if (currentTerm) {
-        // Check if current term already has class invoice for this student
         const hasExisting = await checkExistingClassInvoice(studentId, currentTerm.id);
         
         if (hasExisting) {
-          // Find next term
           const nextTerm = availableTerms.find(t => t.start_date > currentTerm.end_date);
           
           if (nextTerm) {
-            console.log('[refreshTermSelection] Using next term:', nextTerm);
             return nextTerm.id;
           } else {
             setTermError('No next term available. Student already has classes invoiced for current term.');
             return '';
           }
         } else {
-          console.log('[refreshTermSelection] Using current term:', currentTerm.id);
           return currentTerm.id;
         }
       } else {
-        // No current term - use first available future term
-        console.log('[refreshTermSelection] Using first available term:', availableTerms[0]);
         return availableTerms[0].id;
       }
     } catch (error: any) {
       console.error('[refreshTermSelection] Error:', error);
-      // If it's an auth error, show appropriate message
       if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
         setTermError('Session expired. Please refresh the page.');
       }
@@ -644,14 +729,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setSelectedClassSlots([]);
     
     if (category?.name === 'Classes') {
-      // Set quantity defaults based on country
       if (selectedBranch?.country === 'Singapore') {
         defaultQuantity = 12;
       } else if (selectedBranch?.country === 'Australia') {
         defaultQuantity = 10;
       }
       
-      // Auto-select term if branch and student are selected
       if (formData.branch_id && formData.student_id) {
         selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
       }
@@ -660,24 +743,23 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setNewItem(prev => ({
       ...prev,
       category_id: categoryId,
-      product_id: '', // Reset product when category changes
+      product_id: '',
       quantity: defaultQuantity,
       unit_price: 0,
       size_variant: '',
       color_variant: '',
       term_id: selectedTermId,
-      grading_slot_id: '' // Reset grading slot when category changes
+      grading_slot_id: ''
     }));
   };
 
-  // Handle product change - refresh term if Classes category
+  // Handle product change
   const handleProductChange = async (productId: string) => {
     const product = products.find(p => p.id === productId);
     const isClassesCategory = selectedCategory?.name === 'Classes';
     
     let selectedTermId = newItem.term_id;
     
-    // Refresh term when product changes (for Classes category)
     if (isClassesCategory && formData.branch_id && formData.student_id) {
       selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
     }
@@ -693,7 +775,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   };
 
   const handleNewItemChange = (field: string, value: any) => {
-    // Reset class slots when term changes
     if (field === 'term_id') {
       setSelectedClassSlots([]);
     }
@@ -701,7 +782,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setNewItem(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-fill price when product is selected
       if (field === 'product_id' && value) {
         const product = products.find(p => p.id === value);
         if (product) {
@@ -729,18 +809,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const getFilteredGradingSlots = (): GradingSlot[] => {
     let filtered = gradingSlots;
     
-    // Filter by branch if selected
     if (formData.branch_id) {
       filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
     }
     
-    // STRICT filter by student's current belt level - only show matching slots
     if (studentBelt) {
       const normalizedStudentBelt = normalizeBelt(studentBelt);
       filtered = filtered.filter(slot => {
-        // If slot has no belt_levels defined, don't show it (requires explicit belt match)
         if (!slot.belt_levels || slot.belt_levels.length === 0) return false;
-        // Check if student's belt is in the slot's allowed belt levels
         return slot.belt_levels.some(beltLevel => 
           normalizeBelt(beltLevel) === normalizedStudentBelt
         );
@@ -752,12 +828,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
   // Get filtered products based on selected category AND student belt level
   const filteredProducts = products.filter(p => {
-    // First filter by category if selected
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
-    
-    // Then filter by student belt level (only if student is selected)
     const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
-    
     return matchesCategory && matchesBelt;
   });
 
@@ -805,6 +877,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       return;
     }
 
+    // Validate size selection for products with size variants
+    if (sizeOptions.length > 0 && !newItem.size_variant) {
+      toast.error('Please select a size for this product');
+      return;
+    }
+
     // Check if adding a grading product and one already exists in current items
     const isGradingProduct = product.category_id === GRADING_CATEGORY_ID;
     if (isGradingProduct) {
@@ -847,14 +925,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       grading_slot_id: newItem.grading_slot_id || undefined,
       grading_slot_title: gradingSlot?.title || undefined,
       selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
-      total: newItem.quantity * newItem.unit_price
+      total: calculateLineTotal(newItem.quantity, newItem.unit_price)
     };
 
     setItems([...items, item]);
     setSelectedClassSlots([]);
     setNewItem({
       product_id: '',
-      category_id: newItem.category_id, // Keep category selected
+      category_id: newItem.category_id,
       quantity: 1,
       unit_price: 0,
       size_variant: '',
@@ -871,14 +949,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const updateItemQuantity = (index: number, quantity: number) => {
     const updatedItems = [...items];
     updatedItems[index].quantity = quantity;
-    updatedItems[index].total = quantity * updatedItems[index].unit_price;
+    updatedItems[index].total = calculateLineTotal(quantity, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
     setItems(updatedItems);
   };
 
   const updateItemPrice = (index: number, price: number) => {
     const updatedItems = [...items];
     updatedItems[index].unit_price = price;
-    updatedItems[index].total = updatedItems[index].quantity * price;
+    updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, price, updatedItems[index].discount_type, updatedItems[index].discount_value);
+    setItems(updatedItems);
+  };
+
+  const updateItemDiscount = (index: number, type: 'percentage' | 'amount', value: number) => {
+    const updatedItems = [...items];
+    updatedItems[index].discount_type = type;
+    updatedItems[index].discount_value = value;
+    updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, updatedItems[index].unit_price, type, value);
     setItems(updatedItems);
   };
 
@@ -901,14 +987,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     let total: number;
     
     if (isInclusive) {
-      // Tax inclusive: price already includes tax (e.g., Australia)
-      // Total = itemsTotal, Subtotal = Total / (1 + taxRate), Tax = Total - Subtotal
       total = itemsTotal;
       subtotal = itemsTotal / (1 + taxRateDecimal);
       taxAmount = total - subtotal;
     } else {
-      // Tax exclusive: tax added on top (e.g., Singapore)
-      // Subtotal = itemsTotal, Tax = Subtotal * taxRate, Total = Subtotal + Tax
       subtotal = itemsTotal;
       taxAmount = subtotal * taxRateDecimal;
       total = subtotal + taxAmount;
@@ -980,6 +1062,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <TableHead>Product</TableHead>
                   <TableHead className="w-14">Qty</TableHead>
                   <TableHead className="w-20">Price</TableHead>
+                  <TableHead className="w-16">Discount</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead>Term/Slot</TableHead>
@@ -1015,6 +1098,13 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           value={item.unit_price}
                           onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
                           className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <LineDiscountPopover
+                          discountType={item.discount_type}
+                          discountValue={item.discount_value}
+                          onChange={(type, value) => updateItemDiscount(index, type, value)}
                         />
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
@@ -1055,18 +1145,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Select value={newItem.product_id} onValueChange={handleProductChange}>
-                      <SelectTrigger className="h-8 w-32">
-                        <SelectValue placeholder="Product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ProductSearchSelect
+                      products={filteredProducts}
+                      value={newItem.product_id}
+                      onValueChange={handleProductChange}
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
@@ -1087,6 +1170,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       disabled={selectedProduct && selectedProduct.base_price > 0}
                       className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-sm">-</span>
                   </TableCell>
                   <TableCell>
                     {sizeOptions.length > 0 ? (
@@ -1191,7 +1277,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               <p className="text-sm text-destructive">{termError}</p>
             )}
 
-            {/* Class Schedule Selector - shown when Classes category is active and term is selected */}
+            {/* Class Schedule Selector */}
             {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Select Class Schedule</h4>
@@ -1206,7 +1292,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               </div>
             )}
 
-            {/* Totals Section - After Invoice Items */}
+            {/* Totals Section */}
             {items.length > 0 && (
               <div className="flex justify-end">
                 <div className="w-64 space-y-2">
@@ -1229,7 +1315,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
           <Separator />
 
-          {/* Notes Section - After Totals */}
+          {/* Notes Section */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
