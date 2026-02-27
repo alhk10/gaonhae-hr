@@ -1,66 +1,61 @@
 
 
-## Plan: Notices / Announcements Feature
+## Plan: Push Notifications for Notices, Outstanding Fees & Grading Reminders
 
-### Database
+### 1. New Notification Templates (DB insert)
 
-**New table: `notices`**
-- `id` UUID PK
-- `subject` TEXT NOT NULL
-- `content` TEXT (text body below image)
-- `image_url` TEXT (optional uploaded image)
-- `attachment_url` TEXT (optional file attachment)
-- `attachment_name` TEXT
-- `created_by_email` TEXT NOT NULL
-- `created_by_branch_id` TEXT (NULL = superadmin post)
-- `target_branches` TEXT[] (NULL = all branches; superadmin selects specific branches)
-- `is_active` BOOLEAN DEFAULT true
-- `created_at` TIMESTAMPTZ DEFAULT now()
-- `updated_at` TIMESTAMPTZ DEFAULT now()
+Insert 3 new templates into `notification_templates`:
 
-**RLS policies:**
-- SELECT: superadmins see all; employees see notices where their branch is in `target_branches` OR `target_branches` IS NULL OR notice was created by their branch
-- INSERT: superadmins and employees with branch dashboard access
-- UPDATE/DELETE: superadmins, or creator of the notice
+| template_key | title | body |
+|---|---|---|
+| `new_notice` | New Notice: {subject} | A new notice has been posted: {subject} |
+| `outstanding_fees_reminder` | Outstanding Fees Reminder | You have outstanding fees of {amount}. Please make payment at your earliest convenience. |
+| `grading_test_reminder` | Ready for Grading Test | {student_name} is ready for grading test on {grading_date} at {branch}. Belt: {current_belt} → {target_belt} |
 
-**Storage bucket:** `notice-attachments` (public)
+### 2. Trigger Push on Notice Creation
 
-### New Components
+Modify `src/components/notices/CreateEditNoticeDialog.tsx` — after a new notice is saved successfully (not edit), call the push-notification edge function for all employees with subscriptions in the targeted branches. Add a helper in `noticeService.ts` that:
+- Queries `notification_subscriptions` joined with `employees` to get employee IDs in target branches (or all if `target_branches` is null)
+- Calls push-notification edge function for each subscribed employee with template `new_notice` and `{subject}` variable
 
-1. **`src/components/notices/NoticeManagementTab.tsx`** — Tab content for both Superadmin and Branch dashboards
-   - Lists existing notices with subject, date, preview
-   - "Add Notice" button opens creation dialog
-   - Edit/Delete actions on each notice
-   - **Superadmin version**: shows a multi-select branch picker for target branches (or "All Branches")
-   - **Branch version**: automatically targets all branches (branch posts for their own branch visibility)
+### 3. New Edge Function: `check-outstanding-fees`
 
-2. **`src/components/notices/CreateEditNoticeDialog.tsx`** — Dialog form with:
-   - Subject field (text input, required)
-   - Image upload (drag-drop or click, uploads to `notice-attachments` bucket)
-   - Content/body textarea
-   - File attachment upload field
-   - Branch selector (multi-select, only shown for superadmin role)
-   - Save/Cancel buttons
+Creates `supabase/functions/check-outstanding-fees/index.ts`:
+- Queries `invoices` where `balance_due > 0` and `status` in ('sent', 'overdue')
+- Groups by `student_id`, gets total outstanding
+- For each student with a `student_notification_subscriptions` record, sends push via `push-notification` with template `outstanding_fees_reminder`
+- Deduplicates using a daily check (query notification_logs or use a simple date check)
+- Runs weekly via cron (configured separately)
 
-3. **`src/components/notices/NoticePopupDialog.tsx`** — Read-only popup shown when clicking a notice
-   - Displays subject as title
-   - Image below subject
-   - Content text below image
-   - Attachment download link if present
-   - Close button
+### 4. New Edge Function: `check-grading-reminders`
 
-4. **`src/services/noticeService.ts`** — CRUD operations for notices table + file upload helpers
+Creates `supabase/functions/check-grading-reminders/index.ts`:
+- Queries `grading_registrations` where `ready_for_grading = true` and `result IS NULL`
+- Joins `grading_slots` to get date, branch; joins `students` for name
+- For students with grading in the next 3 days, sends push via `push-notification` with template `grading_test_reminder` to the student's subscription
+- Also notifies the student's parent/guardian (via student subscription)
+- Deduplicates daily
 
-### Integration Points
+### 5. Config & Template Updates
 
-**`SuperadminDashboard.tsx`**: Add a "Notices" tab trigger alongside "Overview". The tab content renders `NoticeManagementTab` with `role="superadmin"`.
+- Add `check-outstanding-fees` and `check-grading-reminders` to `supabase/config.toml` with `verify_jwt = false`
+- Update `notificationTemplateService.ts` defaults and `TEMPLATE_VARIABLES` to include new templates
 
-**`BranchDashboard.tsx`**: Add a "Notices" tab trigger in the existing tab list. Renders `NoticeManagementTab` with `role="branch"` and `branchId` prop.
+### 6. Cron Setup (manual step)
 
-### Flow
+User will need to set up pg_cron jobs:
+- `check-outstanding-fees`: weekly (every Monday 9am SGT)
+- `check-grading-reminders`: daily at 9am SGT
 
-- **Creating**: Staff clicks "Add Notice" → fills form → image/file uploaded to storage → record inserted into `notices` table
-- **Viewing**: Notice list shows cards; clicking one opens `NoticePopupDialog` with full details
-- **Branch posting**: `target_branches` set to NULL (visible to all), `created_by_branch_id` set to poster's branch
-- **Superadmin posting**: `target_branches` set to selected branch IDs, `created_by_branch_id` NULL
+### Files to Create/Modify
+
+| File | Action |
+|---|---|
+| `supabase/functions/check-outstanding-fees/index.ts` | Create |
+| `supabase/functions/check-grading-reminders/index.ts` | Create |
+| `supabase/config.toml` | Add 2 new function entries |
+| `src/services/noticeService.ts` | Add `sendNoticeNotifications()` |
+| `src/components/notices/CreateEditNoticeDialog.tsx` | Call notification after create |
+| `src/services/notificationTemplateService.ts` | Add new template defaults & variables |
+| DB insert: 3 notification templates | Via insert tool |
 
