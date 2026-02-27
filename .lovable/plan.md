@@ -1,48 +1,66 @@
 
 
-## Root Cause: Missing RLS Policies on `students` Table
+## Plan: Notices / Announcements Feature
 
-The `students` table has Row Level Security (RLS) enabled but only one policy exists: a SELECT policy (`employees_with_invoice_access_view_branch_students`). There are **no UPDATE, INSERT, or DELETE policies**, so all write operations are silently rejected by Postgres with "row-level security policy" violations.
+### Database
 
-This affects all student mutations — editing, creating, and deleting students.
+**New table: `notices`**
+- `id` UUID PK
+- `subject` TEXT NOT NULL
+- `content` TEXT (text body below image)
+- `image_url` TEXT (optional uploaded image)
+- `attachment_url` TEXT (optional file attachment)
+- `attachment_name` TEXT
+- `created_by_email` TEXT NOT NULL
+- `created_by_branch_id` TEXT (NULL = superadmin post)
+- `target_branches` TEXT[] (NULL = all branches; superadmin selects specific branches)
+- `is_active` BOOLEAN DEFAULT true
+- `created_at` TIMESTAMPTZ DEFAULT now()
+- `updated_at` TIMESTAMPTZ DEFAULT now()
 
-## Fix
+**RLS policies:**
+- SELECT: superadmins see all; employees see notices where their branch is in `target_branches` OR `target_branches` IS NULL OR notice was created by their branch
+- INSERT: superadmins and employees with branch dashboard access
+- UPDATE/DELETE: superadmins, or creator of the notice
 
-Create a SQL migration adding the missing RLS policies:
+**Storage bucket:** `notice-attachments` (public)
 
-1. **UPDATE policy** — Allow superadmins, employees with admin/sales access, and students updating their own record
-2. **INSERT policy** — Allow superadmins and employees with admin/sales access
-3. **DELETE policy** — Allow superadmins only
+### New Components
 
-Policies will use existing helper functions (`get_current_user_role()`, `has_sales_access()`, `is_student()`, `get_current_student_id()`) for consistency.
+1. **`src/components/notices/NoticeManagementTab.tsx`** — Tab content for both Superadmin and Branch dashboards
+   - Lists existing notices with subject, date, preview
+   - "Add Notice" button opens creation dialog
+   - Edit/Delete actions on each notice
+   - **Superadmin version**: shows a multi-select branch picker for target branches (or "All Branches")
+   - **Branch version**: automatically targets all branches (branch posts for their own branch visibility)
 
-### Migration SQL
+2. **`src/components/notices/CreateEditNoticeDialog.tsx`** — Dialog form with:
+   - Subject field (text input, required)
+   - Image upload (drag-drop or click, uploads to `notice-attachments` bucket)
+   - Content/body textarea
+   - File attachment upload field
+   - Branch selector (multi-select, only shown for superadmin role)
+   - Save/Cancel buttons
 
-```sql
--- Allow superadmins and sales-access employees to update any student
-CREATE POLICY "staff_update_students"
-  ON public.students FOR UPDATE
-  USING (get_current_user_role() = 'superadmin' OR has_sales_access())
-  WITH CHECK (get_current_user_role() = 'superadmin' OR has_sales_access());
+3. **`src/components/notices/NoticePopupDialog.tsx`** — Read-only popup shown when clicking a notice
+   - Displays subject as title
+   - Image below subject
+   - Content text below image
+   - Attachment download link if present
+   - Close button
 
--- Allow students to update their own record (student portal)
-CREATE POLICY "students_update_own"
-  ON public.students FOR UPDATE
-  USING (is_student() AND id = get_current_student_id())
-  WITH CHECK (is_student() AND id = get_current_student_id());
+4. **`src/services/noticeService.ts`** — CRUD operations for notices table + file upload helpers
 
--- Allow superadmins and sales-access employees to insert students
-CREATE POLICY "staff_insert_students"
-  ON public.students FOR INSERT
-  WITH CHECK (get_current_user_role() = 'superadmin' OR has_sales_access());
+### Integration Points
 
--- Allow superadmins to delete students
-CREATE POLICY "superadmin_delete_students"
-  ON public.students FOR DELETE
-  USING (get_current_user_role() = 'superadmin');
-```
+**`SuperadminDashboard.tsx`**: Add a "Notices" tab trigger alongside "Overview". The tab content renders `NoticeManagementTab` with `role="superadmin"`.
 
-### Secondary Fix: `gender` constraint vs form option
+**`BranchDashboard.tsx`**: Add a "Notices" tab trigger in the existing tab list. Renders `NoticeManagementTab` with `role="branch"` and `branchId` prop.
 
-The `students_gender_check` constraint allows only `'male'`, `'female'`, `'other'` — but the Edit form includes `'prefer-not-to-say'` as a gender option. This will also cause failures if selected. The form option should be removed or the constraint updated. The simpler fix is to remove the `'prefer-not-to-say'` option from the `EditStudentDialog` and `AddStudentDialog` gender selects.
+### Flow
+
+- **Creating**: Staff clicks "Add Notice" → fills form → image/file uploaded to storage → record inserted into `notices` table
+- **Viewing**: Notice list shows cards; clicking one opens `NoticePopupDialog` with full details
+- **Branch posting**: `target_branches` set to NULL (visible to all), `created_by_branch_id` set to poster's branch
+- **Superadmin posting**: `target_branches` set to selected branch IDs, `created_by_branch_id` NULL
 
