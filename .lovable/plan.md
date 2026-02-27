@@ -1,25 +1,48 @@
 
 
-## Plan: Add Branch-Specific Pricing to CSV Export/Import
+## Root Cause: Missing RLS Policies on `students` Table
 
-### Approach
-Add dynamic branch columns to the CSV so each branch gets its own price column (e.g., `price_Jurong West`, `price_Bishan`). On import, parse these columns and create/update `price_rules` entries accordingly.
+The `students` table has Row Level Security (RLS) enabled but only one policy exists: a SELECT policy (`employees_with_invoice_access_view_branch_students`). There are **no UPDATE, INSERT, or DELETE policies**, so all write operations are silently rejected by Postgres with "row-level security policy" violations.
 
-### Changes
+This affects all student mutations — editing, creating, and deleting students.
 
-**`src/components/sales/ProductManagementList.tsx`** — Update `handleExportCSV` and `handleDownloadTemplate`:
+## Fix
 
-1. **Export**: After fetching products, also fetch all branches and all `price_rules`. For each product row, append branch-specific price columns (`price_<BranchName>`) after the base columns. If a price rule exists for that product+branch, output the `price_override`; otherwise leave blank.
+Create a SQL migration adding the missing RLS policies:
 
-2. **Template**: Fetch branches and append `price_<BranchName>` columns to the header row, with example values in the sample row.
+1. **UPDATE policy** — Allow superadmins, employees with admin/sales access, and students updating their own record
+2. **INSERT policy** — Allow superadmins and employees with admin/sales access
+3. **DELETE policy** — Allow superadmins only
 
-**`src/components/sales/ImportProductsDialog.tsx`** — Update parsing and import logic:
+Policies will use existing helper functions (`get_current_user_role()`, `has_sales_access()`, `is_student()`, `get_current_student_id()`) for consistency.
 
-1. **Header detection**: After validating the base 11 expected headers, detect any additional columns matching `price_*` pattern — extract branch names from them.
+### Migration SQL
 
-2. **Validation**: For each `price_<BranchName>` column with a value, validate it's a valid number and that the branch name maps to an existing branch.
+```sql
+-- Allow superadmins and sales-access employees to update any student
+CREATE POLICY "staff_update_students"
+  ON public.students FOR UPDATE
+  USING (get_current_user_role() = 'superadmin' OR has_sales_access())
+  WITH CHECK (get_current_user_role() = 'superadmin' OR has_sales_access());
 
-3. **Import**: After inserting products, for each successfully inserted product, create `price_rules` entries for any branch columns that had values — using `upsertBranchPrice` or direct insert into `price_rules`.
+-- Allow students to update their own record (student portal)
+CREATE POLICY "students_update_own"
+  ON public.students FOR UPDATE
+  USING (is_student() AND id = get_current_student_id())
+  WITH CHECK (is_student() AND id = get_current_student_id());
 
-4. **Preview table**: Show a summary indicator if branch pricing is present (e.g., badge showing "3 branch prices").
+-- Allow superadmins and sales-access employees to insert students
+CREATE POLICY "staff_insert_students"
+  ON public.students FOR INSERT
+  WITH CHECK (get_current_user_role() = 'superadmin' OR has_sales_access());
+
+-- Allow superadmins to delete students
+CREATE POLICY "superadmin_delete_students"
+  ON public.students FOR DELETE
+  USING (get_current_user_role() = 'superadmin');
+```
+
+### Secondary Fix: `gender` constraint vs form option
+
+The `students_gender_check` constraint allows only `'male'`, `'female'`, `'other'` — but the Edit form includes `'prefer-not-to-say'` as a gender option. This will also cause failures if selected. The form option should be removed or the constraint updated. The simpler fix is to remove the `'prefer-not-to-say'` option from the `EditStudentDialog` and `AddStudentDialog` gender selects.
 
