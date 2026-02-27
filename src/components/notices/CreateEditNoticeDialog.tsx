@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ImagePlus, Paperclip, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Notice, createNotice, updateNotice, uploadNoticeFile } from '@/services/noticeService';
+import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -116,6 +116,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
       } else {
         await createNotice(payload);
         toast.success('Notice created');
+        // Send push notifications for new notices (fire and forget)
+        sendNoticeNotifications(subject.trim(), targetBranches);
       }
 
       onSaved();

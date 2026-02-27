@@ -69,3 +69,47 @@ export const uploadNoticeFile = async (file: File, folder: string): Promise<stri
   
   return data.publicUrl;
 };
+
+export const sendNoticeNotifications = async (subject: string, targetBranches: string[] | null): Promise<void> => {
+  try {
+    // Build query for employees with subscriptions
+    let query = supabase
+      .from('notification_subscriptions')
+      .select('employee_id');
+
+    // If target branches specified, filter employees by branch access
+    if (targetBranches && targetBranches.length > 0) {
+      const { data: branchEmployees } = await supabase
+        .from('employee_branch_access')
+        .select('employee_id')
+        .in('branch_id', targetBranches);
+      
+      const employeeIds = [...new Set((branchEmployees || []).map(e => e.employee_id))];
+      if (employeeIds.length === 0) return;
+      
+      query = query.in('employee_id', employeeIds);
+    }
+
+    const { data: subscriptions, error } = await query;
+    if (error) {
+      console.error('Error fetching subscriptions for notice notifications:', error);
+      return;
+    }
+
+    // Send push notification to each subscribed employee (fire and forget)
+    for (const sub of subscriptions || []) {
+      supabase.functions.invoke('push-notification', {
+        body: {
+          employee_id: sub.employee_id,
+          template_key: 'new_notice',
+          variables: { subject },
+          url: '/'
+        }
+      }).catch(err => console.error('Failed to send notice notification:', err));
+    }
+
+    console.log(`Sending notice notifications to ${subscriptions?.length || 0} employees`);
+  } catch (err) {
+    console.error('Error sending notice notifications:', err);
+  }
+};
