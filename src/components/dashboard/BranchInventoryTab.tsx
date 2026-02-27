@@ -60,7 +60,8 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, category_id, requires_size, available_sizes')
+        .select('id, name, sku, category_id, requires_size, available_sizes, is_service')
+        .eq('is_service', false)
         .order('name');
       if (error) throw error;
       return data || [];
@@ -95,14 +96,19 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
           });
         }
       } else {
-        // No inventory record — show with 0 stock
-        result.push({
-          id: `virtual-${product.id}`,
-          products: product,
-          quantity_on_hand: 0,
-          size_variant: null,
-          hasInventoryRecord: false,
-        });
+        // No inventory record — show with 0 stock, expand variants if applicable
+        const sizes = product.requires_size && Array.isArray(product.available_sizes) && product.available_sizes.length > 0
+          ? product.available_sizes as string[]
+          : [null];
+        for (const size of sizes) {
+          result.push({
+            id: `virtual-${product.id}-${size || 'default'}`,
+            products: product,
+            quantity_on_hand: 0,
+            size_variant: size,
+            hasInventoryRecord: false,
+          });
+        }
       }
     }
 
