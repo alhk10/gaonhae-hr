@@ -80,6 +80,7 @@ export interface CreateInvoiceData {
     quantity: number;
     unit_price: number;
     size_variant?: string;
+    total_override?: number;
     metadata?: Record<string, any>;
   }>;
 }
@@ -250,16 +251,14 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     let taxAmount = 0;
     
     for (const item of invoiceData.items) {
-      const itemPrice = item.quantity * item.unit_price;
+      const itemPrice = item.total_override != null ? item.total_override : item.quantity * item.unit_price;
       
       if (isTaxIncluded) {
-        // Tax-inclusive (e.g., Australia): price already includes tax
         const itemSubtotal = itemPrice / (1 + taxRate);
         const itemTax = itemPrice - itemSubtotal;
         subtotal += itemSubtotal;
         taxAmount += itemTax;
       } else {
-        // Tax-exclusive (e.g., Singapore): add tax on top
         subtotal += itemPrice;
         taxAmount += itemPrice * taxRate;
       }
@@ -305,19 +304,17 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
     // Create invoice items with proper tax calculation
     const itemsToInsert = invoiceData.items.map(item => {
-      const itemPrice = item.quantity * item.unit_price;
+      const itemPrice = item.total_override != null ? item.total_override : item.quantity * item.unit_price;
       
       let itemSubtotal: number;
       let itemTaxAmount: number;
       let itemTotal: number;
       
       if (isTaxIncluded) {
-        // Tax-inclusive: price is the total, calculate backwards
         itemTotal = itemPrice;
         itemSubtotal = itemPrice / (1 + taxRate);
         itemTaxAmount = itemPrice - itemSubtotal;
       } else {
-        // Tax-exclusive: add tax on top
         itemSubtotal = itemPrice;
         itemTaxAmount = itemPrice * taxRate;
         itemTotal = itemSubtotal + itemTaxAmount;
