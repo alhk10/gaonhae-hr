@@ -20,7 +20,10 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import type { Term } from '@/services/termCalendarService';
 import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
@@ -116,6 +119,43 @@ const isProductAvailableForBelt = (
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
+// Searchable student select component
+const StudentSearchSelect: React.FC<{
+  students: Array<{id: string, name: string}>;
+  value: string;
+  onValueChange: (value: string) => void;
+}> = ({ students, value, onValueChange }) => {
+  const [open, setOpen] = useState(false);
+  const selectedName = students.find(s => s.id === value)?.name;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
+          {selectedName || <span className="text-muted-foreground">Select student</span>}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+        <Command>
+          <CommandInput placeholder="Search student..." />
+          <CommandList>
+            <CommandEmpty>No student found.</CommandEmpty>
+            <CommandGroup>
+              {students.map((student) => (
+                <CommandItem key={student.id} value={student.name} onSelect={() => { onValueChange(student.id); setOpen(false); }}>
+                  <Check className={cn('mr-2 h-4 w-4', value === student.id ? 'opacity-100' : 'opacity-0')} />
+                  {student.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -162,6 +202,17 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       loadGradingSlots();
     }
   }, [open]);
+
+  // Auto-select branch if only 1 available
+  const availableBranches = branches
+    .filter(b => !['Competition', 'Headquarters'].includes(b.name))
+    .filter(b => isSuperadmin || canCreate(b.id));
+
+  useEffect(() => {
+    if (availableBranches.length === 1 && !formData.branch_id) {
+      handleInputChange('branch_id', availableBranches[0].id);
+    }
+  }, [availableBranches.length, formData.branch_id]);
   
   // Load grading slots for Grading Fees category
   const loadGradingSlots = async () => {
@@ -873,10 +924,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches
-                      .filter(b => !['Competition', 'Headquarters'].includes(b.name))
-                      .filter(b => isSuperadmin || canCreate(b.id))
-                      .map((branch) => (
+                    {availableBranches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           {branch.name} {branch.country && `(${branch.country})`}
                         </SelectItem>
@@ -887,25 +935,17 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
               <div className="space-y-2">
                 <Label htmlFor="student_id">Student *</Label>
-                <Select value={formData.student_id} onValueChange={(value) => {
-                  handleInputChange('student_id', value);
-                  // Auto-select student's branch if available
-                  const student = students.find(s => s.id === value);
-                  if (student?.branch_id && !formData.branch_id) {
-                    handleInputChange('branch_id', student.branch_id);
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredStudents.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <StudentSearchSelect
+                  students={filteredStudents}
+                  value={formData.student_id}
+                  onValueChange={(value) => {
+                    handleInputChange('student_id', value);
+                    const student = students.find(s => s.id === value);
+                    if (student?.branch_id && !formData.branch_id) {
+                      handleInputChange('branch_id', student.branch_id);
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
