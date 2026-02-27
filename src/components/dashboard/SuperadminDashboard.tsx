@@ -17,8 +17,11 @@ import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
+import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
+import { useAuth } from '@/contexts/AuthContext';
 
 const SuperadminDashboard = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: pendingPaymentDeletionsCount = 0 } = useQuery({
@@ -64,6 +67,7 @@ const SuperadminDashboard = () => {
         </div>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="notices">Notices</TabsTrigger>
         </TabsList>
       </div>
 
@@ -105,6 +109,10 @@ const SuperadminDashboard = () => {
 
         {/* Slot Booking Management Calendar */}
         <SlotBookingManagementContent />
+      </TabsContent>
+
+      <TabsContent value="notices" className="mt-0">
+        <NoticeManagementTab role="superadmin" userEmail={user?.email || ''} />
       </TabsContent>
     </Tabs>
   );

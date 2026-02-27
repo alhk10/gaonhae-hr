@@ -2367,6 +2367,51 @@ export type Database = {
           },
         ]
       }
+      notices: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          content: string | null
+          created_at: string | null
+          created_by_branch_id: string | null
+          created_by_email: string
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          subject: string
+          target_branches: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by_branch_id?: string | null
+          created_by_email: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          subject: string
+          target_branches?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by_branch_id?: string | null
+          created_by_email?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          subject?: string
+          target_branches?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notification_logs: {
         Row: {
           employee_id: string
