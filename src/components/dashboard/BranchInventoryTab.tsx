@@ -39,13 +39,13 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
   const locationIds = locations.map(l => l.id);
 
   // Fetch inventory items for these locations
-  const { data: inventoryItems = [], isLoading, refetch: refetchInventory } = useQuery({
+  const { data: inventoryItems = [], isLoading: inventoryLoading, refetch: refetchInventory } = useQuery({
     queryKey: ['branch-inventory-items', branchId, locationIds],
     queryFn: async () => {
       if (locationIds.length === 0) return [];
       const { data, error } = await supabase
         .from('inventory_items')
-        .select('*, products(id, name, sku, category, requires_size, available_sizes)')
+        .select('*, products(id, name, sku, category_id, requires_size, available_sizes)')
         .in('location_id', locationIds)
         .order('updated_at', { ascending: false });
       if (error) throw error;
@@ -53,6 +53,61 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
     },
     enabled: locationIds.length > 0,
   });
+
+  // Fetch ALL products so we can show ones with 0 stock too
+  const { data: allProducts = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['all-products-for-inventory'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, sku, category_id, requires_size, available_sizes')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const isLoading = inventoryLoading || productsLoading;
+
+  // Merge: all products + their inventory data (default 0 qty)
+  const mergedItems = React.useMemo(() => {
+    // Build a map of product_id -> inventory items
+    const inventoryByProduct = new Map<string, typeof inventoryItems>();
+    for (const item of inventoryItems) {
+      const pid = (item.products as any)?.id || item.product_id;
+      if (!inventoryByProduct.has(pid)) inventoryByProduct.set(pid, []);
+      inventoryByProduct.get(pid)!.push(item);
+    }
+
+    const result: Array<{ id: string; products: any; quantity_on_hand: number; size_variant: string | null; hasInventoryRecord: boolean }> = [];
+
+    for (const product of allProducts) {
+      const invItems = inventoryByProduct.get(product.id);
+      if (invItems && invItems.length > 0) {
+        // Use existing inventory rows
+        for (const inv of invItems) {
+          result.push({
+            id: inv.id,
+            products: inv.products,
+            quantity_on_hand: inv.quantity_on_hand,
+            size_variant: inv.size_variant,
+            hasInventoryRecord: true,
+          });
+        }
+      } else {
+        // No inventory record — show with 0 stock
+        result.push({
+          id: `virtual-${product.id}`,
+          products: product,
+          quantity_on_hand: 0,
+          size_variant: null,
+          hasInventoryRecord: false,
+        });
+      }
+    }
+
+    return result;
+  }, [allProducts, inventoryItems]);
 
   // Fetch transfer requests for this branch
   const { data: transferRequests = [], refetch: refetchTransfers } = useQuery({
@@ -63,7 +118,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
 
   const pendingTransfers = transferRequests.filter(r => r.status === 'pending');
 
-  const filteredItems = inventoryItems.filter(item => {
+  const filteredItems = mergedItems.filter(item => {
     const product = item.products as any;
     const name = product?.name?.toLowerCase() || '';
     const sku = product?.sku?.toLowerCase() || '';
