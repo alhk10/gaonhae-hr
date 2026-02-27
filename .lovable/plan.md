@@ -1,61 +1,67 @@
 
 
-## Plan: Push Notifications for Notices, Outstanding Fees & Grading Reminders
+## Plan: Branch Inventory Tab with Stock Transfer Approvals
 
-### 1. New Notification Templates (DB insert)
+### Database
 
-Insert 3 new templates into `notification_templates`:
+**New table: `inventory_transfer_requests`**
+- `id` UUID PK DEFAULT gen_random_uuid()
+- `from_branch_id` TEXT NOT NULL (requesting branch)
+- `to_branch_id` TEXT NOT NULL (destination branch)
+- `product_id` TEXT NOT NULL REFERENCES products(id)
+- `quantity` INTEGER NOT NULL
+- `size_variant` TEXT
+- `reason` TEXT
+- `status` TEXT DEFAULT 'pending' (pending / approved / rejected)
+- `requested_by` TEXT NOT NULL (employee email)
+- `approved_by` TEXT
+- `approved_at` TIMESTAMPTZ
+- `created_at` TIMESTAMPTZ DEFAULT now()
+- `updated_at` TIMESTAMPTZ DEFAULT now()
 
-| template_key | title | body |
-|---|---|---|
-| `new_notice` | New Notice: {subject} | A new notice has been posted: {subject} |
-| `outstanding_fees_reminder` | Outstanding Fees Reminder | You have outstanding fees of {amount}. Please make payment at your earliest convenience. |
-| `grading_test_reminder` | Ready for Grading Test | {student_name} is ready for grading test on {grading_date} at {branch}. Belt: {current_belt} → {target_belt} |
+**RLS**: SELECT for superadmins + employees in from/to branch; INSERT for branch staff; UPDATE for superadmins only.
 
-### 2. Trigger Push on Notice Creation
+### New Components
 
-Modify `src/components/notices/CreateEditNoticeDialog.tsx` — after a new notice is saved successfully (not edit), call the push-notification edge function for all employees with subscriptions in the targeted branches. Add a helper in `noticeService.ts` that:
-- Queries `notification_subscriptions` joined with `employees` to get employee IDs in target branches (or all if `target_branches` is null)
-- Calls push-notification edge function for each subscribed employee with template `new_notice` and `{subject}` variable
+1. **`src/components/dashboard/BranchInventoryTab.tsx`** — Inventory tab for BranchDashboard
+   - Shows inventory items filtered by branch's `inventory_locations`
+   - Allows quantity adjustment (via existing `InventoryAdjustmentDialog`)
+   - "Request Transfer" button opens a dialog to request stock transfer to/from another branch
+   - Lists pending transfer requests for this branch
 
-### 3. New Edge Function: `check-outstanding-fees`
+2. **`src/components/dashboard/StockTransferRequestDialog.tsx`** — Dialog to create a transfer request
+   - Select product, destination branch, quantity, reason
+   - Inserts into `inventory_transfer_requests` with status 'pending'
 
-Creates `supabase/functions/check-outstanding-fees/index.ts`:
-- Queries `invoices` where `balance_due > 0` and `status` in ('sent', 'overdue')
-- Groups by `student_id`, gets total outstanding
-- For each student with a `student_notification_subscriptions` record, sends push via `push-notification` with template `outstanding_fees_reminder`
-- Deduplicates using a daily check (query notification_logs or use a simple date check)
-- Runs weekly via cron (configured separately)
+3. **`src/components/dashboard/StockTransferApprovals.tsx`** — Approval section for SuperadminDashboard
+   - Lists pending transfer requests with from/to branch, product, quantity
+   - Approve: executes inventory adjustment (subtract from source, add to destination) and updates status
+   - Reject: updates status to 'rejected'
 
-### 4. New Edge Function: `check-grading-reminders`
+### Service
 
-Creates `supabase/functions/check-grading-reminders/index.ts`:
-- Queries `grading_registrations` where `ready_for_grading = true` and `result IS NULL`
-- Joins `grading_slots` to get date, branch; joins `students` for name
-- For students with grading in the next 3 days, sends push via `push-notification` with template `grading_test_reminder` to the student's subscription
-- Also notifies the student's parent/guardian (via student subscription)
-- Deduplicates daily
+**`src/services/inventoryTransferService.ts`**
+- `createTransferRequest(data)` — insert into `inventory_transfer_requests`
+- `getPendingTransferRequests()` — fetch all pending requests with product/branch names
+- `approveTransferRequest(id, approvedBy)` — update status, call `adjustInventory` for both locations
+- `rejectTransferRequest(id, approvedBy)` — update status to rejected
+- `getTransferRequestsByBranch(branchId)` — fetch requests for a specific branch
 
-### 5. Config & Template Updates
+### Integration
 
-- Add `check-outstanding-fees` and `check-grading-reminders` to `supabase/config.toml` with `verify_jwt = false`
-- Update `notificationTemplateService.ts` defaults and `TEMPLATE_VARIABLES` to include new templates
+**`BranchDashboard.tsx`**: Add "Inventory" tab trigger between existing tabs. Renders `BranchInventoryTab` with `branchId` prop.
 
-### 6. Cron Setup (manual step)
-
-User will need to set up pg_cron jobs:
-- `check-outstanding-fees`: weekly (every Monday 9am SGT)
-- `check-grading-reminders`: daily at 9am SGT
+**`SuperadminDashboard.tsx`**: Add `StockTransferApprovals` component in the overview section alongside existing approval sections.
 
 ### Files to Create/Modify
 
 | File | Action |
 |---|---|
-| `supabase/functions/check-outstanding-fees/index.ts` | Create |
-| `supabase/functions/check-grading-reminders/index.ts` | Create |
-| `supabase/config.toml` | Add 2 new function entries |
-| `src/services/noticeService.ts` | Add `sendNoticeNotifications()` |
-| `src/components/notices/CreateEditNoticeDialog.tsx` | Call notification after create |
-| `src/services/notificationTemplateService.ts` | Add new template defaults & variables |
-| DB insert: 3 notification templates | Via insert tool |
+| Migration SQL | Create `inventory_transfer_requests` table + RLS |
+| `src/services/inventoryTransferService.ts` | Create |
+| `src/components/dashboard/BranchInventoryTab.tsx` | Create |
+| `src/components/dashboard/StockTransferRequestDialog.tsx` | Create |
+| `src/components/dashboard/StockTransferApprovals.tsx` | Create |
+| `src/components/dashboard/BranchDashboard.tsx` | Add Inventory tab |
+| `src/components/dashboard/SuperadminDashboard.tsx` | Add transfer approvals |
 
