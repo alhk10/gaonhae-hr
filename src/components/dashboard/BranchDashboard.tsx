@@ -65,6 +65,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
 import { Student } from '@/services/studentService';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
+import BranchInventoryTab from './BranchInventoryTab';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -346,6 +347,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
           <TabsTrigger value="casual-schedule">Casual Employee Schedule</TabsTrigger>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="notices">Notices</TabsTrigger>
           <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
         </TabsList>
@@ -731,6 +733,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         </TabsContent>
         <TabsContent value="timetable">
           <BranchWeeklyTimetable branchId={branchId} />
+        </TabsContent>
+        <TabsContent value="inventory">
+          <BranchInventoryTab branchId={branchId} />
         </TabsContent>
       </Tabs>
 

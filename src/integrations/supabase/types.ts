@@ -1682,6 +1682,62 @@ export type Database = {
           },
         ]
       }
+      inventory_transfer_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          from_branch_id: string
+          id: string
+          product_id: string
+          quantity: number
+          reason: string | null
+          requested_by: string
+          size_variant: string | null
+          status: string
+          to_branch_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_branch_id: string
+          id?: string
+          product_id: string
+          quantity: number
+          reason?: string | null
+          requested_by: string
+          size_variant?: string | null
+          status?: string
+          to_branch_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_branch_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          requested_by?: string
+          size_variant?: string | null
+          status?: string
+          to_branch_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transfer_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_change_logs: {
         Row: {
           action: string
