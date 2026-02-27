@@ -287,14 +287,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const undismissedNotices = getUndismissedNotices();
 
   const handleDismissNotice = () => {
-    if (!studentId || !undismissedNotices[currentNoticeIndex]) return;
+    if (!studentId || !undismissedNotices[0]) return;
     const dismissedKey = `dismissed_notices_${studentId}`;
     const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
-    dismissed.push(undismissedNotices[currentNoticeIndex].id);
+    dismissed.push(undismissedNotices[0].id);
     localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
 
-    if (currentNoticeIndex < undismissedNotices.length - 1) {
-      setCurrentNoticeIndex(prev => prev + 1);
+    // Force re-render by invalidating notices query
+    queryClient.invalidateQueries({ queryKey: ['student-notices'] });
+
+    // Check remaining undismissed (after this one)
+    const remaining = undismissedNotices.slice(1);
+    if (remaining.length > 0) {
+      // Keep popup open, next render will show next notice at index 0
     } else {
       setShowNoticePopup(false);
       // Chain to next popup
@@ -1296,7 +1301,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         onOpenChange={(open) => {
           if (!open) handleDismissNotice();
         }}
-        notice={undismissedNotices[currentNoticeIndex] || null}
+        notice={undismissedNotices[0] || null}
       />
 
       {/* Action Not Allowed Dialog for readOnly mode */}
