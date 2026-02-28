@@ -963,6 +963,66 @@ export type Database = {
           },
         ]
       }
+      employee_branch_requests: {
+        Row: {
+          created_at: string
+          current_branch: string | null
+          employee_id: string
+          employee_name: string
+          id: string
+          reason: string | null
+          requested_branch: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_branch?: string | null
+          employee_id: string
+          employee_name: string
+          id?: string
+          reason?: string | null
+          requested_branch: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_branch?: string | null
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          reason?: string | null
+          requested_branch?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_branch_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_branch_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_invoice_access: {
         Row: {
           branch_id: string

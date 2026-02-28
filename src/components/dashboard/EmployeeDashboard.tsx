@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2, GraduationCap } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2, GraduationCap, ArrowRightLeft } from 'lucide-react';
 import { History } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -29,6 +29,8 @@ import ApplyLeaveDialog from './ApplyLeaveDialog';
 import BranchProfitLossDialog from './BranchProfitLossDialog';
 import BranchDashboard from './BranchDashboard';
 import StudentDashboard from './StudentDashboard';
+import BranchChangeRequestDialog from './BranchChangeRequestDialog';
+import { getEmployeePendingBranchRequest } from '@/services/employeeBranchRequestService';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -79,6 +81,15 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showViewPayslip, setShowViewPayslip] = useState(false);
   const [showApplyLeave, setShowApplyLeave] = useState(false);
   const [showBranchProfitLoss, setShowBranchProfitLoss] = useState(false);
+  const [showBranchChange, setShowBranchChange] = useState(false);
+
+  const { data: pendingBranchRequest } = useQuery({
+    queryKey: ['employee-pending-branch-request', effectiveEmployeeId],
+    queryFn: () => getEmployeePendingBranchRequest(effectiveEmployeeId || ''),
+    enabled: !!effectiveEmployeeId && employeeData?.type === 'Casual',
+    staleTime: 30 * 1000,
+  });
+
   useEffect(() => {
     fetchAttendanceData();
     fetchEmployeeData();
@@ -638,8 +649,31 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                   </div>
                 </Button>
               )}
-              
-              <Button 
+
+              {employeeData?.type === 'Casual' && (
+                <Button 
+                  className={`justify-start h-auto p-3 md:p-4`} 
+                  variant="outline"
+                  onClick={() => setShowBranchChange(true)}
+                  disabled={!!pendingBranchRequest}
+                >
+                  <ArrowRightLeft className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left flex-1">
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
+                      {pendingBranchRequest ? 'Branch Change Pending' : 'Update Branch'}
+                    </p>
+                    {employeeData.department && (
+                      <p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        Current: {employeeData.department}
+                      </p>
+                    )}
+                  </div>
+                  {pendingBranchRequest && (
+                    <Badge variant="secondary" className="text-xs">Pending</Badge>
+                  )}
+                </Button>
+              )}
+              <Button
                 className={`justify-start h-auto p-3 md:p-4`} 
                 variant="outline"
                 onClick={handleSubmitClaim}
@@ -776,6 +810,16 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           open={showBranchProfitLoss}
           onOpenChange={setShowBranchProfitLoss}
           employeeId={effectiveEmployeeId}
+        />
+      )}
+
+      {effectiveEmployeeId && employeeData?.type === 'Casual' && (
+        <BranchChangeRequestDialog
+          open={showBranchChange}
+          onOpenChange={setShowBranchChange}
+          employeeId={effectiveEmployeeId}
+          employeeName={employeeData.name}
+          currentBranch={employeeData.department || null}
         />
       )}
     </>
