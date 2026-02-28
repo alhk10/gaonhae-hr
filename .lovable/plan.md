@@ -1,39 +1,45 @@
 
 
-## Plan: Product Variants, Line Discounts, and Searchable Product Select
+## Plan: Casual Employee Branch Update with Superadmin Approval
 
-### Problem
-1. Products with size variants (e.g., uniforms) need a mandatory size selection before adding to invoice
-2. No line-level discount capability exists
-3. Product selection uses a basic dropdown — needs searchable/fuzzy matching like the student selector
+### Overview
+Allow casual employees to request a branch change from their dashboard. Requests go to superadmin for approval, following the same pattern as `student_update_requests` and `slot_booking_edit_requests`.
 
 ### Changes
 
-#### 1. Searchable Product Select (in `CreateInvoiceDialog.tsx`)
-- Create a `ProductSearchSelect` component using the same Popover+Command pattern as `StudentSearchSelect`
-- Apply the existing `fuzzyMatch` function for searching
-- Replace the plain `<Select>` for product in the inline add row with this searchable component
+#### 1. Create Supabase table: `employee_branch_requests`
+- Migration with columns: `id`, `employee_id`, `current_branch`, `requested_branch`, `reason`, `status` (pending/approved/rejected), `requested_at`, `reviewed_by`, `reviewed_at`, `review_notes`, `created_at`
+- RLS policies for authenticated users
 
-#### 2. Size Variant Selection Enhancement (in `CreateInvoiceDialog.tsx`)
-- Update `sizeOptions` derivation to also check `requires_size` + `available_sizes` fields (legacy path) in addition to `available_variants.sizes`
-- Validate in `addItem()` that if a product has size options, a size must be selected before adding
-- Show size selector for existing items too (currently just shows text)
+#### 2. New service: `src/services/employeeBranchRequestService.ts`
+- `createBranchRequest(employeeId, currentBranch, requestedBranch, reason)`
+- `getPendingBranchRequests()` — for superadmin dashboard
+- `getPendingBranchRequestsCount()`
+- `approveBranchRequest(requestId, reviewedBy)` — updates the employee's `department` field on approval
+- `rejectBranchRequest(requestId, reviewedBy, notes)`
+- `getEmployeeBranchRequests(employeeId)` — for employee to see their request status
 
-#### 3. Line Discount Column (in `CreateInvoiceDialog.tsx`)
-- Add `discount_type` ("percentage" | "amount") and `discount_value` (number) fields to the `InvoiceItem` interface
-- Add a "Discount" column to the items table between Price and Size
-- Clicking the discount cell opens a small Popover with:
-  - Toggle between "%" and "$" discount type
-  - Input field for the discount value
-- Update `total` calculation: `total = (qty * price) - discountAmount` where discountAmount is either a flat amount or `(qty * price) * (percentage / 100)`
-- Store discount info in the item's metadata when creating the invoice (since `invoice_items` table has no discount column)
-- Update `calculateTotals()` to use the discount-adjusted line totals
+#### 3. Update `EmployeeDashboard.tsx` — Add branch change request UI for casual employees
+- Show current branch with an "Update Branch" button (only for casual employees)
+- Opens a dialog with branch selector and reason field
+- Shows pending request status if one exists
+- Submits via the new service
 
-#### 4. Update Invoice Service (in `src/services/invoiceService.ts`)
-- Pass discount data in the metadata field of each invoice item
-- Apply line discount to `total_amount` when saving
+#### 4. New component: `src/components/dashboard/BranchChangeRequestDialog.tsx`
+- Branch selector (from existing branches list)
+- Reason text field
+- Submit button that calls `createBranchRequest`
+
+#### 5. Update `SuperadminDashboard.tsx` — Add branch change approvals section
+- New approval section "Branch Change Requests" alongside existing ones
+- Shows employee name, current branch, requested branch, reason
+- Approve/Reject buttons following existing approval UI patterns
+
+### Files to Create
+- `src/services/employeeBranchRequestService.ts`
+- `src/components/dashboard/BranchChangeRequestDialog.tsx`
 
 ### Files to Modify
-- `src/components/sales/CreateInvoiceDialog.tsx` — All three features
-- `src/services/invoiceService.ts` — Handle discount in item total calculation
+- `src/components/dashboard/EmployeeDashboard.tsx` — Add branch change button + dialog for casual employees
+- `src/components/dashboard/SuperadminDashboard.tsx` — Add branch change approval section
 
