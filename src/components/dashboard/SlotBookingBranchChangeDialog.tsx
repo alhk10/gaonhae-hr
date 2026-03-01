@@ -13,6 +13,7 @@ import { createEditRequest } from '@/services/slotBookingEditRequestService';
 import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookingService';
 import { format, parseISO, isSameDay } from 'date-fns';
 import { MapPin, ArrowRight } from 'lucide-react';
+import { convertTailwindColorToHex, getLighterColor } from '@/utils/colorUtils';
 
 interface SlotBookingBranchChangeDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
   const { data: branches = [] } = useQuery({
     queryKey: ['branches-list'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('branches').select('id, name').order('name');
+      const { data, error } = await supabase.from('branches').select('id, name, color').order('name');
       if (error) throw error;
       return data || [];
     },
@@ -63,42 +64,33 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
     return map;
   }, [bookings]);
 
-  // Branch color palette
-  const BRANCH_COLORS = [
-    { bg: '210 80% 55%', text: '210 80% 30%' },   // blue
-    { bg: '142 70% 45%', text: '142 70% 25%' },   // green
-    { bg: '25 90% 55%', text: '25 90% 30%' },      // orange
-    { bg: '270 60% 55%', text: '270 60% 30%' },    // purple
-    { bg: '340 75% 55%', text: '340 75% 30%' },    // pink
-    { bg: '175 70% 40%', text: '175 70% 22%' },    // teal
-    { bg: '0 75% 55%', text: '0 75% 30%' },        // red
-    { bg: '45 90% 50%', text: '45 90% 28%' },      // amber
-  ];
-
+  // Build branch color map from DB colors
   const branchColorMap = useMemo(() => {
-    const uniqueBranches = [...new Set(bookings.map((b: SlotBooking) => b.branchName))].sort();
-    const map = new Map<string, typeof BRANCH_COLORS[0]>();
-    uniqueBranches.forEach((name, i) => {
-      map.set(name, BRANCH_COLORS[i % BRANCH_COLORS.length]);
+    const map = new Map<string, string>();
+    const uniqueBranches = [...new Set(bookings.map((b: SlotBooking) => b.branchName))];
+    uniqueBranches.forEach((name) => {
+      const branch = branches.find(br => br.name === name);
+      const hex = branch?.color ? convertTailwindColorToHex(branch.color) : '#6b7280';
+      map.set(name, hex);
     });
     return map;
-  }, [bookings]);
+  }, [bookings, branches]);
 
   // Calendar modifiers & styles per branch
   const { branchModifiers, branchModifiersStyles } = useMemo(() => {
     const modifiers: Record<string, Date[]> = {};
     const styles: Record<string, React.CSSProperties> = {};
 
-    branchColorMap.forEach((color, branchName) => {
+    branchColorMap.forEach((hex, branchName) => {
       const key = `branch-${branchName.replace(/\s+/g, '-')}`;
       modifiers[key] = bookings
         .filter((b: SlotBooking) => b.branchName === branchName)
         .map((b: SlotBooking) => parseISO(b.date));
       styles[key] = {
-        backgroundColor: `hsl(${color.bg} / 0.25)`,
+        backgroundColor: getLighterColor(hex),
         borderRadius: '6px',
         fontWeight: 600,
-        color: `hsl(${color.text})`,
+        color: hex,
       };
     });
 
@@ -180,9 +172,9 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
           {/* Branch color legend */}
           {branchColorMap.size > 0 && (
             <div className="flex items-center gap-4 justify-center text-xs flex-wrap">
-              {[...branchColorMap.entries()].map(([branchName, color]) => (
+              {[...branchColorMap.entries()].map(([branchName, hex]) => (
                 <div key={branchName} className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: `hsl(${color.bg} / 0.4)` }} />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: hex }} />
                   <span className="text-muted-foreground">{branchName}</span>
                 </div>
               ))}
