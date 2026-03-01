@@ -20,6 +20,7 @@ import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingM
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
 import BranchChangeApprovals from './BranchChangeApprovals';
+import InvoicesCreatedSection from './InvoicesCreatedSection';
 import { useAuth } from '@/contexts/AuthContext';
 
 const SuperadminDashboard = () => {
@@ -114,6 +115,9 @@ const SuperadminDashboard = () => {
         {pendingEditRequestsCount > 0 && (
           <SlotBookingEditApprovals />
         )}
+
+        {/* Invoices Created */}
+        <InvoicesCreatedSection />
 
         {/* Slot Booking Management Calendar */}
         <SlotBookingManagementContent />
