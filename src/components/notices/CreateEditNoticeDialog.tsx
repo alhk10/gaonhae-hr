@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,14 +8,16 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ImagePlus, Paperclip, X, Loader2 } from 'lucide-react';
+import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type } from 'lucide-react';
 import { toast } from 'sonner';
 import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Toggle } from '@/components/ui/toggle';
+import { Separator } from '@/components/ui/separator';
 
 interface CreateEditNoticeDialogProps {
   open: boolean;
@@ -38,8 +40,20 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [allBranches, setAllBranches] = useState(true);
   const [saving, setSaving] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
+
+  const execCommand = useCallback((command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    contentRef.current?.focus();
+  }, []);
+
+  const handleFontSize = (size: string) => {
+    // Map readable sizes to execCommand fontSize (1-7)
+    const sizeMap: Record<string, string> = { 'small': '2', 'normal': '3', 'large': '4', 'x-large': '5' };
+    execCommand('fontSize', sizeMap[size] || '3');
+  };
 
   const { data: branches = [] } = useQuery({
     queryKey: ['branches-list'],
@@ -58,6 +72,10 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setImagePreview(notice.image_url);
         setSelectedBranches(notice.target_branches || []);
         setAllBranches(!notice.target_branches);
+        // Set contentEditable HTML after mount
+        setTimeout(() => {
+          if (contentRef.current) contentRef.current.innerHTML = notice.content || '';
+        }, 50);
       } else {
         setSubject('');
         setContent('');
@@ -66,6 +84,9 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setAttachmentFile(null);
         setSelectedBranches([]);
         setAllBranches(true);
+        setTimeout(() => {
+          if (contentRef.current) contentRef.current.innerHTML = '';
+        }, 50);
       }
     }
   }, [open, notice]);
@@ -168,10 +189,49 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
             <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
           </div>
 
-          {/* Content */}
+          {/* Content with formatting toolbar */}
           <div>
             <Label>Content</Label>
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Notice content..." rows={4} />
+            <div className="mt-1 border rounded-md overflow-hidden">
+              <div className="flex items-center gap-0.5 p-1 bg-muted/50 border-b flex-wrap">
+                <Select onValueChange={handleFontSize} defaultValue="normal">
+                  <SelectTrigger className="h-7 w-[90px] text-xs">
+                    <Type className="w-3 h-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Small</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="large">Large</SelectItem>
+                    <SelectItem value="x-large">X-Large</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Separator orientation="vertical" className="h-5 mx-0.5" />
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('bold')} aria-label="Bold">
+                  <Bold className="w-3.5 h-3.5" />
+                </Toggle>
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('underline')} aria-label="Underline">
+                  <Underline className="w-3.5 h-3.5" />
+                </Toggle>
+                <Separator orientation="vertical" className="h-5 mx-0.5" />
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('indent')} aria-label="Indent">
+                  <IndentIncrease className="w-3.5 h-3.5" />
+                </Toggle>
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('outdent')} aria-label="Outdent">
+                  <IndentDecrease className="w-3.5 h-3.5" />
+                </Toggle>
+              </div>
+              <div
+                ref={contentRef}
+                contentEditable
+                className="min-h-[100px] p-3 text-sm focus:outline-none"
+                onInput={() => {
+                  setContent(contentRef.current?.innerHTML || '');
+                }}
+                data-placeholder="Notice content..."
+                style={{ whiteSpace: 'pre-wrap' }}
+              />
+            </div>
           </div>
 
           {/* Attachment */}
