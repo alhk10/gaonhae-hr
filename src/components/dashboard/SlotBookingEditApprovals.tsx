@@ -94,7 +94,7 @@ const SlotBookingEditApprovals: React.FC = () => {
             <Badge variant="destructive" className="ml-2">{requests.length} pending</Badge>
           )}
         </CardTitle>
-        <CardDescription>Review cancel/swap requests for casual employee slot bookings</CardDescription>
+        <CardDescription>Review cancel/swap/branch change requests for casual employee slot bookings</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -118,7 +118,7 @@ const SlotBookingEditApprovals: React.FC = () => {
                 <TableHead>Type</TableHead>
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Requested By</TableHead>
-                <TableHead>New Employee</TableHead>
+                <TableHead>Details</TableHead>
                 <TableHead>Reason</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -128,13 +128,17 @@ const SlotBookingEditApprovals: React.FC = () => {
               {requests.map(req => (
                 <TableRow key={req.id}>
                   <TableCell>
-                    <Badge variant={req.request_type === 'cancel' ? 'destructive' : 'secondary'}>
-                      {req.request_type}
+                    <Badge variant={req.request_type === 'cancel' ? 'destructive' : req.request_type === 'branch_change' ? 'outline' : 'secondary'}>
+                      {req.request_type === 'branch_change' ? 'branch change' : req.request_type}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs max-w-[120px] truncate">{req.booking_id}</TableCell>
                   <TableCell className="text-sm">{req.requested_by}</TableCell>
-                  <TableCell className="text-sm">{req.new_employee_name || '-'}</TableCell>
+                  <TableCell className="text-sm">
+                    {req.request_type === 'branch_change' 
+                      ? (req.new_branch_name || '-')
+                      : (req.new_employee_name || '-')}
+                  </TableCell>
                   <TableCell className="text-sm max-w-[200px] truncate">{req.reason}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(req.created_at)}</TableCell>
                   <TableCell className="text-right">
