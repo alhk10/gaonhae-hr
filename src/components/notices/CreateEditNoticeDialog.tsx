@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette } from 'lucide-react';
+import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
@@ -49,6 +49,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [link, setLink] = useState('');
+  const [deleteOn, setDeleteOn] = useState('');
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [allBranches, setAllBranches] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -99,7 +101,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setImagePreview(notice.image_url);
         setSelectedBranches(notice.target_branches || []);
         setAllBranches(!notice.target_branches);
-        // Set contentEditable HTML after mount
+        setLink(notice.link || '');
+        setDeleteOn(notice.delete_on || '');
         setTimeout(() => {
           if (contentRef.current) contentRef.current.innerHTML = notice.content || '';
         }, 50);
@@ -109,6 +112,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setImageFile(null);
         setImagePreview(null);
         setAttachmentFile(null);
+        setLink('');
+        setDeleteOn('');
         setSelectedBranches([]);
         setAllBranches(true);
         setTimeout(() => {
@@ -153,6 +158,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         image_url,
         attachment_url,
         attachment_name,
+        link: link.trim() || null,
+        delete_on: deleteOn || null,
         target_branches: targetBranches,
         created_by_email: userEmail,
         created_by_branch_id: role === 'branch' ? branchId || null : null,
@@ -297,6 +304,32 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
               )}
             </div>
             <input ref={attachInputRef} type="file" className="hidden" onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)} />
+          </div>
+
+          {/* Link */}
+          <div>
+            <Label>Link</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <Link className="w-4 h-4 text-muted-foreground shrink-0" />
+              <Input
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://..."
+                type="url"
+              />
+            </div>
+          </div>
+
+          {/* Delete on date */}
+          <div>
+            <Label>Delete Notice On</Label>
+            <Input
+              type="date"
+              value={deleteOn}
+              onChange={(e) => setDeleteOn(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Notice will be automatically deleted on this date</p>
           </div>
 
           {/* Branch selector (superadmin only) */}

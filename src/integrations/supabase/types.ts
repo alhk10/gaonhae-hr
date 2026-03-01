@@ -2431,9 +2431,11 @@ export type Database = {
           created_at: string | null
           created_by_branch_id: string | null
           created_by_email: string
+          delete_on: string | null
           id: string
           image_url: string | null
           is_active: boolean | null
+          link: string | null
           subject: string
           target_branches: string[] | null
           updated_at: string | null
@@ -2445,9 +2447,11 @@ export type Database = {
           created_at?: string | null
           created_by_branch_id?: string | null
           created_by_email: string
+          delete_on?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          link?: string | null
           subject: string
           target_branches?: string[] | null
           updated_at?: string | null
@@ -2459,9 +2463,11 @@ export type Database = {
           created_at?: string | null
           created_by_branch_id?: string | null
           created_by_email?: string
+          delete_on?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          link?: string | null
           subject?: string
           target_branches?: string[] | null
           updated_at?: string | null
