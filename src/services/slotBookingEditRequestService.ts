@@ -8,6 +8,8 @@ export interface SlotBookingEditRequest {
   requested_by: string;
   new_employee_id: string | null;
   new_employee_name: string | null;
+  new_branch_id: string | null;
+  new_branch_name: string | null;
   reason: string;
   status: string;
   reviewed_by: string | null;
@@ -17,11 +19,13 @@ export interface SlotBookingEditRequest {
 
 export const createEditRequest = async (params: {
   bookingId: string;
-  requestType: 'cancel' | 'swap';
+  requestType: 'cancel' | 'swap' | 'branch_change';
   requestedBy: string;
   reason: string;
   newEmployeeId?: string;
   newEmployeeName?: string;
+  newBranchId?: string;
+  newBranchName?: string;
 }): Promise<void> => {
   const { error } = await supabase
     .from('slot_booking_edit_requests' as any)
@@ -32,6 +36,8 @@ export const createEditRequest = async (params: {
       reason: params.reason,
       new_employee_id: params.newEmployeeId || null,
       new_employee_name: params.newEmployeeName || null,
+      new_branch_id: params.newBranchId || null,
+      new_branch_name: params.newBranchName || null,
       status: 'pending',
     });
 
@@ -71,7 +77,6 @@ export const getPendingEditRequestsCount = async (): Promise<number> => {
 };
 
 export const approveEditRequest = async (requestId: string, reviewedBy: string): Promise<void> => {
-  // Get the request details first
   const { data: request, error: fetchError } = await supabase
     .from('slot_booking_edit_requests' as any)
     .select('*')
@@ -84,7 +89,6 @@ export const approveEditRequest = async (requestId: string, reviewedBy: string):
 
   const req = request as unknown as SlotBookingEditRequest;
 
-  // Execute the action based on request type
   if (req.request_type === 'cancel') {
     const { error: cancelError } = await supabase
       .from('slot_bookings_new')
@@ -103,9 +107,19 @@ export const approveEditRequest = async (requestId: string, reviewedBy: string):
       .eq('id', req.booking_id);
 
     if (swapError) throw new Error(`Failed to swap employee: ${swapError.message}`);
+  } else if (req.request_type === 'branch_change') {
+    const { error: branchError } = await supabase
+      .from('slot_bookings_new')
+      .update({
+        branch_id: req.new_branch_id,
+        branch_name: req.new_branch_name,
+        notes: `Branch changed via approved edit request: ${req.reason}`,
+      })
+      .eq('id', req.booking_id);
+
+    if (branchError) throw new Error(`Failed to change branch: ${branchError.message}`);
   }
 
-  // Update request status
   const { error: updateError } = await supabase
     .from('slot_booking_edit_requests' as any)
     .update({
