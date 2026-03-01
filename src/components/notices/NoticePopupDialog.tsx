@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, ZoomIn } from 'lucide-react';
+import { Download, ZoomIn, ExternalLink } from 'lucide-react';
 import { Notice } from '@/services/noticeService';
 import { format } from 'date-fns';
 
@@ -55,6 +55,15 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
                 <a href={notice.attachment_url} target="_blank" rel="noopener noreferrer" download>
                   <Download className="w-4 h-4 mr-2" />
                   {notice.attachment_name || 'Download Attachment'}
+                </a>
+              </Button>
+            )}
+
+            {notice.link && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={notice.link} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open Link
                 </a>
               </Button>
             )}

@@ -7,6 +7,8 @@ export interface Notice {
   image_url: string | null;
   attachment_url: string | null;
   attachment_name: string | null;
+  link: string | null;
+  delete_on: string | null;
   created_by_email: string;
   created_by_branch_id: string | null;
   target_branches: string[] | null;
@@ -16,6 +18,15 @@ export interface Notice {
 }
 
 export const getNotices = async (): Promise<Notice[]> => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // First delete notices past their delete_on date
+  await supabase
+    .from('notices' as any)
+    .delete()
+    .lte('delete_on', today)
+    .not('delete_on', 'is', null);
+
   const { data, error } = await supabase
     .from('notices' as any)
     .select('*')
