@@ -63,15 +63,47 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
     return map;
   }, [bookings]);
 
-  // Calendar modifiers
-  const approvedDates = useMemo(() => 
-    bookings.filter((b: SlotBooking) => b.status === 'approved').map((b: SlotBooking) => parseISO(b.date)),
-    [bookings]
-  );
-  const pendingDates = useMemo(() => 
-    bookings.filter((b: SlotBooking) => b.status === 'pending').map((b: SlotBooking) => parseISO(b.date)),
-    [bookings]
-  );
+  // Branch color palette
+  const BRANCH_COLORS = [
+    { bg: '210 80% 55%', text: '210 80% 30%' },   // blue
+    { bg: '142 70% 45%', text: '142 70% 25%' },   // green
+    { bg: '25 90% 55%', text: '25 90% 30%' },      // orange
+    { bg: '270 60% 55%', text: '270 60% 30%' },    // purple
+    { bg: '340 75% 55%', text: '340 75% 30%' },    // pink
+    { bg: '175 70% 40%', text: '175 70% 22%' },    // teal
+    { bg: '0 75% 55%', text: '0 75% 30%' },        // red
+    { bg: '45 90% 50%', text: '45 90% 28%' },      // amber
+  ];
+
+  const branchColorMap = useMemo(() => {
+    const uniqueBranches = [...new Set(bookings.map((b: SlotBooking) => b.branchName))].sort();
+    const map = new Map<string, typeof BRANCH_COLORS[0]>();
+    uniqueBranches.forEach((name, i) => {
+      map.set(name, BRANCH_COLORS[i % BRANCH_COLORS.length]);
+    });
+    return map;
+  }, [bookings]);
+
+  // Calendar modifiers & styles per branch
+  const { branchModifiers, branchModifiersStyles } = useMemo(() => {
+    const modifiers: Record<string, Date[]> = {};
+    const styles: Record<string, React.CSSProperties> = {};
+
+    branchColorMap.forEach((color, branchName) => {
+      const key = `branch-${branchName.replace(/\s+/g, '-')}`;
+      modifiers[key] = bookings
+        .filter((b: SlotBooking) => b.branchName === branchName)
+        .map((b: SlotBooking) => parseISO(b.date));
+      styles[key] = {
+        backgroundColor: `hsl(${color.bg} / 0.25)`,
+        borderRadius: '6px',
+        fontWeight: 600,
+        color: `hsl(${color.text})`,
+      };
+    });
+
+    return { branchModifiers: modifiers, branchModifiersStyles: styles };
+  }, [bookings, branchColorMap]);
 
   const handleDayClick = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -139,39 +171,23 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
               mode="single"
               selected={selectedBooking ? parseISO(selectedBooking.date) : undefined}
               onSelect={(day) => day && handleDayClick(day)}
-              modifiers={{
-                approved: approvedDates,
-                pending: pendingDates,
-              }}
-              modifiersStyles={{
-                approved: {
-                  backgroundColor: 'hsl(var(--chart-2) / 0.2)',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  color: 'hsl(var(--chart-2))',
-                },
-                pending: {
-                  backgroundColor: 'hsl(var(--chart-4) / 0.2)',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  color: 'hsl(var(--chart-4))',
-                },
-              }}
+              modifiers={branchModifiers}
+              modifiersStyles={branchModifiersStyles}
               className="pointer-events-auto"
             />
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 justify-center text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.3)' }} />
-              <span className="text-muted-foreground">Approved</span>
+          {/* Branch color legend */}
+          {branchColorMap.size > 0 && (
+            <div className="flex items-center gap-4 justify-center text-xs flex-wrap">
+              {[...branchColorMap.entries()].map(([branchName, color]) => (
+                <div key={branchName} className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: `hsl(${color.bg} / 0.4)` }} />
+                  <span className="text-muted-foreground">{branchName}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-4) / 0.3)' }} />
-              <span className="text-muted-foreground">Pending</span>
-            </div>
-          </div>
+          )}
 
           {/* Selected date bookings */}
           {selectedBooking && (
