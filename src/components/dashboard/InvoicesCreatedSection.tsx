@@ -57,6 +57,11 @@ const InvoicesCreatedSection = () => {
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
+  // Hide when empty and not loading
+  if (!isLoading && invoices.length === 0) {
+    return null;
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">

@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Check, X, CalendarClock, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -65,17 +64,22 @@ const SlotBookingEditApprovals: React.FC = () => {
       hour: '2-digit', minute: '2-digit',
     });
 
+  // Hide when empty and not loading
+  if (!isLoading && !error && requests.length === 0) {
+    return null;
+  }
+
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarClock className="w-5 h-5 text-destructive" />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <CalendarClock className="w-4 h-4 text-destructive" />
             Slot Booking Edit Requests
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 text-destructive">
+          <div className="flex items-center gap-2 text-destructive text-sm">
             <AlertCircle className="w-4 h-4" />
             <span>Failed to load edit requests</span>
           </div>
@@ -86,85 +90,60 @@ const SlotBookingEditApprovals: React.FC = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarClock className="w-5 h-5 text-orange-500" />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CalendarClock className="w-4 h-4 text-orange-500" />
           Slot Booking Edit Requests
           {requests.length > 0 && (
-            <Badge variant="destructive" className="ml-2">{requests.length} pending</Badge>
+            <Badge variant="destructive" className="text-xs ml-1">{requests.length}</Badge>
           )}
         </CardTitle>
-        <CardDescription>Review cancel/swap/branch change requests for casual employee slot bookings</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[1, 2].map(i => (
-              <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+              <div key={i} className="flex items-center justify-between p-2 border rounded">
                 <Skeleton className="h-4 w-32" />
-                <div className="flex gap-2"><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /></div>
+                <div className="flex gap-1"><Skeleton className="h-7 w-7" /><Skeleton className="h-7 w-7" /></div>
               </div>
             ))}
           </div>
-        ) : requests.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CalendarClock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No pending slot booking edit requests</p>
-          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Booking ID</TableHead>
-                <TableHead>Requested By</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map(req => (
-                <TableRow key={req.id}>
-                  <TableCell>
-                    <Badge variant={req.request_type === 'cancel' ? 'destructive' : req.request_type === 'branch_change' ? 'outline' : 'secondary'}>
-                      {req.request_type === 'branch_change' ? 'branch change' : req.request_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs max-w-[120px] truncate">{req.booking_id}</TableCell>
-                  <TableCell className="text-sm">{req.requested_by}</TableCell>
-                  <TableCell className="text-sm">
-                    {req.request_type === 'branch_change' 
-                      ? (req.new_branch_name || '-')
-                      : (req.new_employee_name || '-')}
-                  </TableCell>
-                  <TableCell className="text-sm max-w-[200px] truncate">{req.reason}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{formatDate(req.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => handleApprove(req.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleReject(req.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-2">
+            {requests.map(req => (
+              <div key={req.id} className="flex items-center justify-between gap-2 p-2 border rounded text-sm">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Badge variant={req.request_type === 'cancel' ? 'destructive' : req.request_type === 'branch_change' ? 'outline' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
+                    {req.request_type === 'branch_change' ? 'branch' : req.request_type}
+                  </Badge>
+                  <span className="truncate text-muted-foreground">{req.requested_by}</span>
+                  <span className="truncate hidden sm:inline">
+                    {req.request_type === 'branch_change' ? req.new_branch_name : req.new_employee_name || '-'}
+                  </span>
+                  {req.reason && <span className="truncate text-xs text-muted-foreground hidden md:inline">— {req.reason}</span>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={() => handleApprove(req.id)}
+                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleReject(req.id)}
+                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
