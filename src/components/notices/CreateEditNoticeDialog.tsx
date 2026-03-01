@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type } from 'lucide-react';
+import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +18,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+const TEXT_COLORS = [
+  { label: 'Black', value: '#000000' },
+  { label: 'Red', value: '#dc2626' },
+  { label: 'Blue', value: '#2563eb' },
+  { label: 'Green', value: '#16a34a' },
+  { label: 'Orange', value: '#ea580c' },
+  { label: 'Purple', value: '#9333ea' },
+  { label: 'Pink', value: '#ec4899' },
+  { label: 'Gray', value: '#6b7280' },
+];
 
 interface CreateEditNoticeDialogProps {
   open: boolean;
@@ -56,12 +68,27 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
   };
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['branches-list'],
+    queryKey: ['branches-list-with-country'],
     queryFn: async () => {
-      const { data } = await supabase.from('branches').select('id, name').order('name');
+      const { data } = await supabase.from('branches').select('id, name, country').order('name');
       return data || [];
     },
     enabled: role === 'superadmin',
+  });
+
+  // Group branches by country
+  const branchesByCountry = branches.reduce<Record<string, typeof branches>>((acc, b) => {
+    const country = b.country || 'Other';
+    if (!acc[country]) acc[country] = [];
+    acc[country].push(b);
+    return acc;
+  }, {});
+
+  // Sort countries: named countries first alphabetically, 'Other' last
+  const sortedCountries = Object.keys(branchesByCountry).sort((a, b) => {
+    if (a === 'Other') return 1;
+    if (b === 'Other') return -1;
+    return a.localeCompare(b);
   });
 
   useEffect(() => {
@@ -220,6 +247,27 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                 <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('outdent')} aria-label="Outdent">
                   <IndentDecrease className="w-3.5 h-3.5" />
                 </Toggle>
+                <Separator orientation="vertical" className="h-5 mx-0.5" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <Palette className="w-3.5 h-3.5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2" align="start">
+                    <div className="grid grid-cols-4 gap-1">
+                      {TEXT_COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          className="w-6 h-6 rounded-full border border-border hover:scale-110 transition-transform"
+                          style={{ backgroundColor: c.value }}
+                          title={c.label}
+                          onClick={() => execCommand('foreColor', c.value)}
+                        />
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div
                 ref={contentRef}
@@ -267,18 +315,25 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                   <span className="text-sm">All Branches</span>
                 </div>
                 {!allBranches && (
-                  <div className="ml-6 space-y-1 max-h-40 overflow-y-auto">
-                    {branches.map((b) => (
-                      <div key={b.id} className="flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedBranches.includes(b.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedBranches(prev =>
-                              checked ? [...prev, b.id] : prev.filter(id => id !== b.id)
-                            );
-                          }}
-                        />
-                        <span className="text-sm">{b.name}</span>
+                  <div className="ml-6 space-y-3 max-h-40 overflow-y-auto">
+                    {sortedCountries.map((country) => (
+                      <div key={country}>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{country}</p>
+                        <div className="space-y-1 ml-2">
+                          {branchesByCountry[country].map((b) => (
+                            <div key={b.id} className="flex items-center gap-2">
+                              <Checkbox
+                                checked={selectedBranches.includes(b.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedBranches(prev =>
+                                    checked ? [...prev, b.id] : prev.filter(id => id !== b.id)
+                                  );
+                                }}
+                              />
+                              <span className="text-sm">{b.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
