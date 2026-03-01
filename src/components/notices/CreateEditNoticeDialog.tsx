@@ -349,10 +349,26 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                 </div>
                 {!allBranches && (
                   <div className="ml-6 space-y-3 max-h-40 overflow-y-auto">
-                    {sortedCountries.map((country) => (
+                    {sortedCountries.map((country) => {
+                      const countryBranchIds = branchesByCountry[country].map(b => b.id);
+                      const allCountrySelected = countryBranchIds.every(id => selectedBranches.includes(id));
+                      const someCountrySelected = countryBranchIds.some(id => selectedBranches.includes(id)) && !allCountrySelected;
+                      return (
                       <div key={country}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{country}</p>
-                        <div className="space-y-1 ml-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Checkbox
+                            checked={allCountrySelected || (someCountrySelected ? 'indeterminate' : false)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedBranches(prev => [...new Set([...prev, ...countryBranchIds])]);
+                              } else {
+                                setSelectedBranches(prev => prev.filter(id => !countryBranchIds.includes(id)));
+                              }
+                            }}
+                          />
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{country}</span>
+                        </div>
+                        <div className="space-y-1 ml-6">
                           {branchesByCountry[country].map((b) => (
                             <div key={b.id} className="flex items-center gap-2">
                               <Checkbox
@@ -368,7 +384,8 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                           ))}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
