@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2, GraduationCap, ArrowRightLeft } from 'lucide-react';
+import { Calendar, FileText, Clock, MapPin, AlertCircle, RefreshCw, CalendarPlus, DollarSign, Building2, GraduationCap } from 'lucide-react';
 import { History } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ import ApplyLeaveDialog from './ApplyLeaveDialog';
 import BranchProfitLossDialog from './BranchProfitLossDialog';
 import BranchDashboard from './BranchDashboard';
 import StudentDashboard from './StudentDashboard';
-import SlotBookingBranchChangeDialog from './SlotBookingBranchChangeDialog';
+
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -80,7 +80,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showViewPayslip, setShowViewPayslip] = useState(false);
   const [showApplyLeave, setShowApplyLeave] = useState(false);
   const [showBranchProfitLoss, setShowBranchProfitLoss] = useState(false);
-  const [showBranchChange, setShowBranchChange] = useState(false);
+  
 
 
   useEffect(() => {
@@ -643,20 +643,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                 </Button>
               )}
 
-              {employeeData?.type === 'Casual' && (
-                <Button 
-                  className={`justify-start h-auto p-3 md:p-4`} 
-                  variant="outline"
-                  onClick={() => setShowBranchChange(true)}
-                >
-                  <ArrowRightLeft className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <div className="text-left flex-1">
-                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                      Change Booking Branch
-                    </p>
-                  </div>
-                </Button>
-              )}
               <Button
                 className={`justify-start h-auto p-3 md:p-4`} 
                 variant="outline"
@@ -797,14 +783,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         />
       )}
 
-      {effectiveEmployeeId && employeeData?.type === 'Casual' && (
-        <SlotBookingBranchChangeDialog
-          open={showBranchChange}
-          onOpenChange={setShowBranchChange}
-          employeeId={effectiveEmployeeId}
-          employeeName={employeeData.name}
-        />
-      )}
     </>
   );
 
