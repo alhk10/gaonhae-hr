@@ -353,9 +353,9 @@ export const calculateActualHoursWorked = (
   const expectedDuration = getExpectedSlotDuration(dateString);
   const slotTiming = getSlotTimingForDateSync(dateString);
   
-  // If no check-in, assume full day (attendance not recorded)
+  // If no check-in, return 0 hours (no times recorded)
   if (!checkIn) {
-    return expectedDuration;
+    return 0;
   }
   
   // If check-in exists but no check-out, assume only 1 hour of work
@@ -400,9 +400,9 @@ export const calculateActualHoursWorkedAsync = async (
   const expectedDuration = await getExpectedSlotDurationAsync(dateString);
   const slotTiming = await getSlotTimingForDate(dateString);
   
-  // If no check-in, assume full day (attendance not recorded)
+  // If no check-in, return 0 hours (no times recorded)
   if (!checkIn) {
-    return expectedDuration;
+    return 0;
   }
   
   // If check-in exists but no check-out, assume only 1 hour of work
