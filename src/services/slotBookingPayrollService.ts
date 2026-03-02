@@ -99,9 +99,21 @@ export const getSlotBookingPayForPeriod = async (
     for (const booking of bookings) {
       const attendance = attendanceMap.get(booking.date);
       
-      // Only count bookings where employee actually attended
       if (!attendance) {
-        console.log('[SlotBookingPayroll] Skipping booking on', booking.date, '- no attendance record');
+        // Include booking without attendance as unattended row
+        console.log('[SlotBookingPayroll] No attendance for', booking.date, '- including as unattended');
+        breakdown.push({
+          date: booking.date,
+          branchName: booking.branch_name || 'Unknown Branch',
+          pay: 0,
+          hasAttendance: false,
+          checkIn: null,
+          checkOut: null,
+          hoursWorked: 0,
+          expectedHours: 0,
+          attendanceId: null,
+          fullSlotRate: 0
+        });
         continue;
       }
 
