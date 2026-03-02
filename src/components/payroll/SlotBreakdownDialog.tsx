@@ -3,10 +3,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Clock, DollarSign, Pencil, Check, X, Award } from "lucide-react";
+import { Calendar, Clock, DollarSign, Pencil, Check, X, Award, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
-import { updateAttendanceRecord } from "@/services/attendanceService";
+import { updateAttendanceRecord, addAttendanceRecord } from "@/services/attendanceService";
 import { toast } from "sonner";
 
 export interface SlotBreakdownItem {
@@ -76,6 +76,7 @@ interface SlotBreakdownDialogProps {
   isOpen: boolean;
   onClose: () => void;
   employeeName: string;
+  employeeId: string;
   breakdown: SlotBreakdownItem[];
   totalPay: number;
   totalSlots: number;
@@ -90,6 +91,7 @@ export function SlotBreakdownDialog({
   isOpen,
   onClose,
   employeeName,
+  employeeId,
   breakdown,
   totalPay,
   totalSlots,
@@ -126,24 +128,33 @@ export function SlotBreakdownDialog({
   };
 
   const handleSaveEdit = async (item: SlotBreakdownItem) => {
-    if (!item.attendanceId) {
-      toast.error('Cannot update: No attendance record found for this slot');
-      return;
-    }
-
     setIsSaving(true);
     try {
       const checkInTime = editCheckIn ? convertTo24Hour(editCheckIn) : null;
       const checkOutTime = editCheckOut ? convertTo24Hour(editCheckOut) : null;
       const hoursWorked = calculateHoursWorked(checkInTime, checkOutTime);
 
-      await updateAttendanceRecord(item.attendanceId, {
-        checkIn: checkInTime,
-        checkOut: checkOutTime,
-        hoursWorked: hoursWorked,
-      });
+      if (item.attendanceId) {
+        // Update existing attendance
+        await updateAttendanceRecord(item.attendanceId, {
+          checkIn: checkInTime,
+          checkOut: checkOutTime,
+          hoursWorked: hoursWorked,
+        });
+        toast.success('Attendance times updated successfully');
+      } else {
+        // Add new attendance record
+        await addAttendanceRecord({
+          employeeId: employeeId,
+          date: item.date,
+          checkIn: checkInTime,
+          checkOut: checkOutTime,
+          status: 'Present',
+          hoursWorked: hoursWorked,
+        });
+        toast.success('Attendance record added successfully');
+      }
 
-      toast.success('Attendance times updated successfully');
       setEditingIndex(null);
       setEditCheckIn('');
       setEditCheckOut('');
@@ -152,8 +163,8 @@ export function SlotBreakdownDialog({
         onUpdate();
       }
     } catch (error) {
-      console.error('Error updating attendance:', error);
-      toast.error('Failed to update attendance times');
+      console.error('Error saving attendance:', error);
+      toast.error('Failed to save attendance record');
     } finally {
       setIsSaving(false);
     }
@@ -232,11 +243,14 @@ export function SlotBreakdownDialog({
                 </TableHeader>
                 <TableBody>
                   {breakdown.map((item, index) => (
-                    <TableRow key={index} className="hover:bg-muted/30">
+                    <TableRow key={index} className={item.hasAttendance ? "hover:bg-muted/30" : "bg-muted/20 border-dashed hover:bg-muted/40"}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
                           {format(new Date(item.date), "dd MMM yyyy")}
+                          {!item.hasAttendance && editingIndex !== index && (
+                            <Badge variant="outline" className="text-xs border-dashed text-muted-foreground">No attendance</Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -253,9 +267,9 @@ export function SlotBreakdownDialog({
                             className="w-28 h-8 text-sm"
                           />
                         ) : (
-                          <div className="flex items-center gap-1 text-sm">
+                          <div className={`flex items-center gap-1 text-sm ${!item.hasAttendance ? 'text-muted-foreground' : ''}`}>
                             <Clock className="w-3 h-3 text-muted-foreground" />
-                            {formatTime(item.checkIn)}
+                            {item.hasAttendance ? formatTime(item.checkIn) : '--'}
                           </div>
                         )}
                       </TableCell>
@@ -268,26 +282,26 @@ export function SlotBreakdownDialog({
                             className="w-28 h-8 text-sm"
                           />
                         ) : (
-                          <div className="flex items-center gap-1 text-sm">
+                          <div className={`flex items-center gap-1 text-sm ${!item.hasAttendance ? 'text-muted-foreground' : ''}`}>
                             <Clock className="w-3 h-3 text-muted-foreground" />
-                            {formatTime(item.checkOut)}
+                            {item.hasAttendance ? formatTime(item.checkOut) : '--'}
                           </div>
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-medium">
+                        <span className={`text-sm font-medium ${!item.hasAttendance && editingIndex !== index ? 'text-muted-foreground' : ''}`}>
                           {editingIndex === index 
                             ? formatDuration(calculateHoursWorked(
                                 editCheckIn ? convertTo24Hour(editCheckIn) : null,
                                 editCheckOut ? convertTo24Hour(editCheckOut) : null
                               ))
-                            : formatDuration(item.hoursWorked)
+                            : item.hasAttendance ? formatDuration(item.hoursWorked) : '--'
                           }
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-semibold text-green-600">
-                          S${item.pay.toFixed(2)}
+                        <span className={item.hasAttendance ? "font-semibold text-green-600" : "text-muted-foreground"}>
+                          {item.hasAttendance ? `S$${item.pay.toFixed(2)}` : 'S$0.00'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -312,16 +326,26 @@ export function SlotBreakdownDialog({
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
-                        ) : (
+                        ) : item.hasAttendance ? (
                           <Button
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground hover:text-primary"
                             onClick={() => handleStartEdit(index, item)}
                             disabled={!item.attendanceId}
-                            title={item.attendanceId ? "Edit times" : "No attendance record"}
+                            title="Edit times"
                           >
                             <Pencil className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-primary hover:text-primary/80 hover:bg-primary/10"
+                            onClick={() => handleStartEdit(index, item)}
+                            title="Add attendance"
+                          >
+                            <Plus className="w-4 h-4" />
                           </Button>
                         )}
                       </TableCell>
@@ -366,12 +390,14 @@ export function SlotBreakdownDialog({
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-x-6 gap-y-1">
-                <p className="text-muted-foreground">
-                  Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
-                </p>
+                {totalSlots > 0 && (
+                  <p className="text-muted-foreground">
+                    Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
+                  </p>
+                )}
                 <p className="text-muted-foreground">
                   Average pay per hour: <span className="font-semibold text-foreground">S${(() => {
-                    const totalHours = breakdown.reduce((sum, item) => sum + (item.hoursWorked || 0), 0);
+                    const totalHours = breakdown.filter(i => i.hasAttendance).reduce((sum, item) => sum + (item.hoursWorked || 0), 0);
                     return totalHours > 0 ? (totalPay / totalHours).toFixed(2) : '0.00';
                   })()}</span>
                 </p>

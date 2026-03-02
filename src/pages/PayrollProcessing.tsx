@@ -1876,6 +1876,7 @@ const PayrollProcessing = () => {
               setSlotBreakdownData(null);
             }}
             employeeName={slotBreakdownData.employeeName}
+            employeeId={slotBreakdownData.employeeId}
             breakdown={slotBreakdownData.breakdown}
             totalPay={slotBreakdownData.totalPay}
             totalSlots={slotBreakdownData.totalSlots}
