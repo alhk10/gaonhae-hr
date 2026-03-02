@@ -1610,7 +1610,7 @@ const PayrollProcessing = () => {
                     <Badge variant="outline">Monthly</Badge>
                   </TableCell>
                   <TableCell className="py-2">S${employee.grossSalary.toFixed(2)}</TableCell>
-                  <TableCell className="py-2">S${employee.totalPay.toFixed(2)}</TableCell>
+                  <TableCell className="py-2 font-bold">S${employee.totalPay.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2 text-center">
@@ -1634,7 +1634,7 @@ const PayrollProcessing = () => {
                     <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
                   </TableCell>
                   <TableCell className="py-2">S${employee.totalPay.toFixed(2)}</TableCell>
-                  <TableCell className="py-2">S${employee.netPay.toFixed(2)}</TableCell>
+                  <TableCell className="py-2 font-bold">S${employee.netPay.toFixed(2)}</TableCell>
                   <TableCell className="py-2">{employee.bankName || 'Unknown'}</TableCell>
                   <TableCell className="py-2">{employee.bankAccount || 'Unknown'}</TableCell>
                   <TableCell className="py-2 text-center">
