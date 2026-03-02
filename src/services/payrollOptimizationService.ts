@@ -44,6 +44,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
         .select('*')
         .in('employee_id', employeeIds),
       // Filter claims by the payroll period
+      // Use end of day for the upper bound so timestamps like "2026-02-28T15:00:00Z" are included
       attendanceFilter.startDate && attendanceFilter.endDate 
         ? supabase
             .from('claims')
@@ -51,7 +52,7 @@ export const getEmployeePayrollDataOptimized = async (employeeIds: string[], per
             .in('employee_id', employeeIds)
             .eq('status', 'Approved')
             .gte('submitted_date', attendanceFilter.startDate)
-            .lte('submitted_date', attendanceFilter.endDate)
+            .lte('submitted_date', `${attendanceFilter.endDate}T23:59:59.999Z`)
         : supabase
             .from('claims')
             .select('*')
