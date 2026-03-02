@@ -374,6 +374,29 @@ const PayrollProcessing = () => {
           }
           
           setPayrollData(optimizedPayrollData);
+          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
+          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+          
+          // Convert claims data to expected format (same as non-historical path)
+          const claimsData: {[key: string]: Claim[]} = {};
+          Object.entries(optimizedPayrollData?.claims || {}).forEach(([empId, claims]) => {
+            claimsData[empId] = claims.map(claim => ({
+              id: claim.id,
+              employeeId: claim.employee_id,
+              employee: claim.employee_id,
+              type: claim.type,
+              amount: claim.amount,
+              description: claim.description,
+              status: claim.status,
+              date: claim.submitted_date,
+              submittedDate: claim.submitted_date,
+              reviewedDate: claim.reviewed_date,
+              reviewedBy: claim.reviewed_by,
+              receiptUrl: claim.receipt_url
+            }));
+          });
+          setEmployeeClaims(claimsData);
+          
           await addEmployeesToPayroll(employeeIds, optimizedPayrollData, selectedPeriod, employees);
           
           console.log('[PayrollProcessing] ✅ Historical data loaded successfully');
