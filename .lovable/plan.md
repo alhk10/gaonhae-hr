@@ -1,34 +1,31 @@
 
 
-## Plan: Show Detailed Rate Breakdown in Slot Booking Breakdown Dialog
+## Plan: Add Attendance Row to Slot Booking Breakdown Dialog
 
-Replace the single "Full slot rate (inc. bonuses): S$98.00" line with an itemized table showing each bonus component and its amount.
+The current breakdown only shows bookings with existing attendance records. Bookings without attendance are silently skipped. This plan adds the ability to see those missing attendance rows and add new attendance directly from the dialog.
 
 ### Changes
 
 **1. `src/services/slotBookingPayrollService.ts`**
-- Import `getPayBreakdown` from `slotPayCalculation.ts`
-- Add `rateBreakdown` field to `SlotBookingPayData` interface: `rateBreakdown?: Array<{ item: string; amount: number }>`
-- In `getSlotBookingPayForPeriod`, call `getPayBreakdown()` using the first booking's date (with full expected hours to get unprorated breakdown) and include it in the return value
+- Stop skipping bookings without attendance. Instead, include them in the breakdown with `hasAttendance: false`, `pay: 0`, and no time fields.
+- These rows will appear at the bottom (or in date order) so the admin can see which bookings lack attendance.
 
-**2. `src/pages/PayrollProcessing.tsx`**
-- Add `rateBreakdown` to the `slotBreakdownData` state type
-- Pass `rateBreakdown` through when setting state and to the dialog component
+**2. `src/components/payroll/SlotBreakdownDialog.tsx`**
+- Show all breakdown items (with and without attendance) in the table.
+- For rows where `hasAttendance === false`: show a muted/greyed row with a "+" button in the Actions column instead of the edit pencil.
+- Clicking "+" opens an inline edit mode (reuse existing edit state) to enter Clock In and Clock Out times.
+- On save, call `addAttendanceRecord` from `attendanceService.ts` with the employee ID, date, times, status "Present", and calculated hours.
+- After saving, call `onUpdate()` to refresh the breakdown data (which will now include the new attendance and recalculate pay).
+- Accept `employeeId` as a new prop (already available in parent state).
+- Show a subtle "No attendance" label and different styling (dashed border or muted background) for unattended rows.
+- The total slots count at the top only counts attended slots; unattended rows are visually distinct.
 
-**3. `src/components/payroll/SlotBreakdownDialog.tsx`**
-- Add `rateBreakdown?: Array<{ item: string; amount: number }>` prop
-- Replace the single "Full slot rate (inc. bonuses)" text with a small breakdown table showing each component:
-  - Base Rate: S$70.00
-  - 2nd Dan: S$10.00
-  - SG Coach L1: S$5.00
-  - Service (3 yrs): S$9.00
-  - etc.
-  - **Total Rate: S$98.00** (bold)
-- Keep the "prorated based on hours worked" note
-- Keep "Average pay per slot" and "Average pay per hour" lines below
+**3. `src/pages/PayrollProcessing.tsx`**
+- Pass `employeeId` prop to `SlotBreakdownDialog`.
 
-### Technical Details
-- `getPayBreakdown` already exists and returns `{ item: string; amount: number }[]` with all applicable bonuses
-- Call it with the expected hours (not actual) so the breakdown shows full unprorated amounts
-- Filter out the "Prorated" info line (amount === 0) from the display since we show the full rate breakdown
+### UI Behavior
+- Unattended booking rows appear with a grey/muted background, "--" for times, "S$0.00" for pay.
+- "+" button triggers inline time entry (same UX as edit mode).
+- On successful add, toast confirmation and data refresh.
+- Total Slots and Total Pay only reflect attended bookings (unchanged logic).
 
