@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync, calculateMilestoneBonus, getMilestoneBonusConfig } from '@/utils/slotPayCalculation';
+import { calculateSlotPay, calculateActualHoursWorkedAsync, getExpectedSlotDurationAsync, calculateMilestoneBonus, getMilestoneBonusConfig, getPayBreakdown } from '@/utils/slotPayCalculation';
 import { EmployeeProfile } from '@/types/employee';
 import { getDateRangeForPeriod, parsePeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
@@ -8,6 +8,7 @@ interface SlotBookingPayData {
   totalSlots: number;
   totalPay: number;
   fullSlotRate?: number;
+  rateBreakdown?: Array<{ item: string; amount: number }>;
   milestoneBonus?: number;
   milestoneBonusThreshold?: number; // 5, 10, or 16
   breakdown: Array<{
@@ -147,11 +148,22 @@ export const getSlotBookingPayForPeriod = async (
       totalSlots++;
     }
 
-    // Calculate the employee's full slot rate for summary display
-    // Use a sample date to get the rate (we'll use the first breakdown item's date if available)
+    // Calculate the employee's full slot rate and rate breakdown for summary display
     let employeeFullSlotRate: number | undefined;
+    let rateBreakdown: Array<{ item: string; amount: number }> | undefined;
     if (breakdown.length > 0) {
       employeeFullSlotRate = breakdown[0].fullSlotRate;
+      // Get unprorated breakdown using expected hours
+      const sampleDate = breakdown[0].date;
+      const sampleExpectedHours = breakdown[0].expectedHours;
+      const fullBreakdown = await getPayBreakdown(
+        sampleDate,
+        employee.qualifications,
+        employee.joinDate,
+        sampleExpectedHours ?? undefined
+      );
+      // Filter out the "Prorated" info line
+      rateBreakdown = fullBreakdown.filter(item => item.amount !== 0 || !item.item.startsWith('Prorated'));
     }
 
     // Calculate milestone bonus
@@ -171,6 +183,7 @@ export const getSlotBookingPayForPeriod = async (
       totalSlots,
       totalPay,
       fullSlotRate: employeeFullSlotRate,
+      rateBreakdown,
       milestoneBonus: milestoneBonus > 0 ? milestoneBonus : undefined,
       milestoneBonusThreshold,
       breakdown

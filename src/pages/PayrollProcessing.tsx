@@ -194,6 +194,7 @@ const PayrollProcessing = () => {
     totalPay: number;
     totalSlots: number;
     fullSlotRate?: number;
+    rateBreakdown?: Array<{ item: string; amount: number }>;
     milestoneBonus?: number;
     milestoneBonusThreshold?: number;
   } | null>(null);
@@ -1351,6 +1352,7 @@ const PayrollProcessing = () => {
                                           totalPay: slotData.totalPay,
                                           totalSlots: slotData.totalSlots,
                                           fullSlotRate: slotData.fullSlotRate,
+                                          rateBreakdown: slotData.rateBreakdown,
                                           milestoneBonus: slotData.milestoneBonus,
                                           milestoneBonusThreshold: slotData.milestoneBonusThreshold,
                                         });
@@ -1878,6 +1880,7 @@ const PayrollProcessing = () => {
             totalPay={slotBreakdownData.totalPay}
             totalSlots={slotBreakdownData.totalSlots}
             fullSlotRate={slotBreakdownData.fullSlotRate}
+            rateBreakdown={slotBreakdownData.rateBreakdown}
             milestoneBonus={slotBreakdownData.milestoneBonus}
             milestoneBonusThreshold={slotBreakdownData.milestoneBonusThreshold}
             onUpdate={async () => {
@@ -1897,6 +1900,7 @@ const PayrollProcessing = () => {
                     totalPay: slotData.totalPay,
                     totalSlots: slotData.totalSlots,
                     fullSlotRate: slotData.fullSlotRate,
+                    rateBreakdown: slotData.rateBreakdown,
                     milestoneBonus: slotData.milestoneBonus,
                     milestoneBonusThreshold: slotData.milestoneBonusThreshold,
                   });

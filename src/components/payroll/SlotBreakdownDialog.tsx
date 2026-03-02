@@ -80,6 +80,7 @@ interface SlotBreakdownDialogProps {
   totalPay: number;
   totalSlots: number;
   fullSlotRate?: number;
+  rateBreakdown?: Array<{ item: string; amount: number }>;
   milestoneBonus?: number;
   milestoneBonusThreshold?: number;
   onUpdate?: () => void;
@@ -93,6 +94,7 @@ export function SlotBreakdownDialog({
   totalPay,
   totalSlots,
   fullSlotRate,
+  rateBreakdown,
   milestoneBonus,
   milestoneBonusThreshold,
   onUpdate,
@@ -337,13 +339,32 @@ export function SlotBreakdownDialog({
 
           {/* Pay Rate Info */}
           {breakdown.length > 0 && (
-            <div className="bg-muted/30 rounded-lg p-3 text-sm space-y-2">
-              {fullSlotRate && (
+            <div className="bg-muted/30 rounded-lg p-3 text-sm space-y-3">
+              {rateBreakdown && rateBreakdown.length > 0 ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Full Slot Rate Breakdown</p>
+                  <div className="space-y-0.5">
+                    {rateBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.item}</span>
+                        <span className="font-medium">S${item.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {fullSlotRate && (
+                    <div className="flex justify-between text-sm font-bold border-t border-border pt-1.5 mt-1.5">
+                      <span>Total Rate</span>
+                      <span className="text-primary">S${fullSlotRate.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground italic">Pay is prorated based on hours worked</p>
+                </div>
+              ) : fullSlotRate ? (
                 <p className="text-muted-foreground">
                   Full slot rate (inc. bonuses): <span className="font-semibold text-primary">S${fullSlotRate.toFixed(2)}</span>
                   <span className="text-xs ml-1">(prorated based on hours worked)</span>
                 </p>
-              )}
+              ) : null}
               <div className="flex flex-wrap gap-x-6 gap-y-1">
                 <p className="text-muted-foreground">
                   Average pay per slot: <span className="font-semibold text-foreground">S${(totalPay / totalSlots).toFixed(2)}</span>
