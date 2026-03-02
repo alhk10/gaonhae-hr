@@ -1,31 +1,27 @@
 
 
-## Plan: Add Attendance Row to Slot Booking Breakdown Dialog
+## Fix: Cleared attendance timing should show 0 duration and 0 pay
 
-The current breakdown only shows bookings with existing attendance records. Bookings without attendance are silently skipped. This plan adds the ability to see those missing attendance rows and add new attendance directly from the dialog.
+**Problem**: In `calculateActualHoursWorkedAsync` (line 403-406 of `src/utils/slotPayCalculation.ts`), when `checkIn` is null, the function assumes a full day worked and returns `expectedDuration`. This means Feb 28 with cleared timing shows 7h 30m and S$98.00 instead of 0.
 
-### Changes
+**Root cause**: The comment says "attendance not recorded" but in this case attendance IS recorded — the admin just cleared the times.
 
-**1. `src/services/slotBookingPayrollService.ts`**
-- Stop skipping bookings without attendance. Instead, include them in the breakdown with `hasAttendance: false`, `pay: 0`, and no time fields.
-- These rows will appear at the bottom (or in date order) so the admin can see which bookings lack attendance.
+**Fix** in `src/utils/slotPayCalculation.ts`:
 
-**2. `src/components/payroll/SlotBreakdownDialog.tsx`**
-- Show all breakdown items (with and without attendance) in the table.
-- For rows where `hasAttendance === false`: show a muted/greyed row with a "+" button in the Actions column instead of the edit pencil.
-- Clicking "+" opens an inline edit mode (reuse existing edit state) to enter Clock In and Clock Out times.
-- On save, call `addAttendanceRecord` from `attendanceService.ts` with the employee ID, date, times, status "Present", and calculated hours.
-- After saving, call `onUpdate()` to refresh the breakdown data (which will now include the new attendance and recalculate pay).
-- Accept `employeeId` as a new prop (already available in parent state).
-- Show a subtle "No attendance" label and different styling (dashed border or muted background) for unattended rows.
-- The total slots count at the top only counts attended slots; unattended rows are visually distinct.
+Change lines 403-406 from:
+```typescript
+// If no check-in, assume full day (attendance not recorded)
+if (!checkIn) {
+  return expectedDuration;
+}
+```
+To:
+```typescript
+// If no check-in, return 0 hours (no times recorded)
+if (!checkIn) {
+  return 0;
+}
+```
 
-**3. `src/pages/PayrollProcessing.tsx`**
-- Pass `employeeId` prop to `SlotBreakdownDialog`.
-
-### UI Behavior
-- Unattended booking rows appear with a grey/muted background, "--" for times, "S$0.00" for pay.
-- "+" button triggers inline time entry (same UX as edit mode).
-- On successful add, toast confirmation and data refresh.
-- Total Slots and Total Pay only reflect attended bookings (unchanged logic).
+This single-line change ensures that when attendance times are cleared/empty, both duration and pay amount correctly show as 0.
 
