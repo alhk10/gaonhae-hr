@@ -183,6 +183,14 @@ const StudentRegistration = () => {
       toast.error('Email is required');
       return;
     }
+    if (!formData.gender) {
+      toast.error('Gender is required');
+      return;
+    }
+    if (!formData.date_of_birth) {
+      toast.error('Date of birth is required');
+      return;
+    }
     if (!formData.branch_id) {
       toast.error('Please select a branch');
       return;
@@ -320,7 +328,7 @@ const StudentRegistration = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs">Gender</Label>
+                  <Label className="text-xs">Gender *</Label>
                   <Select value={formData.gender} onValueChange={v => handleInputChange('gender', v)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -331,7 +339,7 @@ const StudentRegistration = () => {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Date of Birth</Label>
+                  <Label className="text-xs">Date of Birth *</Label>
                   <Input type="date" value={formData.date_of_birth} onChange={e => handleInputChange('date_of_birth', e.target.value)} />
                 </div>
               </div>
