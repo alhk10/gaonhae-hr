@@ -280,7 +280,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const getUndismissedNotices = (): Notice[] => {
     if (!studentId || activeNotices.length === 0) return [];
     const dismissedKey = `dismissed_notices_${studentId}`;
-    const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    const dismissed: string[] = JSON.parse(sessionStorage.getItem(dismissedKey) || '[]');
     return activeNotices.filter(n => !dismissed.includes(n.id));
   };
 
@@ -292,9 +292,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       return;
     }
     const dismissedKey = `dismissed_notices_${studentId}`;
-    const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    const dismissed: string[] = JSON.parse(sessionStorage.getItem(dismissedKey) || '[]');
     dismissed.push(undismissedNotices[0].id);
-    localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+    sessionStorage.setItem(dismissedKey, JSON.stringify(dismissed));
 
     // Force re-render by invalidating notices query
     queryClient.invalidateQueries({ queryKey: ['student-notices'] });
