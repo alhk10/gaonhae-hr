@@ -13,7 +13,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
     const { data: employees, error } = await supabase
       .from('employees')
       .select(`
-        id, name, nric, type, email, join_date, resign_date, position, department,
+        id, name, display_name, nric, type, email, join_date, resign_date, position, department,
         bank_name, bank_account, base_salary, hourly_rate, payment_type, residency_status,
         admin_access (*)
       `)
@@ -50,6 +50,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
       return {
         id: emp.id,
         name: emp.name,
+        display_name: emp.display_name || '',
         nric: emp.nric || '',
         dateOfBirth: '', // Load on demand
         residencyStatus: emp.residency_status || '',
@@ -152,6 +153,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
       return {
         id: emp.id,
         name: emp.name,
+        display_name: emp.display_name || '',
         nric: emp.nric || '',
         dateOfBirth: emp.date_of_birth || '',
         residencyStatus: emp.residency_status || '',
@@ -265,6 +267,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
     return {
       id: emp.id,
       name: emp.name,
+      display_name: emp.display_name || '',
       nric: emp.nric || '',
       dateOfBirth: emp.date_of_birth,
       residencyStatus: emp.residency_status,

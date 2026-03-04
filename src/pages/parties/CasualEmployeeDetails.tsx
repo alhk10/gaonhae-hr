@@ -246,7 +246,7 @@ const CasualEmployeeDetails = () => {
   };
 
   const handleDeleteEmployee = () => {
-    if (window.confirm(`Are you sure you want to remove ${employeeData?.name}? This will set their resign date to today.`)) {
+    if (window.confirm(`Are you sure you want to remove ${employeeData?.display_name || employeeData?.name}? This will set their resign date to today.`)) {
       deleteEmployeeMutation.mutate(id!);
     }
   };
@@ -315,7 +315,7 @@ const CasualEmployeeDetails = () => {
               </Button>
               <div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-foreground">{employeeData.name}</h2>
+                  <h2 className="text-2xl font-bold text-foreground">{employeeData.display_name || employeeData.name}</h2>
                   <Badge variant="secondary">Casual</Badge>
                   {isSuperAdmin && (
                     <>
@@ -618,7 +618,7 @@ const CasualEmployeeDetails = () => {
               {isSuperAdmin && (
                 <LocationExceptionManager
                   employeeId={employeeData.id}
-                  employeeName={employeeData.name}
+                  employeeName={employeeData.display_name || employeeData.name}
                 />
               )}
             </TabsContent>
@@ -636,7 +636,7 @@ const CasualEmployeeDetails = () => {
             <TabsContent value="claims" className="space-y-6">
               <EmployeeClaimHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
 
@@ -644,7 +644,7 @@ const CasualEmployeeDetails = () => {
             <TabsContent value="slots" className="space-y-6">
               <SlotBookingHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
 
@@ -738,7 +738,7 @@ const CasualEmployeeDetails = () => {
             <TabsContent value="payroll" className="space-y-6">
               <EmployeePayrollHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
           </Tabs>

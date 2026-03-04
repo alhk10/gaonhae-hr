@@ -69,13 +69,13 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
           {/* Avatar */}
           <div className="flex-shrink-0">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={employee.profilePhoto} alt={employee.name} />
+              <AvatarImage src={employee.profilePhoto} alt={employee.display_name || employee.name} />
               <AvatarFallback className={`text-lg font-bold ${
                 employee.type === 'Full-Time' 
                   ? 'bg-blue-100 text-blue-700' 
                   : 'bg-purple-100 text-purple-700'
               }`}>
-                {getInitials(employee.name)}
+                {getInitials(employee.display_name || employee.name)}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -86,7 +86,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
             <div className="flex items-start justify-between mb-3">
               <div className="min-w-0 flex-1">
                 <h3 className="font-bold text-lg text-gray-900 truncate mb-1">
-                  {employee.name}
+                  {employee.display_name || employee.name}
                 </h3>
                 <div className="flex items-center space-x-2 mb-2">
                   <Badge 

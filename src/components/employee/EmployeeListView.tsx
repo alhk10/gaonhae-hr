@@ -59,22 +59,22 @@ const EmployeeListView: React.FC<EmployeeListViewProps> = ({
                 <div className="flex items-center space-x-4 min-w-0 flex-1">
                   {/* Avatar */}
                   <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarImage src={employee.profilePhoto} alt={employee.name} />
+                    <AvatarImage src={employee.profilePhoto} alt={employee.display_name || employee.name} />
                     <AvatarFallback className={`text-sm font-medium ${
                       employee.type === 'Full-Time' 
                         ? 'bg-blue-100 text-blue-700' 
                         : 'bg-purple-100 text-purple-700'
                     }`}>
-                      {getInitials(employee.name)}
+                      {getInitials(employee.display_name || employee.name)}
                     </AvatarFallback>
                   </Avatar>
 
                   {/* Employee Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-3 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">
-                        {employee.name}
-                      </h3>
+                    <h3 className="font-semibold text-gray-900 truncate">
+                      {employee.display_name || employee.name}
+                    </h3>
                       <Badge 
                         variant={employee.type === 'Full-Time' ? 'default' : 'secondary'}
                         className="text-xs flex-shrink-0"

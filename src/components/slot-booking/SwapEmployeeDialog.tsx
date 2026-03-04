@@ -63,12 +63,12 @@ const SwapEmployeeDialog: React.FC<SwapEmployeeDialogProps> = ({
       const success = await updateSlotBookingEmployee(
         booking.id,
         selectedEmployeeId,
-        selectedEmployee.name,
-        `Swapped from ${booking.employeeName} to ${selectedEmployee.name}`
+        selectedEmployee.display_name || selectedEmployee.name,
+        `Swapped from ${booking.employeeName} to ${selectedEmployee.display_name || selectedEmployee.name}`
       );
 
       if (success) {
-        toast.success(`Successfully swapped employee to ${selectedEmployee.name}`);
+        toast.success(`Successfully swapped employee to ${selectedEmployee.display_name || selectedEmployee.name}`);
         onSuccess();
         onClose();
       } else {
@@ -124,7 +124,7 @@ const SwapEmployeeDialog: React.FC<SwapEmployeeDialogProps> = ({
                 <SelectContent>
                   {casualEmployees.map((employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({employee.id})
+                      {employee.display_name || employee.name} ({employee.id})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -139,7 +139,7 @@ const SwapEmployeeDialog: React.FC<SwapEmployeeDialogProps> = ({
                   <span>After Swap</span>
                 </h4>
                 <div className="space-y-1 text-sm">
-                  <p><strong>Employee:</strong> {selectedEmployee.name}</p>
+                  <p><strong>Employee:</strong> {selectedEmployee.display_name || selectedEmployee.name}</p>
                   <p><strong>Branch:</strong> {booking.branchName}</p>
                   <p><strong>Date:</strong> {new Date(booking.date).toLocaleDateString()}</p>
                   <Badge variant="secondary">{booking.status}</Badge>

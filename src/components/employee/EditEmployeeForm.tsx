@@ -78,6 +78,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
   const [formData, setFormData] = useState({
     first_name: initialFirstName,
     last_name: initialLastName,
+    display_name: (employee as any).display_name || employee.display_name || '',
     name: employee.name,
     nric: employee.nric,
     dateOfBirth: employee.dateOfBirth,
@@ -258,6 +259,16 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
                   onChange={(e) => handleUppercaseInput('last_name', e.target.value)}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="display_name">Display Name</Label>
+              <Input
+                id="display_name"
+                value={formData.display_name}
+                onChange={(e) => handleUppercaseInput('display_name', e.target.value)}
+                placeholder={formData.name || ''}
+              />
             </div>
 
             <div>

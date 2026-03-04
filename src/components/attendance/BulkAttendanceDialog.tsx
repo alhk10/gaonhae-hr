@@ -26,6 +26,7 @@ interface BulkAttendanceDialogProps {
 interface EmployeeData {
   id: string;
   name: string;
+  display_name?: string;
   type: string;
   department?: string;
   position?: string;
@@ -97,7 +98,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
   // Filter employees based on search term and type (excluding partners)
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = searchTerm === '' || 
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.display_name || employee.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.id.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = employeeTypeFilter === 'all' || 
@@ -318,7 +319,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="font-medium text-sm">{employee.name}</p>
+                                <p className="font-medium text-sm">{employee.display_name || employee.name}</p>
                               </div>
                               <div className="text-right">
                                 <Badge variant="secondary" className="text-xs">

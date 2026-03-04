@@ -310,12 +310,12 @@ const SlotBookingManagementContent = () => {
       const success = await updateSlotBookingEmployee(
         selectedBookingForApproval.id,
         swapEmployeeId,
-        selectedEmployee.name,
-        `Swapped from ${selectedBookingForApproval.employeeName} to ${selectedEmployee.name} by Admin`
+        selectedEmployee.display_name || selectedEmployee.name,
+        `Swapped from ${selectedBookingForApproval.employeeName} to ${selectedEmployee.display_name || selectedEmployee.name} by Admin`
       );
 
       if (success) {
-        toast.success(`Successfully swapped employee to ${selectedEmployee.name}`);
+        toast.success(`Successfully swapped employee to ${selectedEmployee.display_name || selectedEmployee.name}`);
         await refreshData();
         setIsApprovalDialogOpen(false);
         setSelectedBookingForApproval(null);
@@ -880,7 +880,7 @@ const SlotBookingManagementContent = () => {
                     .filter(emp => emp.id !== selectedBookingForApproval?.employeeId)
                     .map((employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({employee.id})
+                      {employee.display_name || employee.name} ({employee.id})
                     </SelectItem>
                   ))}
                 </SelectContent>

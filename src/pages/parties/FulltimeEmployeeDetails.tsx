@@ -239,7 +239,7 @@ const FulltimeEmployeeDetails = () => {
   };
 
   const handleDeleteEmployee = () => {
-    if (window.confirm(`Are you sure you want to remove ${employeeData?.name}? This will set their resign date to today.`)) {
+    if (window.confirm(`Are you sure you want to remove ${employeeData?.display_name || employeeData?.name}? This will set their resign date to today.`)) {
       deleteEmployeeMutation.mutate(id!);
     }
   };
@@ -312,7 +312,7 @@ const FulltimeEmployeeDetails = () => {
               </Button>
               <div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-foreground">{employeeData.name}</h2>
+                  <h2 className="text-2xl font-bold text-foreground">{employeeData.display_name || employeeData.name}</h2>
                   <Badge variant="default">Full-time</Badge>
                   {isSuperAdmin && (
                     <>
@@ -645,7 +645,7 @@ const FulltimeEmployeeDetails = () => {
               {isSuperAdmin && (
                 <LocationExceptionManager
                   employeeId={employeeData.id}
-                  employeeName={employeeData.name}
+                  employeeName={employeeData.display_name || employeeData.name}
                 />
               )}
 
@@ -653,7 +653,7 @@ const FulltimeEmployeeDetails = () => {
               {isSuperAdmin && (
                 <InvoiceAccessManager
                   employeeId={employeeData.id}
-                  employeeName={employeeData.name}
+                  employeeName={employeeData.display_name || employeeData.name}
                   isEditing={isEditing}
                 />
               )}
@@ -661,7 +661,7 @@ const FulltimeEmployeeDetails = () => {
               {/* Partner Branch Shares */}
               <PartnerBranchSharesManager
                 employeeId={employeeData.id}
-                employeeName={employeeData.name}
+                employeeName={employeeData.display_name || employeeData.name}
                 position={employeeData.position || ''}
               />
             </TabsContent>
@@ -694,7 +694,7 @@ const FulltimeEmployeeDetails = () => {
             <TabsContent value="claims" className="space-y-6">
               <EmployeeClaimHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
 
@@ -702,7 +702,7 @@ const FulltimeEmployeeDetails = () => {
             <TabsContent value="leave" className="space-y-6">
               <EmployeeLeaveHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
 
@@ -710,7 +710,7 @@ const FulltimeEmployeeDetails = () => {
             <TabsContent value="payroll" className="space-y-6">
               <EmployeePayrollHistory 
                 employeeId={employeeData.id} 
-                employeeName={employeeData.name} 
+                employeeName={employeeData.display_name || employeeData.name} 
               />
             </TabsContent>
           </Tabs>

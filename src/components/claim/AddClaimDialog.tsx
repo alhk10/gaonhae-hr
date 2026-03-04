@@ -15,6 +15,7 @@ import { getClaimTypes, type ClaimType } from '@/services/claimTypesService';
 interface Employee {
   id: string;
   name: string;
+  display_name?: string;
   type: string;
 }
 
@@ -160,7 +161,7 @@ const AddClaimDialog = ({ onClaimAdded }: AddClaimDialogProps) => {
               <SelectContent>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name} ({employee.type})
+                    {employee.display_name || employee.name} ({employee.type})
                   </SelectItem>
                 ))}
               </SelectContent>

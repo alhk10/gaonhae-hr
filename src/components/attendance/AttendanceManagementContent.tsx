@@ -325,7 +325,7 @@ const AttendanceManagementContent = () => {
                       <SelectItem value="all">All Employees</SelectItem>
                       {employees.map((employee: any) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {employee.name}
+                          {employee.display_name || employee.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
