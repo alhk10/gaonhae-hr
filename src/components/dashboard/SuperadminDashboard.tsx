@@ -89,9 +89,6 @@ const SuperadminDashboard = () => {
         {/* Leave Approvals */}
         <LeaveApprovals />
 
-        {/* Slot Booking Approvals */}
-        <SlotBookingApprovals />
-
         {/* Invoice Discount Approvals */}
         <InvoiceDiscountApprovals />
 
