@@ -16,6 +16,7 @@ import SlotBookingApprovals from './SlotBookingApprovals';
 import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
+import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
@@ -90,6 +91,9 @@ const SuperadminDashboard = () => {
 
         {/* Slot Booking Approvals */}
         <SlotBookingApprovals />
+
+        {/* Invoice Discount Approvals */}
+        <InvoiceDiscountApprovals />
 
         {/* Payment Verification Approvals */}
         <PaymentVerificationApprovals />

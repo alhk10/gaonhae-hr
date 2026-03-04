@@ -20,6 +20,8 @@ import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
+import { useAuth } from '@/contexts/AuthContext';
+import { calculateTotalDiscount, submitDiscountApproval, DISCOUNT_APPROVAL_THRESHOLD } from '@/services/invoiceDiscountApprovalService';
 import { Loader2, Plus, Trash2, Check, ChevronsUpDown, Percent, DollarSign } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -288,6 +290,7 @@ const LineDiscountPopover: React.FC<{
 };
 
 const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated, branchId: lockedBranchId }) => {
+  const { user, userrole } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
@@ -573,6 +576,29 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           };
         })
       };
+
+      // Check if total discount exceeds threshold — require superadmin approval (unless user IS superadmin)
+      const totalDiscount = calculateTotalDiscount(items);
+      if (totalDiscount > DISCOUNT_APPROVAL_THRESHOLD && userrole !== 'superadmin') {
+        const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
+        const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
+        const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+
+        await submitDiscountApproval(
+          invoiceData,
+          studentName,
+          branchName,
+          totalDiscount,
+          totalAmount,
+          user?.email || null
+        );
+
+        toast.success(`Invoice discount of $${totalDiscount.toFixed(2)} requires superadmin approval. Request submitted.`);
+        setOpen(false);
+        resetForm();
+        onInvoiceCreated?.();
+        return;
+      }
 
       await createInvoice(invoiceData);
       

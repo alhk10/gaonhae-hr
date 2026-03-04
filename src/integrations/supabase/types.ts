@@ -1832,6 +1832,57 @@ export type Database = {
           },
         ]
       }
+      invoice_discount_approvals: {
+        Row: {
+          branch_name: string | null
+          created_at: string
+          id: string
+          invoice_data: Json
+          item_count: number
+          rejection_reason: string | null
+          requested_by: string | null
+          requested_by_email: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_name: string
+          total_amount: number
+          total_discount: number
+        }
+        Insert: {
+          branch_name?: string | null
+          created_at?: string
+          id?: string
+          invoice_data: Json
+          item_count?: number
+          rejection_reason?: string | null
+          requested_by?: string | null
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name: string
+          total_amount?: number
+          total_discount?: number
+        }
+        Update: {
+          branch_name?: string | null
+          created_at?: string
+          id?: string
+          invoice_data?: Json
+          item_count?: number
+          rejection_reason?: string | null
+          requested_by?: string | null
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name?: string
+          total_amount?: number
+          total_discount?: number
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string
