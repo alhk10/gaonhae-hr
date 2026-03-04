@@ -484,7 +484,7 @@ const StudentRegistration = () => {
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 sm:p-4 text-sm text-foreground space-y-3">
-                <p>The school operates on a term-to-term basis. A term consists of 10 weeks. The school will be closed on Public Holidays. We may also be closed for Competitions, Gradings, and other Special Events.</p>
+                <p>The school operates on a term-to-term basis. The school will be closed on Public Holidays. We may also be closed for Competitions, Gradings, and other Special Events.</p>
                 <p>Class fees are chargeable on a per term or per lesson basis. Class fees are to be paid before the term commencement date. Makeup lessons must be completed within the same term. Any unused lessons beyond this period will be forfeited.</p>
                 <p>Annual membership fees, which cover administration, affiliation, and insurance costs, which may be subject to change each year. The updated fee will be communicated to members prior to renewal.</p>
                 <p>All fees paid are non-transferable and non-refundable. A school credit may be offered in some cases.</p>
