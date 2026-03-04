@@ -799,6 +799,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         defaultQuantity = 10;
       }
       
+      // Ensure terms are loaded for the current branch
+      if (formData.branch_id && branchTerms.length === 0) {
+        await loadBranchTerms(formData.branch_id);
+      }
+      
       if (formData.branch_id && formData.student_id) {
         selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
       }
@@ -939,6 +944,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const colorOptions = selectedProduct?.available_variants?.colors || [];
 
   const selectedCategory = categories.find(c => c.id === newItem.category_id);
+  
+  // Show size input for uniform/apparel products even without requires_size flag
+  const UNIFORMS_CATEGORY_ID = 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c';
+  const isUniformProduct = selectedProduct?.category_id === UNIFORMS_CATEGORY_ID;
+  const showSizeInput = sizeOptions.length > 0 || selectedProduct?.requires_size || isUniformProduct;
 
   const addItem = () => {
     if (!newItem.product_id) {
@@ -952,9 +962,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       return;
     }
 
-    // Validate size selection for products with size variants or requires_size flag
-    if ((sizeOptions.length > 0 || selectedProduct?.requires_size) && !newItem.size_variant) {
-      toast.error('Please select a size for this product');
+    // Validate size selection for products with size variants, requires_size flag, or uniform category
+    if (showSizeInput && !newItem.size_variant) {
+      toast.error('Please select or enter a size for this product');
       return;
     }
 
@@ -1269,7 +1279,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : selectedProduct?.requires_size ? (
+                    ) : showSizeInput ? (
                       <Input
                         type="text"
                         value={newItem.size_variant}
