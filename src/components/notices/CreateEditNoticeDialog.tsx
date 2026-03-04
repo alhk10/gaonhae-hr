@@ -283,6 +283,13 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                 onInput={() => {
                   setContent(contentRef.current?.innerHTML || '');
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.execCommand('insertLineBreak');
+                    setContent(contentRef.current?.innerHTML || '');
+                  }
+                }}
                 data-placeholder="Notice content..."
                 style={{ whiteSpace: 'pre-wrap' }}
               />
