@@ -287,7 +287,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const undismissedNotices = getUndismissedNotices();
 
   const handleDismissNotice = () => {
-    if (!studentId || !undismissedNotices[0]) return;
+    if (!studentId || !undismissedNotices[0]) {
+      setShowNoticePopup(false);
+      return;
+    }
     const dismissedKey = `dismissed_notices_${studentId}`;
     const dismissed: string[] = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
     dismissed.push(undismissedNotices[0].id);
@@ -296,12 +299,16 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     // Force re-render by invalidating notices query
     queryClient.invalidateQueries({ queryKey: ['student-notices'] });
 
-    // Check remaining undismissed (after this one)
+    // Always close popup first, then re-open if there are remaining notices
+    setShowNoticePopup(false);
+
     const remaining = undismissedNotices.slice(1);
     if (remaining.length > 0) {
-      // Keep popup open, next render will show next notice at index 0
+      // Re-open after a brief delay so the dialog visibly closes and re-opens
+      setTimeout(() => {
+        setShowNoticePopup(true);
+      }, 300);
     } else {
-      setShowNoticePopup(false);
       // Chain to next popup
       triggerUnpaidOrNext();
     }
