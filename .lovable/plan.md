@@ -1,25 +1,19 @@
 
 
-## Plan: Collapsible Sidebar on All Screen Sizes for Superadmin
+## Reduce Vertical Space in Calendar Day Cells
 
-**Problem**: The sidebar is always visible on desktop for superadmin, taking up space. It should be hidden behind a menu button on both mobile and desktop.
+**Problem**: The CSS grid creates equal-height rows per week, so if one day has 3 bookings, all days in that row stretch to match. Combined with padding, this creates excess whitespace.
+
+**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
 
 ### Changes
 
-**File**: `src/components/layout/Sidebar.tsx`
+1. **Add `auto-rows-min`** to the grid container (line 202) — this tells CSS grid to size each row to its minimum content height instead of stretching to fill
+   - Change: `grid grid-cols-7 gap-px` → `grid grid-cols-7 auto-rows-min gap-px`
 
-1. **Remove the `isMobile` branching** (lines 301-365) — unify mobile and desktop into one toggle-based sidebar
-2. **Replace the desktop permanent sidebar** (lines 345-365) with the same overlay/toggle pattern currently used for mobile
-3. **Remove `md:hidden`** from the menu button (line 309) and overlay (line 317) so they work on all screen sizes
-4. **Position the menu button** in the Navbar area (top-left) consistently across all viewports
+2. **Add `items-start`** to the grid so cells align to top instead of stretching vertically
 
-**File**: `src/components/layout/ResponsiveLayout.tsx`
+3. **Reduce cell padding** from `p-0.5` to `p-px` on day cells (lines 211, 222) for tighter layout
 
-No changes needed — it already conditionally renders `<Sidebar />` for superadmins. The sidebar component itself will handle the toggle behavior internally.
-
-### Result
-- Superadmin sees a hamburger menu button (top-left) on all screen sizes
-- Clicking it opens a slide-out sidebar overlay
-- Clicking outside or pressing X closes it
-- No permanent sidebar consuming horizontal space on desktop
+These changes will make each week-row only as tall as the day with the most bookings in that row, eliminating the excess vertical whitespace visible in the screenshot.
 
