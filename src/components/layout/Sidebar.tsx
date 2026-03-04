@@ -297,7 +297,7 @@ const Sidebar = () => {
       <Button
         variant="ghost"
         size="sm"
-        className="fixed top-4 left-4 z-50 bg-white border shadow-sm"
+        className="fixed top-[18px] left-4 z-[60] bg-white border shadow-sm"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
       >
         {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -305,7 +305,7 @@ const Sidebar = () => {
 
       {/* Sidebar Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-[55]">
           <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setMobileMenuOpen(false)} />
           <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg">
             <div className="p-6 pt-16">
