@@ -1,28 +1,32 @@
 
 
-## Plan: Update Student Registration Form
+## Plan: Allow Negative Inventory & Show Login Alert for Negative Stock
 
-### Changes to `src/pages/StudentRegistration.tsx`
+### Part 1: Remove Negative Inventory Restrictions
 
-1. **Hide NRIC/FIN and Passport No. fields** — Remove the NRIC/FIN field (lines 250-253) and Passport No. field (lines 255-258) from the Personal Information card. Change the grid from 3 columns to 2 columns for Gender + DOB row.
+**`src/services/inventoryService.ts`** — Two changes in `adjustInventory()`:
+1. **Line 164-166**: Remove the `if (newQuantity < 0)` check that throws "Insufficient inventory for this adjustment" — allow the update to proceed with negative values.
+2. **Lines 178-181**: Remove the `if (quantityDelta < 0)` check that throws "Cannot create inventory with negative quantity" — allow creating inventory records with negative quantities.
 
-2. **Make email mandatory** — Add `*` to the Email label (line 278), add `required` attribute to the email input, and update validation (line 111) to always require email instead of "email or phone".
+**`src/components/dashboard/BranchInventoryTab.tsx`** — Update `getStockBadge()` (line 134):
+- Add a "Negative" badge (red) for `qty < 0`, keep "Out of Stock" for `qty === 0`.
 
-3. **Add School Policy section** — After the Training Information card, add a new Card with the full school policy text. Include:
-   - Title: "Our School Policy"
-   - All policy paragraphs as provided
-   - A checkbox for "Acknowledgement & Agreement" with the text: "I have read and understood the school policy, and I agree to comply with its terms."
-   - A signature box (canvas-based or simple text input styled as a signature field)
+**`src/components/sales/InventoryListTab.tsx`** — Update `getStockStatus()` (line 78) and `renderStatusBadge()`:
+- Add a "negative" status for items where available quantity is below zero, with a distinct red badge.
 
-4. **Add signature state** — Add `policy_agreed` (boolean) and `signature` (string) to form state. Implement a simple canvas-based signature pad where users can draw their signature, with a Clear button.
+### Part 2: Negative Inventory Popup on Dashboard Login
 
-5. **Update validation** — Require policy agreement and signature before submission.
+Create a new component **`src/components/dashboard/NegativeInventoryAlert.tsx`**:
+- On mount, query `inventory_items` for all items with `quantity_on_hand < 0`, joined with `products` for names and `inventory_locations` / `branches` for branch names.
+- If negative items exist, show a Dialog listing them (product name, branch, size variant, current quantity).
+- Include a "Dismiss" button and optionally a "Go to Inventory" link.
+- Use `sessionStorage` to only show once per session (key like `negative_inventory_dismissed`).
 
-6. **Update form reset** — Include new fields in the reset state on "Submit Another Registration".
+**`src/components/dashboard/SuperadminDashboard.tsx`** and **`src/components/dashboard/BranchDashboard.tsx`**:
+- Import and render `<NegativeInventoryAlert />` (for BranchDashboard, pass `branchId` to filter).
 
 ### Technical Details
-
-- Signature box: Use an HTML `<canvas>` element with mouse/touch event handlers for drawing. Store as base64 data URL.
-- Policy text rendered as formatted paragraphs within a scrollable container.
-- Remove `nric_passport` and `passport_no` from `uppercaseFields` array since they're no longer in the form.
+- No database migration needed — `quantity_on_hand` column already has no CHECK constraint preventing negatives.
+- The popup queries on dashboard mount and only shows if there are negative inventory records.
+- Session-based dismissal prevents repeated popups during the same browser session.
 
