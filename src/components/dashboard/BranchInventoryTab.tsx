@@ -3,17 +3,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Package, ArrowRightLeft, Loader2 } from 'lucide-react';
+import { Search, Package, ArrowRightLeft, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InventoryAdjustmentDialog } from '@/components/sales/InventoryAdjustmentDialog';
 import StockTransferRequestDialog from './StockTransferRequestDialog';
-import { getTransferRequestsByBranch, TransferRequestWithDetails } from '@/services/inventoryTransferService';
+import { getTransferRequestsByBranch } from '@/services/inventoryTransferService';
 import { format } from 'date-fns';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface BranchInventoryTabProps {
   branchId: string;
+}
+
+interface VariantRow {
+  size_variant: string | null;
+  quantity_on_hand: number;
+}
+
+interface ProductGroup {
+  product: any;
+  totalQty: number;
+  variants: VariantRow[];
+  hasVariants: boolean;
 }
 
 const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => {
@@ -21,6 +34,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
   const [adjustProduct, setAdjustProduct] = useState<any>(null);
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   // Fetch inventory locations for this branch
   const { data: locations = [] } = useQuery({
@@ -70,9 +84,8 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
 
   const isLoading = inventoryLoading || productsLoading;
 
-  // Merge: all products + their inventory data (default 0 qty)
-  const mergedItems = React.useMemo(() => {
-    // Build a map of product_id -> inventory items
+  // Group by product, ensure all variants are represented
+  const productGroups = React.useMemo(() => {
     const inventoryByProduct = new Map<string, typeof inventoryItems>();
     for (const item of inventoryItems) {
       const pid = (item.products as any)?.id || item.product_id;
@@ -80,39 +93,34 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
       inventoryByProduct.get(pid)!.push(item);
     }
 
-    const result: Array<{ id: string; products: any; quantity_on_hand: number; size_variant: string | null; hasInventoryRecord: boolean }> = [];
+    const groups: ProductGroup[] = [];
 
     for (const product of allProducts) {
-      const invItems = inventoryByProduct.get(product.id);
-      if (invItems && invItems.length > 0) {
-        // Use existing inventory rows
+      const invItems = inventoryByProduct.get(product.id) || [];
+      const hasSizes = product.requires_size && Array.isArray(product.available_sizes) && product.available_sizes.length > 0;
+
+      if (hasSizes) {
+        const sizes = product.available_sizes as string[];
+        const invBySizeMap = new Map<string, number>();
         for (const inv of invItems) {
-          result.push({
-            id: inv.id,
-            products: inv.products,
-            quantity_on_hand: inv.quantity_on_hand,
-            size_variant: inv.size_variant,
-            hasInventoryRecord: true,
-          });
+          if (inv.size_variant) {
+            invBySizeMap.set(inv.size_variant, (invBySizeMap.get(inv.size_variant) || 0) + inv.quantity_on_hand);
+          }
         }
+        // Ensure all defined sizes appear
+        const variants: VariantRow[] = sizes.map(size => ({
+          size_variant: size,
+          quantity_on_hand: invBySizeMap.get(size) || 0,
+        }));
+        const totalQty = variants.reduce((sum, v) => sum + v.quantity_on_hand, 0);
+        groups.push({ product, totalQty, variants, hasVariants: true });
       } else {
-        // No inventory record — show with 0 stock, expand variants if applicable
-        const sizes = product.requires_size && Array.isArray(product.available_sizes) && product.available_sizes.length > 0
-          ? product.available_sizes as string[]
-          : [null];
-        for (const size of sizes) {
-          result.push({
-            id: `virtual-${product.id}-${size || 'default'}`,
-            products: product,
-            quantity_on_hand: 0,
-            size_variant: size,
-            hasInventoryRecord: false,
-          });
-        }
+        const totalQty = invItems.reduce((sum, inv) => sum + inv.quantity_on_hand, 0);
+        groups.push({ product, totalQty, variants: [{ size_variant: null, quantity_on_hand: totalQty }], hasVariants: false });
       }
     }
 
-    return result;
+    return groups;
   }, [allProducts, inventoryItems]);
 
   // Fetch transfer requests for this branch
@@ -124,12 +132,20 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
 
   const pendingTransfers = transferRequests.filter(r => r.status === 'pending');
 
-  const filteredItems = mergedItems.filter(item => {
-    const product = item.products as any;
-    const name = product?.name?.toLowerCase() || '';
-    const sku = product?.sku?.toLowerCase() || '';
+  const filteredGroups = productGroups.filter(group => {
+    const name = group.product?.name?.toLowerCase() || '';
+    const sku = group.product?.sku?.toLowerCase() || '';
     return name.includes(searchTerm.toLowerCase()) || sku.includes(searchTerm.toLowerCase());
   });
+
+  const toggleExpanded = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
 
   const getStockBadge = (qty: number) => {
     if (qty < 0) return <Badge variant="destructive">Negative ({qty})</Badge>;
@@ -172,7 +188,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Branch Inventory ({filteredItems.length})
+            Branch Inventory ({filteredGroups.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -180,38 +196,91 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
             <div className="p-4 space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : filteredGroups.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               No inventory items found for this branch
             </div>
           ) : (
             <div className="divide-y">
-              {filteredItems.map(item => {
-                const product = item.products as any;
-                return (
-                  <div key={item.id} className="p-4 flex items-center justify-between hover:bg-muted/50">
-                    <div>
-                      <p className="font-medium">{product?.name || 'Unknown'}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {product?.sku && <span>SKU: {product.sku}</span>}
-                        {item.size_variant && <span>• Size: {item.size_variant}</span>}
+              {filteredGroups.map(group => {
+                const product = group.product;
+                const isExpanded = expandedProducts.has(product.id);
+
+                if (!group.hasVariants) {
+                  // Simple product - no expansion needed
+                  return (
+                    <div key={product.id} className="p-4 flex items-center justify-between hover:bg-muted/50">
+                      <div>
+                        <p className="font-medium">{product?.name || 'Unknown'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product?.sku && <>SKU: {product.sku}</>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {getStockBadge(group.totalQty)}
+                        <span className="font-mono font-medium text-sm w-12 text-right">{group.totalQty}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAdjustProduct(product);
+                            setAdjustDialogOpen(true);
+                          }}
+                        >
+                          Adjust
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {getStockBadge(item.quantity_on_hand)}
-                      <span className="font-mono font-medium text-sm w-12 text-right">{item.quantity_on_hand}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAdjustProduct(product);
-                          setAdjustDialogOpen(true);
-                        }}
-                      >
-                        Adjust
-                      </Button>
-                    </div>
-                  </div>
+                  );
+                }
+
+                // Product with variants - collapsible
+                return (
+                  <Collapsible key={product.id} open={isExpanded} onOpenChange={() => toggleExpanded(product.id)}>
+                    <CollapsibleTrigger asChild>
+                      <div className="p-4 flex items-center justify-between hover:bg-muted/50 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          <div>
+                            <p className="font-medium">{product?.name || 'Unknown'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {product?.sku && <>SKU: {product.sku}</>}
+                              {' • '}{group.variants.length} sizes
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {getStockBadge(group.totalQty)}
+                          <span className="font-mono font-medium text-sm w-12 text-right">{group.totalQty}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAdjustProduct(product);
+                              setAdjustDialogOpen(true);
+                            }}
+                          >
+                            Adjust
+                          </Button>
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="border-t bg-muted/20">
+                        {group.variants.map(variant => (
+                          <div key={variant.size_variant} className="px-4 py-2 pl-12 flex items-center justify-between border-b last:border-b-0">
+                            <span className="text-sm">{variant.size_variant}</span>
+                            <div className="flex items-center gap-3">
+                              {getStockBadge(variant.quantity_on_hand)}
+                              <span className="font-mono text-sm w-12 text-right">{variant.quantity_on_hand}</span>
+                              <div className="w-[68px]" /> {/* spacer to align with Adjust button */}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </div>
