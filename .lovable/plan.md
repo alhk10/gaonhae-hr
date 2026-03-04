@@ -1,32 +1,39 @@
 
 
-## Plan: Allow Negative Inventory & Show Login Alert for Negative Stock
+## Plan: Add Lesson Booking from My Classes Tab
 
-### Part 1: Remove Negative Inventory Restrictions
+### Overview
+Add an "Add Lesson" button on the My Classes tab that lets students book unbooked lessons from their remaining entitlement sessions. Uses a compact dialog to pick a date and timetable slot, then creates a `student_scheduled_classes` entry via the existing `createScheduledClass` service.
 
-**`src/services/inventoryService.ts`** — Two changes in `adjustInventory()`:
-1. **Line 164-166**: Remove the `if (newQuantity < 0)` check that throws "Insufficient inventory for this adjustment" — allow the update to proceed with negative values.
-2. **Lines 178-181**: Remove the `if (quantityDelta < 0)` check that throws "Cannot create inventory with negative quantity" — allow creating inventory records with negative quantities.
+### Changes to `src/components/dashboard/StudentMyClassSchedule.tsx`
 
-**`src/components/dashboard/BranchInventoryTab.tsx`** — Update `getStockBadge()` (line 134):
-- Add a "Negative" badge (red) for `qty < 0`, keep "Out of Stock" for `qty === 0`.
+1. **Accept entitlements data as prop** — Add `entitlements` and `readOnly` props. Calculate unbooked sessions (total entitlement sessions minus already scheduled classes count).
 
-**`src/components/sales/InventoryListTab.tsx`** — Update `getStockStatus()` (line 78) and `renderStatusBadge()`:
-- Add a "negative" status for items where available quantity is below zero, with a distinct red badge.
+2. **Add "Add Lesson" button** — Show a compact button with remaining session count badge near the filter row. Only visible when unbooked sessions > 0 and not readOnly.
 
-### Part 2: Negative Inventory Popup on Dashboard Login
+3. **Create inline Add Lesson Dialog** — A compact `Dialog` with:
+   - Calendar date picker (restricted to valid weekdays from timetables, within active term dates, future dates only)
+   - Available time slots for selected date (from branch timetables, with capacity checks)
+   - Confirm button that calls `createScheduledClass` from `classEnrollmentService`
+   - Auto-refresh scheduled classes query on success
 
-Create a new component **`src/components/dashboard/NegativeInventoryAlert.tsx`**:
-- On mount, query `inventory_items` for all items with `quantity_on_hand < 0`, joined with `products` for names and `inventory_locations` / `branches` for branch names.
-- If negative items exist, show a Dialog listing them (product name, branch, size variant, current quantity).
-- Include a "Dismiss" button and optionally a "Go to Inventory" link.
-- Use `sessionStorage` to only show once per session (key like `negative_inventory_dismissed`).
+4. **Capacity check** — Before showing a slot, query existing `student_scheduled_classes` for that date+timetable_id to check against `max_capacity`.
 
-**`src/components/dashboard/SuperadminDashboard.tsx`** and **`src/components/dashboard/BranchDashboard.tsx`**:
-- Import and render `<NegativeInventoryAlert />` (for BranchDashboard, pass `branchId` to filter).
+### Changes to `src/components/dashboard/StudentDashboard.tsx`
+
+1. **Pass entitlements and readOnly** to `StudentMyClassSchedule`:
+   ```tsx
+   <StudentMyClassSchedule 
+     studentId={studentId!} 
+     branchId={student?.branch_id}
+     entitlements={entitlements}
+     readOnly={readOnly}
+   />
+   ```
 
 ### Technical Details
-- No database migration needed — `quantity_on_hand` column already has no CHECK constraint preventing negatives.
-- The popup queries on dashboard mount and only shows if there are negative inventory records.
-- Session-based dismissal prevents repeated popups during the same browser session.
+- Reuse existing `createScheduledClass` from `classEnrollmentService.ts` — no new service code needed.
+- Unbooked count = `totalSessions - scheduledClasses.filter(s => s.status !== 'cancelled' && s.status !== 'swapped').length`
+- The dialog reuses the same timetable data already fetched in `StudentMyClassSchedule`.
+- Compact design: small calendar, horizontal slot chips, minimal padding.
 
