@@ -1,27 +1,34 @@
 
 
-## Fix: Cleared attendance timing should show 0 duration and 0 pay
+## Revised Plan
 
-**Problem**: In `calculateActualHoursWorkedAsync` (line 403-406 of `src/utils/slotPayCalculation.ts`), when `checkIn` is null, the function assumes a full day worked and returns `expectedDuration`. This means Feb 28 with cleared timing shows 7h 30m and S$98.00 instead of 0.
+### 1. Fix: Cleared attendance timing should show 0 duration and 0 pay
+*(Already implemented — no further action needed)*
 
-**Root cause**: The comment says "attendance not recorded" but in this case attendance IS recorded — the admin just cleared the times.
+### 2. Show display name instead of first name in Branch Casual Schedule
 
-**Fix** in `src/utils/slotPayCalculation.ts`:
+**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
 
-Change lines 403-406 from:
+**Change**: Update the name lookup map (line 101-102) to prioritize `display_name` over `first_name`:
+
 ```typescript
-// If no check-in, assume full day (attendance not recorded)
-if (!checkIn) {
-  return expectedDuration;
-}
-```
-To:
-```typescript
-// If no check-in, return 0 hours (no times recorded)
-if (!checkIn) {
-  return 0;
-}
+// Before
+const firstNameMap = new Map(casualEmployees.map(e => [e.id, e.first_name || e.name]));
+
+// After
+const displayNameMap = new Map(casualEmployees.map(e => [e.id, e.display_name || e.first_name || e.name]));
 ```
 
-This single-line change ensures that when attendance times are cleared/empty, both duration and pay amount correctly show as 0.
+Then update all references from `firstNameMap` to `displayNameMap` (lines 234 and 250).
+
+### 3. Make calendar compact with flexible row heights
+
+**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
+
+- Remove `min-h-[80px]` from empty padding cells and day cells
+- Empty cells: use `min-h-[28px]`
+- Day cells: let content determine height naturally
+- Reduce cell padding from `p-1` to `p-0.5`
+- Use smaller font sizes for booking names on mobile (`text-[9px]`)
+- Single-letter day headers on small screens, 3-letter on larger
 
