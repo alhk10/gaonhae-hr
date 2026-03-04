@@ -355,7 +355,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
       if (productDetails) {
         const lessonProducts = new Map(
-          productDetails.filter(p => p.is_lesson && p.session_count && p.session_count > 0)
+          productDetails.filter(p => p.is_lesson)
             .map(p => [p.id, p])
         );
 
@@ -366,12 +366,29 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
           const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
           const quantity = originalItem?.quantity || 1;
-          const totalSessions = product.session_count * quantity;
+          // Use session_count if set, otherwise use quantity as session count
+          const totalSessions = (product.session_count && product.session_count > 0) 
+            ? product.session_count * quantity 
+            : quantity;
 
           // Calculate validity dates
           let validFrom: string | null = new Date().toISOString().split('T')[0];
           let validTo: string | null = null;
-          if (product.validity_type === 'months' && product.validity_months) {
+
+          // Try to get term end date from item metadata
+          const itemMetadata = originalItem?.metadata;
+          const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0] || product.term_id;
+          if (termId) {
+            const { data: termData } = await supabase
+              .from('term_calendars')
+              .select('start_date, end_date')
+              .eq('id', termId)
+              .maybeSingle();
+            if (termData) {
+              if (termData.start_date) validFrom = termData.start_date;
+              if (termData.end_date) validTo = termData.end_date;
+            }
+          } else if (product.validity_type === 'months' && product.validity_months) {
             const end = new Date();
             end.setMonth(end.getMonth() + product.validity_months);
             validTo = end.toISOString().split('T')[0];
