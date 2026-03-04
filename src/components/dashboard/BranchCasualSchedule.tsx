@@ -180,54 +180,50 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
   const isBranchSame = !selectedBranchForUpdate || selectedBranchForUpdate === selectedBooking?.branch_id;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="min-w-0">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle>Casual Employee Schedule</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-              <ChevronLeft className="h-4 w-4" />
+          <CardTitle className="text-sm sm:text-base">Casual Employee Schedule</CardTitle>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+              <ChevronLeft className="h-3 w-3" />
             </Button>
-            <span className="font-medium min-w-[140px] text-center">{format(currentMonth, 'MMMM yyyy')}</span>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-              <ChevronRight className="h-4 w-4" />
+            <span className="text-xs sm:text-sm font-medium min-w-[100px] sm:min-w-[140px] text-center">{format(currentMonth, 'MMM yyyy')}</span>
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+              <ChevronRight className="h-3 w-3" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-1 sm:px-3 pb-3">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
-          <div className="rounded-lg overflow-x-auto border border-border min-w-0">
+          <div className="w-full">
             {/* Header row */}
-            <div className="grid grid-cols-7 gap-px bg-border">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                <div key={day} className="bg-muted p-1 sm:p-2 text-center text-xs font-medium text-muted-foreground">
-                  <span className="sm:hidden">{'SMTWTFS'[i]}</span>
-                  <span className="hidden sm:inline">{day}</span>
+            <div className="grid grid-cols-7 border-b border-border">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                <div key={i} className="py-1 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
+                  {day}
                 </div>
               ))}
             </div>
-            {/* Week rows - each row is independent so heights don't equalize across weeks */}
+            {/* Week rows */}
             {(() => {
-              // Build all cells: leading empties + actual days
               const allCells: (Date | null)[] = [
                 ...Array.from({ length: startDayOfWeek }, () => null),
                 ...days
               ];
-              // Pad to complete last week
               while (allCells.length % 7 !== 0) allCells.push(null);
-              // Chunk into weeks
               const weeks: (Date | null)[][] = [];
               for (let i = 0; i < allCells.length; i += 7) {
                 weeks.push(allCells.slice(i, i + 7));
               }
               return weeks.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 gap-px bg-border">
+                <div key={wi} className="grid grid-cols-7 border-b border-border last:border-b-0">
                   {week.map((day, di) => {
                     if (!day) {
-                      return <div key={`empty-${wi}-${di}`} className="bg-background p-px min-h-[1.5rem]" />;
+                      return <div key={`empty-${wi}-${di}`} className="border-r border-border last:border-r-0" />;
                     }
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayBookings = bookingsByDate.get(dateStr) || [];
@@ -238,26 +234,28 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                     return (
                       <div
                         key={dateStr}
-                        className={`bg-background p-px min-h-[1.5rem] ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
+                        className={`border-r border-border last:border-r-0 p-[1px] overflow-hidden ${today ? 'bg-primary/5' : ''}`}
                       >
-                        <div className={`text-xs font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}>
+                        <div className={`text-[10px] leading-none ${today ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                           {format(day, 'd')}
                         </div>
-                        <div className="flex flex-col gap-px">
-                          {dayBookings.slice(0, maxVisible).map(booking => (
-                            <div
-                              key={booking.id}
-                              className={`text-[9px] sm:text-[10px] leading-tight px-0.5 sm:px-1 py-px rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
-                              onClick={() => openManageDialog(booking)}
-                              title={booking.employee_name}
-                            >
-                              {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || 'Unknown'}
-                            </div>
-                          ))}
-                          {hiddenCount > 0 && (
-                            <div className="text-[8px] text-muted-foreground text-center">+{hiddenCount} more</div>
-                          )}
-                        </div>
+                        {dayBookings.length > 0 && (
+                          <div className="flex flex-col">
+                            {dayBookings.slice(0, maxVisible).map(booking => (
+                              <div
+                                key={booking.id}
+                                className={`text-[8px] sm:text-[9px] leading-[1.1] px-px truncate cursor-pointer rounded-sm ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
+                                onClick={() => openManageDialog(booking)}
+                                title={booking.employee_name}
+                              >
+                                {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || '?'}
+                              </div>
+                            ))}
+                            {hiddenCount > 0 && (
+                              <div className="text-[7px] text-muted-foreground text-center leading-none">+{hiddenCount}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
