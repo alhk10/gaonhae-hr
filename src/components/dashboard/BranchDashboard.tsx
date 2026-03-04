@@ -513,6 +513,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                         Create Invoice
                       </Button>
                     }
+                    branchId={branchId}
                     onInvoiceCreated={() => {
                       queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
                       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
