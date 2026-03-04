@@ -633,12 +633,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   <div className="space-y-2">
                     {invoices.map((invoice: any) => (
                       <div key={invoice.id} className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg text-sm">
+                        <span className="text-muted-foreground whitespace-nowrap text-xs">
+                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                        </span>
                         <span className="font-semibold whitespace-nowrap">{invoice.invoice_number}</span>
                         <span className="text-muted-foreground truncate min-w-0">
                           {invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}`.toUpperCase() : 'Unknown'}
-                        </span>
-                        <span className="text-muted-foreground whitespace-nowrap hidden sm:inline">
-                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
                         </span>
                         <span className="font-medium whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
                         <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
