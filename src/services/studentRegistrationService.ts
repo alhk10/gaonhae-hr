@@ -31,6 +31,7 @@ export interface StudentRegistrationData {
   dietary_restrictions?: string;
   branch_id?: string;
   notes?: string;
+  signature_url?: string;
 }
 
 export async function submitStudentRegistration(data: StudentRegistrationData) {
