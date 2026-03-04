@@ -8,7 +8,12 @@ import UserPasswordChangeDialog from '@/components/auth/UserPasswordChangeDialog
 import { SetPinDialog } from '@/components/auth/SetPinDialog';
 import { useScreenLockContext } from '@/contexts/ScreenLockContext';
 
-const Navbar = () => {
+interface NavbarProps {
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
+}
+
+const Navbar = ({ onToggleSidebar, sidebarOpen }: NavbarProps) => {
   const { user, logout, userDetails, userrole } = useAuth();
   const { refreshPinStatus, lock, hasPin } = useScreenLockContext();
   const isMobile = useIsMobile();
@@ -29,13 +34,11 @@ const Navbar = () => {
   };
 
   const handlePasswordChange = () => {
-    console.log('Navbar: Password change button clicked');
     setShowPasswordDialog(true);
     setShowMobileMenu(false);
   };
 
   const handleSetPin = () => {
-    console.log('Navbar: Set PIN button clicked');
     setShowPinDialog(true);
     setShowMobileMenu(false);
   };
@@ -45,7 +48,6 @@ const Navbar = () => {
   };
 
   const handleLockNow = () => {
-    console.log('Navbar: Lock Now button clicked');
     lock();
     setShowMobileMenu(false);
   };
@@ -55,7 +57,6 @@ const Navbar = () => {
   };
 
   if (!user) {
-    console.log('Navbar: No user found, not rendering navbar');
     return null;
   }
 
@@ -64,8 +65,18 @@ const Navbar = () => {
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className={`flex items-center ${userrole === 'superadmin' ? 'ml-10' : ''}`}>
+            {/* Logo + Sidebar Toggle */}
+            <div className="flex items-center">
+              {onToggleSidebar && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleSidebar}
+                  className="mr-3"
+                >
+                  {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </Button>
+              )}
               <img 
                 src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
                 alt="Gaonhae HR" 
@@ -82,48 +93,24 @@ const Navbar = () => {
                   <span className="text-sm text-gray-700">{user.email}</span>
                 </div>
                 
-                {/* Set PIN Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSetPin}
-                  className="flex items-center space-x-1"
-                >
+                <Button variant="outline" size="sm" onClick={handleSetPin} className="flex items-center space-x-1">
                   <Shield className="w-4 h-4" />
                   <span>Set PIN</span>
                 </Button>
                 
-                {/* Lock Now Button - only show if user has a PIN */}
                 {hasPin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLockNow}
-                    className="flex items-center space-x-1"
-                  >
+                  <Button variant="outline" size="sm" onClick={handleLockNow} className="flex items-center space-x-1">
                     <Lock className="w-4 h-4" />
                     <span>Lock Now</span>
                   </Button>
                 )}
                 
-                {/* Password Change Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePasswordChange}
-                  className="flex items-center space-x-1"
-                >
+                <Button variant="outline" size="sm" onClick={handlePasswordChange} className="flex items-center space-x-1">
                   <Key className="w-4 h-4" />
                   <span>Change Password</span>
                 </Button>
                 
-                {/* Logout Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="flex items-center space-x-1"
-                >
+                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center space-x-1">
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>
                 </Button>
@@ -132,17 +119,8 @@ const Navbar = () => {
 
             {/* Mobile Menu Button */}
             {isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleMobileMenu}
-                className="p-2"
-              >
-                {showMobileMenu ? (
-                  <X className="w-5 h-5" />
-                ) : (
-                  <Menu className="w-5 h-5" />
-                )}
+              <Button variant="ghost" size="sm" onClick={toggleMobileMenu} className="p-2">
+                {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
             )}
           </div>
@@ -157,48 +135,24 @@ const Navbar = () => {
                 <span>{user.email}</span>
               </div>
               
-              {/* Mobile Set PIN Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSetPin}
-                className="w-full flex items-center justify-center space-x-2"
-              >
+              <Button variant="outline" size="sm" onClick={handleSetPin} className="w-full flex items-center justify-center space-x-2">
                 <Shield className="w-4 h-4" />
                 <span>Set PIN</span>
               </Button>
               
-              {/* Mobile Lock Now Button - only show if user has a PIN */}
               {hasPin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLockNow}
-                  className="w-full flex items-center justify-center space-x-2"
-                >
+                <Button variant="outline" size="sm" onClick={handleLockNow} className="w-full flex items-center justify-center space-x-2">
                   <Lock className="w-4 h-4" />
                   <span>Lock Now</span>
                 </Button>
               )}
               
-              {/* Mobile Password Change Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePasswordChange}
-                className="w-full flex items-center justify-center space-x-2"
-              >
+              <Button variant="outline" size="sm" onClick={handlePasswordChange} className="w-full flex items-center justify-center space-x-2">
                 <Key className="w-4 h-4" />
                 <span>Change Password</span>
               </Button>
               
-              {/* Mobile Logout Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center space-x-2"
-              >
+              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full flex items-center justify-center space-x-2">
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>
               </Button>
@@ -207,13 +161,11 @@ const Navbar = () => {
         )}
       </nav>
 
-      {/* Password Change Dialog */}
       <UserPasswordChangeDialog 
         open={showPasswordDialog} 
         onOpenChange={setShowPasswordDialog} 
       />
 
-      {/* Set PIN Dialog */}
       {userDetails?.id && (
         <SetPinDialog
           open={showPinDialog}

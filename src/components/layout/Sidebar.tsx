@@ -39,14 +39,19 @@ interface MenuItem {
 import { validateSuperadminAccess, logAuthState } from '@/utils/authValidation';
 import { systemValidator } from '@/utils/systemTestValidator';
 
-const Sidebar = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   const authData = useAuth();
   const { user, userrole, userType } = authData;
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const { hasAccess: hasSalesAccess } = useSalesModuleAccess();
   const { accessibleBranches, hasAccess: hasBranchAccess } = useBranchAccess();
 
@@ -277,41 +282,48 @@ const Sidebar = () => {
     return location.pathname === path;
   };
 
-  const handleMenuItemClick = () => {
-    if (isMobile) {
-      setMobileMenuOpen(false);
+  // Use props if provided, otherwise use internal state
+  const sidebarOpen = isOpen !== undefined ? isOpen : internalOpen;
+  const closeSidebar = onClose || (() => setInternalOpen(false));
+  const toggleSidebar = () => {
+    if (onClose) {
+      // controlled mode - parent handles toggle
+    } else {
+      setInternalOpen(!internalOpen);
     }
+  };
+
+  const handleMenuItemClick = () => {
+    closeSidebar();
   };
 
   // Show loading state while auth or admin access data is loading
   const isAuthLoading = !user || authData.isLoading;
   const isDataLoading = userrole === 'employee' && isLoading && !currentEmployee && !authData.adminAccess;
-  
-  const hamburgerButton = (
-    <Button
-      variant="outline"
-      size="sm"
-      className="fixed top-[18px] left-4 z-[60] bg-background border border-border shadow-md hover:bg-accent"
-      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-    >
-      {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-    </Button>
-  );
 
+  // When used standalone (no isOpen prop), render hamburger button
+  const showStandaloneHamburger = isOpen === undefined;
+  
   if (isAuthLoading || isDataLoading) {
-    return hamburgerButton;
+    return showStandaloneHamburger ? (
+      <Button variant="outline" size="sm" className="fixed top-[18px] left-4 z-[60]" onClick={toggleSidebar}>
+        <Menu className="h-5 w-5" />
+      </Button>
+    ) : null;
   }
 
   return (
     <>
-      {hamburgerButton}
-
-      {/* Sidebar Overlay */}
-      {mobileMenuOpen && (
+      {showStandaloneHamburger && (
+        <Button variant="outline" size="sm" className="fixed top-[18px] left-4 z-[60]" onClick={() => setInternalOpen(!internalOpen)}>
+          {internalOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      )}
+      {sidebarOpen && (
         <div className="fixed inset-0 z-[55]">
-          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setMobileMenuOpen(false)} />
+          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={closeSidebar} />
           <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg">
-            <div className="p-6 pt-16">
+            <div className="p-6 pt-20">
               <nav className="space-y-1">
                 {menuItems.map((item) => (
                   <Button
