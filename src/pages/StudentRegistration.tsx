@@ -249,21 +249,21 @@ const StudentRegistration = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
+    <div className="min-h-screen bg-background py-4 px-2 sm:py-8 sm:px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center mb-4 sm:mb-8">
           <img src="/images/company-logo.jpg" alt="Logo" className="h-16 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-foreground">Student Registration</h1>
           <p className="text-muted-foreground mt-2">Fill out the form below to register as a new student</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-6">
           {/* Branch Selection */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4" /> Branch *</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               <Select value={formData.branch_id} onValueChange={(v) => handleInputChange('branch_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger>
                 <SelectContent>
@@ -277,10 +277,10 @@ const StudentRegistration = () => {
 
           {/* Referral Source */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><User className="w-4 h-4" /> How did you hear about us?</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               <Select value={formData.referral_source} onValueChange={(v) => handleInputChange('referral_source', v)}>
                 <SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger>
                 <SelectContent>
@@ -294,10 +294,10 @@ const StudentRegistration = () => {
 
           {/* Personal Information */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><User className="w-4 h-4" /> Personal Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">First Name *</Label>
@@ -340,10 +340,10 @@ const StudentRegistration = () => {
 
           {/* Contact */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><Phone className="w-4 h-4" /> Contact Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Phone</Label>
@@ -373,10 +373,10 @@ const StudentRegistration = () => {
 
           {/* Additional Info */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><GraduationCap className="w-4 h-4" /> Additional Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="space-y-1">
                 <Label className="text-xs">Nationality</Label>
                 <MultiSelect
@@ -400,10 +400,10 @@ const StudentRegistration = () => {
 
           {/* Emergency Contacts */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><Heart className="w-4 h-4" /> Emergency Contacts</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <p className="text-xs text-muted-foreground">Primary Contact</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
@@ -439,10 +439,10 @@ const StudentRegistration = () => {
 
           {/* Training Info */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><GraduationCap className="w-4 h-4" /> Training Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="space-y-1">
                 <Label className="text-xs">Current Belt Level</Label>
                 <Select value={formData.current_belt} onValueChange={v => handleInputChange('current_belt', v)}>
@@ -479,11 +479,11 @@ const StudentRegistration = () => {
 
           {/* School Policy */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-3">
               <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4" /> Our School Policy</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground space-y-3">
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
+              <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 sm:p-4 text-sm text-foreground space-y-3">
                 <p>The school operates on a term-to-term basis. A term consists of 10 weeks. The school will be closed on Public Holidays. We may also be closed for Competitions, Gradings, and other Special Events.</p>
                 <p>Class fees are chargeable on a per term or per lesson basis. Class fees are to be paid before the term commencement date. Makeup lessons must be completed within the same term. Any unused lessons beyond this period will be forfeited.</p>
                 <p>Annual membership fees, which cover administration, affiliation, and insurance costs, which may be subject to change each year. The updated fee will be communicated to members prior to renewal.</p>
