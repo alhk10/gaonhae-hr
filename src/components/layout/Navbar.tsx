@@ -9,7 +9,7 @@ import { SetPinDialog } from '@/components/auth/SetPinDialog';
 import { useScreenLockContext } from '@/contexts/ScreenLockContext';
 
 const Navbar = () => {
-  const { user, logout, userDetails } = useAuth();
+  const { user, logout, userDetails, userrole } = useAuth();
   const { refreshPinStatus, lock, hasPin } = useScreenLockContext();
   const isMobile = useIsMobile();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -65,7 +65,7 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className={`flex items-center ${userrole === 'superadmin' ? 'ml-10' : ''}`}>
               <img 
                 src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
                 alt="Gaonhae HR" 
