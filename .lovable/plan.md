@@ -1,26 +1,39 @@
 
 
-## Three Issues to Fix
+## Analysis
 
-### 1. Navbar Horizontal Scroll
-**Problem**: On narrower desktop/tablet viewports (>768px but <1024px), the desktop menu renders all buttons inline (email + Set PIN + Lock Now + Change Password + Logout), causing horizontal overflow.
+From the screenshot, two problems persist:
 
-**File**: `src/components/layout/Navbar.tsx`
-- Wrap the desktop action buttons with `flex-wrap` and reduce spacing
-- Hide button text labels below `lg` breakpoint, showing only icons
-- Add `overflow-hidden` to the nav container to prevent scroll
+1. **Saturday column truncated**: The 7-column grid exceeds the Card's available width. The `border-r` on each cell plus card padding (`px-1 sm:px-3`) consumes space, and there's no mechanism to force all 7 columns to fit.
 
-### 2. Calendar Truncation (Saturday Column Cut Off)
-**Problem**: The 7-column grid inside the Card doesn't fit on narrow viewports. The Card's padding + parent layout padding eat into available width.
+2. **Excessive vertical space**: The per-week independent grid rows approach means each week is a separate `div.grid-cols-7`. Empty cells in a week row still occupy height from the `border-b` and any implicit minimum sizing. The user explicitly wants a **single flat grid** where all cells are uniform.
 
-**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
-- Add `overflow-x-auto` on the calendar container so it scrolls horizontally if needed rather than being clipped
-- Alternatively, set `min-w-0` on the card to allow it to shrink below its content size
+## Plan
 
-### 3. Vertical Space in Day Cells
-**Problem**: Every day cell has `h-14` (56px) fixed height. Empty days and days with 1 booking waste space. Since each week is already rendered as an independent grid row, removing the fixed height will let cells size to content — the tallest cell in a week determines that week's row height.
+### File: `src/components/dashboard/BranchCasualSchedule.tsx`
 
-**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
-- Replace `h-14` with `min-h-[1.5rem]` on all day cells (empty and active)
-- This lets CSS grid size each week-row to the tallest cell's content, eliminating wasted space
+**Calendar grid rewrite** (lines 202-264):
+
+1. **Single flat grid**: Replace the per-week `div` approach with one `<div className="grid grid-cols-7">` containing all cells (padding cells + day cells + trailing cells). This naturally equalizes all row heights.
+
+2. **Force 7 columns to fit**: Use `table-fixed`-style approach — set each column to `w-[calc(100%/7)]` or simply rely on `grid-cols-7` with `min-w-0` on both the grid and each cell. Remove all horizontal borders (`border-r`) and use a single `border` + `divide-x divide-y` pattern via Tailwind's divide utilities, which add no extra width.
+
+3. **Compact cells**: Remove all padding beyond `p-[2px]`. Keep text at `text-[8px] sm:text-[9px]`. Day number at `text-[9px] sm:text-[10px]`.
+
+4. **Zero card padding on mobile**: Change `CardContent` padding to `px-0 sm:px-2`.
+
+5. **Outline border on grid**: Single `border border-border rounded` on the outer grid container, with `divide-x divide-y divide-border` for internal lines — this avoids double-border width issues.
+
+The structure becomes:
+```text
+<div class="grid grid-cols-7 border border-border divide-x divide-y divide-border">
+  {emptyCells}  <!-- startDayOfWeek empties -->
+  {dayCells}    <!-- actual month days -->
+  {trailCells}  <!-- pad to multiple of 7 -->
+</div>
+```
+
+Each cell: `<div class="min-w-0 p-[2px] overflow-hidden min-h-[2rem]">` — the `min-h-[2rem]` gives a small baseline so empty cells aren't zero-height, but content-heavy cells grow naturally and all cells in the same CSS grid row equalize.
+
+All existing functionality (click to manage, color coding, display names, +N more, legend, manage dialog) is preserved unchanged.
 
