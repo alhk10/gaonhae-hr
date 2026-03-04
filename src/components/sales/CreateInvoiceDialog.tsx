@@ -383,7 +383,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const isActive = s.status === 'active';
     const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
     return isActive && matchesBranch;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Auto-select student if only 1 filtered student available
   useEffect(() => {

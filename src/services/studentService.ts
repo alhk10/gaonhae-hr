@@ -111,7 +111,7 @@ export async function getStudents(
     let query = supabase
       .from('students')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false });
+      .order('first_name', { ascending: true });
 
     if (search) {
       query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_number.ilike.%${search}%,email.ilike.%${search}%`);
