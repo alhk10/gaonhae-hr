@@ -1,34 +1,17 @@
 
 
-## Revised Plan
+## Make Calendar Rows Truly Content-Driven
 
-### 1. Fix: Cleared attendance timing should show 0 duration and 0 pay
-*(Already implemented — no further action needed)*
-
-### 2. Show display name instead of first name in Branch Casual Schedule
+**Problem**: Calendar rows still have excess vertical space. Each row should only be as tall as the maximum number of bookings in any day of that week.
 
 **File**: `src/components/dashboard/BranchCasualSchedule.tsx`
 
-**Change**: Update the name lookup map (line 101-102) to prioritize `display_name` over `first_name`:
+**Changes**:
 
-```typescript
-// Before
-const firstNameMap = new Map(casualEmployees.map(e => [e.id, e.first_name || e.name]));
+1. **Remove `min-h-[28px]` from empty padding cells** (line 211) — let them be zero-height, sized only by the implicit grid row
+2. **Reduce date number margin** from `mb-1` to `mb-0` (line 224) — tighten space between date and bookings
+3. **Remove `space-y-0.5`** from bookings container (line 227) — use `gap-px` or `gap-0.5` via flex instead for tighter stacking
+4. **Add `leading-tight`** to booking name badges for tighter line height
 
-// After
-const displayNameMap = new Map(casualEmployees.map(e => [e.id, e.display_name || e.first_name || e.name]));
-```
-
-Then update all references from `firstNameMap` to `displayNameMap` (lines 234 and 250).
-
-### 3. Make calendar compact with flexible row heights
-
-**File**: `src/components/dashboard/BranchCasualSchedule.tsx`
-
-- Remove `min-h-[80px]` from empty padding cells and day cells
-- Empty cells: use `min-h-[28px]`
-- Day cells: let content determine height naturally
-- Reduce cell padding from `p-1` to `p-0.5`
-- Use smaller font sizes for booking names on mobile (`text-[9px]`)
-- Single-letter day headers on small screens, 3-letter on larger
+These micro-spacing reductions will compound to make each row significantly shorter, especially weeks with only 1-2 bookings per day. The CSS grid already auto-sizes each row independently, so weeks with 5 bookings will naturally be taller than weeks with 1.
 
