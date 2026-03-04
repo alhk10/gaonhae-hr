@@ -130,11 +130,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const { data: entitlements = [] } = useQuery({
     queryKey: ['student-entitlements', studentId],
     queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('entitlements')
         .select('*')
         .eq('student_id', studentId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .or(`valid_to.is.null,valid_to.gte.${today}`);
       if (error) throw error;
       return data || [];
     },

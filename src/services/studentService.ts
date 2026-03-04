@@ -230,10 +230,12 @@ export async function getStudentAttendance(
  */
 export async function getStudentEntitlements(studentId: string): Promise<StudentEntitlement[]> {
   try {
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('entitlements')
       .select('*')
       .eq('student_id', studentId)
+      .or(`valid_to.is.null,valid_to.gte.${today}`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -614,12 +616,14 @@ export async function getStudentStats(studentId: string): Promise<{
     const totalAbsences = attendanceData?.filter(a => a.status === 'absent').length || 0;
     const attendanceRate = attendanceData?.length ? (totalAttendance / attendanceData.length) * 100 : 0;
 
-    // Get entitlement stats
+    // Get entitlement stats (exclude expired)
+    const today = new Date().toISOString().split('T')[0];
     const { data: entitlementData } = await supabase
       .from('entitlements')
       .select('sessions_total, sessions_used, sessions_remaining')
       .eq('student_id', studentId)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .or(`valid_to.is.null,valid_to.gte.${today}`);
 
     const activeSessions = entitlementData?.reduce((sum, e) => sum + (e.sessions_remaining || 0), 0) || 0;
     const usedSessions = entitlementData?.reduce((sum, e) => sum + (e.sessions_used || 0), 0) || 0;
